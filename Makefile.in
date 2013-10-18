@@ -1,0 +1,32 @@
+VPATH=%VPATH%
+
+CC ?= gcc
+CXX ?= g++
+CXXFLAGS ?=
+AR ?= ar
+RUSTC ?= rustc
+RUSTFLAGS ?=
+
+RUST_SRC=$(shell find $(VPATH)/. -type f -name '*.rs')
+
+.PHONY: all
+all:    liburl.dummy
+
+liburl.dummy: url.rs $(RUST_SRC)
+	$(RUSTC) $(RUSTFLAGS) $< --out-dir .
+	touch $@
+
+url-test: url.rs $(RUST_SRC)
+	$(RUSTC) $(RUSTFLAGS) $< -o $@ --test
+
+.PHONY: check
+check: url-test
+	./url-test
+
+.PHONY: check-debug
+check-debug: url-tests
+	echo -e "start\n break upcall_fail\n continue\n where\n continue" | gdb -q ./url-tests
+
+.PHONY: clean
+clean:
+	rm -f *.o *.a *.so *.dylib *.dll *.dummy *-test
