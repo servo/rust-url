@@ -9,7 +9,7 @@
 
 #[link(name = "url", vers = "0.1")];
 #[crate_type = "lib"];
-#[feature(globs)];
+#[feature(globs, macro_rules)];
 
 
 pub struct ParsedURL {
@@ -47,6 +47,66 @@ pub fn parse_url(input: &str, base_url: Option<ParsedURL>)
     let _ = input;
     let _ = base_url;
     None
+}
+
+
+impl Host {
+    pub fn serialize(&self) -> ~str {
+        match *self {
+            Domain(ref labels) => labels.connect("."),
+            IPv6Address(ref fields) => {
+                let mut output = ~"[";
+                let (compress_start, compress_end) = longest_zero_sequence(fields);
+                let mut i = 0;
+                while i < 8 {
+                    if i == compress_start {
+                        output.push_str(if i == 0 { "::" } else { ":" });
+                        if compress_end < 8 {
+                            i = compress_end;
+                        } else {
+                            break;
+                        }
+                    }
+                    output.push_str(fields[i].to_str_radix(16));
+                    if i < 7 {
+                        output.push_str(":");
+                    }
+                }
+                output.push_str("]");
+                output
+            }
+        }
+    }
+}
+
+
+fn longest_zero_sequence(fields: &[u16, ..8]) -> (int, int) {
+    let mut longest = -1;
+    let mut longest_length = -1;
+    let mut start = -1;
+    macro_rules! finish_sequence(
+        ($end: expr) => {
+            if start >= 0 {
+                let length = $end - start;
+                if length > longest_length {
+                    longest = start;
+                    longest_length = length;
+                }
+            }
+        };
+    );
+    for i in range(0, 8) {
+        if fields[i] == 0 {
+            if start < 0 {
+                start = i;
+            }
+        } else {
+            finish_sequence!(i);
+            start = -1;
+        }
+    }
+    finish_sequence!(8);
+    (longest, longest + longest_length)
 }
 
 
@@ -95,11 +155,7 @@ mod tests {
                     };
                     assert_eq!(username, expected_username);
                     assert_eq!(password, expected_password);
-                    let host = match host {
-                        Domain(labels) => labels.connect("."),
-                        IPv6Address(_fields) => fail!("TODO: IPv6 serialization"),
-                    };
-                    assert_eq!(Some(host), expected_host)
+                    assert_eq!(Some(host.serialize()), expected_host)
                     assert_eq!(port, expected_port);
                     assert_eq!(Some(path.connect("/")), expected_path);
                 },
