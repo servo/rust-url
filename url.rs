@@ -38,7 +38,12 @@ pub struct UserInfo {
 
 pub enum Host {
     Domain(~[~str]),
-    IPv6Address([u16, ..8])
+    IPv6(IPv6Address)
+}
+
+
+pub struct IPv6Address {
+    pieces: [u16, ..8]
 }
 
 
@@ -49,38 +54,195 @@ pub fn parse_url(input: &str, base_url: Option<ParsedURL>)
     None
 }
 
+pub type ParseResult<T> = Result<T, &'static str>;
+
 
 impl Host {
+    pub fn parse(input: &str) -> ParseResult<Host> {
+        if input.len() == 0 {
+            Err("Empty host")
+        } else if input[0] == '[' as u8 {
+            if input[input.len()] == ']' as u8 {
+                match IPv6Address::parse(input.slice(1, input.len() - 1)) {
+                    Some(address) => Ok(IPv6(address)),
+                    None => Err("Invalid IPv6 address"),
+                }
+            } else {
+                Err("Invalid IPv6 address")
+            }
+        } else {
+            // TODO: percent-decoding + UTF-8
+            Ok(Domain(input.split_iter(&['.', '\u3002', '\uFF0E', '\uFF61'])
+                           .map(domain_label_to_ascii).collect()))
+        }
+    }
+
     pub fn serialize(&self) -> ~str {
         match *self {
             Domain(ref labels) => labels.connect("."),
-            IPv6Address(ref fields) => {
-                let mut output = ~"[";
-                let (compress_start, compress_end) = longest_zero_sequence(fields);
-                let mut i = 0;
-                while i < 8 {
-                    if i == compress_start {
-                        output.push_str(if i == 0 { "::" } else { ":" });
-                        if compress_end < 8 {
-                            i = compress_end;
-                        } else {
-                            break;
-                        }
-                    }
-                    output.push_str(fields[i].to_str_radix(16));
-                    if i < 7 {
-                        output.push_str(":");
-                    }
-                }
-                output.push_str("]");
-                output
-            }
+            IPv6(ref address) => format!("[{}]", address.serialize()),
         }
     }
 }
 
 
-fn longest_zero_sequence(fields: &[u16, ..8]) -> (int, int) {
+pub fn domain_label_to_ascii(label: &str) -> ~str {
+    // TODO: IDNA2003 ToASCII algorithm with the AllowUnassigned flag set
+    // and the version of Unicode used being the most recent version
+    // rather than Unicode 3.2.
+    // http://tools.ietf.org/html/rfc3490#section-4.1
+    label.to_owned()
+}
+
+
+macro_rules! matches(
+    ($value: expr, ($pattern: pat)|+) => {
+        match $value {
+            $($pattern)|+ => true,
+            _ => false,
+        }
+    };
+)
+
+
+impl IPv6Address {
+    pub fn parse(input: &str) -> Option<IPv6Address> {
+        let len = input.len();
+        let mut is_ip_v4 = false;
+        let mut pieces = [0, 0, 0, 0, 0, 0, 0, 0];
+        let mut piece_pointer = 0u;
+        let mut compress_pointer = None;
+        let mut i = 0u;
+        if input[0] == ':' as u8 {
+            if input[1] != ':' as u8 {
+                return None
+            }
+            i = 2;
+            piece_pointer = 1;
+            compress_pointer = Some(1u);
+        }
+
+        while i < len {
+            if piece_pointer == 8 {
+                return None
+            }
+            if input[i] == ':' as u8 {
+                if compress_pointer.is_some() {
+                    return None
+                }
+                piece_pointer += 1;
+                compress_pointer = Some(piece_pointer);
+                continue
+            }
+            let start = i;
+            let end = len.min(&(start + 4));
+            let mut value = 0u16;
+            while i < end {
+                let digit = match input[i] {
+                    c @ 0x30 .. 0x39 => c - 0x30,  // 0..9
+                    c @ 0x41 .. 0x46 => c + 10 - 0x41,  // A..F
+                    c @ 0x61 .. 0x66 => c + 10 - 0x61,  // a..f
+                    0x2E => {  // .
+                        if i == start {
+                            return None
+                        }
+                        i = start;
+                        is_ip_v4 = true;
+                        break
+                    },
+                    0x3A => { // :
+                        i += 1;
+                        if i == len {
+                            return None
+                        }
+                        break
+                    }
+                    _ => return None
+                };
+                value = value * 0x10 + digit as u16;
+                i += 1;
+            }
+            if is_ip_v4 {
+                break
+            }
+            pieces[piece_pointer] = value;
+            piece_pointer += 1;
+        }
+
+        if is_ip_v4 {
+            if piece_pointer > 6 {
+                return None
+            }
+            let mut dots_seen = 0u;
+            while i < len {
+                let mut value = 0u16;
+                while i < len {
+                    let digit = match input[i] {
+                        c @ 0x30 .. 0x39 => c - 0x30,  // 0..9
+                        _ => break
+                    };
+                    value = value * 10 + digit as u16;
+                    if value > 255 {
+                        return None
+                    }
+                }
+                if dots_seen < 3 && !(i < len && input[i] == '.' as u8) {
+                    return None
+                }
+                pieces[piece_pointer] = pieces[piece_pointer] * 0x100 + value;
+                if dots_seen == 0 || dots_seen == 2 {
+                    piece_pointer += 1;
+                }
+                i += 1;
+                if dots_seen == 3 && i < len {
+                    return None
+                }
+                dots_seen += 1;
+            }
+        }
+
+        match compress_pointer {
+            Some(compress_pointer) => {
+                let mut swaps = piece_pointer - compress_pointer;
+                piece_pointer = 7;
+                while swaps > 0 {
+                    pieces[piece_pointer] = pieces[compress_pointer + swaps - 1];
+                    pieces[compress_pointer + swaps - 1] = 0;
+                    swaps -= 1;
+                    piece_pointer -= 1;
+                }
+            }
+            _ => if piece_pointer != 8 {
+                return None
+            }
+        }
+        Some(IPv6Address { pieces: pieces })
+    }
+
+    pub fn serialize(&self) -> ~str {
+        let mut output = ~"";
+        let (compress_start, compress_end) = longest_zero_sequence(&self.pieces);
+        let mut i = 0;
+        while i < 8 {
+            if i == compress_start {
+                output.push_str(if i == 0 { "::" } else { ":" });
+                if compress_end < 8 {
+                    i = compress_end;
+                } else {
+                    break;
+                }
+            }
+            output.push_str(self.pieces[i].to_str_radix(16));
+            if i < 7 {
+                output.push_str(":");
+            }
+        }
+        output
+    }
+}
+
+
+fn longest_zero_sequence(pieces: &[u16, ..8]) -> (int, int) {
     let mut longest = -1;
     let mut longest_length = -1;
     let mut start = -1;
@@ -96,7 +258,7 @@ fn longest_zero_sequence(fields: &[u16, ..8]) -> (int, int) {
         };
     );
     for i in range(0, 8) {
-        if fields[i] == 0 {
+        if pieces[i] == 0 {
             if start < 0 {
                 start = i;
             }
