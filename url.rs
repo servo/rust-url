@@ -13,27 +13,15 @@
 
 
 pub struct ParsedURL {
-    scheme_and_data: Either<(NonRelativeScheme, ~str),
-                            (RelativeScheme, SchemeRelativeURL)>,
+    scheme: ~str,
+    scheme_data: SchemeData,
     query: Option<~str>,
     fragment: Option<~str>,
 }
 
-pub enum NonRelativeScheme {
-    Data,
-    Javascript,
-    Mailto,
-    OtherScheme(~str),
-}
-
-pub enum RelativeScheme {
-    FTP,
-    File,
-    Gopher,
-    HTTP,
-    HTTPS,
-    WS,
-    WSS,
+pub enum SchemeData {
+    RelativeSchemeData(SchemeRelativeURL),
+    OtherSchemeData(~str)
 }
 
 pub struct SchemeRelativeURL {
@@ -69,69 +57,62 @@ mod tests {
 
     #[test]
     fn test() {
-        for Test {
-            input: input,
-            base: base,
-            scheme: expected_scheme,
-            username: expected_username,
-            password: expected_password,
-            host: expected_host,
-            port: expected_port,
-            path: expected_path,
-            query: expected_query,
-            fragment: expected_fragment
-        } in parse_test_data(include_str!("urltestdata.txt")).move_iter() {
+        for test in parse_test_data(include_str!("urltestdata.txt")).move_iter() {
+            let Test {
+                input: input,
+                base: base,
+                scheme: expected_scheme,
+                username: expected_username,
+                password: expected_password,
+                host: expected_host,
+                port: expected_port,
+                path: expected_path,
+                query: expected_query,
+                fragment: expected_fragment
+            } = test;
             let base = parse_url(base, None).unwrap();
-            let url = parse_url(input, Some(base)).unwrap();
-            assert_eq!(url.query, expected_query);
-            assert_eq!(url.fragment, expected_fragment);
-            match url.scheme_and_data {
-                Left((scheme, scheme_data)) => {
-                    let scheme = match scheme {
-                        Data => ~"data",
-                        Javascript => ~"javascript",
-                        Mailto => ~"mailto",
-                        OtherScheme(scheme) => scheme,
+            let url = parse_url(input, Some(base));
+            if expected_scheme.is_none() {
+                assert!(url.is_none(), "Expected a parse error");
+                continue
+            }
+            let ParsedURL {
+                scheme: scheme,
+                scheme_data: scheme_data,
+                query: query,
+                fragment: fragment
+            } = url.unwrap();
+
+            assert_eq!(Some(scheme), expected_scheme);
+            match scheme_data {
+                RelativeSchemeData(SchemeRelativeURL {
+                    userinfo: userinfo, host: host, port: port, path: path
+                }) => {
+                    let (username, password) = match userinfo {
+                        Some(UserInfo { username: username, password: password })
+                        => (Some(username), password),
+                        _ => (None, None),
                     };
-                    assert_eq!(Some(scheme), expected_scheme);
-                    assert_eq!(Some(scheme_data), expected_path);
-                    assert_eq!(expected_username, None);
-                    assert_eq!(expected_password, None);
-                    assert_eq!(expected_host, None);
-                    assert_eq!(expected_port, None);
-                },
-                Right((scheme, scheme_data)) => {
-                    let scheme = match scheme {
-                        FTP => ~"ftp",
-                        File => ~"file",
-                        Gopher => ~"gopher",
-                        HTTP => ~"http",
-                        HTTPS => ~"https",
-                        WS => ~"ws",
-                        WSS => ~"wss",
-                    };
-                    assert_eq!(Some(scheme), expected_scheme);
-                    let SchemeRelativeURL {
-                        userinfo: userinfo, host: host, port: port, path: path
-                    } = scheme_data;
-                    match userinfo {
-                        Some(UserInfo { username: username, password: password }) => {
-                            assert_eq!(Some(username), expected_username);
-                            assert_eq!(password, expected_password);
-                        },
-                        None => {
-                            assert_eq!(expected_username, None);
-                            assert_eq!(expected_password, None);
-                        }
-                    }
-                    match host {
-                        Domain(labels) => assert_eq!(Some(labels.connect(".")), expected_host),
+                    assert_eq!(username, expected_username);
+                    assert_eq!(password, expected_password);
+                    let host = match host {
+                        Domain(labels) => labels.connect("."),
                         IPv6Address(_fields) => fail!("TODO: IPv6 serialization"),
-                    }
+                    };
+                    assert_eq!(Some(host), expected_host)
                     assert_eq!(port, expected_port);
                     assert_eq!(Some(path.connect("/")), expected_path);
                 },
+                OtherSchemeData(scheme_data) => {
+                    assert_eq!(Some(scheme_data), expected_path);
+                    assert_eq!(None, expected_username);
+                    assert_eq!(None, expected_password);
+                    assert_eq!(None, expected_host);
+                    assert_eq!(None, expected_port);
+                },
             }
+            assert_eq!(query, expected_query);
+            assert_eq!(fragment, expected_fragment);
         }
     }
 
