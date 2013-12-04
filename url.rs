@@ -11,11 +11,13 @@
 #[crate_type = "lib"];
 #[feature(globs, macro_rules)];
 
+extern mod encoding;
+
 
 pub struct ParsedURL {
     scheme: ~str,
     scheme_data: SchemeData,
-    query: Option<~str>,
+    query: Option<~str>,  // Parsing this into ~[(~str, ~str)] is a separate operation.
     fragment: Option<~str>,
 }
 
@@ -269,6 +271,46 @@ fn longest_zero_sequence(pieces: &[u16, ..8]) -> (int, int) {
     }
     finish_sequence!(8);
     (longest, longest + longest_length)
+}
+
+
+pub fn serialize_form_urlencoded(pairs: ~[(~str, ~str)],
+                                 encoding_override: Option<&'static encoding::Encoding>) {
+
+    #[inline]
+    fn byte_serialize(input: &str, output: &mut ~str,
+                     encoding_override: Option<&'static encoding::Encoding>) {
+        use std::cast::transmute;
+
+        let keep_alive;
+        let input = match encoding_override {
+            None => input.as_bytes(),  // "Encode" to UTF-8
+            Some(encoding) => {
+                keep_alive = encoding.encode(input, encoding::EncodeNcrEscape).unwrap();
+                keep_alive.as_slice()
+            }
+        };
+
+        for byte in input.iter() {
+            match *byte {
+                0x20 => output.push_str("+"),
+                0x2A | 0x2D | 0x2E | 0x30 .. 0x39 | 0x41 .. 0x5A | 0x5F | 0x61 .. 0x7A
+                => output.push_str(unsafe { transmute(&[*byte]) }),
+                _ => output.push_str(format!("%{:02X}", *byte)),
+            }
+        }
+    }
+
+    let mut output = ~"";
+    for &(ref name, ref value) in pairs.iter() {
+        // TODO: add an encoding_override parameter and support other encodings.
+        if output.len() > 0 {
+            output.push_str("&");
+            byte_serialize(name.as_slice(), &mut output, encoding_override);
+            output.push_str("=");
+            byte_serialize(value.as_slice(), &mut output, encoding_override);
+        }
+    }
 }
 
 
