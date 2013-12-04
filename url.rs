@@ -18,7 +18,7 @@ use encoding::all::UTF_8;
 use encoding::label::encoding_from_whatwg_label;
 
 
-pub struct ParsedURL {
+pub struct URL {
     scheme: ~str,
     scheme_data: SchemeData,
     query: Option<~str>,  // parse_form_urlencoded() parses this into ~[(~str, ~str)]
@@ -33,7 +33,7 @@ pub enum SchemeData {
 pub struct SchemeRelativeURL {
     userinfo: Option<UserInfo>,
     host: Host,
-    port: Option<~str>,
+    port: ~str,
     path: ~[~str],
 }
 
@@ -53,14 +53,78 @@ pub struct IPv6Address {
 }
 
 
-pub fn parse_url(input: &str, base_url: Option<ParsedURL>)
-          -> Option<ParsedURL> {
-    let _ = input;
-    let _ = base_url;
-    None
-}
-
 pub type ParseResult<T> = Result<T, &'static str>;
+
+
+impl URL {
+    pub fn parse(input: &str, base_url: Option<URL>) -> Option<URL> {
+        let _ = input;
+        let _ = base_url;
+        // TODO
+        None
+    }
+
+    pub fn serialize(&self) -> ~str {
+        let mut result = self.serialize_no_fragment();
+        match self.fragment {
+            None => (),
+            Some(ref fragment) => {
+                result.push_str("#");
+                result.push_str(fragment.as_slice());
+            }
+        }
+        result
+    }
+
+    pub fn serialize_no_fragment(&self) -> ~str {
+        let mut result = self.scheme.to_owned();
+        result.push_str(":");
+        match self.scheme_data {
+            RelativeSchemeData(SchemeRelativeURL {
+                userinfo: ref userinfo, host: ref host, port: ref port, path: ref path
+            }) => {
+                result.push_str("//");
+                match userinfo {
+                    &None => (),
+                    &Some(UserInfo { username: ref username, password: ref password })
+                    => if username.len() > 0 || password.is_some() {
+                        result.push_str(username.as_slice());
+                        match password {
+                            &None => (),
+                            &Some(ref password) => {
+                                result.push_str(":");
+                                result.push_str(password.as_slice());
+                            }
+                        }
+                        result.push_str("@");
+                    }
+                }
+                result.push_str(host.serialize());
+                if port.len() > 0 {
+                    result.push_str(":");
+                    result.push_str(port.as_slice());
+                }
+                if path.len() > 0 {
+                    for path_part in path.iter() {
+                        result.push_str("/");
+                        result.push_str(path_part.as_slice());
+                    }
+                } else {
+                    result.push_str("/");
+                }
+            },
+            OtherSchemeData(ref data) => result.push_str(data.as_slice()),
+        }
+        match self.query {
+            None => (),
+            Some(ref query) => {
+                result.push_str("?");
+                result.push_str(query.as_slice());
+            }
+        }
+        result
+    }
+}
 
 
 impl Host {
@@ -462,13 +526,13 @@ mod tests {
                 query: expected_query,
                 fragment: expected_fragment
             } = test;
-            let base = parse_url(base, None).unwrap();
-            let url = parse_url(input, Some(base));
+            let base = URL::parse(base, None).unwrap();
+            let url = URL::parse(input, Some(base));
             if expected_scheme.is_none() {
                 assert!(url.is_none(), "Expected a parse error");
                 continue
             }
-            let ParsedURL {
+            let URL {
                 scheme: scheme,
                 scheme_data: scheme_data,
                 query: query,
@@ -488,7 +552,7 @@ mod tests {
                     assert_eq!(username, expected_username);
                     assert_eq!(password, expected_password);
                     assert_eq!(Some(host.serialize()), expected_host)
-                    assert_eq!(port, expected_port);
+                    assert_eq!(Some(port), expected_port);
                     assert_eq!(Some(path.connect("/")), expected_path);
                 },
                 OtherSchemeData(scheme_data) => {
