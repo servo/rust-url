@@ -13,6 +13,10 @@
 
 extern mod encoding;
 
+use encoding::Encoding;
+use encoding::all::UTF_8;
+use encoding::label::encoding_from_whatwg_label;
+
 
 pub struct ParsedURL {
     scheme: ~str,
@@ -73,9 +77,20 @@ impl Host {
                 Err("Invalid IPv6 address")
             }
         } else {
-            // TODO: percent-decoding + UTF-8
-            Ok(Domain(input.split_iter(&['.', '\u3002', '\uFF0E', '\uFF61'])
-                           .map(domain_label_to_ascii).collect()))
+            let mut percent_encoded = ~"";
+            utf8_percent_encode(input, SimpleEncodeSet, &mut percent_encoded);
+            let bytes = percent_decode(percent_encoded);
+            let decoded = UTF_8.decode(bytes, encoding::DecodeReplace).unwrap();
+            let mut labels = ~[];
+            for label in decoded.split_iter(&['.', '\u3002', '\uFF0E', '\uFF61']) {
+                // TODO: Remove this check and use IDNA "domain to ASCII"
+                // TODO: switch to .map(domain_label_to_ascii).collect() then.
+                if label.as_bytes().iter().any(|b| *b >= 0x80) {
+                    return Err("Non-ASCII domains (IDNA) are not supported yet.")
+                }
+                labels.push(label.to_owned())
+            }
+            Ok(Domain(labels))
         }
     }
 
@@ -85,15 +100,6 @@ impl Host {
             IPv6(ref address) => format!("[{}]", address.serialize()),
         }
     }
-}
-
-
-pub fn domain_label_to_ascii(label: &str) -> ~str {
-    // TODO: IDNA2003 ToASCII algorithm with the AllowUnassigned flag set
-    // and the version of Unicode used being the most recent version
-    // rather than Unicode 3.2.
-    // http://tools.ietf.org/html/rfc3490#section-4.1
-    label.to_owned()
 }
 
 
@@ -286,6 +292,38 @@ fn byte_to_hex(byte: u8) -> Option<u8> {
 }
 
 
+enum EncodeSet {
+    SimpleEncodeSet,
+    DefaultEncodeSet,
+    PasswordEncodeSet,
+    UsernameEncodeSet
+}
+
+
+#[inline]
+fn utf8_percent_encode(input: &str, encode_set: EncodeSet, output: &mut ~str) {
+    use Default = self::DefaultEncodeSet;
+    use Password = self::PasswordEncodeSet;
+    use Username = self::UsernameEncodeSet;
+    for &byte in input.as_bytes().iter() {
+        if byte < 0x20 || byte > 0x7E || match byte as char {
+            ' ' | '"' | '#' | '<' | '>' | '?' | '`'
+            => match encode_set { Default | Password | Username => true, _ => false },
+            '/' | '@' | '\\'
+            => match encode_set { Password | Username => true, _ => false },
+            ':'
+            => match encode_set { Username => true, _ => false },
+            _ => false,
+        } {
+            output.push_str(percent_encode_byte(byte))
+        } else {
+            use std::str::raw::push_byte;
+            unsafe { push_byte(output, byte) }
+        }
+    }
+}
+
+
 #[inline]
 fn percent_encode_byte(byte: u8) -> ~str {
     format!("%{:02X}", byte)
@@ -310,7 +348,7 @@ fn percent_decode(input: &str) -> ~[u8] {
             }
         }
 
-        assert!(c < 0xF0);
+        assert!(c < 0x80);
         output.push(c);
         i += 1;
     }
@@ -319,13 +357,13 @@ fn percent_decode(input: &str) -> ~[u8] {
 
 
 pub fn parse_form_urlencoded(input: &str,
-                             encoding_override: Option<&'static encoding::Encoding>,
+                             encoding_override: Option<&'static Encoding>,
                              use_charset: bool,
                              mut isindex: bool)
                           -> ~[(~str, ~str)] {
     let mut encoding_override = match encoding_override {
         Some(encoding) => encoding,
-        None => encoding::all::UTF_8 as &'static encoding::Encoding,
+        None => UTF_8 as &'static Encoding,
     };
     let mut pairs = ~[];
     for string in input.split_iter('&') {
@@ -337,7 +375,7 @@ pub fn parse_form_urlencoded(input: &str,
             let name = name.replace("+", " ");
             let value = value.replace("+", " ");
             if use_charset && name.as_slice() == "_charset_" {
-                match encoding::label::encoding_from_whatwg_label(value) {
+                match encoding_from_whatwg_label(value) {
                     Some(encoding) => encoding_override = encoding,
                     None => (),
                 }
@@ -348,7 +386,7 @@ pub fn parse_form_urlencoded(input: &str,
     }
 
     #[inline]
-    fn decode(input: &~str, encoding_override: &'static encoding::Encoding) -> ~str {
+    fn decode(input: &~str, encoding_override: &'static Encoding) -> ~str {
         let bytes = percent_decode(input.as_slice());
         encoding_override.decode(bytes, encoding::DecodeReplace).unwrap()
     }
@@ -365,11 +403,11 @@ pub fn parse_form_urlencoded(input: &str,
 
 
 pub fn serialize_form_urlencoded(pairs: ~[(~str, ~str)],
-                                 encoding_override: Option<&'static encoding::Encoding>) {
+                                 encoding_override: Option<&'static Encoding>) {
 
     #[inline]
     fn byte_serialize(input: &str, output: &mut ~str,
-                     encoding_override: Option<&'static encoding::Encoding>) {
+                     encoding_override: Option<&'static Encoding>) {
         use std::cast::transmute;
 
         let keep_alive;
