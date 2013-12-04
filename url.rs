@@ -17,7 +17,7 @@ extern mod encoding;
 pub struct ParsedURL {
     scheme: ~str,
     scheme_data: SchemeData,
-    query: Option<~str>,  // Parsing this into ~[(~str, ~str)] is a separate operation.
+    query: Option<~str>,  // parse_form_urlencoded() parses this into ~[(~str, ~str)]
     fragment: Option<~str>,
 }
 
@@ -140,29 +140,30 @@ impl IPv6Address {
             let end = len.min(&(start + 4));
             let mut value = 0u16;
             while i < end {
-                let digit = match input[i] {
-                    c @ 0x30 .. 0x39 => c - 0x30,  // 0..9
-                    c @ 0x41 .. 0x46 => c + 10 - 0x41,  // A..F
-                    c @ 0x61 .. 0x66 => c + 10 - 0x61,  // a..f
-                    0x2E => {  // .
-                        if i == start {
-                            return None
-                        }
-                        i = start;
-                        is_ip_v4 = true;
-                        break
-                    },
-                    0x3A => { // :
+                match byte_to_hex(input[i]) {
+                    Some(digit) => {
+                        value = value * 0x10 + digit as u16;
                         i += 1;
-                        if i == len {
-                            return None
+                    },
+                    None => {
+                        if input[i] == 0x2E {  // .
+                            if i == start {
+                                return None
+                            }
+                            i = start;
+                            is_ip_v4 = true;
+                            break
                         }
-                        break
+                        if input[i]  == 0x3A { // :
+                            i += 1;
+                            if i == len {
+                                return None
+                            }
+                            break
+                        }
+                        return None
                     }
-                    _ => return None
-                };
-                value = value * 0x10 + digit as u16;
-                i += 1;
+                }
             }
             if is_ip_v4 {
                 break
@@ -274,6 +275,95 @@ fn longest_zero_sequence(pieces: &[u16, ..8]) -> (int, int) {
 }
 
 
+#[inline]
+fn byte_to_hex(byte: u8) -> Option<u8> {
+    match byte {
+        0x30 .. 0x39 => Some(byte - 0x30),  // 0..9
+        0x41 .. 0x46 => Some(byte + 10 - 0x41),  // A..F
+        0x61 .. 0x66 => Some(byte + 10 - 0x61),  // a..f
+        _ => None
+    }
+}
+
+
+#[inline]
+fn percent_encode_byte(byte: u8) -> ~str {
+    format!("%{:02X}", byte)
+}
+
+
+/// Fails on non-ASCII input
+#[inline]
+fn percent_decode(input: &str) -> ~[u8] {
+    let mut output = ~[];
+    let mut i = 0u;
+    while i < input.len() {
+        let c = input[i];
+        if c == '%' as u8 && i + 2 < input.len() {
+            match (byte_to_hex(input[i + 1]), byte_to_hex(input[i + 2])) {
+                (Some(h), Some(l)) => {
+                    output.push(h * 0x10 + l);
+                    i += 3;
+                    continue
+                },
+                _ => (),
+            }
+        }
+
+        assert!(c < 0xF0);
+        output.push(c);
+        i += 1;
+    }
+    output
+}
+
+
+pub fn parse_form_urlencoded(input: &str,
+                             encoding_override: Option<&'static encoding::Encoding>,
+                             use_charset: bool,
+                             mut isindex: bool)
+                          -> ~[(~str, ~str)] {
+    let mut encoding_override = match encoding_override {
+        Some(encoding) => encoding,
+        None => encoding::all::UTF_8 as &'static encoding::Encoding,
+    };
+    let mut pairs = ~[];
+    for string in input.split_iter('&') {
+        if string.len() > 0 {
+            let (name, value) = match string.find('=') {
+                Some(position) => (string.slice_to(position), string.slice_from(position + 1)),
+                None => if isindex { ("", string) } else { (string, "") }
+            };
+            let name = name.replace("+", " ");
+            let value = value.replace("+", " ");
+            if use_charset && name.as_slice() == "_charset_" {
+                match encoding::label::encoding_from_whatwg_label(value) {
+                    Some(encoding) => encoding_override = encoding,
+                    None => (),
+                }
+            }
+            pairs.push((name, value));
+        }
+        isindex = false;
+    }
+
+    #[inline]
+    fn decode(input: &~str, encoding_override: &'static encoding::Encoding) -> ~str {
+        let bytes = percent_decode(input.as_slice());
+        encoding_override.decode(bytes, encoding::DecodeReplace).unwrap()
+    }
+
+    for pair in pairs.mut_iter() {
+        let new_pair = {
+            let &(ref name, ref value) = pair;
+            (decode(name, encoding_override), decode(value, encoding_override))
+        };
+        *pair = new_pair;
+    }
+    pairs
+}
+
+
 pub fn serialize_form_urlencoded(pairs: ~[(~str, ~str)],
                                  encoding_override: Option<&'static encoding::Encoding>) {
 
@@ -296,7 +386,7 @@ pub fn serialize_form_urlencoded(pairs: ~[(~str, ~str)],
                 0x20 => output.push_str("+"),
                 0x2A | 0x2D | 0x2E | 0x30 .. 0x39 | 0x41 .. 0x5A | 0x5F | 0x61 .. 0x7A
                 => output.push_str(unsafe { transmute(&[*byte]) }),
-                _ => output.push_str(format!("%{:02X}", *byte)),
+                _ => output.push_str(percent_encode_byte(*byte)),
             }
         }
     }
