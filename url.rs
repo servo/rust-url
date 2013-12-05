@@ -18,6 +18,9 @@ use encoding::all::UTF_8;
 use encoding::label::encoding_from_whatwg_label;
 
 
+mod punycode;
+
+
 pub struct URL {
     scheme: ~str,
     scheme_data: SchemeData,
