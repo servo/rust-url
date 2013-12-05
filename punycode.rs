@@ -12,6 +12,7 @@ use std::char;
 use std::ascii::Ascii;
 
 
+// Bootstring parameters for Punycode
 static BASE: u32 = 36;
 static T_MIN: u32 = 1;
 static T_MAX: u32 = 26;
@@ -35,7 +36,13 @@ fn adapt(mut delta: u32, num_points: u32, first_time: bool) -> u32 {
 }
 
 
+/// Convert Punycode to Unicode.
+/// Return None on malformed input or overflow.
+/// Overflow can only happen on inputs that take more than
+/// 63 encoded bytes, the DNS limit on domain name labels.
 pub fn decode(input: &[Ascii]) -> Option<~[char]> {
+    // Handle "basic" (ASCII) code points.
+    // They are encoded as-is befor the last delimiter, if any.
     let (mut output, input) = match input.rposition_elem(&DELIMITER.to_ascii()) {
         None => (~[], input),
         Some(position) => (
@@ -43,7 +50,7 @@ pub fn decode(input: &[Ascii]) -> Option<~[char]> {
             if position > 0 { input.slice_from(position + 1) } else { input }
         )
     };
-    let mut n = INITIAL_N;
+    let mut code_point = INITIAL_N;
     let mut bias = INITIAL_BIAS;
     let mut i = 0;
     let mut iter = input.iter();
@@ -55,6 +62,8 @@ pub fn decode(input: &[Ascii]) -> Option<~[char]> {
             None => break,
             Some(ascii) => ascii,
         };
+        // Decode a generalized variable-length integer into delta,
+        // which gets added to i.
         loop {
             let digit = match ascii.to_byte() {
                 byte @ 0x30 .. 0x39 => byte - 0x30 + 26,  // 0..9
@@ -84,12 +93,14 @@ pub fn decode(input: &[Ascii]) -> Option<~[char]> {
         }
         let length = output.len() as u32;
         bias = adapt(i - previous_i, length + 1, previous_i == 0);
-        if i / (length + 1) > u32::max_value - n {
+        if i / (length + 1) > u32::max_value - code_point {
             return None  // Overflow
         }
-        n += i / (length + 1);
+        // i was supposed to wrap around from length+1 to 0,
+        // incrementing code_point each time.
+        code_point += i / (length + 1);
         i %= length + 1;
-        let c = match char::from_u32(n) {
+        let c = match char::from_u32(code_point) {
             Some(c) => c,
             None => return None
         };
@@ -100,38 +111,45 @@ pub fn decode(input: &[Ascii]) -> Option<~[char]> {
 }
 
 
+/// Convert Unicode to Punycode.
+/// Return None on overflow, which can only happen on inputs that would take more than
+/// 63 encoded bytes, the DNS limit on domain name labels.
 pub fn encode(input: &[char]) -> Option<~[Ascii]> {
-    let mut output = ~[];
-    for &c in input.iter() {
-        if c.is_ascii() {
-            output.push(unsafe { c.to_ascii_nocheck() })
-        }
-    }
-    let b = output.len() as u32;
-    if b > 0 {
+    // Handle "basic" (ASCII) code points. They are encoded as-is.
+    let mut output = input.iter().filter_map(|&c|
+        if c.is_ascii() { Some(unsafe { c.to_ascii_nocheck() }) }
+        else { None }
+    ).to_owned_vec();
+    let basic_length = output.len() as u32;
+    if basic_length > 0 {
         output.push('-'.to_ascii())
     }
-    let mut n = INITIAL_N;
+    let mut code_point = INITIAL_N;
     let mut delta = 0;
     let mut bias = INITIAL_BIAS;
-    let mut h = b;
+    let mut processed = basic_length;
     let input_length = input.len() as u32;
-    while h < input_length {
-        let m = input.iter().map(|&c| c as u32).filter(|&c| c >= n).min().unwrap();
-        if m - n > (u32::max_value - delta) / (h + 1) {
+    while processed < input_length {
+        // All code points < code_point have been handled already.
+        // Find the next larger one.
+        let min_code_point = input.iter().map(|&c| c as u32)
+                                  .filter(|&c| c >= code_point).min().unwrap();
+        if min_code_point - code_point > (u32::max_value - delta) / (processed + 1) {
             return None  // Overflow
         }
-        delta += (m - n) * (h + 1);
-        n = m;
+        // Increase delta to advance the decoder’s <code_point,i> state to <min_code_point,0>
+        delta += (min_code_point - code_point) * (processed + 1);
+        code_point = min_code_point;
         for &c in input.iter() {
             let c = c as u32;
-            if c < n {
+            if c < code_point {
                 delta += 1;
                 if delta == 0 {
                     return None  // Overflow
                 }
             }
-            if c == n {
+            if c == code_point {
+                // Represent delta as a generalized variable-length integer:
                 let mut q = delta;
                 let mut k = BASE;
                 loop {
@@ -147,18 +165,19 @@ pub fn encode(input: &[char]) -> Option<~[Ascii]> {
                     k += BASE;
                 }
                 output.push(value_to_digit(q));
-                bias = adapt(delta, h + 1, h == b);
+                bias = adapt(delta, processed + 1, processed == basic_length);
                 delta = 0;
-                h += 1;
+                processed += 1;
             }
         }
         delta += 1;
-        n += 1;
+        code_point += 1;
     }
     Some(output)
 }
 
 
+#[inline]
 fn value_to_digit(value: u32) -> Ascii {
     let code_point = match value {
         0 .. 25 => value + 0x61,  // a..z
