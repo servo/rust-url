@@ -10,7 +10,6 @@
 use std::u32;
 use std::char;
 use std::ascii::Ascii;
-use std::ascii::AsciiStr;
 
 
 static BASE: u32 = 36;
@@ -37,7 +36,7 @@ fn adapt(mut delta: u32, num_points: u32, first_time: bool) -> u32 {
 
 
 pub fn decode(input: &[Ascii]) -> Option<~[char]> {
-    let (mut output, input) = match input.to_str_ascii().rfind(DELIMITER) {
+    let (mut output, input) = match input.rposition_elem(&DELIMITER.to_ascii()) {
         None => (~[], input),
         Some(position) => (
             input.slice_to(position).map(|a| a.to_char()),
@@ -64,7 +63,7 @@ pub fn decode(input: &[Ascii]) -> Option<~[char]> {
                 _ => return None
             } as u32;
             if digit > (u32::max_value - i) / weight {
-                return None  // Malformed input would cause integer overflow
+                return None  // Overflow
             }
             i += digit * weight;
             let t = if k <= bias { T_MIN }
@@ -74,7 +73,7 @@ pub fn decode(input: &[Ascii]) -> Option<~[char]> {
                 break
             }
             if weight > u32::max_value / (BASE - t) {
-                return None  // Malformed input would cause integer overflow
+                return None  // Overflow
             }
             weight *= BASE - t;
             k += BASE;
@@ -86,7 +85,7 @@ pub fn decode(input: &[Ascii]) -> Option<~[char]> {
         let length = output.len() as u32;
         bias = adapt(i - previous_i, length + 1, previous_i == 0);
         if i / (length + 1) > u32::max_value - n {
-            return None  // Malformed input would cause integer overflow
+            return None  // Overflow
         }
         n += i / (length + 1);
         i %= length + 1;
@@ -101,18 +100,102 @@ pub fn decode(input: &[Ascii]) -> Option<~[char]> {
 }
 
 
+pub fn encode(input: &[char]) -> Option<~[Ascii]> {
+    let mut output = ~[];
+    for &c in input.iter() {
+        if c.is_ascii() {
+            output.push(unsafe { c.to_ascii_nocheck() })
+        }
+    }
+    let b = output.len() as u32;
+    if b > 0 {
+        output.push('-'.to_ascii())
+    }
+    let mut n = INITIAL_N;
+    let mut delta = 0;
+    let mut bias = INITIAL_BIAS;
+    let mut h = b;
+    let input_length = input.len() as u32;
+    while h < input_length {
+        let m = input.iter().map(|&c| c as u32).filter(|&c| c >= n).min().unwrap();
+        if m - n > (u32::max_value - delta) / (h + 1) {
+            return None  // Overflow
+        }
+        delta += (m - n) * (h + 1);
+        n = m;
+        for &c in input.iter() {
+            let c = c as u32;
+            if c < n {
+                delta += 1;
+                if delta == 0 {
+                    return None  // Overflow
+                }
+            }
+            if c == n {
+                let mut q = delta;
+                let mut k = BASE;
+                loop {
+                    let t = if k <= bias { T_MIN }
+                            else if k >= bias + T_MAX { T_MAX }
+                            else { k - bias };
+                    if q < t {
+                        break
+                    }
+                    let value = t + ((q - t) % (BASE - t));
+                    output.push(value_to_digit(value));
+                    q = (q - t) / (BASE - t);
+                    k += BASE;
+                }
+                output.push(value_to_digit(q));
+                bias = adapt(delta, h + 1, h == b);
+                delta = 0;
+                h += 1;
+            }
+        }
+        delta += 1;
+        n += 1;
+    }
+    Some(output)
+}
+
+
+fn value_to_digit(value: u32) -> Ascii {
+    let code_point = match value {
+        0 .. 25 => value + 0x61,  // a..z
+        26 .. 35 => value - 26 + 0x30,  // 0..9
+        _ => fail!()
+    };
+    unsafe { (code_point as u8).to_ascii_nocheck() }
+}
+
+
 #[cfg(test)]
 mod tests {
-    use super::decode;
+    use super::{decode, encode};
     use std::ascii::AsciiCast;
     use std::str::from_chars;
     use extra::json::{from_str, List, Object, String};
 
     fn one_test(description: &str, decoded: &str, encoded: &str) {
-        let result = decode(encoded.to_ascii()).map(|s| from_chars(s));
-        assert!(result == Some(decoded.to_owned()),
-                format!("Decoding {:?} failed:\n  {:?}\n!= {:?}\n{}",
-                        encoded, result.unwrap_or(~"<Failed>"), decoded, description));
+        match decode(encoded.to_ascii()) {
+            None => fail!("Decoding {:?} failed.", encoded),
+            Some(result) => {
+                let result = from_chars(result);
+                assert!(result.as_slice() == decoded,
+                        format!("Incorrect decoding of {:?}:\n   {:?}\n!= {:?}\n{}",
+                                encoded, result.as_slice(), decoded, description))
+            }
+        }
+
+        match encode(decoded.iter().to_owned_vec()) {
+            None => fail!("Encoding {:?} failed.", decoded),
+            Some(result) => {
+                let result = result.to_str_ascii();
+                assert!(result.as_slice() == encoded,
+                        format!("Incorrect encoding of {:?}:\n   {:?}\n!= {:?}\n{}",
+                                decoded, result.as_slice(), encoded, description))
+            }
+        }
     }
 
     fn get_string<'a>(map: &'a ~Object, key: &~str) -> &'a str {
