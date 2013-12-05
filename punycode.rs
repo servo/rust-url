@@ -36,14 +36,11 @@ fn adapt(mut delta: u32, num_points: u32, first_time: bool) -> u32 {
 }
 
 
-pub fn decode(input: &[Ascii]) -> Option<~str> {
-    // XXX when upgrading to rust with as_str_ascii(),
-    // just replace the first to_str_ascii() (do not copy)
-    // and add .to_owned() after the second (do copy.)
+pub fn decode(input: &[Ascii]) -> Option<~[char]> {
     let (mut output, input) = match input.to_str_ascii().rfind(DELIMITER) {
-        None => (~"", input),
+        None => (~[], input),
         Some(position) => (
-            input.slice_to(position).to_str_ascii(),
+            input.slice_to(position).map(|a| a.to_char()),
             if position > 0 { input.slice_from(position + 1) } else { input }
         )
     };
@@ -97,16 +94,50 @@ pub fn decode(input: &[Ascii]) -> Option<~str> {
             Some(c) => c,
             None => return None
         };
-        insert(&mut output, c, i as uint);
+        output.insert(i as uint, c);
+        i += 1;
     }
     Some(output)
 }
 
 
-#[inline]
-fn insert(string: &mut ~str, to_insert: char, position: uint) {
-    let mut new_string = string.slice_to(position).to_owned();
-    new_string.push_char(to_insert);
-    new_string.push_str(string.slice_from(position));
-    *string = new_string;
+#[cfg(test)]
+mod tests {
+    use super::decode;
+    use std::ascii::AsciiCast;
+    use std::str::from_chars;
+    use extra::json::{from_str, List, Object, String};
+
+    fn one_test(description: &str, decoded: &str, encoded: &str) {
+        let result = decode(encoded.to_ascii()).map(|s| from_chars(s));
+        assert!(result == Some(decoded.to_owned()),
+                format!("Decoding {:?} failed:\n  {:?}\n!= {:?}\n{}",
+                        encoded, result.unwrap_or(~"<Failed>"), decoded, description));
+    }
+
+    fn get_string<'a>(map: &'a ~Object, key: &~str) -> &'a str {
+        match map.find(key) {
+            Some(&String(ref s)) => s.as_slice(),
+            None => "",
+            _ => fail!(),
+        }
+    }
+
+    #[test]
+    fn test_punycode() {
+
+        match from_str(include_str!("punycode_tests.json")) {
+            Ok(List(tests)) => for test in tests.iter() {
+                match test {
+                    &Object(ref o) => one_test(
+                        get_string(o, &~"description"),
+                        get_string(o, &~"decoded"),
+                        get_string(o, &~"encoded")
+                    ),
+                    _ => fail!(),
+                }
+            },
+            other => fail!("{:?}", other)
+        }
+    }
 }

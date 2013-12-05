@@ -13,12 +13,15 @@
 
 extern mod encoding;
 
+#[cfg(test)]
+extern mod extra;
+
 use encoding::Encoding;
 use encoding::all::UTF_8;
 use encoding::label::encoding_from_whatwg_label;
 
 
-mod punycode;
+pub mod punycode;
 
 
 pub struct URL {
@@ -515,7 +518,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test() {
+    fn test_url_parsing() {
         for test in parse_test_data(include_str!("urltestdata.txt")).move_iter() {
             let Test {
                 input: input,
