@@ -452,10 +452,7 @@ pub fn parse_form_urlencoded(input: &[Ascii],
                              use_charset: bool,
                              mut isindex: bool)
                           -> ~[(~str, ~str)] {
-    let mut encoding_override = match encoding_override {
-        Some(encoding) => encoding,
-        None => UTF_8 as &'static Encoding,
-    };
+    let mut encoding_override = encoding_override.unwrap_or(UTF_8 as &'static Encoding);
     let mut pairs = ~[];
     for string in input.split_iter(|&c| c == '&'.to_ascii()) {
         if string.len() > 0 {
@@ -521,7 +518,6 @@ pub fn serialize_form_urlencoded(pairs: ~[(~str, ~str)],
 
     let mut output = ~[];
     for &(ref name, ref value) in pairs.iter() {
-        // TODO: add an encoding_override parameter and support other encodings.
         if output.len() > 0 {
             output.push('&'.to_ascii());
             byte_serialize(name.as_slice(), &mut output, encoding_override);
