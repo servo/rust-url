@@ -18,6 +18,7 @@ extern mod extra;
 
 use std::ascii::Ascii;
 
+use encoding::EncodingRef;
 use encoding::Encoding;
 use encoding::all::UTF_8;
 use encoding::label::encoding_from_whatwg_label;
@@ -451,11 +452,11 @@ fn percent_decode(input: &[Ascii]) -> ~[u8] {
 
 
 pub fn parse_form_urlencoded(input: &[Ascii],
-                             encoding_override: Option<&'static Encoding>,
+                             encoding_override: Option<EncodingRef>,
                              use_charset: bool,
                              mut isindex: bool)
                           -> ~[(~str, ~str)] {
-    let mut encoding_override = encoding_override.unwrap_or(UTF_8 as &'static Encoding);
+    let mut encoding_override = encoding_override.unwrap_or(UTF_8 as EncodingRef);
     let mut pairs = ~[];
     for string in input.split_iter(|&c| c == '&'.to_ascii()) {
         if string.len() > 0 {
@@ -477,7 +478,7 @@ pub fn parse_form_urlencoded(input: &[Ascii],
     }
 
     #[inline]
-    fn decode(input: &~str, encoding_override: &'static Encoding) -> ~str {
+    fn decode(input: &~str, encoding_override: EncodingRef) -> ~str {
         // No need to check as input comes from &[Ascii].to_str_ascii().replace("+", " ")
         let bytes = percent_decode(unsafe { input.as_slice().to_ascii_nocheck() });
         encoding_override.decode(bytes, encoding::DecodeReplace).unwrap()
@@ -495,11 +496,11 @@ pub fn parse_form_urlencoded(input: &[Ascii],
 
 
 pub fn serialize_form_urlencoded(pairs: ~[(~str, ~str)],
-                                 encoding_override: Option<&'static Encoding>)
+                                 encoding_override: Option<EncodingRef>)
                               -> ~[Ascii] {
     #[inline]
     fn byte_serialize(input: &str, output: &mut ~[Ascii],
-                     encoding_override: Option<&'static Encoding>) {
+                     encoding_override: Option<EncodingRef>) {
         let keep_alive;
         let input = match encoding_override {
             None => input.as_bytes(),  // "Encode" to UTF-8
