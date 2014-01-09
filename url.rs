@@ -7,7 +7,7 @@
 // except according to those terms.
 
 
-#[link(name = "url", vers = "0.1")];
+#[crate_id = "url#0.1"];
 #[crate_type = "lib"];
 #[feature(macro_rules)];
 
@@ -158,7 +158,7 @@ impl Host {
             let bytes = percent_decode(percent_encoded);
             let decoded = UTF_8.decode(bytes, encoding::DecodeReplace).unwrap();
             let mut labels = ~[];
-            for label in decoded.split_iter(&['.', '\u3002', '\uFF0E', '\uFF61']) {
+            for label in decoded.split(&['.', '\u3002', '\uFF0E', '\uFF61']) {
                 // TODO: Remove this check and use IDNA "domain to ASCII"
                 // TODO: switch to .map(domain_label_to_ascii).collect() then.
                 if label.is_ascii() {
@@ -458,14 +458,14 @@ pub fn parse_form_urlencoded(input: &[Ascii],
                           -> ~[(~str, ~str)] {
     let mut encoding_override = encoding_override.unwrap_or(UTF_8 as EncodingRef);
     let mut pairs = ~[];
-    for string in input.split_iter(|&c| c == '&'.to_ascii()) {
+    for string in input.split(|&c| c == '&'.to_ascii()) {
         if string.len() > 0 {
             let (name, value) = match string.position_elem(&'='.to_ascii()) {
                 Some(position) => (string.slice_to(position), string.slice_from(position + 1)),
                 None => if isindex { (&[], string) } else { (string, &[]) }
             };
-            let name = name.to_str_ascii().replace("+", " ");
-            let value = value.to_str_ascii().replace("+", " ");
+            let name = name.as_str_ascii().replace("+", " ");
+            let value = value.as_str_ascii().replace("+", " ");
             if use_charset && name.as_slice() == "_charset_" {
                 match encoding_from_whatwg_label(value) {
                     Some(encoding) => encoding_override = encoding,
@@ -479,7 +479,7 @@ pub fn parse_form_urlencoded(input: &[Ascii],
 
     #[inline]
     fn decode(input: &~str, encoding_override: EncodingRef) -> ~str {
-        // No need to check as input comes from &[Ascii].to_str_ascii().replace("+", " ")
+        // No need to check as input comes from &[Ascii].as_str_ascii().replace("+", " ")
         let bytes = percent_decode(unsafe { input.as_slice().to_ascii_nocheck() });
         encoding_override.decode(bytes, encoding::DecodeReplace).unwrap()
     }
