@@ -40,32 +40,33 @@ fn test_url_parsing() {
             fragment: fragment
         } = url.unwrap();
 
-        assert_eq!(Some(scheme.to_str_ascii()), expected_scheme);
+        assert_eq!(Some(scheme.as_str_ascii().to_owned()), expected_scheme);
         match scheme_data {
             RelativeSchemeData(SchemeRelativeURL {
                 userinfo: userinfo, host: host, port: port, path: path
             }) => {
                 let (username, password) = match userinfo {
                     Some(UserInfo { username: username, password: password })
-                    => (Some(username.to_str_ascii()), password.map(|p| p.to_str_ascii())),
+                    => (Some(username.as_str_ascii().to_owned()), password.map(|p| p.as_str_ascii().to_owned())),
                     _ => (None, None),
                 };
                 assert_eq!(username, expected_username);
                 assert_eq!(password, expected_password);
-                assert_eq!(Some(host.serialize().to_str_ascii()), expected_host)
-                assert_eq!(Some(port.to_str_ascii()), expected_port);
-                assert_eq!(Some(path.map(|p| p.to_str_ascii()).connect("/")), expected_path);
+                let host = host.serialize();
+                assert_eq!(Some(host.as_str_ascii().to_owned()), expected_host)
+                assert_eq!(Some(port.as_str_ascii().to_owned()), expected_port);
+                assert_eq!(Some(path.map(|p| p.as_str_ascii().to_owned()).connect("/")), expected_path);
             },
             OtherSchemeData(scheme_data) => {
-                assert_eq!(Some(scheme_data.to_str_ascii()), expected_path);
+                assert_eq!(Some(scheme_data.as_str_ascii().to_owned()), expected_path);
                 assert_eq!(None, expected_username);
                 assert_eq!(None, expected_password);
                 assert_eq!(None, expected_host);
                 assert_eq!(None, expected_port);
             },
         }
-        assert_eq!(query.map(|p| p.to_str_ascii()), expected_query);
-        assert_eq!(fragment.map(|p| p.to_str_ascii()), expected_fragment);
+        assert_eq!(query.map(|p| p.as_str_ascii().to_owned()), expected_query);
+        assert_eq!(fragment.map(|p| p.as_str_ascii().to_owned()), expected_fragment);
     }
 }
 
@@ -84,11 +85,11 @@ struct Test {
 
 fn parse_test_data(input: &str) -> ~[Test] {
     let mut tests: ~[Test] = ~[];
-    for line in input.line_iter() {
+    for line in input.lines() {
         if line == "" || line[0] == ('#' as u8) {
             continue
         }
-        let mut pieces = line.split_iter(' ').to_owned_vec();
+        let mut pieces = line.split(' ').to_owned_vec();
         let input = unescape(pieces.shift());
         let mut test = Test {
             input: input,
@@ -130,7 +131,7 @@ fn parse_test_data(input: &str) -> ~[Test] {
 
 fn unescape(input: &str) -> ~str {
     let mut output = ~"";
-    let mut chars = input.iter();
+    let mut chars = input.chars();
     loop {
         match chars.next() {
             None => return output,

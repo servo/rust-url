@@ -206,10 +206,10 @@ mod tests {
             }
         }
 
-        match encode(decoded.iter().to_owned_vec()) {
+        match encode(decoded.chars().to_owned_vec()) {
             None => fail!("Encoding {:?} failed.", decoded),
             Some(result) => {
-                let result = result.to_str_ascii();
+                let result = result.as_str_ascii();
                 assert!(result.as_slice() == encoded,
                         format!("Incorrect encoding of {:?}:\n   {:?}\n!= {:?}\n{}",
                                 decoded, result.as_slice(), encoded, description))
