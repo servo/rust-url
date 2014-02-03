@@ -25,11 +25,13 @@ use encoding::label::encoding_from_whatwg_label;
 
 
 pub mod punycode;
+mod parser;
 
 #[cfg(test)]
 mod tests;
 
 
+#[deriving(Clone)]
 pub struct URL {
     scheme: ~[Ascii],
     scheme_data: SchemeData,
@@ -37,11 +39,13 @@ pub struct URL {
     fragment: Option<~[Ascii]>,
 }
 
+#[deriving(Clone)]
 pub enum SchemeData {
     RelativeSchemeData(SchemeRelativeURL),
     OtherSchemeData(~[Ascii])
 }
 
+#[deriving(Clone)]
 pub struct SchemeRelativeURL {
     userinfo: Option<UserInfo>,
     host: Host,
@@ -49,19 +53,26 @@ pub struct SchemeRelativeURL {
     path: ~[~[Ascii]],
 }
 
+#[deriving(Clone)]
 pub struct UserInfo {
     username: ~[Ascii],
     password: Option<~[Ascii]>,
 }
 
+#[deriving(Clone)]
 pub enum Host {
     Domain(~[~[Ascii]]),
     IPv6(IPv6Address)
 }
 
-
 pub struct IPv6Address {
     pieces: [u16, ..8]
+}
+
+impl Clone for IPv6Address {
+    fn clone(&self) -> IPv6Address {
+        IPv6Address { pieces: self.pieces }
+    }
 }
 
 
@@ -69,11 +80,8 @@ pub type ParseResult<T> = Result<T, &'static str>;
 
 
 impl URL {
-    pub fn parse(input: &str, base_url: Option<URL>) -> Option<URL> {
-        let _ = input;
-        let _ = base_url;
-        // TODO
-        None
+    pub fn parse(input: &str, base_url: Option<&URL>) -> ParseResult<URL> {
+        parser::parse_url(input, base_url)
     }
 
     pub fn serialize(&self) -> ~[Ascii] {
