@@ -27,46 +27,47 @@ fn test_url_parsing() {
             query: expected_query,
             fragment: expected_fragment
         } = test;
-        let base = URL::parse(base, None).unwrap();
-        let url = URL::parse(input, Some(base));
+        let base = match URL::parse(base, None) {
+            Ok(base) => base,
+            Err(message) => fail!("Error parsing base {:?}: {}", base, message)
+        };
+        let url = URL::parse(input, Some(&base));
         if expected_scheme.is_none() {
-            assert!(url.is_none(), "Expected a parse error");
+            assert!(url.is_err(), "Expected a parse error for URL {:?}", input);
             continue
         }
-        let URL {
-            scheme: scheme,
-            scheme_data: scheme_data,
-            query: query,
-            fragment: fragment
-        } = url.unwrap();
+        let URL { scheme, scheme_data, query, fragment } = match url {
+            Ok(url) => url,
+            Err(message) => fail!("Error parsing URL {:?}: {}", input, message)
+        };
 
         assert_eq!(Some(scheme.as_str_ascii().to_owned()), expected_scheme);
         match scheme_data {
-            RelativeSchemeData(SchemeRelativeURL {
-                userinfo: userinfo, host: host, port: port, path: path
-            }) => {
+            RelativeSchemeData(SchemeRelativeURL { userinfo, host, port, path }) => {
                 let (username, password) = match userinfo {
-                    Some(UserInfo { username: username, password: password })
-                    => (Some(username.as_str_ascii().to_owned()), password.map(|p| p.as_str_ascii().to_owned())),
-                    _ => (None, None),
+                    None => (~"", None),
+                    Some(UserInfo { username, password }) => (
+                        username.as_str_ascii().to_owned(),
+                        password.map(|p| p.as_str_ascii().to_owned())),
                 };
                 assert_eq!(username, expected_username);
                 assert_eq!(password, expected_password);
                 let host = host.serialize();
-                assert_eq!(Some(host.as_str_ascii().to_owned()), expected_host)
-                assert_eq!(Some(port.as_str_ascii().to_owned()), expected_port);
-                assert_eq!(Some(path.map(|p| p.as_str_ascii().to_owned()).connect("/")), expected_path);
+                assert_eq!(host.as_str_ascii().to_owned(), expected_host)
+                assert_eq!(port.as_str_ascii().to_owned(), expected_port);
+                assert_eq!(Some("/" + path.map(|p| p.as_str_ascii().to_owned()).connect("/")),
+                           expected_path);
             },
             OtherSchemeData(scheme_data) => {
                 assert_eq!(Some(scheme_data.as_str_ascii().to_owned()), expected_path);
-                assert_eq!(None, expected_username);
+                assert_eq!(~"", expected_username);
                 assert_eq!(None, expected_password);
-                assert_eq!(None, expected_host);
-                assert_eq!(None, expected_port);
+                assert_eq!(~"", expected_host);
+                assert_eq!(~"", expected_port);
             },
         }
-        assert_eq!(query.map(|p| p.as_str_ascii().to_owned()), expected_query);
-        assert_eq!(fragment.map(|p| p.as_str_ascii().to_owned()), expected_fragment);
+        assert_eq!(query.map(|p| "?" + p.as_str_ascii().to_owned()), expected_query);
+        assert_eq!(fragment.map(|p| "#" + p.as_str_ascii().to_owned()), expected_fragment);
     }
 }
 
@@ -74,10 +75,10 @@ struct Test {
     input: ~str,
     base: ~str,
     scheme: Option<~str>,
-    username: Option<~str>,
+    username: ~str,
     password: Option<~str>,
-    host: Option<~str>,
-    port: Option<~str>,
+    host: ~str,
+    port: ~str,
     path: Option<~str>,
     query: Option<~str>,
     fragment: Option<~str>,
@@ -93,31 +94,32 @@ fn parse_test_data(input: &str) -> ~[Test] {
         let input = unescape(pieces.shift());
         let mut test = Test {
             input: input,
-            base: if pieces.is_empty() {
+            base: if pieces.is_empty() || pieces[0] == "" {
                 tests[tests.len() - 1].base.to_owned()
             } else {
                 unescape(pieces.shift())
             },
             scheme: None,
-            username: None,
+            username: ~"",
             password: None,
-            host: None,
-            port: None,
+            host: ~"",
+            port: ~"",
             path: None,
             query: None,
             fragment: None,
         };
         for piece in pieces.move_iter() {
-            if piece != "" || piece[0] == ('#' as u8) {
+            if piece == "" || piece[0] == ('#' as u8) {
                 continue
             }
             let colon = piece.find(':').unwrap();
-            let value = piece.slice_from(colon + 1).to_owned();
+            let value = unescape(piece.slice_from(colon + 1));
             match piece.slice_to(colon) {
                 "s" => test.scheme = Some(value),
-                "u" => test.username = Some(value),
+                "u" => test.username = value,
                 "pass" => test.password = Some(value),
-                "h" => test.host = Some(value),
+                "h" => test.host = value,
+                "port" => test.port = value,
                 "p" => test.path = Some(value),
                 "q" => test.query = Some(value),
                 "f" => test.fragment = Some(value),

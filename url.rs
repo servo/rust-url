@@ -76,6 +76,13 @@ impl Clone for IPv6Address {
 }
 
 
+macro_rules! is_match(
+    ($value:expr, $($pattern:pat)|+) => (
+        match $value { $($pattern)|+ => true, _ => false }
+    );
+)
+
+
 pub type ParseResult<T> = Result<T, &'static str>;
 
 
@@ -152,7 +159,7 @@ impl Host {
         if input.len() == 0 {
             Err("Empty host")
         } else if input[0] == '[' as u8 {
-            if input[input.len()] == ']' as u8 {
+            if input[input.len() - 1] == ']' as u8 {
                 match IPv6Address::parse(input.slice(1, input.len() - 1)) {
                     Some(address) => Ok(IPv6(address)),
                     None => Err("Invalid IPv6 address"),
@@ -193,16 +200,6 @@ impl Host {
 }
 
 
-macro_rules! matches(
-    ($value: expr, ($pattern: pat)|+) => {
-        match $value {
-            $($pattern)|+ => true,
-            _ => false,
-        }
-    };
-)
-
-
 impl IPv6Address {
     pub fn parse(input: &str) -> Option<IPv6Address> {
         let len = input.len();
@@ -228,6 +225,7 @@ impl IPv6Address {
                 if compress_pointer.is_some() {
                     return None
                 }
+                i += 1;
                 piece_pointer += 1;
                 compress_pointer = Some(piece_pointer);
                 continue
@@ -241,24 +239,25 @@ impl IPv6Address {
                         value = value * 0x10 + digit as u16;
                         i += 1;
                     },
-                    None => {
-                        if input[i] == 0x2E {  // .
-                            if i == start {
-                                return None
-                            }
-                            i = start;
-                            is_ip_v4 = true;
-                            break
+                    None => break
+                }
+            }
+            if i < len {
+                match input[i] as char {
+                    '.' => {
+                        if i == start {
+                            return None
                         }
-                        if input[i]  == 0x3A { // :
-                            i += 1;
-                            if i == len {
-                                return None
-                            }
-                            break
+                        i = start;
+                        is_ip_v4 = true;
+                    },
+                    ':' => {
+                        i += 1;
+                        if i == len {
+                            return None
                         }
-                        return None
-                    }
+                    },
+                    _ => return None
                 }
             }
             if is_ip_v4 {
@@ -340,6 +339,7 @@ impl IPv6Address {
             if i < 7 {
                 output.push(':'.to_ascii());
             }
+            i += 1;
         }
         output
     }
@@ -400,6 +400,7 @@ fn to_hex_upper(value: u8) -> Ascii {
 enum EncodeSet {
     SimpleEncodeSet,
     DefaultEncodeSet,
+    UserInfoEncodeSet,
     PasswordEncodeSet,
     UsernameEncodeSet
 }
@@ -408,16 +409,19 @@ enum EncodeSet {
 #[inline]
 fn utf8_percent_encode(input: &str, encode_set: EncodeSet, output: &mut ~[Ascii]) {
     use Default = self::DefaultEncodeSet;
+    use UserInfo = self::UserInfoEncodeSet;
     use Password = self::PasswordEncodeSet;
     use Username = self::UsernameEncodeSet;
     for &byte in input.as_bytes().iter() {
         if byte < 0x20 || byte > 0x7E || match byte as char {
             ' ' | '"' | '#' | '<' | '>' | '?' | '`'
-            => match encode_set { Default | Password | Username => true, _ => false },
-            '/' | '@' | '\\'
-            => match encode_set { Password | Username => true, _ => false },
+            => is_match!(encode_set, Default | UserInfo | Password | Username),
+            '@'
+            => is_match!(encode_set, UserInfo | Password | Username),
+            '/' | '\\'
+            => is_match!(encode_set, Password | Username),
             ':'
-            => match encode_set { Username => true, _ => false },
+            => is_match!(encode_set, Username),
             _ => false,
         } {
             percent_encode_byte(byte, output)
