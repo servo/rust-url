@@ -108,12 +108,12 @@ impl URL {
         result.push(':'.to_ascii());
         match self.scheme_data {
             RelativeSchemeData(SchemeRelativeURL {
-                userinfo: ref userinfo, host: ref host, port: ref port, path: ref path
+                ref userinfo, ref host, ref port, ref path
             }) => {
                 result.push_all("//".to_ascii());
                 match userinfo {
                     &None => (),
-                    &Some(UserInfo { username: ref username, password: ref password })
+                    &Some(UserInfo { ref username, ref password })
                     => if username.len() > 0 || password.is_some() {
                         result.push_all(username.as_slice());
                         match password {
