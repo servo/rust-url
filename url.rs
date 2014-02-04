@@ -42,7 +42,7 @@ pub struct URL {
 #[deriving(Clone)]
 pub enum SchemeData {
     RelativeSchemeData(SchemeRelativeURL),
-    OtherSchemeData(~str)
+    OtherSchemeData(~str),  // data: URLs, mailto: URLs, etc.
 }
 
 #[deriving(Clone)]

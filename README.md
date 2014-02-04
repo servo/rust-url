@@ -21,7 +21,7 @@ pub struct URL {
 
 pub enum SchemeData {
     RelativeSchemeData(SchemeRelativeURL),
-    OtherSchemeData(~str)
+    OtherSchemeData(~str),  // data: URLs, mailto: URLs, etc.
 }
 
 pub struct SchemeRelativeURL {
@@ -49,6 +49,8 @@ pub struct IPv6Address {
 pub type ParseResult<T> = Result<T, &'static str>;
 
 impl URL {
+    // base_url is used to resolve relative URLs.
+    // Relative URLs without a base return an error.
     pub fn parse(input: &str, base_url: Option<&URL>) -> ParseResult<URL>
     pub fn serialize(&self) -> ~str
     pub fn serialize_no_fragment(&self) -> ~str
@@ -66,6 +68,7 @@ impl IPv6Address {
 
 
 /// application/x-www-form-urlencoded
+/// Converts between a query string and name/value pairs.
 pub mod form_urlencoded {
     pub fn parse_str(input: &str) -> ~[(~str, ~str)]
     pub fn parse_bytes(input: &[u8], encoding_override: Option<encoding::EncodingRef>,
