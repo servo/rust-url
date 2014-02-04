@@ -35,7 +35,7 @@ mod tests;
 pub struct URL {
     scheme: ~str,
     scheme_data: SchemeData,
-    query: Option<~str>,  // parse_form_urlencoded() parses this into ~[(~str, ~str)]
+    query: Option<~str>,  // See form_urlencoded::parse_str() to get name/value pairs.
     fragment: Option<~str>,
 }
 
@@ -160,10 +160,7 @@ impl Host {
             Err("Empty host")
         } else if input[0] == '[' as u8 {
             if input[input.len() - 1] == ']' as u8 {
-                match IPv6Address::parse(input.slice(1, input.len() - 1)) {
-                    Some(address) => Ok(IPv6(address)),
-                    None => Err("Invalid IPv6 address"),
-                }
+                IPv6Address::parse(input.slice(1, input.len() - 1)).map(IPv6)
             } else {
                 Err("Invalid IPv6 address")
             }
@@ -201,7 +198,7 @@ impl Host {
 
 
 impl IPv6Address {
-    pub fn parse(input: &str) -> Option<IPv6Address> {
+    pub fn parse(input: &str) -> ParseResult<IPv6Address> {
         let len = input.len();
         let mut is_ip_v4 = false;
         let mut pieces = [0, 0, 0, 0, 0, 0, 0, 0];
@@ -210,7 +207,7 @@ impl IPv6Address {
         let mut i = 0u;
         if input[0] == ':' as u8 {
             if input[1] != ':' as u8 {
-                return None
+                return Err("Invalid IPv6 address")
             }
             i = 2;
             piece_pointer = 1;
@@ -219,11 +216,11 @@ impl IPv6Address {
 
         while i < len {
             if piece_pointer == 8 {
-                return None
+                return Err("Invalid IPv6 address")
             }
             if input[i] == ':' as u8 {
                 if compress_pointer.is_some() {
-                    return None
+                    return Err("Invalid IPv6 address")
                 }
                 i += 1;
                 piece_pointer += 1;
@@ -246,7 +243,7 @@ impl IPv6Address {
                 match input[i] as char {
                     '.' => {
                         if i == start {
-                            return None
+                            return Err("Invalid IPv6 address")
                         }
                         i = start;
                         is_ip_v4 = true;
@@ -254,10 +251,10 @@ impl IPv6Address {
                     ':' => {
                         i += 1;
                         if i == len {
-                            return None
+                            return Err("Invalid IPv6 address")
                         }
                     },
-                    _ => return None
+                    _ => return Err("Invalid IPv6 address")
                 }
             }
             if is_ip_v4 {
@@ -269,7 +266,7 @@ impl IPv6Address {
 
         if is_ip_v4 {
             if piece_pointer > 6 {
-                return None
+                return Err("Invalid IPv6 address")
             }
             let mut dots_seen = 0u;
             while i < len {
@@ -281,11 +278,11 @@ impl IPv6Address {
                     };
                     value = value * 10 + digit as u16;
                     if value > 255 {
-                        return None
+                        return Err("Invalid IPv6 address")
                     }
                 }
                 if dots_seen < 3 && !(i < len && input[i] == '.' as u8) {
-                    return None
+                    return Err("Invalid IPv6 address")
                 }
                 pieces[piece_pointer] = pieces[piece_pointer] * 0x100 + value;
                 if dots_seen == 0 || dots_seen == 2 {
@@ -293,7 +290,7 @@ impl IPv6Address {
                 }
                 i += 1;
                 if dots_seen == 3 && i < len {
-                    return None
+                    return Err("Invalid IPv6 address")
                 }
                 dots_seen += 1;
             }
@@ -311,10 +308,10 @@ impl IPv6Address {
                 }
             }
             _ => if piece_pointer != 8 {
-                return None
+                return Err("Invalid IPv6 address")
             }
         }
-        Some(IPv6Address { pieces: pieces })
+        Ok(IPv6Address { pieces: pieces })
     }
 
     pub fn serialize(&self) -> ~str {

@@ -75,9 +75,7 @@ pub fn parse_bytes(input: &[u8], encoding_override: Option<EncodingRef>,
 }
 
 
-pub fn serialize_form_urlencoded(pairs: ~[(~str, ~str)],
-                                 encoding_override: Option<EncodingRef>)
-                              -> ~str {
+pub fn serialize(pairs: ~[(~str, ~str)], encoding_override: Option<EncodingRef>) -> ~str {
     #[inline]
     fn byte_serialize(input: &str, output: &mut ~str,
                      encoding_override: Option<EncodingRef>) {
