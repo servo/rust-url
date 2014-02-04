@@ -9,7 +9,7 @@
 
 use std::char;
 use std::u32;
-use super::{URL, RelativeSchemeData, SchemeRelativeURL, UserInfo, OtherSchemeData};
+use super::{Url, RelativeSchemeData, SchemeRelativeUrl, UserInfo, OtherSchemeData};
 
 
 #[test]
@@ -27,23 +27,23 @@ fn test_url_parsing() {
             query: expected_query,
             fragment: expected_fragment
         } = test;
-        let base = match URL::parse(base, None) {
+        let base = match Url::parse(base, None) {
             Ok(base) => base,
             Err(message) => fail!("Error parsing base {:?}: {}", base, message)
         };
-        let url = URL::parse(input, Some(&base));
+        let url = Url::parse(input, Some(&base));
         if expected_scheme.is_none() {
             assert!(url.is_err(), "Expected a parse error for URL {:?}", input);
             continue
         }
-        let URL { scheme, scheme_data, query, fragment } = match url {
+        let Url { scheme, scheme_data, query, fragment } = match url {
             Ok(url) => url,
             Err(message) => fail!("Error parsing URL {:?}: {}", input, message)
         };
 
         assert_eq!(Some(scheme), expected_scheme);
         match scheme_data {
-            RelativeSchemeData(SchemeRelativeURL { userinfo, host, port, path }) => {
+            RelativeSchemeData(SchemeRelativeUrl { userinfo, host, port, path }) => {
                 let (username, password) = match userinfo {
                     None => (~"", None),
                     Some(UserInfo { username, password }) => (username, password),

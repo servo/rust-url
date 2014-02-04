@@ -32,7 +32,7 @@ mod tests;
 
 
 #[deriving(Clone)]
-pub struct URL {
+pub struct Url {
     scheme: ~str,
     scheme_data: SchemeData,
     query: Option<~str>,  // See form_urlencoded::parse_str() to get name/value pairs.
@@ -41,12 +41,12 @@ pub struct URL {
 
 #[deriving(Clone)]
 pub enum SchemeData {
-    RelativeSchemeData(SchemeRelativeURL),
+    RelativeSchemeData(SchemeRelativeUrl),
     OtherSchemeData(~str),  // data: URLs, mailto: URLs, etc.
 }
 
 #[deriving(Clone)]
-pub struct SchemeRelativeURL {
+pub struct SchemeRelativeUrl {
     userinfo: Option<UserInfo>,
     host: Host,
     port: ~str,
@@ -62,16 +62,16 @@ pub struct UserInfo {
 #[deriving(Clone)]
 pub enum Host {
     Domain(~[~str]),  // Can only be empty in the file scheme
-    IPv6(IPv6Address)
+    Ipv6(Ipv6Address)
 }
 
-pub struct IPv6Address {
+pub struct Ipv6Address {
     pieces: [u16, ..8]
 }
 
-impl Clone for IPv6Address {
-    fn clone(&self) -> IPv6Address {
-        IPv6Address { pieces: self.pieces }
+impl Clone for Ipv6Address {
+    fn clone(&self) -> Ipv6Address {
+        Ipv6Address { pieces: self.pieces }
     }
 }
 
@@ -86,8 +86,8 @@ macro_rules! is_match(
 pub type ParseResult<T> = Result<T, &'static str>;
 
 
-impl URL {
-    pub fn parse(input: &str, base_url: Option<&URL>) -> ParseResult<URL> {
+impl Url {
+    pub fn parse(input: &str, base_url: Option<&Url>) -> ParseResult<Url> {
         parser::parse_url(input, base_url)
     }
 
@@ -107,7 +107,7 @@ impl URL {
         let mut result = self.scheme.to_owned();
         result.push_str(":");
         match self.scheme_data {
-            RelativeSchemeData(SchemeRelativeURL {
+            RelativeSchemeData(SchemeRelativeUrl {
                 ref userinfo, ref host, ref port, ref path
             }) => {
                 result.push_str("//");
@@ -160,9 +160,9 @@ impl Host {
             Err("Empty host")
         } else if input[0] == '[' as u8 {
             if input[input.len() - 1] == ']' as u8 {
-                IPv6Address::parse(input.slice(1, input.len() - 1)).map(IPv6)
+                Ipv6Address::parse(input.slice(1, input.len() - 1)).map(Ipv6)
             } else {
-                Err("Invalid IPv6 address")
+                Err("Invalid Ipv6 address")
             }
         } else {
             let mut percent_encoded = ~"";
@@ -186,7 +186,7 @@ impl Host {
     pub fn serialize(&self) -> ~str {
         match *self {
             Domain(ref labels) => labels.connect("."),
-            IPv6(ref address) => {
+            Ipv6(ref address) => {
                 let mut result = ~"[";
                 result.push_str(address.serialize());
                 result.push_str("]");
@@ -197,8 +197,8 @@ impl Host {
 }
 
 
-impl IPv6Address {
-    pub fn parse(input: &str) -> ParseResult<IPv6Address> {
+impl Ipv6Address {
+    pub fn parse(input: &str) -> ParseResult<Ipv6Address> {
         let len = input.len();
         let mut is_ip_v4 = false;
         let mut pieces = [0, 0, 0, 0, 0, 0, 0, 0];
@@ -311,7 +311,7 @@ impl IPv6Address {
                 return Err("Invalid IPv6 address")
             }
         }
-        Ok(IPv6Address { pieces: pieces })
+        Ok(Ipv6Address { pieces: pieces })
     }
 
     pub fn serialize(&self) -> ~str {
