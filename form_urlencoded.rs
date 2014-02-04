@@ -6,6 +6,10 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+/// Parser and serializer for `application/x-www-form-urlencoded`
+///
+/// Converts between a string (such as an URL’s query string)
+/// and a list of name/value pairs.
 
 use std::str;
 
@@ -17,46 +21,57 @@ use encoding::label::encoding_from_whatwg_label;
 use super::{percent_encode_byte, percent_decode};
 
 
-pub fn parse_form_urlencoded(input: &str,
-                             encoding_override: Option<EncodingRef>,
-                             use_charset: bool,
-                             mut isindex: bool)
-                          -> ~[(~str, ~str)] {
+pub fn parse_str(input: &str) -> ~[(~str, ~str)] {
+    parse_bytes(input.as_bytes(), None, false, false).unwrap()
+}
+
+
+pub fn parse_bytes(input: &[u8], encoding_override: Option<EncodingRef>,
+                   mut use_charset: bool, mut isindex: bool) -> Option<~[(~str, ~str)]> {
     let mut encoding_override = encoding_override.unwrap_or(UTF_8 as EncodingRef);
     let mut pairs = ~[];
-    for string in input.split('&') {
-        if string.len() > 0 {
-            let (name, value) = match string.find('=') {
-                Some(position) => (string.slice_to(position), string.slice_from(position + 1)),
-                None => if isindex { ("", string) } else { (string, "") }
+    for piece in input.split(|&b| b == '&' as u8) {
+        if piece.is_empty() {
+            if isindex {
+                pairs.push((~[], ~[]))
+            }
+        } else {
+            let (name, value) = match piece.position_elem(&('=' as u8)) {
+                Some(position) => (piece.slice_to(position), piece.slice_from(position + 1)),
+                None => if isindex { (&[], piece) } else { (piece, &[]) }
             };
-            let name = name.replace("+", " ");
-            let value = value.replace("+", " ");
-            if use_charset && name.as_slice() == "_charset_" {
-                match encoding_from_whatwg_label(value) {
+            let name = replace_plus(name);
+            let value = replace_plus(value);
+            if use_charset && name.as_slice() == "_charset_".as_bytes() {
+                // Non-UTF8 here is ok, encoding_from_whatwg_label only matches in the ASCII range.
+                match encoding_from_whatwg_label(unsafe { str::raw::from_utf8(value) }) {
                     Some(encoding) => encoding_override = encoding,
                     None => (),
                 }
+                use_charset = false;
             }
             pairs.push((name, value));
         }
         isindex = false;
     }
+    if encoding_override.name() != "utf-8" && !input.is_ascii() {
+        return None
+    }
 
     #[inline]
-    fn decode(input: &~str, encoding_override: EncodingRef) -> ~str {
-        let bytes = percent_decode(input.as_bytes());
+    fn replace_plus(input: &[u8]) -> ~[u8] {
+        input.iter().map(|&b| if b == '+' as u8 { ' ' as u8 } else { b }).to_owned_vec()
+    }
+
+    #[inline]
+    fn decode(input: ~[u8], encoding_override: EncodingRef) -> ~str {
+        let bytes = percent_decode(input.as_slice());
         encoding_override.decode(bytes, encoding::DecodeReplace).unwrap()
     }
 
-    for pair in pairs.mut_iter() {
-        let new_pair = {
-            let &(ref name, ref value) = pair;
-            (decode(name, encoding_override), decode(value, encoding_override))
-        };
-        *pair = new_pair;
-    }
-    pairs
+    Some(pairs.move_iter().map(
+        |(name, value)| (decode(name, encoding_override), decode(value, encoding_override))
+    ).to_owned_vec())
 }
 
 
