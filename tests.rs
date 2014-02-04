@@ -41,33 +41,31 @@ fn test_url_parsing() {
             Err(message) => fail!("Error parsing URL {:?}: {}", input, message)
         };
 
-        assert_eq!(Some(scheme.as_str_ascii().to_owned()), expected_scheme);
+        assert_eq!(Some(scheme), expected_scheme);
         match scheme_data {
             RelativeSchemeData(SchemeRelativeURL { userinfo, host, port, path }) => {
                 let (username, password) = match userinfo {
                     None => (~"", None),
-                    Some(UserInfo { username, password }) => (
-                        username.as_str_ascii().to_owned(),
-                        password.map(|p| p.as_str_ascii().to_owned())),
+                    Some(UserInfo { username, password }) => (username, password),
                 };
                 assert_eq!(username, expected_username);
                 assert_eq!(password, expected_password);
                 let host = host.serialize();
-                assert_eq!(host.as_str_ascii().to_owned(), expected_host)
-                assert_eq!(port.as_str_ascii().to_owned(), expected_port);
-                assert_eq!(Some("/" + path.map(|p| p.as_str_ascii().to_owned()).connect("/")),
+                assert_eq!(host, expected_host)
+                assert_eq!(port, expected_port);
+                assert_eq!(Some("/" + path.connect("/")),
                            expected_path);
             },
             OtherSchemeData(scheme_data) => {
-                assert_eq!(Some(scheme_data.as_str_ascii().to_owned()), expected_path);
+                assert_eq!(Some(scheme_data), expected_path);
                 assert_eq!(~"", expected_username);
                 assert_eq!(None, expected_password);
                 assert_eq!(~"", expected_host);
                 assert_eq!(~"", expected_port);
             },
         }
-        assert_eq!(query.map(|p| "?" + p.as_str_ascii().to_owned()), expected_query);
-        assert_eq!(fragment.map(|p| "#" + p.as_str_ascii().to_owned()), expected_fragment);
+        assert_eq!(query.map(|p| "?" + p), expected_query);
+        assert_eq!(fragment.map(|p| "#" + p), expected_fragment);
     }
 }
 

@@ -11,12 +11,13 @@
 #[crate_type = "lib"];
 #[feature(macro_rules)];
 
+
 extern mod encoding;
 
 #[cfg(test)]
 extern mod extra;
 
-use std::ascii::Ascii;
+use std::str;
 
 use encoding::EncodingRef;
 use encoding::Encoding;
@@ -33,35 +34,35 @@ mod tests;
 
 #[deriving(Clone)]
 pub struct URL {
-    scheme: ~[Ascii],
+    scheme: ~str,
     scheme_data: SchemeData,
-    query: Option<~[Ascii]>,  // parse_form_urlencoded() parses this into ~[(~str, ~str)]
-    fragment: Option<~[Ascii]>,
+    query: Option<~str>,  // parse_form_urlencoded() parses this into ~[(~str, ~str)]
+    fragment: Option<~str>,
 }
 
 #[deriving(Clone)]
 pub enum SchemeData {
     RelativeSchemeData(SchemeRelativeURL),
-    OtherSchemeData(~[Ascii])
+    OtherSchemeData(~str)
 }
 
 #[deriving(Clone)]
 pub struct SchemeRelativeURL {
     userinfo: Option<UserInfo>,
     host: Host,
-    port: ~[Ascii],
-    path: ~[~[Ascii]],
+    port: ~str,
+    path: ~[~str],
 }
 
 #[deriving(Clone)]
 pub struct UserInfo {
-    username: ~[Ascii],
-    password: Option<~[Ascii]>,
+    username: ~str,
+    password: Option<~str>,
 }
 
 #[deriving(Clone)]
 pub enum Host {
-    Domain(~[~[Ascii]]),
+    Domain(~[~str]),
     IPv6(IPv6Address)
 }
 
@@ -91,62 +92,62 @@ impl URL {
         parser::parse_url(input, base_url)
     }
 
-    pub fn serialize(&self) -> ~[Ascii] {
+    pub fn serialize(&self) -> ~str {
         let mut result = self.serialize_no_fragment();
         match self.fragment {
             None => (),
             Some(ref fragment) => {
-                result.push('#'.to_ascii());
-                result.push_all(fragment.as_slice());
+                result.push_str("#");
+                result.push_str(fragment.as_slice());
             }
         }
         result
     }
 
-    pub fn serialize_no_fragment(&self) -> ~[Ascii] {
+    pub fn serialize_no_fragment(&self) -> ~str {
         let mut result = self.scheme.to_owned();
-        result.push(':'.to_ascii());
+        result.push_str(":");
         match self.scheme_data {
             RelativeSchemeData(SchemeRelativeURL {
                 ref userinfo, ref host, ref port, ref path
             }) => {
-                result.push_all("//".to_ascii());
+                result.push_str("//");
                 match userinfo {
                     &None => (),
                     &Some(UserInfo { ref username, ref password })
                     => if username.len() > 0 || password.is_some() {
-                        result.push_all(username.as_slice());
+                        result.push_str(username.as_slice());
                         match password {
                             &None => (),
                             &Some(ref password) => {
-                                result.push(':'.to_ascii());
-                                result.push_all(password.as_slice());
+                                result.push_str(":");
+                                result.push_str(password.as_slice());
                             }
                         }
-                        result.push('@'.to_ascii());
+                        result.push_str("@");
                     }
                 }
-                result.push_all(host.serialize());
+                result.push_str(host.serialize());
                 if port.len() > 0 {
-                    result.push(':'.to_ascii());
-                    result.push_all(port.as_slice());
+                    result.push_str(":");
+                    result.push_str(port.as_slice());
                 }
                 if path.len() > 0 {
                     for path_part in path.iter() {
-                        result.push('/'.to_ascii());
-                        result.push_all(path_part.as_slice());
+                        result.push_str("/");
+                        result.push_str(path_part.as_slice());
                     }
                 } else {
-                    result.push('/'.to_ascii());
+                    result.push_str("/");
                 }
             },
-            OtherSchemeData(ref data) => result.push_all(data.as_slice()),
+            OtherSchemeData(ref data) => result.push_str(data.as_slice()),
         }
         match self.query {
             None => (),
             Some(ref query) => {
-                result.push('?'.to_ascii());
-                result.push_all(query.as_slice());
+                result.push_str("?");
+                result.push_str(query.as_slice());
             }
         }
         result
@@ -168,16 +169,16 @@ impl Host {
                 Err("Invalid IPv6 address")
             }
         } else {
-            let mut percent_encoded = ~[];
+            let mut percent_encoded = ~"";
             utf8_percent_encode(input, SimpleEncodeSet, &mut percent_encoded);
-            let bytes = percent_decode(percent_encoded);
+            let bytes = percent_decode(percent_encoded.as_bytes());
             let decoded = UTF_8.decode(bytes, encoding::DecodeReplace).unwrap();
             let mut labels = ~[];
             for label in decoded.split(&['.', '\u3002', '\uFF0E', '\uFF61']) {
                 // TODO: Remove this check and use IDNA "domain to ASCII"
                 // TODO: switch to .map(domain_label_to_ascii).collect() then.
                 if label.is_ascii() {
-                    labels.push(unsafe { label.to_ascii_nocheck() }.to_owned())
+                    labels.push(label.to_owned())
                 } else {
                     return Err("Non-ASCII domains (IDNA) are not supported yet.")
                 }
@@ -186,13 +187,13 @@ impl Host {
         }
     }
 
-    pub fn serialize(&self) -> ~[Ascii] {
+    pub fn serialize(&self) -> ~str {
         match *self {
-            Domain(ref labels) => labels.connect_vec(&'.'.to_ascii()),
+            Domain(ref labels) => labels.connect("."),
             IPv6(ref address) => {
-                let mut result = ~['['.to_ascii()];
-                result.push_all(address.serialize());
-                result.push(']'.to_ascii());
+                let mut result = ~"[";
+                result.push_str(address.serialize());
+                result.push_str("]");
                 result
             }
         }
@@ -317,15 +318,15 @@ impl IPv6Address {
         Some(IPv6Address { pieces: pieces })
     }
 
-    pub fn serialize(&self) -> ~[Ascii] {
-        let mut output = ~[];
+    pub fn serialize(&self) -> ~str {
+        let mut output = ~"";
         let (compress_start, compress_end) = longest_zero_sequence(&self.pieces);
         let mut i = 0;
         while i < 8 {
             if i == compress_start {
-                output.push(':'.to_ascii());
+                output.push_str(":");
                 if i == 0 {
-                    output.push(':'.to_ascii());
+                    output.push_str(":");
                 }
                 if compress_end < 8 {
                     i = compress_end;
@@ -333,11 +334,9 @@ impl IPv6Address {
                     break;
                 }
             }
-            let hex = self.pieces[i].to_str_radix(16);
-            // No need to check that hex digits are ASCII
-            output.push_all(unsafe { hex.to_ascii_nocheck() });
+            output.push_str(self.pieces[i].to_str_radix(16));
             if i < 7 {
-                output.push(':'.to_ascii());
+                output.push_str(":");
             }
             i += 1;
         }
@@ -387,13 +386,12 @@ fn from_hex(byte: u8) -> Option<u8> {
 }
 
 #[inline]
-fn to_hex_upper(value: u8) -> Ascii {
-    let digit = match value {
+fn to_hex_upper(value: u8) -> u8 {
+    match value {
         0 .. 9 => value + 0x30,
         10 .. 15 => value - 10 + 0x41,
         _ => fail!()
-    };
-    unsafe { digit.to_ascii_nocheck() }
+    }
 }
 
 
@@ -407,12 +405,12 @@ enum EncodeSet {
 
 
 #[inline]
-fn utf8_percent_encode(input: &str, encode_set: EncodeSet, output: &mut ~[Ascii]) {
+fn utf8_percent_encode(input: &str, encode_set: EncodeSet, output: &mut ~str) {
     use Default = self::DefaultEncodeSet;
     use UserInfo = self::UserInfoEncodeSet;
     use Password = self::PasswordEncodeSet;
     use Username = self::UsernameEncodeSet;
-    for &byte in input.as_bytes().iter() {
+    for byte in input.bytes() {
         if byte < 0x20 || byte > 0x7E || match byte as char {
             ' ' | '"' | '#' | '<' | '>' | '?' | '`'
             => is_match!(encode_set, Default | UserInfo | Password | Username),
@@ -426,27 +424,30 @@ fn utf8_percent_encode(input: &str, encode_set: EncodeSet, output: &mut ~[Ascii]
         } {
             percent_encode_byte(byte, output)
         } else {
-            output.push(unsafe { byte.to_ascii_nocheck() })  // Already checked
+            unsafe { str::raw::push_byte(output, byte) }
         }
     }
 }
 
 
 #[inline]
-fn percent_encode_byte(byte: u8, output: &mut ~[Ascii]) {
-    output.push_all(['%'.to_ascii(), to_hex_upper(byte >> 4), to_hex_upper(byte & 0x0F)])
+fn percent_encode_byte(byte: u8, output: &mut ~str) {
+    unsafe {
+        str::raw::push_bytes(output, [
+            '%' as u8, to_hex_upper(byte >> 4), to_hex_upper(byte & 0x0F)
+        ])
+    }
 }
 
 
 #[inline]
-fn percent_decode(input: &[Ascii]) -> ~[u8] {
+fn percent_decode(input: &[u8]) -> ~[u8] {
     let mut output = ~[];
     let mut i = 0u;
     while i < input.len() {
         let c = input[i];
-        if c == '%'.to_ascii() && i + 2 < input.len() {
-            match (from_hex(input[i + 1].to_byte()),
-                   from_hex(input[i + 2].to_byte())) {
+        if c == ('%' as u8) && i + 2 < input.len() {
+            match (from_hex(input[i + 1]), from_hex(input[i + 2])) {
                 (Some(h), Some(l)) => {
                     output.push(h * 0x10 + l);
                     i += 3;
@@ -456,28 +457,28 @@ fn percent_decode(input: &[Ascii]) -> ~[u8] {
             }
         }
 
-        output.push(c.to_byte());
+        output.push(c);
         i += 1;
     }
     output
 }
 
 
-pub fn parse_form_urlencoded(input: &[Ascii],
+pub fn parse_form_urlencoded(input: &str,
                              encoding_override: Option<EncodingRef>,
                              use_charset: bool,
                              mut isindex: bool)
                           -> ~[(~str, ~str)] {
     let mut encoding_override = encoding_override.unwrap_or(UTF_8 as EncodingRef);
     let mut pairs = ~[];
-    for string in input.split(|&c| c == '&'.to_ascii()) {
+    for string in input.split('&') {
         if string.len() > 0 {
-            let (name, value) = match string.position_elem(&'='.to_ascii()) {
+            let (name, value) = match string.find('=') {
                 Some(position) => (string.slice_to(position), string.slice_from(position + 1)),
-                None => if isindex { (&[], string) } else { (string, &[]) }
+                None => if isindex { ("", string) } else { (string, "") }
             };
-            let name = name.as_str_ascii().replace("+", " ");
-            let value = value.as_str_ascii().replace("+", " ");
+            let name = name.replace("+", " ");
+            let value = value.replace("+", " ");
             if use_charset && name.as_slice() == "_charset_" {
                 match encoding_from_whatwg_label(value) {
                     Some(encoding) => encoding_override = encoding,
@@ -491,8 +492,7 @@ pub fn parse_form_urlencoded(input: &[Ascii],
 
     #[inline]
     fn decode(input: &~str, encoding_override: EncodingRef) -> ~str {
-        // No need to check as input comes from &[Ascii].as_str_ascii().replace("+", " ")
-        let bytes = percent_decode(unsafe { input.as_slice().to_ascii_nocheck() });
+        let bytes = percent_decode(input.as_bytes());
         encoding_override.decode(bytes, encoding::DecodeReplace).unwrap()
     }
 
@@ -509,9 +509,9 @@ pub fn parse_form_urlencoded(input: &[Ascii],
 
 pub fn serialize_form_urlencoded(pairs: ~[(~str, ~str)],
                                  encoding_override: Option<EncodingRef>)
-                              -> ~[Ascii] {
+                              -> ~str {
     #[inline]
-    fn byte_serialize(input: &str, output: &mut ~[Ascii],
+    fn byte_serialize(input: &str, output: &mut ~str,
                      encoding_override: Option<EncodingRef>) {
         let keep_alive;
         let input = match encoding_override {
@@ -524,20 +524,20 @@ pub fn serialize_form_urlencoded(pairs: ~[(~str, ~str)],
 
         for byte in input.iter() {
             match *byte {
-                0x20 => output.push('+'.to_ascii()),
+                0x20 => output.push_str("+"),
                 0x2A | 0x2D | 0x2E | 0x30 .. 0x39 | 0x41 .. 0x5A | 0x5F | 0x61 .. 0x7A
-                => output.push(unsafe { byte.to_ascii_nocheck() }),
+                => unsafe { str::raw::push_byte(output, *byte) },
                 _ => percent_encode_byte(*byte, output),
             }
         }
     }
 
-    let mut output = ~[];
+    let mut output = ~"";
     for &(ref name, ref value) in pairs.iter() {
         if output.len() > 0 {
-            output.push('&'.to_ascii());
+            output.push_str("&");
             byte_serialize(name.as_slice(), &mut output, encoding_override);
-            output.push('='.to_ascii());
+            output.push_str("=");
             byte_serialize(value.as_slice(), &mut output, encoding_override);
         }
     }

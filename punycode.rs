@@ -9,7 +9,7 @@
 
 use std::u32;
 use std::char;
-use std::ascii::Ascii;
+use std::str;
 
 
 // Bootstring parameters for Punycode
@@ -40,32 +40,32 @@ fn adapt(mut delta: u32, num_points: u32, first_time: bool) -> u32 {
 /// Return None on malformed input or overflow.
 /// Overflow can only happen on inputs that take more than
 /// 63 encoded bytes, the DNS limit on domain name labels.
-pub fn decode(input: &[Ascii]) -> Option<~[char]> {
+pub fn decode(input: &str) -> Option<~[char]> {
     // Handle "basic" (ASCII) code points.
     // They are encoded as-is befor the last delimiter, if any.
-    let (mut output, input) = match input.rposition_elem(&DELIMITER.to_ascii()) {
+    let (mut output, input) = match input.rfind(DELIMITER) {
         None => (~[], input),
         Some(position) => (
-            input.slice_to(position).map(|a| a.to_char()),
+            input.slice_to(position).chars().to_owned_vec(),
             if position > 0 { input.slice_from(position + 1) } else { input }
         )
     };
     let mut code_point = INITIAL_N;
     let mut bias = INITIAL_BIAS;
     let mut i = 0;
-    let mut iter = input.iter();
+    let mut iter = input.bytes();
     loop {
         let previous_i = i;
         let mut weight = 1;
         let mut k = BASE;
-        let mut ascii = match iter.next() {
+        let mut byte = match iter.next() {
             None => break,
-            Some(ascii) => ascii,
+            Some(byte) => byte,
         };
         // Decode a generalized variable-length integer into delta,
         // which gets added to i.
         loop {
-            let digit = match ascii.to_byte() {
+            let digit = match byte {
                 byte @ 0x30 .. 0x39 => byte - 0x30 + 26,  // 0..9
                 byte @ 0x41 .. 0x5A => byte - 0x41,  // A..Z
                 byte @ 0x61 .. 0x7A => byte - 0x61,  // a..z
@@ -86,9 +86,9 @@ pub fn decode(input: &[Ascii]) -> Option<~[char]> {
             }
             weight *= BASE - t;
             k += BASE;
-            ascii = match iter.next() {
+            byte = match iter.next() {
                 None => return None,  // End of input before the end of this delta
-                Some(ascii) => ascii,
+                Some(byte) => byte,
             };
         }
         let length = output.len() as u32;
@@ -114,15 +114,15 @@ pub fn decode(input: &[Ascii]) -> Option<~[char]> {
 /// Convert Unicode to Punycode.
 /// Return None on overflow, which can only happen on inputs that would take more than
 /// 63 encoded bytes, the DNS limit on domain name labels.
-pub fn encode(input: &[char]) -> Option<~[Ascii]> {
+pub fn encode(input: &[char]) -> Option<~str> {
     // Handle "basic" (ASCII) code points. They are encoded as-is.
-    let mut output = input.iter().filter_map(|&c|
-        if c.is_ascii() { Some(unsafe { c.to_ascii_nocheck() }) }
-        else { None }
+    let output_bytes = input.iter().filter_map(|&c|
+        if c.is_ascii() { Some(c as u8) } else { None }
     ).to_owned_vec();
+    let mut output = unsafe { str::raw::from_utf8_owned(output_bytes) };
     let basic_length = output.len() as u32;
     if basic_length > 0 {
-        output.push('-'.to_ascii())
+        output.push_str("-")
     }
     let mut code_point = INITIAL_N;
     let mut delta = 0;
@@ -160,11 +160,11 @@ pub fn encode(input: &[char]) -> Option<~[Ascii]> {
                         break
                     }
                     let value = t + ((q - t) % (BASE - t));
-                    output.push(value_to_digit(value));
+                    value_to_digit(value, &mut output);
                     q = (q - t) / (BASE - t);
                     k += BASE;
                 }
-                output.push(value_to_digit(q));
+                value_to_digit(q, &mut output);
                 bias = adapt(delta, processed + 1, processed == basic_length);
                 delta = 0;
                 processed += 1;
@@ -178,25 +178,24 @@ pub fn encode(input: &[char]) -> Option<~[Ascii]> {
 
 
 #[inline]
-fn value_to_digit(value: u32) -> Ascii {
+fn value_to_digit(value: u32, output: &mut ~str) {
     let code_point = match value {
         0 .. 25 => value + 0x61,  // a..z
         26 .. 35 => value - 26 + 0x30,  // 0..9
         _ => fail!()
     };
-    unsafe { (code_point as u8).to_ascii_nocheck() }
+    unsafe { str::raw::push_byte(output, code_point as u8) }
 }
 
 
 #[cfg(test)]
 mod tests {
     use super::{decode, encode};
-    use std::ascii::AsciiCast;
     use std::str::from_chars;
     use extra::json::{from_str, List, Object, String};
 
     fn one_test(description: &str, decoded: &str, encoded: &str) {
-        match decode(encoded.to_ascii()) {
+        match decode(encoded) {
             None => fail!("Decoding {:?} failed.", encoded),
             Some(result) => {
                 let result = from_chars(result);
@@ -209,7 +208,6 @@ mod tests {
         match encode(decoded.chars().to_owned_vec()) {
             None => fail!("Encoding {:?} failed.", decoded),
             Some(result) => {
-                let result = result.as_str_ascii();
                 assert!(result.as_slice() == encoded,
                         format!("Incorrect encoding of {:?}:\n   {:?}\n!= {:?}\n{}",
                                 decoded, result.as_slice(), encoded, description))
