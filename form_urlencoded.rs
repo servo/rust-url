@@ -60,7 +60,7 @@ pub fn parse_bytes(input: &[u8], encoding_override: Option<EncodingRef>,
 
     #[inline]
     fn replace_plus(input: &[u8]) -> ~[u8] {
-        input.iter().map(|&b| if b == '+' as u8 { ' ' as u8 } else { b }).to_owned_vec()
+        input.iter().map(|&b| if b == '+' as u8 { ' ' as u8 } else { b }).collect()
     }
 
     #[inline]
@@ -71,7 +71,7 @@ pub fn parse_bytes(input: &[u8], encoding_override: Option<EncodingRef>,
 
     Some(pairs.move_iter().map(
         |(name, value)| (decode(name, encoding_override), decode(value, encoding_override))
-    ).to_owned_vec())
+    ).collect())
 }
 
 

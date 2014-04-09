@@ -88,14 +88,14 @@ fn parse_test_data(input: &str) -> ~[Test] {
         if line == "" || line[0] == ('#' as u8) {
             continue
         }
-        let mut pieces = line.split(' ').to_owned_vec();
-        let input = unescape(pieces.shift());
+        let mut pieces: ~[&str] = line.split(' ').collect();
+        let input = unescape(pieces.shift().unwrap());
         let mut test = Test {
             input: input,
             base: if pieces.is_empty() || pieces[0] == "" {
                 tests[tests.len() - 1].base.to_owned()
             } else {
-                unescape(pieces.shift())
+                unescape(pieces.shift().unwrap())
             },
             scheme: None,
             username: ~"",

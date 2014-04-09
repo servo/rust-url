@@ -487,7 +487,7 @@ fn parse_path<'a>(base_path: ~[~str], input: &'a str, full_url: bool, in_file_sc
         let lower = path_part.to_ascii_lower();
         match lower.as_slice() {
             ".." | ".%2e" | "%2e." | "%2e%2e" => {
-                path.pop_opt();
+                path.pop();
                 if !ends_with_slash {
                     path.push(~"");
                 }

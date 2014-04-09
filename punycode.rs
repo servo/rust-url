@@ -6,11 +6,9 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-
 use std::u32;
 use std::char;
 use std::str;
-
 
 // Bootstring parameters for Punycode
 static BASE: u32 = 36;
@@ -46,7 +44,7 @@ pub fn decode(input: &str) -> Option<~[char]> {
     let (mut output, input) = match input.rfind(DELIMITER) {
         None => (~[], input),
         Some(position) => (
-            input.slice_to(position).chars().to_owned_vec(),
+            input.slice_to(position).chars().collect(),
             if position > 0 { input.slice_from(position + 1) } else { input }
         )
     };
@@ -71,7 +69,7 @@ pub fn decode(input: &str) -> Option<~[char]> {
                 byte @ 0x61 .. 0x7A => byte - 0x61,  // a..z
                 _ => return None
             } as u32;
-            if digit > (u32::max_value - i) / weight {
+            if digit > (u32::MAX - i) / weight {
                 return None  // Overflow
             }
             i += digit * weight;
@@ -81,7 +79,7 @@ pub fn decode(input: &str) -> Option<~[char]> {
             if digit < t {
                 break
             }
-            if weight > u32::max_value / (BASE - t) {
+            if weight > u32::MAX / (BASE - t) {
                 return None  // Overflow
             }
             weight *= BASE - t;
@@ -93,7 +91,7 @@ pub fn decode(input: &str) -> Option<~[char]> {
         }
         let length = output.len() as u32;
         bias = adapt(i - previous_i, length + 1, previous_i == 0);
-        if i / (length + 1) > u32::max_value - code_point {
+        if i / (length + 1) > u32::MAX - code_point {
             return None  // Overflow
         }
         // i was supposed to wrap around from length+1 to 0,
@@ -118,7 +116,7 @@ pub fn encode(input: &[char]) -> Option<~str> {
     // Handle "basic" (ASCII) code points. They are encoded as-is.
     let output_bytes = input.iter().filter_map(|&c|
         if c.is_ascii() { Some(c as u8) } else { None }
-    ).to_owned_vec();
+    ).collect();
     let mut output = unsafe { str::raw::from_utf8_owned(output_bytes) };
     let basic_length = output.len() as u32;
     if basic_length > 0 {
@@ -134,7 +132,7 @@ pub fn encode(input: &[char]) -> Option<~str> {
         // Find the next larger one.
         let min_code_point = input.iter().map(|&c| c as u32)
                                   .filter(|&c| c >= code_point).min().unwrap();
-        if min_code_point - code_point > (u32::max_value - delta) / (processed + 1) {
+        if min_code_point - code_point > (u32::MAX - delta) / (processed + 1) {
             return None  // Overflow
         }
         // Increase delta to advance the decoder’s <code_point,i> state to <min_code_point,0>
@@ -192,7 +190,7 @@ fn value_to_digit(value: u32, output: &mut ~str) {
 mod tests {
     use super::{decode, encode};
     use std::str::from_chars;
-    use extra::json::{from_str, List, Object, String};
+    use serialize::json::{from_str, List, Object, String};
 
     fn one_test(description: &str, decoded: &str, encoded: &str) {
         match decode(encoded) {
@@ -203,9 +201,11 @@ mod tests {
                         format!("Incorrect decoding of {:?}:\n   {:?}\n!= {:?}\n{}",
                                 encoded, result.as_slice(), decoded, description))
             }
-        }
+        }        
 
-        match encode(decoded.chars().to_owned_vec()) {
+        let dec_chars: ~[char] = decoded.chars().collect();
+
+        match encode(dec_chars) {
             None => fail!("Encoding {:?} failed.", decoded),
             Some(result) => {
                 assert!(result.as_slice() == encoded,
