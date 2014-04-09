@@ -6,18 +6,19 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+#![crate_id = "url#0.1"]
+#![crate_type = "lib"]
+#![feature(macro_rules)]
 
-#[crate_id = "url#0.1"];
-#[crate_type = "lib"];
-#[feature(macro_rules)];
-
-
-extern mod encoding;
+extern crate encoding;
 
 #[cfg(test)]
-extern mod extra;
+extern crate serialize;
 
 use std::str;
+use std::cmp;
+
+use std::num::ToStrRadix;
 
 use encoding::Encoding;
 use encoding::all::UTF_8;
@@ -228,7 +229,7 @@ impl Ipv6Address {
                 continue
             }
             let start = i;
-            let end = len.min(&(start + 4));
+            let end = cmp::min(len, start + 4);
             let mut value = 0u16;
             while i < end {
                 match from_hex(input[i]) {
