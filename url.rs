@@ -15,9 +15,7 @@ extern crate encoding;
 #[cfg(test)]
 extern crate serialize;
 
-use std::str;
 use std::cmp;
-
 use std::num::ToStrRadix;
 
 use encoding::Encoding;
@@ -32,37 +30,37 @@ pub mod punycode;
 mod tests;
 
 
-#[deriving(Clone)]
+#[deriving(Clone, Show)]
 pub struct Url {
-    scheme: ~str,
+    scheme: StrBuf,
     scheme_data: SchemeData,
-    query: Option<~str>,  // See form_urlencoded::parse_str() to get name/value pairs.
-    fragment: Option<~str>,
+    query: Option<StrBuf>,  // See form_urlencoded::parse_str() to get name/value pairs.
+    fragment: Option<StrBuf>,
 }
 
-#[deriving(Clone)]
+#[deriving(Clone, Show)]
 pub enum SchemeData {
     RelativeSchemeData(SchemeRelativeUrl),
-    OtherSchemeData(~str),  // data: URLs, mailto: URLs, etc.
+    OtherSchemeData(StrBuf),  // data: URLs, mailto: URLs, etc.
 }
 
-#[deriving(Clone)]
+#[deriving(Clone, Show)]
 pub struct SchemeRelativeUrl {
     userinfo: Option<UserInfo>,
     host: Host,
-    port: ~str,
-    path: ~[~str],
+    port: StrBuf,
+    path: Vec<StrBuf>,
 }
 
-#[deriving(Clone)]
+#[deriving(Clone, Show)]
 pub struct UserInfo {
-    username: ~str,
-    password: Option<~str>,
+    username: StrBuf,
+    password: Option<StrBuf>,
 }
 
-#[deriving(Clone)]
+#[deriving(Clone, Show)]
 pub enum Host {
-    Domain(~[~str]),  // Can only be empty in the file scheme
+    Domain(Vec<StrBuf>),  // Can only be empty in the file scheme
     Ipv6(Ipv6Address)
 }
 
@@ -73,6 +71,12 @@ pub struct Ipv6Address {
 impl Clone for Ipv6Address {
     fn clone(&self) -> Ipv6Address {
         Ipv6Address { pieces: self.pieces }
+    }
+}
+
+impl ::std::fmt::Show for Ipv6Address {
+    fn fmt(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        self.pieces.as_slice().fmt(formatter)
     }
 }
 
@@ -92,7 +96,7 @@ impl Url {
         parser::parse_url(input, base_url)
     }
 
-    pub fn serialize(&self) -> ~str {
+    pub fn serialize(&self) -> StrBuf {
         let mut result = self.serialize_no_fragment();
         match self.fragment {
             None => (),
@@ -104,8 +108,8 @@ impl Url {
         result
     }
 
-    pub fn serialize_no_fragment(&self) -> ~str {
-        let mut result = self.scheme.to_owned();
+    pub fn serialize_no_fragment(&self) -> StrBuf {
+        let mut result = self.scheme.clone();
         result.push_str(":");
         match self.scheme_data {
             RelativeSchemeData(SchemeRelativeUrl {
@@ -127,7 +131,7 @@ impl Url {
                         result.push_str("@");
                     }
                 }
-                result.push_str(host.serialize());
+                result.push_str(host.serialize().as_slice());
                 if port.len() > 0 {
                     result.push_str(":");
                     result.push_str(port.as_slice());
@@ -166,16 +170,17 @@ impl Host {
                 Err("Invalid Ipv6 address")
             }
         } else {
-            let mut percent_encoded = ~"";
+            let mut percent_encoded = StrBuf::new();
             utf8_percent_encode(input, SimpleEncodeSet, &mut percent_encoded);
             let bytes = percent_decode(percent_encoded.as_bytes());
-            let decoded = UTF_8.decode(bytes, encoding::DecodeReplace).unwrap();
-            let mut labels = ~[];
-            for label in decoded.split(&['.', '\u3002', '\uFF0E', '\uFF61']) {
+            let decoded = UTF_8.decode(bytes.as_slice(), encoding::DecodeReplace).unwrap();
+            let mut labels = Vec::new();
+            for label in decoded.as_slice().split(
+                    &['.', '\u3002', '\uFF0E', '\uFF61']) {
                 // TODO: Remove this check and use IDNA "domain to ASCII"
                 // TODO: switch to .map(domain_label_to_ascii).collect() then.
                 if label.is_ascii() {
-                    labels.push(label.to_owned())
+                    labels.push(label.to_strbuf())
                 } else {
                     return Err("Non-ASCII domains (IDNA) are not supported yet.")
                 }
@@ -184,12 +189,12 @@ impl Host {
         }
     }
 
-    pub fn serialize(&self) -> ~str {
+    pub fn serialize(&self) -> StrBuf {
         match *self {
-            Domain(ref labels) => labels.connect("."),
+            Domain(ref labels) => labels.connect(".").into_strbuf(),
             Ipv6(ref address) => {
-                let mut result = ~"[";
-                result.push_str(address.serialize());
+                let mut result = StrBuf::from_str("[");
+                result.push_str(address.serialize().as_slice());
                 result.push_str("]");
                 result
             }
@@ -315,8 +320,8 @@ impl Ipv6Address {
         Ok(Ipv6Address { pieces: pieces })
     }
 
-    pub fn serialize(&self) -> ~str {
-        let mut output = ~"";
+    pub fn serialize(&self) -> StrBuf {
+        let mut output = StrBuf::new();
         let (compress_start, compress_end) = longest_zero_sequence(&self.pieces);
         let mut i = 0;
         while i < 8 {
@@ -331,7 +336,7 @@ impl Ipv6Address {
                     break;
                 }
             }
-            output.push_str(self.pieces[i].to_str_radix(16));
+            output.push_str(self.pieces[i as uint].to_str_radix(16));
             if i < 7 {
                 output.push_str(":");
             }
@@ -358,7 +363,7 @@ fn longest_zero_sequence(pieces: &[u16, ..8]) -> (int, int) {
         };
     );
     for i in range(0, 8) {
-        if pieces[i] == 0 {
+        if pieces[i as uint] == 0 {
             if start < 0 {
                 start = i;
             }
@@ -402,7 +407,7 @@ enum EncodeSet {
 
 
 #[inline]
-fn utf8_percent_encode(input: &str, encode_set: EncodeSet, output: &mut ~str) {
+fn utf8_percent_encode(input: &str, encode_set: EncodeSet, output: &mut StrBuf) {
     use Default = self::DefaultEncodeSet;
     use UserInfo = self::UserInfoEncodeSet;
     use Password = self::PasswordEncodeSet;
@@ -421,16 +426,16 @@ fn utf8_percent_encode(input: &str, encode_set: EncodeSet, output: &mut ~str) {
         } {
             percent_encode_byte(byte, output)
         } else {
-            unsafe { str::raw::push_byte(output, byte) }
+            unsafe { output.push_byte(byte) }
         }
     }
 }
 
 
 #[inline]
-fn percent_encode_byte(byte: u8, output: &mut ~str) {
+fn percent_encode_byte(byte: u8, output: &mut StrBuf) {
     unsafe {
-        str::raw::push_bytes(output, [
+        output.push_bytes([
             '%' as u8, to_hex_upper(byte >> 4), to_hex_upper(byte & 0x0F)
         ])
     }
@@ -438,8 +443,8 @@ fn percent_encode_byte(byte: u8, output: &mut ~str) {
 
 
 #[inline]
-fn percent_decode(input: &[u8]) -> ~[u8] {
-    let mut output = ~[];
+fn percent_decode(input: &[u8]) -> Vec<u8> {
+    let mut output = Vec::new();
     let mut i = 0u;
     while i < input.len() {
         let c = input[i];

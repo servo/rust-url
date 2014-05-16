@@ -27,11 +27,11 @@ fn test_url_parsing() {
             query: expected_query,
             fragment: expected_fragment
         } = test;
-        let base = match Url::parse(base, None) {
+        let base = match Url::parse(base.as_slice(), None) {
             Ok(base) => base,
             Err(message) => fail!("Error parsing base {:?}: {}", base, message)
         };
-        let url = Url::parse(input, Some(&base));
+        let url = Url::parse(input.as_slice(), Some(&base));
         if expected_scheme.is_none() {
             assert!(url.is_err(), "Expected a parse error for URL {:?}", input);
             continue
@@ -45,7 +45,7 @@ fn test_url_parsing() {
         match scheme_data {
             RelativeSchemeData(SchemeRelativeUrl { userinfo, host, port, path }) => {
                 let (username, password) = match userinfo {
-                    None => (~"", None),
+                    None => (StrBuf::new(), None),
                     Some(UserInfo { username, password }) => (username, password),
                 };
                 assert_eq!(username, expected_username);
@@ -53,55 +53,58 @@ fn test_url_parsing() {
                 let host = host.serialize();
                 assert_eq!(host, expected_host)
                 assert_eq!(port, expected_port);
-                assert_eq!(Some("/" + path.connect("/")),
+                assert_eq!(Some("/".to_strbuf().append(path.connect("/"))),
                            expected_path);
             },
             OtherSchemeData(scheme_data) => {
                 assert_eq!(Some(scheme_data), expected_path);
-                assert_eq!(~"", expected_username);
+                assert_eq!(StrBuf::new(), expected_username);
                 assert_eq!(None, expected_password);
-                assert_eq!(~"", expected_host);
-                assert_eq!(~"", expected_port);
+                assert_eq!(StrBuf::new(), expected_host);
+                assert_eq!(StrBuf::new(), expected_port);
             },
         }
-        assert_eq!(query.map(|p| "?" + p), expected_query);
-        assert_eq!(fragment.map(|p| "#" + p), expected_fragment);
+        fn opt_prepend(prefix: &str, opt_s: Option<StrBuf>) -> Option<StrBuf> {
+            opt_s.map(|s| prefix.to_strbuf().append(s.as_slice()))
+        }
+        assert_eq!(opt_prepend("?", query), expected_query);
+        assert_eq!(opt_prepend("#", fragment), expected_fragment);
     }
 }
 
 struct Test {
-    input: ~str,
-    base: ~str,
-    scheme: Option<~str>,
-    username: ~str,
-    password: Option<~str>,
-    host: ~str,
-    port: ~str,
-    path: Option<~str>,
-    query: Option<~str>,
-    fragment: Option<~str>,
+    input: StrBuf,
+    base: StrBuf,
+    scheme: Option<StrBuf>,
+    username: StrBuf,
+    password: Option<StrBuf>,
+    host: StrBuf,
+    port: StrBuf,
+    path: Option<StrBuf>,
+    query: Option<StrBuf>,
+    fragment: Option<StrBuf>,
 }
 
-fn parse_test_data(input: &str) -> ~[Test] {
-    let mut tests: ~[Test] = ~[];
+fn parse_test_data(input: &str) -> Vec<Test> {
+    let mut tests: Vec<Test> = Vec::new();
     for line in input.lines() {
         if line == "" || line[0] == ('#' as u8) {
             continue
         }
-        let mut pieces: ~[&str] = line.split(' ').collect();
+        let mut pieces = line.split(' ').collect::<Vec<&str>>();
         let input = unescape(pieces.shift().unwrap());
         let mut test = Test {
             input: input,
-            base: if pieces.is_empty() || pieces[0] == "" {
-                tests[tests.len() - 1].base.to_owned()
+            base: if pieces.is_empty() || *pieces.get(0) == "" {
+                tests.last().unwrap().base.clone()
             } else {
                 unescape(pieces.shift().unwrap())
             },
             scheme: None,
-            username: ~"",
+            username: StrBuf::new(),
             password: None,
-            host: ~"",
-            port: ~"",
+            host: StrBuf::new(),
+            port: StrBuf::new(),
             path: None,
             query: None,
             fragment: None,
@@ -129,8 +132,8 @@ fn parse_test_data(input: &str) -> ~[Test] {
     tests
 }
 
-fn unescape(input: &str) -> ~str {
-    let mut output = ~"";
+fn unescape(input: &str) -> StrBuf {
+    let mut output = StrBuf::new();
     let mut chars = input.chars();
     loop {
         match chars.next() {
@@ -145,7 +148,7 @@ fn unescape(input: &str) -> ~str {
                         't' => '\t',
                         'f' => '\x0C',
                         'u' => {
-                            let mut hex = ~"";
+                            let mut hex = StrBuf::new();
                             hex.push_char(chars.next().unwrap());
                             hex.push_char(chars.next().unwrap());
                             hex.push_char(chars.next().unwrap());

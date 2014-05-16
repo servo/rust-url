@@ -21,19 +21,19 @@ use encoding::label::encoding_from_whatwg_label;
 use super::{percent_encode_byte, percent_decode};
 
 
-pub fn parse_str(input: &str) -> ~[(~str, ~str)] {
+pub fn parse_str(input: &str) -> Vec<(StrBuf, StrBuf)> {
     parse_bytes(input.as_bytes(), None, false, false).unwrap()
 }
 
 
 pub fn parse_bytes(input: &[u8], encoding_override: Option<EncodingRef>,
-                   mut use_charset: bool, mut isindex: bool) -> Option<~[(~str, ~str)]> {
+                   mut use_charset: bool, mut isindex: bool) -> Option<Vec<(StrBuf, StrBuf)>> {
     let mut encoding_override = encoding_override.unwrap_or(UTF_8 as EncodingRef);
-    let mut pairs = ~[];
+    let mut pairs = Vec::new();
     for piece in input.split(|&b| b == '&' as u8) {
         if piece.is_empty() {
             if isindex {
-                pairs.push((~[], ~[]))
+                pairs.push((Vec::new(), Vec::new()))
             }
         } else {
             let (name, value) = match piece.position_elem(&('=' as u8)) {
@@ -44,7 +44,7 @@ pub fn parse_bytes(input: &[u8], encoding_override: Option<EncodingRef>,
             let value = replace_plus(value);
             if use_charset && name.as_slice() == "_charset_".as_bytes() {
                 // Non-UTF8 here is ok, encoding_from_whatwg_label only matches in the ASCII range.
-                match encoding_from_whatwg_label(unsafe { str::raw::from_utf8(value) }) {
+                match encoding_from_whatwg_label(unsafe { str::raw::from_utf8(value.as_slice()) }) {
                     Some(encoding) => encoding_override = encoding,
                     None => (),
                 }
@@ -59,14 +59,14 @@ pub fn parse_bytes(input: &[u8], encoding_override: Option<EncodingRef>,
     }
 
     #[inline]
-    fn replace_plus(input: &[u8]) -> ~[u8] {
+    fn replace_plus(input: &[u8]) -> Vec<u8> {
         input.iter().map(|&b| if b == '+' as u8 { ' ' as u8 } else { b }).collect()
     }
 
     #[inline]
-    fn decode(input: ~[u8], encoding_override: EncodingRef) -> ~str {
+    fn decode(input: Vec<u8>, encoding_override: EncodingRef) -> StrBuf {
         let bytes = percent_decode(input.as_slice());
-        encoding_override.decode(bytes, encoding::DecodeReplace).unwrap()
+        encoding_override.decode(bytes.as_slice(), encoding::DecodeReplace).unwrap()
     }
 
     Some(pairs.move_iter().map(
@@ -75,9 +75,9 @@ pub fn parse_bytes(input: &[u8], encoding_override: Option<EncodingRef>,
 }
 
 
-pub fn serialize(pairs: ~[(~str, ~str)], encoding_override: Option<EncodingRef>) -> ~str {
+pub fn serialize(pairs: Vec<(StrBuf, StrBuf)>, encoding_override: Option<EncodingRef>) -> StrBuf {
     #[inline]
-    fn byte_serialize(input: &str, output: &mut ~str,
+    fn byte_serialize(input: &str, output: &mut StrBuf,
                      encoding_override: Option<EncodingRef>) {
         let keep_alive;
         let input = match encoding_override {
@@ -88,17 +88,17 @@ pub fn serialize(pairs: ~[(~str, ~str)], encoding_override: Option<EncodingRef>)
             }
         };
 
-        for byte in input.iter() {
-            match *byte {
+        for &byte in input.iter() {
+            match byte {
                 0x20 => output.push_str("+"),
                 0x2A | 0x2D | 0x2E | 0x30 .. 0x39 | 0x41 .. 0x5A | 0x5F | 0x61 .. 0x7A
-                => unsafe { str::raw::push_byte(output, *byte) },
-                _ => percent_encode_byte(*byte, output),
+                => unsafe { output.push_byte(byte) },
+                _ => percent_encode_byte(byte, output),
             }
         }
     }
 
-    let mut output = ~"";
+    let mut output = StrBuf::new();
     for &(ref name, ref value) in pairs.iter() {
         if output.len() > 0 {
             output.push_str("&");

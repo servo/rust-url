@@ -38,11 +38,11 @@ fn adapt(mut delta: u32, num_points: u32, first_time: bool) -> u32 {
 /// Return None on malformed input or overflow.
 /// Overflow can only happen on inputs that take more than
 /// 63 encoded bytes, the DNS limit on domain name labels.
-pub fn decode(input: &str) -> Option<~[char]> {
+pub fn decode(input: &str) -> Option<Vec<char>> {
     // Handle "basic" (ASCII) code points.
     // They are encoded as-is befor the last delimiter, if any.
     let (mut output, input) = match input.rfind(DELIMITER) {
-        None => (~[], input),
+        None => (Vec::new(), input),
         Some(position) => (
             input.slice_to(position).chars().collect(),
             if position > 0 { input.slice_from(position + 1) } else { input }
@@ -112,12 +112,12 @@ pub fn decode(input: &str) -> Option<~[char]> {
 /// Convert Unicode to Punycode.
 /// Return None on overflow, which can only happen on inputs that would take more than
 /// 63 encoded bytes, the DNS limit on domain name labels.
-pub fn encode(input: &[char]) -> Option<~str> {
+pub fn encode(input: &[char]) -> Option<StrBuf> {
     // Handle "basic" (ASCII) code points. They are encoded as-is.
     let output_bytes = input.iter().filter_map(|&c|
         if c.is_ascii() { Some(c as u8) } else { None }
     ).collect();
-    let mut output = unsafe { str::raw::from_utf8_owned(output_bytes) };
+    let mut output = unsafe { str::raw::from_utf8_owned(output_bytes) }.into_strbuf();
     let basic_length = output.len() as u32;
     if basic_length > 0 {
         output.push_str("-")
@@ -176,13 +176,13 @@ pub fn encode(input: &[char]) -> Option<~str> {
 
 
 #[inline]
-fn value_to_digit(value: u32, output: &mut ~str) {
+fn value_to_digit(value: u32, output: &mut StrBuf) {
     let code_point = match value {
         0 .. 25 => value + 0x61,  // a..z
         26 .. 35 => value - 26 + 0x30,  // 0..9
         _ => fail!()
     };
-    unsafe { str::raw::push_byte(output, code_point as u8) }
+    unsafe { output.push_byte(code_point as u8) }
 }
 
 
@@ -196,16 +196,14 @@ mod tests {
         match decode(encoded) {
             None => fail!("Decoding {:?} failed.", encoded),
             Some(result) => {
-                let result = from_chars(result);
+                let result = from_chars(result.as_slice());
                 assert!(result.as_slice() == decoded,
                         format!("Incorrect decoding of {:?}:\n   {:?}\n!= {:?}\n{}",
                                 encoded, result.as_slice(), decoded, description))
             }
-        }        
+        }
 
-        let dec_chars: ~[char] = decoded.chars().collect();
-
-        match encode(dec_chars) {
+        match encode(decoded.chars().collect::<~[char]>()) {
             None => fail!("Encoding {:?} failed.", decoded),
             Some(result) => {
                 assert!(result.as_slice() == encoded,
@@ -215,8 +213,8 @@ mod tests {
         }
     }
 
-    fn get_string<'a>(map: &'a ~Object, key: &~str) -> &'a str {
-        match map.find(key) {
+    fn get_string<'a>(map: &'a Box<Object>, key: &str) -> &'a str {
+        match map.find(&key.to_owned()) {
             Some(&String(ref s)) => s.as_slice(),
             None => "",
             _ => fail!(),
@@ -230,9 +228,9 @@ mod tests {
             Ok(List(tests)) => for test in tests.iter() {
                 match test {
                     &Object(ref o) => one_test(
-                        get_string(o, &~"description"),
-                        get_string(o, &~"decoded"),
-                        get_string(o, &~"encoded")
+                        get_string(o, "description"),
+                        get_string(o, "decoded"),
+                        get_string(o, "encoded")
                     ),
                     _ => fail!(),
                 }
