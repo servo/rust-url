@@ -52,10 +52,10 @@ pub fn parse_url(input: &str, base_url: Option<&Url>) -> ParseResult<Url> {
                         parse_relative_url(scheme, remaining, base)
                     },
                     _ => parse_relative_url(scheme, remaining, &Url {
-                        scheme: StrBuf::new(), query: None, fragment: None,
+                        scheme: String::new(), query: None, fragment: None,
                         scheme_data: RelativeSchemeData(SchemeRelativeUrl {
                             userinfo: None, host: Domain(Vec::new()),
-                            port: StrBuf::new(), path: Vec::new()
+                            port: String::new(), path: Vec::new()
                         })
                     }),
                 }
@@ -89,7 +89,7 @@ pub fn parse_url(input: &str, base_url: Option<&Url>) -> ParseResult<Url> {
 }
 
 
-fn parse_scheme<'a>(input: &'a str) -> (Option<StrBuf>, &'a str) {
+fn parse_scheme<'a>(input: &'a str) -> (Option<String>, &'a str) {
     if input.is_empty() || !is_ascii_alpha(input[0]) {
         return (None, input)
     }
@@ -98,7 +98,7 @@ fn parse_scheme<'a>(input: &'a str) -> (Option<StrBuf>, &'a str) {
         match input[i] as char {
             'a'..'z' | 'A'..'Z' | '0'..'9' | '+' | '-' | '.' => (),
             ':' => return (
-                Some(input.slice_to(i).to_ascii_lower().into_strbuf()),
+                Some(input.slice_to(i).to_ascii_lower()),
                 input.slice_from(i + 1),
             ),
             _ => return (None, input),
@@ -109,7 +109,7 @@ fn parse_scheme<'a>(input: &'a str) -> (Option<StrBuf>, &'a str) {
 }
 
 
-fn parse_absolute_url<'a>(scheme: StrBuf, input: &'a str) -> ParseResult<Url> {
+fn parse_absolute_url<'a>(scheme: String, input: &'a str) -> ParseResult<Url> {
     // Authority first slash state
     let remaining = skip_slashes(input);
     // Authority state
@@ -129,7 +129,7 @@ fn parse_absolute_url<'a>(scheme: StrBuf, input: &'a str) -> ParseResult<Url> {
 }
 
 
-fn parse_relative_url<'a>(scheme: StrBuf, input: &'a str, base: &Url) -> ParseResult<Url> {
+fn parse_relative_url<'a>(scheme: String, input: &'a str, base: &Url) -> ParseResult<Url> {
     match base.scheme_data {
         OtherSchemeData(_) => Err("Relative URL with a non-relative-scheme base"),
         RelativeSchemeData(ref base_scheme_data) => if input.is_empty() {
@@ -161,7 +161,7 @@ fn parse_relative_url<'a>(scheme: StrBuf, input: &'a str, base: &Url) -> ParseRe
                             let (path, remaining) = parse_path_start(
                                 remaining, /* full_url= */ true, in_file_scheme);
                             let scheme_data = RelativeSchemeData(SchemeRelativeUrl {
-                                userinfo: None, host: host, port: StrBuf::new(), path: path });
+                                userinfo: None, host: host, port: String::new(), path: path });
                             let (query, fragment) = parse_query_and_fragment(remaining);
                             Ok(Url { scheme: scheme, scheme_data: scheme_data,
                                      query: query, fragment: fragment })
@@ -175,7 +175,7 @@ fn parse_relative_url<'a>(scheme: StrBuf, input: &'a str, base: &Url) -> ParseRe
                         let scheme_data = RelativeSchemeData(if in_file_scheme {
                             SchemeRelativeUrl {
                                 userinfo: None, host: Domain(Vec::new()),
-                                port: StrBuf::new(), path: path
+                                port: String::new(), path: path
                             }
                         } else {
                             SchemeRelativeUrl {
@@ -214,7 +214,7 @@ fn parse_relative_url<'a>(scheme: StrBuf, input: &'a str, base: &Url) -> ParseRe
                          (RelativeSchemeData(SchemeRelativeUrl {
                             userinfo: None,
                             host: Domain(Vec::new()),
-                            port: StrBuf::new(),
+                            port: String::new(),
                             path: path
                         }), remaining)
                     } else {
@@ -280,7 +280,7 @@ fn parse_userinfo<'a>(input: &'a str) -> (Option<UserInfo>, &'a str) {
 
 
 fn parse_userinfo_inner<'a>(input: &'a str) -> UserInfo {
-    let mut username = StrBuf::new();
+    let mut username = String::new();
     let mut i = 0;
     loop {
         if i >= input.len() {
@@ -310,7 +310,7 @@ fn parse_userinfo_inner<'a>(input: &'a str) -> UserInfo {
             }
         }
     }
-    let mut password = StrBuf::new();
+    let mut password = String::new();
     while i < input.len() {
         match input[i] as char {
             '\t' | '\n' | '\r' => {
@@ -336,10 +336,10 @@ fn parse_userinfo_inner<'a>(input: &'a str) -> UserInfo {
 }
 
 
-fn parse_hostname<'a>(input: &'a str, scheme: &str) -> ParseResult<(Host, StrBuf, &'a str)> {
+fn parse_hostname<'a>(input: &'a str, scheme: &str) -> ParseResult<(Host, String, &'a str)> {
     let mut i = 0;
     let mut inside_square_brackets = false;
-    let mut host_input = StrBuf::new();
+    let mut host_input = String::new();
     while i < input.len() {
         match input[i] as char {
             ':' if !inside_square_brackets => return match Host::parse(host_input.as_slice()) {
@@ -366,13 +366,13 @@ fn parse_hostname<'a>(input: &'a str, scheme: &str) -> ParseResult<(Host, StrBuf
     }
     match Host::parse(host_input.as_slice()) {
         Err(message) => Err(message),
-        Ok(host) => Ok((host, StrBuf::new(), input.slice_from(i))),
+        Ok(host) => Ok((host, String::new(), input.slice_from(i))),
     }
 }
 
 
-fn parse_port<'a>(input: &'a str, scheme: &str) -> ParseResult<(StrBuf, &'a str)> {
-    let mut port = StrBuf::new();
+fn parse_port<'a>(input: &'a str, scheme: &str) -> ParseResult<(String, &'a str)> {
+    let mut port = String::new();
     let mut has_initial_zero = false;
     let mut i = 0;
     while i < input.len() {
@@ -406,7 +406,7 @@ fn parse_port<'a>(input: &'a str, scheme: &str) -> ParseResult<(StrBuf, &'a str)
 
 fn parse_file_host<'a>(input: &'a str) -> ParseResult<(Host, &'a str)> {
     let mut i = 0;
-    let mut host_input = StrBuf::new();
+    let mut host_input = String::new();
     while i < input.len() {
         match input[i] as char {
             '/' | '\\' | '?' | '#' => break,
@@ -428,7 +428,7 @@ fn parse_file_host<'a>(input: &'a str) -> ParseResult<(Host, &'a str)> {
 
 
 fn parse_path_start<'a>(input: &'a str, full_url: bool, in_file_scheme: bool)
-           -> (Vec<StrBuf>, &'a str) {
+           -> (Vec<String>, &'a str) {
     let mut i = 0;
     // Relative path start state
     if !input.is_empty() {
@@ -445,13 +445,13 @@ fn parse_path_start<'a>(input: &'a str, full_url: bool, in_file_scheme: bool)
 }
 
 
-fn parse_path<'a>(base_path: Vec<StrBuf>, input: &'a str, full_url: bool, in_file_scheme: bool)
-           -> (Vec<StrBuf>, &'a str) {
+fn parse_path<'a>(base_path: Vec<String>, input: &'a str, full_url: bool, in_file_scheme: bool)
+           -> (Vec<String>, &'a str) {
     // Relative path state
     let mut path = base_path;
     let mut i = 0;
     loop {
-        let mut path_part = StrBuf::new();
+        let mut path_part = String::new();
         let mut ends_with_slash = false;
         while i < input.len() {
             match input[i] as char {
@@ -491,12 +491,12 @@ fn parse_path<'a>(base_path: Vec<StrBuf>, input: &'a str, full_url: bool, in_fil
             ".." | ".%2e" | "%2e." | "%2e%2e" => {
                 path.pop();
                 if !ends_with_slash {
-                    path.push(StrBuf::new());
+                    path.push(String::new());
                 }
             },
             "." | "%2e" => {
                 if !ends_with_slash {
-                    path.push(StrBuf::new());
+                    path.push(String::new());
                 }
             },
             _ => {
@@ -521,8 +521,8 @@ fn parse_path<'a>(base_path: Vec<StrBuf>, input: &'a str, full_url: bool, in_fil
 }
 
 
-fn parse_scheme_data<'a>(input: &'a str) -> (StrBuf, &'a str) {
-    let mut scheme_data = StrBuf::new();
+fn parse_scheme_data<'a>(input: &'a str) -> (String, &'a str) {
+    let mut scheme_data = String::new();
     let mut i = 0;
     while i < input.len() {
         match input[i] as char {
@@ -550,7 +550,7 @@ fn parse_scheme_data<'a>(input: &'a str) -> (StrBuf, &'a str) {
 }
 
 
-fn parse_query_and_fragment(input: &str) -> (Option<StrBuf>, Option<StrBuf>) {
+fn parse_query_and_fragment(input: &str) -> (Option<String>, Option<String>) {
     if input.is_empty() {
         (None, None)
     } else {
@@ -570,8 +570,8 @@ fn parse_query_and_fragment(input: &str) -> (Option<StrBuf>, Option<StrBuf>) {
 
 
 fn parse_query<'a>(input: &'a str, encoding_override: EncodingRef, full_url: bool)
-               -> (StrBuf, Option<&'a str>) {
-    let mut query = StrBuf::new();
+               -> (String, Option<&'a str>) {
+    let mut query = String::new();
     let mut i = 0;
     let mut remaining = None;
     while i < input.len() {
@@ -600,7 +600,7 @@ fn parse_query<'a>(input: &'a str, encoding_override: EncodingRef, full_url: boo
         }
     }
     let query_bytes = encoding_override.encode(query.as_slice(), encoding::EncodeReplace).unwrap();
-    let mut query_encoded = StrBuf::new();
+    let mut query_encoded = String::new();
     for &byte in query_bytes.iter() {
         match byte {
             0x00 .. 0x20 | 0x22 | 0x23 | 0x3C | 0x3E | 0x60 | 0x7E .. 0xFF
@@ -613,8 +613,8 @@ fn parse_query<'a>(input: &'a str, encoding_override: EncodingRef, full_url: boo
 }
 
 
-fn parse_fragment<'a>(input: &'a str) -> StrBuf {
-    let mut fragment = StrBuf::new();
+fn parse_fragment<'a>(input: &'a str) -> String {
+    let mut fragment = String::new();
     let mut i = 0;
     while i < input.len() {
         match input[i] as char {

@@ -29,23 +29,23 @@ fn test_url_parsing() {
         } = test;
         let base = match Url::parse(base.as_slice(), None) {
             Ok(base) => base,
-            Err(message) => fail!("Error parsing base {:?}: {}", base, message)
+            Err(message) => fail!("Error parsing base {}: {}", base, message)
         };
         let url = Url::parse(input.as_slice(), Some(&base));
         if expected_scheme.is_none() {
-            assert!(url.is_err(), "Expected a parse error for URL {:?}", input);
+            assert!(url.is_err(), "Expected a parse error for URL {}", input);
             continue
         }
         let Url { scheme, scheme_data, query, fragment } = match url {
             Ok(url) => url,
-            Err(message) => fail!("Error parsing URL {:?}: {}", input, message)
+            Err(message) => fail!("Error parsing URL {}: {}", input, message)
         };
 
         assert_eq!(Some(scheme), expected_scheme);
         match scheme_data {
             RelativeSchemeData(SchemeRelativeUrl { userinfo, host, port, path }) => {
                 let (username, password) = match userinfo {
-                    None => (StrBuf::new(), None),
+                    None => (String::new(), None),
                     Some(UserInfo { username, password }) => (username, password),
                 };
                 assert_eq!(username, expected_username);
@@ -53,19 +53,19 @@ fn test_url_parsing() {
                 let host = host.serialize();
                 assert_eq!(host, expected_host)
                 assert_eq!(port, expected_port);
-                assert_eq!(Some("/".to_strbuf().append(path.connect("/"))),
+                assert_eq!(Some("/".to_string().append(path.connect("/").as_slice())),
                            expected_path);
             },
             OtherSchemeData(scheme_data) => {
                 assert_eq!(Some(scheme_data), expected_path);
-                assert_eq!(StrBuf::new(), expected_username);
+                assert_eq!(String::new(), expected_username);
                 assert_eq!(None, expected_password);
-                assert_eq!(StrBuf::new(), expected_host);
-                assert_eq!(StrBuf::new(), expected_port);
+                assert_eq!(String::new(), expected_host);
+                assert_eq!(String::new(), expected_port);
             },
         }
-        fn opt_prepend(prefix: &str, opt_s: Option<StrBuf>) -> Option<StrBuf> {
-            opt_s.map(|s| prefix.to_strbuf().append(s.as_slice()))
+        fn opt_prepend(prefix: &str, opt_s: Option<String>) -> Option<String> {
+            opt_s.map(|s| prefix.to_string().append(s.as_slice()))
         }
         assert_eq!(opt_prepend("?", query), expected_query);
         assert_eq!(opt_prepend("#", fragment), expected_fragment);
@@ -73,16 +73,16 @@ fn test_url_parsing() {
 }
 
 struct Test {
-    input: StrBuf,
-    base: StrBuf,
-    scheme: Option<StrBuf>,
-    username: StrBuf,
-    password: Option<StrBuf>,
-    host: StrBuf,
-    port: StrBuf,
-    path: Option<StrBuf>,
-    query: Option<StrBuf>,
-    fragment: Option<StrBuf>,
+    input: String,
+    base: String,
+    scheme: Option<String>,
+    username: String,
+    password: Option<String>,
+    host: String,
+    port: String,
+    path: Option<String>,
+    query: Option<String>,
+    fragment: Option<String>,
 }
 
 fn parse_test_data(input: &str) -> Vec<Test> {
@@ -101,10 +101,10 @@ fn parse_test_data(input: &str) -> Vec<Test> {
                 unescape(pieces.shift().unwrap())
             },
             scheme: None,
-            username: StrBuf::new(),
+            username: String::new(),
             password: None,
-            host: StrBuf::new(),
-            port: StrBuf::new(),
+            host: String::new(),
+            port: String::new(),
             path: None,
             query: None,
             fragment: None,
@@ -132,8 +132,8 @@ fn parse_test_data(input: &str) -> Vec<Test> {
     tests
 }
 
-fn unescape(input: &str) -> StrBuf {
-    let mut output = StrBuf::new();
+fn unescape(input: &str) -> String {
+    let mut output = String::new();
     let mut chars = input.chars();
     loop {
         match chars.next() {
@@ -148,7 +148,7 @@ fn unescape(input: &str) -> StrBuf {
                         't' => '\t',
                         'f' => '\x0C',
                         'u' => {
-                            let mut hex = StrBuf::new();
+                            let mut hex = String::new();
                             hex.push_char(chars.next().unwrap());
                             hex.push_char(chars.next().unwrap());
                             hex.push_char(chars.next().unwrap());

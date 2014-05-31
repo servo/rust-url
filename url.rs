@@ -32,35 +32,35 @@ mod tests;
 
 #[deriving(Clone, Show)]
 pub struct Url {
-    scheme: StrBuf,
+    scheme: String,
     scheme_data: SchemeData,
-    query: Option<StrBuf>,  // See form_urlencoded::parse_str() to get name/value pairs.
-    fragment: Option<StrBuf>,
+    query: Option<String>,  // See form_urlencoded::parse_str() to get name/value pairs.
+    fragment: Option<String>,
 }
 
 #[deriving(Clone, Show)]
 pub enum SchemeData {
     RelativeSchemeData(SchemeRelativeUrl),
-    OtherSchemeData(StrBuf),  // data: URLs, mailto: URLs, etc.
+    OtherSchemeData(String),  // data: URLs, mailto: URLs, etc.
 }
 
 #[deriving(Clone, Show)]
 pub struct SchemeRelativeUrl {
     userinfo: Option<UserInfo>,
     host: Host,
-    port: StrBuf,
-    path: Vec<StrBuf>,
+    port: String,
+    path: Vec<String>,
 }
 
 #[deriving(Clone, Show)]
 pub struct UserInfo {
-    username: StrBuf,
-    password: Option<StrBuf>,
+    username: String,
+    password: Option<String>,
 }
 
 #[deriving(Clone, Show)]
 pub enum Host {
-    Domain(Vec<StrBuf>),  // Can only be empty in the file scheme
+    Domain(Vec<String>),  // Can only be empty in the file scheme
     Ipv6(Ipv6Address)
 }
 
@@ -96,7 +96,7 @@ impl Url {
         parser::parse_url(input, base_url)
     }
 
-    pub fn serialize(&self) -> StrBuf {
+    pub fn serialize(&self) -> String {
         let mut result = self.serialize_no_fragment();
         match self.fragment {
             None => (),
@@ -108,7 +108,7 @@ impl Url {
         result
     }
 
-    pub fn serialize_no_fragment(&self) -> StrBuf {
+    pub fn serialize_no_fragment(&self) -> String {
         let mut result = self.scheme.clone();
         result.push_str(":");
         match self.scheme_data {
@@ -170,7 +170,7 @@ impl Host {
                 Err("Invalid Ipv6 address")
             }
         } else {
-            let mut percent_encoded = StrBuf::new();
+            let mut percent_encoded = String::new();
             utf8_percent_encode(input, SimpleEncodeSet, &mut percent_encoded);
             let bytes = percent_decode(percent_encoded.as_bytes());
             let decoded = UTF_8.decode(bytes.as_slice(), encoding::DecodeReplace).unwrap();
@@ -180,7 +180,7 @@ impl Host {
                 // TODO: Remove this check and use IDNA "domain to ASCII"
                 // TODO: switch to .map(domain_label_to_ascii).collect() then.
                 if label.is_ascii() {
-                    labels.push(label.to_strbuf())
+                    labels.push(label.to_string())
                 } else {
                     return Err("Non-ASCII domains (IDNA) are not supported yet.")
                 }
@@ -189,11 +189,11 @@ impl Host {
         }
     }
 
-    pub fn serialize(&self) -> StrBuf {
+    pub fn serialize(&self) -> String {
         match *self {
-            Domain(ref labels) => labels.connect(".").into_strbuf(),
+            Domain(ref labels) => labels.connect("."),
             Ipv6(ref address) => {
-                let mut result = StrBuf::from_str("[");
+                let mut result = String::from_str("[");
                 result.push_str(address.serialize().as_slice());
                 result.push_str("]");
                 result
@@ -320,8 +320,8 @@ impl Ipv6Address {
         Ok(Ipv6Address { pieces: pieces })
     }
 
-    pub fn serialize(&self) -> StrBuf {
-        let mut output = StrBuf::new();
+    pub fn serialize(&self) -> String {
+        let mut output = String::new();
         let (compress_start, compress_end) = longest_zero_sequence(&self.pieces);
         let mut i = 0;
         while i < 8 {
@@ -336,7 +336,7 @@ impl Ipv6Address {
                     break;
                 }
             }
-            output.push_str(self.pieces[i as uint].to_str_radix(16));
+            output.push_str(self.pieces[i as uint].to_str_radix(16).as_slice());
             if i < 7 {
                 output.push_str(":");
             }
@@ -407,7 +407,7 @@ enum EncodeSet {
 
 
 #[inline]
-fn utf8_percent_encode(input: &str, encode_set: EncodeSet, output: &mut StrBuf) {
+fn utf8_percent_encode(input: &str, encode_set: EncodeSet, output: &mut String) {
     use Default = self::DefaultEncodeSet;
     use UserInfo = self::UserInfoEncodeSet;
     use Password = self::PasswordEncodeSet;
@@ -433,7 +433,7 @@ fn utf8_percent_encode(input: &str, encode_set: EncodeSet, output: &mut StrBuf) 
 
 
 #[inline]
-fn percent_encode_byte(byte: u8, output: &mut StrBuf) {
+fn percent_encode_byte(byte: u8, output: &mut String) {
     unsafe {
         output.push_bytes([
             '%' as u8, to_hex_upper(byte >> 4), to_hex_upper(byte & 0x0F)

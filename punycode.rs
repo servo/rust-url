@@ -109,15 +109,20 @@ pub fn decode(input: &str) -> Option<Vec<char>> {
 }
 
 
+pub fn encode_str(input: &str) -> Option<String> {
+    encode(input.chars().collect::<Vec<char>>().as_slice())
+}
+
+
 /// Convert Unicode to Punycode.
 /// Return None on overflow, which can only happen on inputs that would take more than
 /// 63 encoded bytes, the DNS limit on domain name labels.
-pub fn encode(input: &[char]) -> Option<StrBuf> {
+pub fn encode(input: &[char]) -> Option<String> {
     // Handle "basic" (ASCII) code points. They are encoded as-is.
     let output_bytes = input.iter().filter_map(|&c|
         if c.is_ascii() { Some(c as u8) } else { None }
     ).collect();
-    let mut output = unsafe { str::raw::from_utf8_owned(output_bytes) }.into_strbuf();
+    let mut output = unsafe { str::raw::from_utf8_owned(output_bytes) };
     let basic_length = output.len() as u32;
     if basic_length > 0 {
         output.push_str("-")
@@ -176,7 +181,7 @@ pub fn encode(input: &[char]) -> Option<StrBuf> {
 
 
 #[inline]
-fn value_to_digit(value: u32, output: &mut StrBuf) {
+fn value_to_digit(value: u32, output: &mut String) {
     let code_point = match value {
         0 .. 25 => value + 0x61,  // a..z
         26 .. 35 => value - 26 + 0x30,  // 0..9
@@ -188,33 +193,33 @@ fn value_to_digit(value: u32, output: &mut StrBuf) {
 
 #[cfg(test)]
 mod tests {
-    use super::{decode, encode};
+    use super::{decode, encode_str};
     use std::str::from_chars;
     use serialize::json::{from_str, List, Object, String};
 
     fn one_test(description: &str, decoded: &str, encoded: &str) {
         match decode(encoded) {
-            None => fail!("Decoding {:?} failed.", encoded),
+            None => fail!("Decoding {} failed.", encoded),
             Some(result) => {
                 let result = from_chars(result.as_slice());
                 assert!(result.as_slice() == decoded,
-                        format!("Incorrect decoding of {:?}:\n   {:?}\n!= {:?}\n{}",
+                        format!("Incorrect decoding of {}:\n   {}\n!= {}\n{}",
                                 encoded, result.as_slice(), decoded, description))
             }
         }
 
-        match encode(decoded.chars().collect::<~[char]>()) {
-            None => fail!("Encoding {:?} failed.", decoded),
+        match encode_str(decoded) {
+            None => fail!("Encoding {} failed.", decoded),
             Some(result) => {
                 assert!(result.as_slice() == encoded,
-                        format!("Incorrect encoding of {:?}:\n   {:?}\n!= {:?}\n{}",
+                        format!("Incorrect encoding of {}:\n   {}\n!= {}\n{}",
                                 decoded, result.as_slice(), encoded, description))
             }
         }
     }
 
     fn get_string<'a>(map: &'a Box<Object>, key: &str) -> &'a str {
-        match map.find(&key.to_owned()) {
+        match map.find(&key.to_string()) {
             Some(&String(ref s)) => s.as_slice(),
             None => "",
             _ => fail!(),
@@ -235,7 +240,7 @@ mod tests {
                     _ => fail!(),
                 }
             },
-            other => fail!("{:?}", other)
+            other => fail!("{}", other)
         }
     }
 }

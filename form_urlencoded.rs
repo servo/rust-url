@@ -21,13 +21,13 @@ use encoding::label::encoding_from_whatwg_label;
 use super::{percent_encode_byte, percent_decode};
 
 
-pub fn parse_str(input: &str) -> Vec<(StrBuf, StrBuf)> {
+pub fn parse_str(input: &str) -> Vec<(String, String)> {
     parse_bytes(input.as_bytes(), None, false, false).unwrap()
 }
 
 
 pub fn parse_bytes(input: &[u8], encoding_override: Option<EncodingRef>,
-                   mut use_charset: bool, mut isindex: bool) -> Option<Vec<(StrBuf, StrBuf)>> {
+                   mut use_charset: bool, mut isindex: bool) -> Option<Vec<(String, String)>> {
     let mut encoding_override = encoding_override.unwrap_or(UTF_8 as EncodingRef);
     let mut pairs = Vec::new();
     for piece in input.split(|&b| b == '&' as u8) {
@@ -64,7 +64,7 @@ pub fn parse_bytes(input: &[u8], encoding_override: Option<EncodingRef>,
     }
 
     #[inline]
-    fn decode(input: Vec<u8>, encoding_override: EncodingRef) -> StrBuf {
+    fn decode(input: Vec<u8>, encoding_override: EncodingRef) -> String {
         let bytes = percent_decode(input.as_slice());
         encoding_override.decode(bytes.as_slice(), encoding::DecodeReplace).unwrap()
     }
@@ -75,9 +75,9 @@ pub fn parse_bytes(input: &[u8], encoding_override: Option<EncodingRef>,
 }
 
 
-pub fn serialize(pairs: Vec<(StrBuf, StrBuf)>, encoding_override: Option<EncodingRef>) -> StrBuf {
+pub fn serialize(pairs: Vec<(String, String)>, encoding_override: Option<EncodingRef>) -> String {
     #[inline]
-    fn byte_serialize(input: &str, output: &mut StrBuf,
+    fn byte_serialize(input: &str, output: &mut String,
                      encoding_override: Option<EncodingRef>) {
         let keep_alive;
         let input = match encoding_override {
@@ -98,7 +98,7 @@ pub fn serialize(pairs: Vec<(StrBuf, StrBuf)>, encoding_override: Option<Encodin
         }
     }
 
-    let mut output = StrBuf::new();
+    let mut output = String::new();
     for &(ref name, ref value) in pairs.iter() {
         if output.len() > 0 {
             output.push_str("&");
