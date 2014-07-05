@@ -1,0 +1,13 @@
+[package]
+
+name = "url"
+version = "0.1.0"
+authors = [ "Simon Sapin <simon.sapin@exyr.org>" ]
+
+[[lib]]
+
+name = "url"
+
+[dependencies.encoding]
+
+git = "https://github.com/lifthrasiir/rust-encoding"
