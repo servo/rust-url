@@ -88,7 +88,7 @@ struct Test {
 fn parse_test_data(input: &str) -> Vec<Test> {
     let mut tests: Vec<Test> = Vec::new();
     for line in input.lines() {
-        if line == "" || line[0] == ('#' as u8) {
+        if line == "" || line.starts_with("#") {
             continue
         }
         let mut pieces = line.split(' ').collect::<Vec<&str>>();
@@ -110,7 +110,7 @@ fn parse_test_data(input: &str) -> Vec<Test> {
             fragment: None,
         };
         for piece in pieces.move_iter() {
-            if piece == "" || piece[0] == ('#' as u8) {
+            if piece == "" || piece.starts_with("#") {
                 continue
             }
             let colon = piece.find(':').unwrap();

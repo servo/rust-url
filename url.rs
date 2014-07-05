@@ -16,7 +16,6 @@ extern crate encoding;
 extern crate serialize;
 
 use std::cmp;
-use std::num::ToStrRadix;
 
 use encoding::Encoding;
 use encoding::all::UTF_8;
@@ -163,8 +162,8 @@ impl Host {
     pub fn parse(input: &str) -> ParseResult<Host> {
         if input.len() == 0 {
             Err("Empty host")
-        } else if input[0] == '[' as u8 {
-            if input[input.len() - 1] == ']' as u8 {
+        } else if input.starts_with("[") {
+            if input.ends_with("]") {
                 Ipv6Address::parse(input.slice(1, input.len() - 1)).map(Ipv6)
             } else {
                 Err("Invalid Ipv6 address")
@@ -205,6 +204,7 @@ impl Host {
 
 impl Ipv6Address {
     pub fn parse(input: &str) -> ParseResult<Ipv6Address> {
+        let input = input.as_bytes();
         let len = input.len();
         let mut is_ip_v4 = false;
         let mut pieces = [0, 0, 0, 0, 0, 0, 0, 0];
@@ -336,7 +336,7 @@ impl Ipv6Address {
                     break;
                 }
             }
-            output.push_str(self.pieces[i as uint].to_str_radix(16).as_slice());
+            output.push_str(format!("{:X}", self.pieces[i as uint]).as_slice());
             if i < 7 {
                 output.push_str(":");
             }

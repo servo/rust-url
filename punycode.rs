@@ -218,7 +218,7 @@ mod tests {
         }
     }
 
-    fn get_string<'a>(map: &'a Box<Object>, key: &str) -> &'a str {
+    fn get_string<'a>(map: &'a Object, key: &str) -> &'a str {
         match map.find(&key.to_string()) {
             Some(&String(ref s)) => s.as_slice(),
             None => "",

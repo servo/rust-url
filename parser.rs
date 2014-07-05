@@ -90,12 +90,12 @@ pub fn parse_url(input: &str, base_url: Option<&Url>) -> ParseResult<Url> {
 
 
 fn parse_scheme<'a>(input: &'a str) -> (Option<String>, &'a str) {
-    if input.is_empty() || !is_ascii_alpha(input[0]) {
+    if input.is_empty() || !is_ascii_alpha(input.as_bytes()[0]) {
         return (None, input)
     }
     let mut i = 1;
     while i < input.len() {
-        match input[i] as char {
+        match input.as_bytes()[i] as char {
             'a'..'z' | 'A'..'Z' | '0'..'9' | '+' | '-' | '.' => (),
             ':' => return (
                 Some(input.slice_to(i).to_ascii_lower()),
@@ -137,17 +137,18 @@ fn parse_relative_url<'a>(scheme: String, input: &'a str, base: &Url) -> ParseRe
                      query: base.query.clone(), fragment: None })
         } else {
             let in_file_scheme = scheme.as_slice() == "file";
-            match input[0] as char {
+            match input.as_bytes()[0] as char {
                 '/' | '\\' => {
                     // Relative slash state
-                    if input.len() > 1 && is_match!(input[1] as char, '/' | '\\') {
+                    if input.len() > 1 && is_match!(input.as_bytes()[1] as char, '/' | '\\') {
                         if in_file_scheme {
                             let remaining = input.slice_from(2);
                             let (host, remaining) = if remaining.len() >= 2
-                               && is_ascii_alpha(remaining[0])
-                               && is_match!(remaining[1] as char, ':' | '|')
+                               && is_ascii_alpha(remaining.as_bytes()[0])
+                               && is_match!(remaining.as_bytes()[1] as char, ':' | '|')
                                && (remaining.len() == 2
-                                   || is_match!(remaining[2] as char, '/' | '\\' | '?' | '#'))
+                                   || is_match!(remaining.as_bytes()[2] as char,
+                                                 '/' | '\\' | '?' | '#'))
                             {
                                 // Windows drive letter quirk
                                 (Domain(Vec::new()), remaining)
@@ -203,10 +204,10 @@ fn parse_relative_url<'a>(scheme: String, input: &'a str, base: &Url) -> ParseRe
                 _ => {
                     let (scheme_data, remaining) = if in_file_scheme
                        && input.len() >= 2
-                       && is_ascii_alpha(input[0])
-                       && is_match!(input[1] as char, ':' | '|')
+                       && is_ascii_alpha(input.as_bytes()[0])
+                       && is_match!(input.as_bytes()[1] as char, ':' | '|')
                        && (input.len() == 2
-                           || is_match!(input[2] as char, '/' | '\\' | '?' | '#'))
+                           || is_match!(input.as_bytes()[2] as char, '/' | '\\' | '?' | '#'))
                     {
                         // Windows drive letter quirk
                         let (path, remaining) = parse_path(
@@ -246,7 +247,7 @@ fn skip_slashes<'a>(input: &'a str) -> &'a str {
     let mut i = 0;
     let mut has_backslashes = false;
     while i < input.len() {
-        match input[i] as char {
+        match input.as_bytes()[i] as char {
             '/' => (),
             '\\' => has_backslashes = true,
             _ => break
@@ -264,7 +265,7 @@ fn parse_userinfo<'a>(input: &'a str) -> (Option<UserInfo>, &'a str) {
     let mut i = 0;
     let mut last_at = None;
     while i < input.len() {
-        match input[i] as char {
+        match input.as_bytes()[i] as char {
             '@' => last_at = Some(i),
             '/' | '\\' | '?' | '#' => break,
             _ => (),
@@ -286,7 +287,7 @@ fn parse_userinfo_inner<'a>(input: &'a str) -> UserInfo {
         if i >= input.len() {
             return UserInfo { username: username, password: None }
         }
-        match input[i] as char {
+        match input.as_bytes()[i] as char {
             ':' => {
                 i += 1;
                 break
@@ -312,7 +313,7 @@ fn parse_userinfo_inner<'a>(input: &'a str) -> UserInfo {
     }
     let mut password = String::new();
     while i < input.len() {
-        match input[i] as char {
+        match input.as_bytes()[i] as char {
             '\t' | '\n' | '\r' => {
                 parse_error("Invalid character");
                 i += 1;
@@ -341,7 +342,7 @@ fn parse_hostname<'a>(input: &'a str, scheme: &str) -> ParseResult<(Host, String
     let mut inside_square_brackets = false;
     let mut host_input = String::new();
     while i < input.len() {
-        match input[i] as char {
+        match input.as_bytes()[i] as char {
             ':' if !inside_square_brackets => return match Host::parse(host_input.as_slice()) {
                 Err(message) => Err(message),
                 Ok(host) => {
@@ -359,7 +360,7 @@ fn parse_hostname<'a>(input: &'a str, scheme: &str) -> ParseResult<(Host, String
                     ']' => inside_square_brackets = false,
                     _ => (),
                 }
-                unsafe { host_input.push_byte(input[i]) }
+                unsafe { host_input.push_byte(input.as_bytes()[i]) }
             }
         }
         i += 1;
@@ -376,13 +377,13 @@ fn parse_port<'a>(input: &'a str, scheme: &str) -> ParseResult<(String, &'a str)
     let mut has_initial_zero = false;
     let mut i = 0;
     while i < input.len() {
-        match input[i] as char {
-            '1' .. '9' => unsafe { port.push_byte(input[i]) },
+        match input.as_bytes()[i] as char {
+            '1' .. '9' => unsafe { port.push_byte(input.as_bytes()[i]) },
             '0' => {
                 if port.is_empty() {
                     has_initial_zero = true
                 } else {
-                    unsafe { port.push_byte(input[i]) }
+                    unsafe { port.push_byte(input.as_bytes()[i]) }
                 }
             },
             '/' | '\\' | '?' | '#' => break,
@@ -408,10 +409,10 @@ fn parse_file_host<'a>(input: &'a str) -> ParseResult<(Host, &'a str)> {
     let mut i = 0;
     let mut host_input = String::new();
     while i < input.len() {
-        match input[i] as char {
+        match input.as_bytes()[i] as char {
             '/' | '\\' | '?' | '#' => break,
             '\t' | '\n' | '\r' => parse_error("Invalid character"),
-            _ => unsafe { host_input.push_byte(input[i]) }
+            _ => unsafe { host_input.push_byte(input.as_bytes()[i]) }
         }
         i += 1;
     }
@@ -432,7 +433,7 @@ fn parse_path_start<'a>(input: &'a str, full_url: bool, in_file_scheme: bool)
     let mut i = 0;
     // Relative path start state
     if !input.is_empty() {
-        match input[0] as char {
+        match input.as_bytes()[0] as char {
             '/' => i = 1,
             '\\' => {
                 parse_error("Backslash");
@@ -454,7 +455,7 @@ fn parse_path<'a>(base_path: Vec<String>, input: &'a str, full_url: bool, in_fil
         let mut path_part = String::new();
         let mut ends_with_slash = false;
         while i < input.len() {
-            match input[i] as char {
+            match input.as_bytes()[i] as char {
                 '/' => {
                     i += 1;
                     ends_with_slash = true;
@@ -525,7 +526,7 @@ fn parse_scheme_data<'a>(input: &'a str) -> (String, &'a str) {
     let mut scheme_data = String::new();
     let mut i = 0;
     while i < input.len() {
-        match input[i] as char {
+        match input.as_bytes()[i] as char {
             '?' | '#' => break,
             '\t' | '\n' | '\r' => {
                 parse_error("Invalid character");
@@ -554,7 +555,7 @@ fn parse_query_and_fragment(input: &str) -> (Option<String>, Option<String>) {
     if input.is_empty() {
         (None, None)
     } else {
-        match input[0] as char {
+        match input.as_bytes()[0] as char {
             '#' => (None, Some(parse_fragment(input.slice_from(1)))),
             '?' => {
                 let (query, remaining) = parse_query(
@@ -575,7 +576,7 @@ fn parse_query<'a>(input: &'a str, encoding_override: EncodingRef, full_url: boo
     let mut i = 0;
     let mut remaining = None;
     while i < input.len() {
-        match input[i] as char {
+        match input.as_bytes()[i] as char {
             '#' if full_url => {
                 remaining = Some(input.slice_from(i + 1));
                 break
@@ -617,7 +618,7 @@ fn parse_fragment<'a>(input: &'a str) -> String {
     let mut fragment = String::new();
     let mut i = 0;
     while i < input.len() {
-        match input[i] as char {
+        match input.as_bytes()[i] as char {
             '\t' | '\n' | '\r' => {
                 parse_error("Invalid character");
                 i += 1;
@@ -659,7 +660,9 @@ fn is_ascii_hex_digit(byte: u8) -> bool {
 
 #[inline]
 fn starts_with_2_hex(input: &str) -> bool {
-    input.len() >= 2 && is_ascii_hex_digit(input[0]) && is_ascii_hex_digit(input[1])
+    input.len() >= 2
+    && is_ascii_hex_digit(input.as_bytes()[0])
+    && is_ascii_hex_digit(input.as_bytes()[1])
 }
 
 #[inline]
