@@ -211,8 +211,8 @@ impl Ipv6Address {
         let mut piece_pointer = 0u;
         let mut compress_pointer = None;
         let mut i = 0u;
-        if input[0] == ':' as u8 {
-            if input[1] != ':' as u8 {
+        if input[0] == b':' {
+            if input[1] != b':' {
                 return Err("Invalid IPv6 address")
             }
             i = 2;
@@ -224,7 +224,7 @@ impl Ipv6Address {
             if piece_pointer == 8 {
                 return Err("Invalid IPv6 address")
             }
-            if input[i] == ':' as u8 {
+            if input[i] == b':' {
                 if compress_pointer.is_some() {
                     return Err("Invalid IPv6 address")
                 }
@@ -246,15 +246,15 @@ impl Ipv6Address {
                 }
             }
             if i < len {
-                match input[i] as char {
-                    '.' => {
+                match input[i] {
+                    b'.' => {
                         if i == start {
                             return Err("Invalid IPv6 address")
                         }
                         i = start;
                         is_ip_v4 = true;
                     },
-                    ':' => {
+                    b':' => {
                         i += 1;
                         if i == len {
                             return Err("Invalid IPv6 address")
@@ -279,7 +279,7 @@ impl Ipv6Address {
                 let mut value = 0u16;
                 while i < len {
                     let digit = match input[i] {
-                        c @ 0x30 .. 0x39 => c - 0x30,  // 0..9
+                        c @ b'0' .. b'9' => c - b'0',
                         _ => break
                     };
                     value = value * 10 + digit as u16;
@@ -287,7 +287,7 @@ impl Ipv6Address {
                         return Err("Invalid IPv6 address")
                     }
                 }
-                if dots_seen < 3 && !(i < len && input[i] == '.' as u8) {
+                if dots_seen < 3 && !(i < len && input[i] == b'.') {
                     return Err("Invalid IPv6 address")
                 }
                 pieces[piece_pointer] = pieces[piece_pointer] * 0x100 + value;
@@ -380,9 +380,9 @@ fn longest_zero_sequence(pieces: &[u16, ..8]) -> (int, int) {
 #[inline]
 fn from_hex(byte: u8) -> Option<u8> {
     match byte {
-        0x30 .. 0x39 => Some(byte - 0x30),  // 0..9
-        0x41 .. 0x46 => Some(byte + 10 - 0x41),  // A..F
-        0x61 .. 0x66 => Some(byte + 10 - 0x61),  // a..f
+        b'0' .. b'9' => Some(byte - b'0'),  // 0..9
+        b'A' .. b'F' => Some(byte + 10 - b'A'),  // A..F
+        b'a' .. b'f' => Some(byte + 10 - b'a'),  // a..f
         _ => None
     }
 }
@@ -390,8 +390,8 @@ fn from_hex(byte: u8) -> Option<u8> {
 #[inline]
 fn to_hex_upper(value: u8) -> u8 {
     match value {
-        0 .. 9 => value + 0x30,
-        10 .. 15 => value - 10 + 0x41,
+        0 .. 9 => b'0' + value,
+        10 .. 15 => b'A' + value - 10,
         _ => fail!()
     }
 }
@@ -413,14 +413,14 @@ fn utf8_percent_encode(input: &str, encode_set: EncodeSet, output: &mut String) 
     use Password = self::PasswordEncodeSet;
     use Username = self::UsernameEncodeSet;
     for byte in input.bytes() {
-        if byte < 0x20 || byte > 0x7E || match byte as char {
-            ' ' | '"' | '#' | '<' | '>' | '?' | '`'
+        if byte < 0x20 || byte > 0x7E || match byte {
+            b' ' | b'"' | b'#' | b'<' | b'>' | b'?' | b'`'
             => is_match!(encode_set, Default | UserInfo | Password | Username),
-            '@'
+            b'@'
             => is_match!(encode_set, UserInfo | Password | Username),
-            '/' | '\\'
+            b'/' | b'\\'
             => is_match!(encode_set, Password | Username),
-            ':'
+            b':'
             => is_match!(encode_set, Username),
             _ => false,
         } {
@@ -436,7 +436,7 @@ fn utf8_percent_encode(input: &str, encode_set: EncodeSet, output: &mut String) 
 fn percent_encode_byte(byte: u8, output: &mut String) {
     unsafe {
         output.push_bytes([
-            '%' as u8, to_hex_upper(byte >> 4), to_hex_upper(byte & 0x0F)
+            b'%', to_hex_upper(byte >> 4), to_hex_upper(byte & 0x0F)
         ])
     }
 }
@@ -448,7 +448,7 @@ fn percent_decode(input: &[u8]) -> Vec<u8> {
     let mut i = 0u;
     while i < input.len() {
         let c = input[i];
-        if c == ('%' as u8) && i + 2 < input.len() {
+        if c == b'%' && i + 2 < input.len() {
             match (from_hex(input[i + 1]), from_hex(input[i + 2])) {
                 (Some(h), Some(l)) => {
                     output.push(h * 0x10 + l);

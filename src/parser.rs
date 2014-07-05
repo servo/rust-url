@@ -27,13 +27,6 @@ macro_rules! is_match(
 )
 
 
-macro_rules! ascii_nocheck(
-    ($value: expr) => {
-        unsafe { $value.to_ascii_nocheck() }
-    }
-)
-
-
 fn parse_error(_message: &str) {
     // TODO
 }
@@ -41,9 +34,8 @@ fn parse_error(_message: &str) {
 
 pub fn parse_url(input: &str, base_url: Option<&Url>) -> ParseResult<Url> {
     let input = input.trim_chars(&[' ', '\t', '\n', '\r', '\x0C']);
-    let (scheme_result, remaining) = parse_scheme(input);
-    match scheme_result {
-        Some(scheme) => {
+    match parse_scheme(input) {
+        Some((scheme, remaining)) => {
             if scheme.as_slice() == "file" {
                 // Relative state?
                 match base_url {
@@ -83,29 +75,26 @@ pub fn parse_url(input: &str, base_url: Option<&Url>) -> ParseResult<Url> {
         // No-scheme state
         None => match base_url {
             None => Err("Relative URL without a base"),
-            Some(base) => parse_relative_url(base.scheme.clone(), remaining, base)
+            Some(base) => parse_relative_url(base.scheme.clone(), input, base)
         }
     }
 }
 
 
-fn parse_scheme<'a>(input: &'a str) -> (Option<String>, &'a str) {
-    if input.is_empty() || !is_ascii_alpha(input.as_bytes()[0]) {
-        return (None, input)
-    }
-    let mut i = 1;
-    while i < input.len() {
-        match input.as_bytes()[i] as char {
-            'a'..'z' | 'A'..'Z' | '0'..'9' | '+' | '-' | '.' => (),
-            ':' => return (
-                Some(input.slice_to(i).to_ascii_lower()),
-                input.slice_from(i + 1),
-            ),
-            _ => return (None, input),
+fn parse_scheme<'a>(input: &'a str) -> Option<(String, &'a str)> {
+    if !input.is_empty() && starts_with_ascii_alpha(input) {
+        for (i, c) in input.char_indices() {
+            match c {
+                'a'..'z' | 'A'..'Z' | '0'..'9' | '+' | '-' | '.' => (),
+                ':' => return Some((
+                    input.slice_to(i).to_ascii_lower(),
+                    input.slice_from(i + 1),
+                )),
+                _ => break,
+            }
         }
-        i += 1;
     }
-    return (None, input)
+    None
 }
 
 
@@ -137,17 +126,17 @@ fn parse_relative_url<'a>(scheme: String, input: &'a str, base: &Url) -> ParseRe
                      query: base.query.clone(), fragment: None })
         } else {
             let in_file_scheme = scheme.as_slice() == "file";
-            match input.as_bytes()[0] as char {
+            match input.char_at(0) {
                 '/' | '\\' => {
                     // Relative slash state
-                    if input.len() > 1 && is_match!(input.as_bytes()[1] as char, '/' | '\\') {
+                    if input.len() > 1 && is_match!(input.char_at(1), '/' | '\\') {
                         if in_file_scheme {
                             let remaining = input.slice_from(2);
                             let (host, remaining) = if remaining.len() >= 2
-                               && is_ascii_alpha(remaining.as_bytes()[0])
-                               && is_match!(remaining.as_bytes()[1] as char, ':' | '|')
+                               && starts_with_ascii_alpha(remaining)
+                               && is_match!(remaining.char_at(1), ':' | '|')
                                && (remaining.len() == 2
-                                   || is_match!(remaining.as_bytes()[2] as char,
+                                   || is_match!(remaining.char_at(2),
                                                  '/' | '\\' | '?' | '#'))
                             {
                                 // Windows drive letter quirk
@@ -204,10 +193,10 @@ fn parse_relative_url<'a>(scheme: String, input: &'a str, base: &Url) -> ParseRe
                 _ => {
                     let (scheme_data, remaining) = if in_file_scheme
                        && input.len() >= 2
-                       && is_ascii_alpha(input.as_bytes()[0])
-                       && is_match!(input.as_bytes()[1] as char, ':' | '|')
+                       && starts_with_ascii_alpha(input)
+                       && is_match!(input.char_at(1), ':' | '|')
                        && (input.len() == 2
-                           || is_match!(input.as_bytes()[2] as char, '/' | '\\' | '?' | '#'))
+                           || is_match!(input.char_at(2), '/' | '\\' | '?' | '#'))
                     {
                         // Windows drive letter quirk
                         let (path, remaining) = parse_path(
@@ -244,33 +233,22 @@ fn parse_relative_url<'a>(scheme: String, input: &'a str, base: &Url) -> ParseRe
 
 
 fn skip_slashes<'a>(input: &'a str) -> &'a str {
-    let mut i = 0;
-    let mut has_backslashes = false;
-    while i < input.len() {
-        match input.as_bytes()[i] as char {
-            '/' => (),
-            '\\' => has_backslashes = true,
-            _ => break
-        }
-        i += 1;
-    }
-    if i != 2 || has_backslashes {
+    let first_non_slash = input.find(|c| !is_match!(c, '/' | '\\')).unwrap_or(input.len());
+    if input.slice_to(first_non_slash) != "//" {
         parse_error("Expected two slashes")
     }
-    input.slice_from(i)
+    input.slice_from(first_non_slash)
 }
 
 
 fn parse_userinfo<'a>(input: &'a str) -> (Option<UserInfo>, &'a str) {
-    let mut i = 0;
     let mut last_at = None;
-    while i < input.len() {
-        match input.as_bytes()[i] as char {
+    for (i, c) in input.char_indices() {
+        match c {
             '@' => last_at = Some(i),
             '/' | '\\' | '?' | '#' => break,
             _ => (),
         }
-        i += 1;
     }
     match last_at {
         None => (None, input),
@@ -280,56 +258,46 @@ fn parse_userinfo<'a>(input: &'a str) -> (Option<UserInfo>, &'a str) {
 }
 
 
-fn parse_userinfo_inner<'a>(input: &'a str) -> UserInfo {
+fn parse_userinfo_inner(input: &str) -> UserInfo {
     let mut username = String::new();
-    let mut i = 0;
-    loop {
-        if i >= input.len() {
-            return UserInfo { username: username, password: None }
-        }
-        match input.as_bytes()[i] as char {
-            ':' => {
-                i += 1;
-                break
-            },
-            '\t' | '\n' | '\r' => {
-                parse_error("Invalid character");
-                i += 1;
-            },
+    for (i, c) in input.char_indices() {
+        match c {
+            ':' => return parse_userinfo_password(input.slice_from(i + 1), username),
+            '\t' | '\n' | '\r' => parse_error("Invalid character"),
             _ => {
-                let range = input.char_range_at(i);
-                if range.ch == '%' {
+                if c == '%' {
                     if !starts_with_2_hex(input.slice_from(i + 1)) {
                         parse_error("Invalid percent-encoded sequence")
                     }
-                } else if !is_url_code_point(range.ch) {
+                } else if !is_url_code_point(c) {
                     parse_error("Non-URL code point")
                 }
 
-                utf8_percent_encode(input.slice(i, range.next), UserInfoEncodeSet, &mut username);
-                i = range.next;
+                utf8_percent_encode(input.slice(i, i + c.len_utf8_bytes()),
+                                    UserInfoEncodeSet, &mut username);
             }
         }
     }
+    UserInfo { username: username, password: None }
+}
+
+
+fn parse_userinfo_password(input: &str, username: String) -> UserInfo {
     let mut password = String::new();
-    while i < input.len() {
-        match input.as_bytes()[i] as char {
-            '\t' | '\n' | '\r' => {
-                parse_error("Invalid character");
-                i += 1;
-            },
+    for (i, c) in input.char_indices() {
+        match c {
+            '\t' | '\n' | '\r' => parse_error("Invalid character"),
             _ => {
-                let range = input.char_range_at(i);
-                if range.ch == '%' {
+                if c == '%' {
                     if !starts_with_2_hex(input.slice_from(i + 1)) {
                         parse_error("Invalid percent-encoded sequence")
                     }
-                } else if !is_url_code_point(range.ch) {
+                } else if !is_url_code_point(c) {
                     parse_error("Non-URL code point")
                 }
 
-                utf8_percent_encode(input.slice(i, range.next), UserInfoEncodeSet, &mut password);
-                i = range.next;
+                utf8_percent_encode(input.slice(i, i + c.len_utf8_bytes()),
+                                    UserInfoEncodeSet, &mut password);
             }
         }
     }
@@ -338,11 +306,11 @@ fn parse_userinfo_inner<'a>(input: &'a str) -> UserInfo {
 
 
 fn parse_hostname<'a>(input: &'a str, scheme: &str) -> ParseResult<(Host, String, &'a str)> {
-    let mut i = 0;
     let mut inside_square_brackets = false;
     let mut host_input = String::new();
-    while i < input.len() {
-        match input.as_bytes()[i] as char {
+    let mut end = input.len();
+    for (i, c) in input.char_indices() {
+        match c {
             ':' if !inside_square_brackets => return match Host::parse(host_input.as_slice()) {
                 Err(message) => Err(message),
                 Ok(host) => {
@@ -352,7 +320,10 @@ fn parse_hostname<'a>(input: &'a str, scheme: &str) -> ParseResult<(Host, String
                     }
                 }
             },
-            '/' | '\\' | '?' | '#' => break,
+            '/' | '\\' | '?' | '#' => {
+                end = i;
+                break
+            },
             '\t' | '\n' | '\r' => parse_error("Invalid character"),
             c => {
                 match c {
@@ -360,14 +331,13 @@ fn parse_hostname<'a>(input: &'a str, scheme: &str) -> ParseResult<(Host, String
                     ']' => inside_square_brackets = false,
                     _ => (),
                 }
-                unsafe { host_input.push_byte(input.as_bytes()[i]) }
+                host_input.push_char(c)
             }
         }
-        i += 1;
     }
     match Host::parse(host_input.as_slice()) {
         Err(message) => Err(message),
-        Ok(host) => Ok((host, String::new(), input.slice_from(i))),
+        Ok(host) => Ok((host, String::new(), input.slice_from(end))),
     }
 }
 
@@ -375,22 +345,24 @@ fn parse_hostname<'a>(input: &'a str, scheme: &str) -> ParseResult<(Host, String
 fn parse_port<'a>(input: &'a str, scheme: &str) -> ParseResult<(String, &'a str)> {
     let mut port = String::new();
     let mut has_initial_zero = false;
-    let mut i = 0;
-    while i < input.len() {
-        match input.as_bytes()[i] as char {
-            '1' .. '9' => unsafe { port.push_byte(input.as_bytes()[i]) },
+    let mut end = input.len();
+    for (i, c) in input.char_indices() {
+        match c {
+            '1'..'9' => port.push_char(c),
             '0' => {
                 if port.is_empty() {
                     has_initial_zero = true
                 } else {
-                    unsafe { port.push_byte(input.as_bytes()[i]) }
+                    port.push_char(c)
                 }
             },
-            '/' | '\\' | '?' | '#' => break,
+            '/' | '\\' | '?' | '#' => {
+                end = i;
+                break
+            },
             '\t' | '\n' | '\r' => parse_error("Invalid character"),
             _ => return Err("Invalid port number")
         }
-        i += 1;
     }
     if port.is_empty() && has_initial_zero {
         port.push_str("0")
@@ -398,23 +370,25 @@ fn parse_port<'a>(input: &'a str, scheme: &str) -> ParseResult<(String, &'a str)
     match (scheme, port.as_slice()) {
         ("ftp", "21") | ("gopher", "70") | ("http", "80") |
         ("https", "443") | ("ws", "80") | ("wss", "443")
-        => port.truncate(0),
+        => port = String::new(),
         _ => (),
     }
-    return Ok((port, input.slice_from(i)))
+    return Ok((port, input.slice_from(end)))
 }
 
 
 fn parse_file_host<'a>(input: &'a str) -> ParseResult<(Host, &'a str)> {
-    let mut i = 0;
     let mut host_input = String::new();
-    while i < input.len() {
-        match input.as_bytes()[i] as char {
-            '/' | '\\' | '?' | '#' => break,
+    let mut end = input.len();
+    for (i, c) in input.char_indices() {
+        match c {
+            '/' | '\\' | '?' | '#' => {
+                end = i;
+                break
+            },
             '\t' | '\n' | '\r' => parse_error("Invalid character"),
-            _ => unsafe { host_input.push_byte(input.as_bytes()[i]) }
+            _ => host_input.push_char(c)
         }
-        i += 1;
     }
     let host = if host_input.is_empty() {
         Domain(Vec::new())
@@ -424,7 +398,7 @@ fn parse_file_host<'a>(input: &'a str) -> ParseResult<(Host, &'a str)> {
             Ok(host) => host,
         }
     };
-    Ok((host, input.slice_from(i)))
+    Ok((host, input.slice_from(end)))
 }
 
 
@@ -433,7 +407,7 @@ fn parse_path_start<'a>(input: &'a str, full_url: bool, in_file_scheme: bool)
     let mut i = 0;
     // Relative path start state
     if !input.is_empty() {
-        match input.as_bytes()[0] as char {
+        match input.char_at(0) {
             '/' => i = 1,
             '\\' => {
                 parse_error("Backslash");
@@ -450,52 +424,55 @@ fn parse_path<'a>(base_path: Vec<String>, input: &'a str, full_url: bool, in_fil
            -> (Vec<String>, &'a str) {
     // Relative path state
     let mut path = base_path;
-    let mut i = 0;
+    let mut iter = input.char_indices();
+    let mut end;
     loop {
         let mut path_part = String::new();
         let mut ends_with_slash = false;
-        while i < input.len() {
-            match input.as_bytes()[i] as char {
+        end = input.len();
+        for (i, c) in iter {
+            match c {
                 '/' => {
-                    i += 1;
                     ends_with_slash = true;
+                    end = i;
                     break
                 },
                 '\\' => {
                     parse_error("Backslash");
-                    i += 1;
                     ends_with_slash = true;
+                    end = i;
                     break
                 },
-                '?' | '#' if full_url => break,
+                '?' | '#' if full_url => {
+                    end = i;
+                    break
+                },
                 '\t' | '\n' | '\r' => {
-                    i += 1;
                     parse_error("Invalid character")
                 },
                 _ => {
-                    let range = input.char_range_at(i);
-                    if range.ch == '%' {
+                    if c == '%' {
                         if !starts_with_2_hex(input.slice_from(i + 1)) {
                             parse_error("Invalid percent-encoded sequence")
                         }
-                    } else if !is_url_code_point(range.ch) {
+                    } else if !is_url_code_point(c) {
                         parse_error("Non-URL code point")
                     }
 
-                    utf8_percent_encode(input.slice(i, range.next), DefaultEncodeSet, &mut path_part);
-                    i = range.next;
+                    utf8_percent_encode(input.slice(i, i + c.len_utf8_bytes()),
+                                        DefaultEncodeSet, &mut path_part);
                 }
             }
         }
-        let lower = path_part.as_slice().to_ascii_lower();
-        match lower.as_slice() {
-            ".." | ".%2e" | "%2e." | "%2e%2e" => {
+        match path_part.as_slice() {
+            ".." | ".%2e" | ".%2E" | "%2e." | "%2E." |
+            "%2e%2e" | "%2E%2e" | "%2e%2E" | "%2E%2E" => {
                 path.pop();
                 if !ends_with_slash {
                     path.push(String::new());
                 }
             },
-            "." | "%2e" => {
+            "." | "%2e" | "%2E" => {
                 if !ends_with_slash {
                     path.push(String::new());
                 }
@@ -504,11 +481,11 @@ fn parse_path<'a>(base_path: Vec<String>, input: &'a str, full_url: bool, in_fil
                 if in_file_scheme
                    && path.is_empty()
                    && path_part.len() == 2
-                   && is_ascii_alpha(path_part.as_bytes()[0])
-                   && path_part.as_bytes()[1] == ('|' as u8) {
+                   && starts_with_ascii_alpha(path_part.as_slice())
+                   && path_part.as_slice().char_at(1) == '|' {
                     // Windows drive letter quirk
                     unsafe {
-                        *path_part.as_mut_vec().get_mut(1) = ':' as u8
+                        *path_part.as_mut_vec().get_mut(1) = b':'
                     }
                 }
                 path.push(path_part)
@@ -518,36 +495,35 @@ fn parse_path<'a>(base_path: Vec<String>, input: &'a str, full_url: bool, in_fil
             break
         }
     }
-    (path, input.slice_from(i))
+    (path, input.slice_from(end))
 }
 
 
 fn parse_scheme_data<'a>(input: &'a str) -> (String, &'a str) {
     let mut scheme_data = String::new();
-    let mut i = 0;
-    while i < input.len() {
-        match input.as_bytes()[i] as char {
-            '?' | '#' => break,
-            '\t' | '\n' | '\r' => {
-                parse_error("Invalid character");
-                i += 1;
+    let mut end = input.len();
+    for (i, c) in input.char_indices() {
+        match c {
+            '?' | '#' => {
+                end = i;
+                break
             },
+            '\t' | '\n' | '\r' => parse_error("Invalid character"),
             _ => {
-                let range = input.char_range_at(i);
-                if range.ch == '%' {
+                if c == '%' {
                     if !starts_with_2_hex(input.slice_from(i + 1)) {
                         parse_error("Invalid percent-encoded sequence")
                     }
-                } else if !is_url_code_point(range.ch) {
+                } else if !is_url_code_point(c) {
                     parse_error("Non-URL code point")
                 }
 
-                utf8_percent_encode(input.slice(i, range.next), SimpleEncodeSet, &mut scheme_data);
-                i = range.next;
+                utf8_percent_encode(input.slice(i, i + c.len_utf8_bytes()),
+                                    SimpleEncodeSet, &mut scheme_data);
             }
         }
     }
-    (scheme_data, input.slice_from(i))
+    (scheme_data, input.slice_from(end))
 }
 
 
@@ -555,7 +531,7 @@ fn parse_query_and_fragment(input: &str) -> (Option<String>, Option<String>) {
     if input.is_empty() {
         (None, None)
     } else {
-        match input.as_bytes()[0] as char {
+        match input.char_at(0) {
             '#' => (None, Some(parse_fragment(input.slice_from(1)))),
             '?' => {
                 let (query, remaining) = parse_query(
@@ -573,30 +549,23 @@ fn parse_query_and_fragment(input: &str) -> (Option<String>, Option<String>) {
 fn parse_query<'a>(input: &'a str, encoding_override: EncodingRef, full_url: bool)
                -> (String, Option<&'a str>) {
     let mut query = String::new();
-    let mut i = 0;
     let mut remaining = None;
-    while i < input.len() {
-        match input.as_bytes()[i] as char {
+    for (i, c) in input.char_indices() {
+        match c {
             '#' if full_url => {
                 remaining = Some(input.slice_from(i + 1));
                 break
             },
-            '\t' | '\n' | '\r' => {
-                parse_error("Invalid character");
-                i += 1;
-            },
+            '\t' | '\n' | '\r' => parse_error("Invalid character"),
             _ => {
-                let range = input.char_range_at(i);
-                if range.ch == '%' {
+                if c == '%' {
                     if !starts_with_2_hex(input.slice_from(i + 1)) {
                         parse_error("Invalid percent-encoded sequence")
                     }
-                } else if !is_url_code_point(range.ch) {
+                } else if !is_url_code_point(c) {
                     parse_error("Non-URL code point")
                 }
-
-                query.push_char(range.ch);
-                i = range.next;
+                query.push_char(c);
             }
         }
     }
@@ -604,7 +573,7 @@ fn parse_query<'a>(input: &'a str, encoding_override: EncodingRef, full_url: boo
     let mut query_encoded = String::new();
     for &byte in query_bytes.iter() {
         match byte {
-            0x00 .. 0x20 | 0x22 | 0x23 | 0x3C | 0x3E | 0x60 | 0x7E .. 0xFF
+            b'\x00'.. b' ' | b'"' | b'#' | b'<' | b'>' | b'`' | b'~'..b'\xFF'
             => percent_encode_byte(byte, &mut query_encoded),
             _
             => unsafe { query_encoded.push_byte(byte) }
@@ -616,25 +585,20 @@ fn parse_query<'a>(input: &'a str, encoding_override: EncodingRef, full_url: boo
 
 fn parse_fragment<'a>(input: &'a str) -> String {
     let mut fragment = String::new();
-    let mut i = 0;
-    while i < input.len() {
-        match input.as_bytes()[i] as char {
-            '\t' | '\n' | '\r' => {
-                parse_error("Invalid character");
-                i += 1;
-            },
+    for (i, c) in input.char_indices() {
+        match c {
+            '\t' | '\n' | '\r' => parse_error("Invalid character"),
             _ => {
-                let range = input.char_range_at(i);
-                if range.ch == '%' {
+                if c == '%' {
                     if !starts_with_2_hex(input.slice_from(i + 1)) {
                         parse_error("Invalid percent-encoded sequence")
                     }
-                } else if !is_url_code_point(range.ch) {
+                } else if !is_url_code_point(c) {
                     parse_error("Non-URL code point")
                 }
 
-                utf8_percent_encode(input.slice(i, range.next), SimpleEncodeSet, &mut fragment);
-                i = range.next;
+                utf8_percent_encode(input.slice(i, i + c.len_utf8_bytes()),
+                                    SimpleEncodeSet, &mut fragment);
             }
         }
     }
@@ -643,8 +607,8 @@ fn parse_fragment<'a>(input: &'a str) -> String {
 
 
 #[inline]
-fn is_ascii_alpha(byte: u8) -> bool {
-    match byte as char {
+fn starts_with_ascii_alpha(string: &str) -> bool {
+    match string.char_at(0) {
         'a'..'z' | 'A'..'Z' => true,
         _ => false,
     }
@@ -652,8 +616,8 @@ fn is_ascii_alpha(byte: u8) -> bool {
 
 #[inline]
 fn is_ascii_hex_digit(byte: u8) -> bool {
-    match byte as char {
-        'a'..'f' | 'A'..'F' | '0'..'9' => true,
+    match byte {
+        b'a'..b'f' | b'A'..b'F' | b'0'..b'9' => true,
         _ => false,
     }
 }
