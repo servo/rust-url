@@ -104,10 +104,7 @@ fn parse_absolute_url<'a>(scheme: String, input: &'a str) -> ParseResult<Url> {
     // Authority state
     let (userinfo, remaining) = parse_userinfo(remaining);
     // Host state
-    let (host, port, remaining) = match parse_hostname(remaining, scheme.as_slice()) {
-        Err(message) => return Err(message),
-        Ok(result) => result,
-    };
+    let (host, port, remaining) = try!(parse_hostname(remaining, scheme.as_slice()));
     let (path, remaining) = parse_path_start(
         remaining,
         /* full_url= */ true,
@@ -143,10 +140,7 @@ fn parse_relative_url<'a>(scheme: String, input: &'a str, base: &Url) -> ParseRe
                                 (Domain(Vec::new()), remaining)
                             } else {
                                 // File host state
-                                match parse_file_host(remaining) {
-                                    Err(message) => return Err(message),
-                                    Ok(result) => result,
-                                }
+                                try!(parse_file_host(remaining))
                             };
                             let (path, remaining) = parse_path_start(
                                 remaining, /* full_url= */ true, in_file_scheme);
@@ -311,14 +305,10 @@ fn parse_hostname<'a>(input: &'a str, scheme: &str) -> ParseResult<(Host, String
     let mut end = input.len();
     for (i, c) in input.char_indices() {
         match c {
-            ':' if !inside_square_brackets => return match Host::parse(host_input.as_slice()) {
-                Err(message) => Err(message),
-                Ok(host) => {
-                    match parse_port(input.slice_from(i + 1), scheme) {
-                        Err(message) => Err(message),
-                        Ok((port, remaining)) => Ok((host, port, remaining)),
-                    }
-                }
+            ':' if !inside_square_brackets => {
+                let host = try!(Host::parse(host_input.as_slice()));
+                let (port, remaining) = try!(parse_port(input.slice_from(i + 1), scheme));
+                return Ok((host, port, remaining))
             },
             '/' | '\\' | '?' | '#' => {
                 end = i;
@@ -335,10 +325,8 @@ fn parse_hostname<'a>(input: &'a str, scheme: &str) -> ParseResult<(Host, String
             }
         }
     }
-    match Host::parse(host_input.as_slice()) {
-        Err(message) => Err(message),
-        Ok(host) => Ok((host, String::new(), input.slice_from(end))),
-    }
+    let host = try!(Host::parse(host_input.as_slice()));
+    Ok((host, String::new(), input.slice_from(end)))
 }
 
 
@@ -393,10 +381,7 @@ fn parse_file_host<'a>(input: &'a str) -> ParseResult<(Host, &'a str)> {
     let host = if host_input.is_empty() {
         Domain(Vec::new())
     } else {
-        match Host::parse(host_input.as_slice()) {
-            Err(message) => return Err(message),
-            Ok(host) => host,
-        }
+        try!(Host::parse(host_input.as_slice()))
     };
     Ok((host, input.slice_from(end)))
 }
