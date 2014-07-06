@@ -18,6 +18,9 @@ extern crate serialize;
 use std::cmp;
 use std::str::from_utf8_lossy;
 
+use encoding::all::UTF_8;
+use encoding::types::EncodingRef;
+
 
 mod parser;
 pub mod form_urlencoded;
@@ -87,14 +90,141 @@ pub type ParseResult<T> = Result<T, &'static str>;
 /// FIXME: make this a by-ref closure when that’s supported.
 pub type ErrorHandler = fn(reason: &'static str) -> ParseResult<()>;
 
+fn silent_handler(_reason: &'static str) -> ParseResult<()> {
+    Ok(())
+}
+
 
 impl Url {
     pub fn parse(input: &str, base_url: Option<&Url>)
                  -> ParseResult<Url> {
-        fn silent_handler(_reason: &'static str) -> ParseResult<()> {
-            Ok(())
-        }
         parser::parse_url(input, base_url, silent_handler)
+    }
+
+    /// `URLUtils.protocol` setter
+    pub fn set_scheme(&mut self, input: &str) -> ParseResult<()> {
+        match parser::parse_scheme(input.as_slice(), /* in_setter = */ true) {
+            Some((scheme, _)) => {
+                self.scheme = scheme;
+                Ok(())
+            },
+            None => Err("Invalid scheme"),
+        }
+    }
+
+    /// `URLUtils.username` setter
+    pub fn set_username(&mut self, input: &str) -> ParseResult<()> {
+        match self.scheme_data {
+            RelativeSchemeData(SchemeRelativeUrl { ref mut username, .. }) => {
+                username.truncate(0);
+                utf8_percent_encode(input, UsernameEncodeSet, username);
+                Ok(())
+            },
+            OtherSchemeData(_) => Err("Can not set username on non-relative URL.")
+        }
+    }
+
+    /// `URLUtils.password` setter
+    pub fn set_password(&mut self, input: &str) -> ParseResult<()> {
+        match self.scheme_data {
+            RelativeSchemeData(SchemeRelativeUrl { ref mut password, .. }) => {
+                let mut new_password = String::new();
+                utf8_percent_encode(input, PasswordEncodeSet, &mut new_password);
+                *password = Some(new_password);
+                Ok(())
+            },
+            OtherSchemeData(_) => Err("Can not set password on non-relative URL.")
+        }
+    }
+
+    /// `URLUtils.host` setter
+    pub fn set_host_and_port(&mut self, input: &str) -> ParseResult<()> {
+        match self.scheme_data {
+            RelativeSchemeData(SchemeRelativeUrl { ref mut host, ref mut port, .. }) => {
+                let (new_host, new_port, _) = try!(parser::parse_hostname(
+                    input, self.scheme.as_slice(), silent_handler, /* skip_port = */ false));
+                *host = new_host;
+                *port = new_port;
+                Ok(())
+            },
+            OtherSchemeData(_) => Err("Can not set host/port on non-relative URL.")
+        }
+    }
+
+    /// `URLUtils.hostname` setter
+    pub fn set_host(&mut self, input: &str) -> ParseResult<()> {
+        match self.scheme_data {
+            RelativeSchemeData(SchemeRelativeUrl { ref mut host, .. }) => {
+                let (new_host, _, _) = try!(parser::parse_hostname(
+                    input, self.scheme.as_slice(), silent_handler, /* skip_port = */ true));
+                *host = new_host;
+                Ok(())
+            },
+            OtherSchemeData(_) => Err("Can not set host on non-relative URL.")
+        }
+    }
+
+    /// `URLUtils.port` setter
+    pub fn set_port(&mut self, input: &str) -> ParseResult<()> {
+        match self.scheme_data {
+            RelativeSchemeData(SchemeRelativeUrl { ref mut port, .. }) => {
+                if self.scheme.as_slice() == "file" {
+                    return Err("Can not set port on file: URL.")
+                }
+                let (new_port, _) = try!(parser::parse_port(
+                    input, self.scheme.as_slice(), silent_handler));
+                *port = new_port;
+                Ok(())
+            },
+            OtherSchemeData(_) => Err("Can not set port on non-relative URL.")
+        }
+    }
+
+    /// `URLUtils.pathname` setter
+    pub fn set_path(&mut self, input: &str) -> ParseResult<()> {
+        match self.scheme_data {
+            RelativeSchemeData(SchemeRelativeUrl { ref mut path, .. }) => {
+                let (new_path, _) = try!(parser::parse_path_start(
+                    input, /* full_url = */ false,
+                    self.scheme.as_slice() == "file", silent_handler));
+                *path = new_path;
+                Ok(())
+            },
+            OtherSchemeData(_) => Err("Can not set path on non-relative URL.")
+        }
+    }
+
+    /// `URLUtils.search` setter
+    pub fn set_query(&mut self, input: &str) -> ParseResult<()> {
+        // FIXME: This is in the spec, but seems superfluous.
+        match self.scheme_data {
+            RelativeSchemeData(_) => (),
+            OtherSchemeData(_) => return Err("Can not set query on non-relative URL.")
+        }
+        self.query = if input.is_empty() {
+            None
+        } else {
+            let input = if input.starts_with("?") { input.slice_from(1) } else { input };
+            let encoding_override = UTF_8 as EncodingRef;  // TODO
+            let (new_query, _) = try!(parser::parse_query(
+                input, encoding_override, /* full_url = */ false, silent_handler));
+            Some(new_query)
+        };
+        Ok(())
+    }
+
+    /// `URLUtils.hash` setter
+    pub fn set_fragment(&mut self, input: &str) -> ParseResult<()> {
+        if self.scheme.as_slice() == "javascript" {
+            return Err("Can not set fragment on a javascript: URL.")
+        }
+        self.fragment = if input.is_empty() {
+            None
+        } else {
+            let input = if input.starts_with("#") { input.slice_from(1) } else { input };
+            Some(try!(parser::parse_fragment(input, silent_handler)))
+        };
+        Ok(())
     }
 
     pub fn serialize(&self) -> String {

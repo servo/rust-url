@@ -6,6 +6,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+/// Punycode implementation: http://tools.ietf.org/html/rfc3492
+
 use std::u32;
 use std::char;
 use std::str;

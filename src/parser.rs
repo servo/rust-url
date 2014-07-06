@@ -30,7 +30,7 @@ macro_rules! is_match(
 pub fn parse_url(input: &str, base_url: Option<&Url>, parse_error: ErrorHandler)
                  -> ParseResult<Url> {
     let input = input.trim_chars(&[' ', '\t', '\n', '\r', '\x0C']);
-    match parse_scheme(input) {
+    match parse_scheme(input, /* in_setter = */ false) {
         Some((scheme, remaining)) => {
             if scheme.as_slice() == "file" {
                 // Relative state?
@@ -77,20 +77,25 @@ pub fn parse_url(input: &str, base_url: Option<&Url>, parse_error: ErrorHandler)
 }
 
 
-fn parse_scheme<'a>(input: &'a str) -> Option<(String, &'a str)> {
-    if !input.is_empty() && starts_with_ascii_alpha(input) {
-        for (i, c) in input.char_indices() {
-            match c {
-                'a'..'z' | 'A'..'Z' | '0'..'9' | '+' | '-' | '.' => (),
-                ':' => return Some((
-                    input.slice_to(i).to_ascii_lower(),
-                    input.slice_from(i + 1),
-                )),
-                _ => break,
-            }
+pub fn parse_scheme<'a>(input: &'a str, in_setter: bool) -> Option<(String, &'a str)> {
+    if input.is_empty() || !starts_with_ascii_alpha(input) {
+        return None
+    }
+    for (i, c) in input.char_indices() {
+        match c {
+            'a'..'z' | 'A'..'Z' | '0'..'9' | '+' | '-' | '.' => (),
+            ':' => return Some((
+                input.slice_to(i).to_ascii_lower(),
+                input.slice_from(i + 1),
+            )),
+            _ => return None,
         }
     }
-    None
+    if in_setter {
+        Some((input.to_ascii_lower(), ""))
+    } else {
+        None
+    }
 }
 
 
@@ -101,7 +106,8 @@ fn parse_absolute_url<'a>(scheme: String, input: &'a str, parse_error: ErrorHand
     // Authority state
     let (username, password, remaining) = try!(parse_userinfo(remaining, parse_error));
     // Host state
-    let (host, port, remaining) = try!(parse_hostname(remaining, scheme.as_slice(), parse_error));
+    let (host, port, remaining) = try!(
+        parse_hostname(remaining, scheme.as_slice(), parse_error, /* skip_port = */ false));
     let (path, remaining) = try!(parse_path_start(
         remaining,
         /* full_url= */ true,
@@ -311,8 +317,9 @@ fn parse_password(input: &str, parse_error: ErrorHandler) -> ParseResult<String>
 }
 
 
-fn parse_hostname<'a>(input: &'a str, scheme: &str, parse_error: ErrorHandler)
-                      -> ParseResult<(Host, String, &'a str)> {
+pub fn parse_hostname<'a>(input: &'a str, scheme: &str, parse_error: ErrorHandler,
+                          skip_port: bool)
+                          -> ParseResult<(Host, String, &'a str)> {
     let mut inside_square_brackets = false;
     let mut host_input = String::new();
     let mut end = input.len();
@@ -320,9 +327,13 @@ fn parse_hostname<'a>(input: &'a str, scheme: &str, parse_error: ErrorHandler)
         match c {
             ':' if !inside_square_brackets => {
                 let host = try!(Host::parse(host_input.as_slice()));
-                let (port, remaining) = try!(
-                    parse_port(input.slice_from(i + 1), scheme, parse_error));
-                return Ok((host, port, remaining))
+                return Ok(if skip_port {
+                    (host, String::new(), "")
+                } else {
+                    let (port, remaining) = try!(
+                        parse_port(input.slice_from(i + 1), scheme, parse_error));
+                    (host, port, remaining)
+                })
             },
             '/' | '\\' | '?' | '#' => {
                 end = i;
@@ -344,7 +355,7 @@ fn parse_hostname<'a>(input: &'a str, scheme: &str, parse_error: ErrorHandler)
 }
 
 
-fn parse_port<'a>(input: &'a str, scheme: &str, parse_error: ErrorHandler)
+pub fn parse_port<'a>(input: &'a str, scheme: &str, parse_error: ErrorHandler)
                   -> ParseResult<(String, &'a str)> {
     let mut port = String::new();
     let mut has_initial_zero = false;
@@ -373,7 +384,7 @@ fn parse_port<'a>(input: &'a str, scheme: &str, parse_error: ErrorHandler)
     match (scheme, port.as_slice()) {
         ("ftp", "21") | ("gopher", "70") | ("http", "80") |
         ("https", "443") | ("ws", "80") | ("wss", "443")
-        => port = String::new(),
+        => port.truncate(0),
         _ => (),
     }
     return Ok((port, input.slice_from(end)))
@@ -402,9 +413,9 @@ fn parse_file_host<'a>(input: &'a str, parse_error: ErrorHandler) -> ParseResult
 }
 
 
-fn parse_path_start<'a>(input: &'a str, full_url: bool, in_file_scheme: bool,
-                        parse_error: ErrorHandler)
-                        -> ParseResult<(Vec<String>, &'a str)> {
+pub fn parse_path_start<'a>(input: &'a str, full_url: bool, in_file_scheme: bool,
+                            parse_error: ErrorHandler)
+                            -> ParseResult<(Vec<String>, &'a str)> {
     let mut i = 0;
     // Relative path start state
     if !input.is_empty() {
@@ -552,7 +563,7 @@ fn parse_query_and_fragment(input: &str, parse_error: ErrorHandler)
 }
 
 
-fn parse_query<'a>(input: &'a str, encoding_override: EncodingRef, full_url: bool,
+pub fn parse_query<'a>(input: &'a str, encoding_override: EncodingRef, full_url: bool,
                    parse_error: ErrorHandler)
                    -> ParseResult<(String, Option<&'a str>)> {
     let mut query = String::new();
@@ -590,7 +601,7 @@ fn parse_query<'a>(input: &'a str, encoding_override: EncodingRef, full_url: boo
 }
 
 
-fn parse_fragment<'a>(input: &'a str, parse_error: ErrorHandler) -> ParseResult<String> {
+pub fn parse_fragment<'a>(input: &'a str, parse_error: ErrorHandler) -> ParseResult<String> {
     let mut fragment = String::new();
     for (i, c) in input.char_indices() {
         match c {
