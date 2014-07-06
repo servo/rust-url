@@ -407,7 +407,7 @@ impl Ipv6Address {
                         _ => break
                     };
                     value = value * 10 + digit as u16;
-                    if value > 255 {
+                    if value == 0 || value > 255 {
                         return Err("Invalid IPv6 address")
                     }
                 }
