@@ -655,7 +655,7 @@ fn is_url_code_point(c: char) -> bool {
         '0'..'9' |
         '!' | '$' | '&' | '\'' | '(' | ')' | '*' | '+' | ',' | '-' |
         '.' | '/' | ':' | ';' | '=' | '?' | '@' | '_' | '~' |
-        '\u00A0'..'\uD7FF' | '\uE000'..'\uFDCF' | '\uFDF0'..'\uFFEF' |
+        '\u00A0'..'\uD7FF' | '\uE000'..'\uFDCF' | '\uFDF0'..'\uFFFD' |
         '\U00010000'..'\U0001FFFD' | '\U00020000'..'\U0002FFFD' |
         '\U00030000'..'\U0003FFFD' | '\U00040000'..'\U0004FFFD' |
         '\U00050000'..'\U0005FFFD' | '\U00060000'..'\U0006FFFD' |
@@ -674,8 +674,7 @@ fn is_url_code_point(c: char) -> bool {
 // U+007F to U+009F
 // surrogates
 // U+FDD0 to U+FDEF
-// U+FFF0 to U+FFFF
-// Last two of each plane: U+__FFFE to U+__FFFF for __ in 01 to 10 hex
+// Last two of each plane: U+__FFFE to U+__FFFF for __ in 00 to 10 hex
 
 
 fn is_relative_scheme(scheme: &str) -> bool {
