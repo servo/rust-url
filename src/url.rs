@@ -16,9 +16,7 @@ extern crate encoding;
 extern crate serialize;
 
 use std::cmp;
-
-use encoding::Encoding;
-use encoding::all::UTF_8;
+use std::str::from_utf8_lossy;
 
 
 mod parser;
@@ -59,7 +57,7 @@ pub struct UserInfo {
 
 #[deriving(Clone, Show)]
 pub enum Host {
-    Domain(Vec<String>),  // Can only be empty in the file scheme
+    Domain(String),
     Ipv6(Ipv6Address)
 }
 
@@ -178,28 +176,24 @@ impl Host {
                 Err("Invalid Ipv6 address")
             }
         } else {
-            let mut percent_encoded = String::new();
-            utf8_percent_encode(input, SimpleEncodeSet, &mut percent_encoded);
-            let bytes = percent_decode(percent_encoded.as_bytes());
-            let decoded = UTF_8.decode(bytes.as_slice(), encoding::DecodeReplace).unwrap();
-            let mut labels = Vec::new();
-            for label in decoded.as_slice().split(
-                    &['.', '\u3002', '\uFF0E', '\uFF61']) {
-                // TODO: Remove this check and use IDNA "domain to ASCII"
-                // TODO: switch to .map(domain_label_to_ascii).collect() then.
-                if label.is_ascii() {
-                    labels.push(label.to_string())
-                } else {
-                    return Err("Non-ASCII domains (IDNA) are not supported yet.")
-                }
+            let decoded = percent_decode(input.as_bytes());
+            let domain = from_utf8_lossy(decoded.as_slice());
+            // TODO: Remove this check and use IDNA "domain to ASCII"
+            if !domain.as_slice().is_ascii() {
+                Err("Non-ASCII domains (IDNA) are not supported yet.")
+            } else if domain.as_slice().find(&[
+                '\0', '\t', '\n', '\r', ' ', '#', '%', '/', ':', '?', '@', '[', '\\', ']'
+            ]).is_some() {
+                Err("Invalid domain character.")
+            } else {
+                Ok(Domain(domain.into_string()))
             }
-            Ok(Domain(labels))
         }
     }
 
     pub fn serialize(&self) -> String {
         match *self {
-            Domain(ref labels) => labels.connect("."),
+            Domain(ref domain) => domain.clone(),
             Ipv6(ref address) => {
                 let mut result = String::from_str("[");
                 result.push_str(address.serialize().as_slice());

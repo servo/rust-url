@@ -42,7 +42,7 @@ pub fn parse_url(input: &str, base_url: Option<&Url>, parse_error: ErrorHandler)
                     _ => parse_relative_url(scheme, remaining, &Url {
                         scheme: String::new(), query: None, fragment: None,
                         scheme_data: RelativeSchemeData(SchemeRelativeUrl {
-                            userinfo: None, host: Domain(Vec::new()),
+                            userinfo: None, host: Domain(String::new()),
                             port: String::new(), path: Vec::new()
                         })
                     }, parse_error),
@@ -136,7 +136,7 @@ fn parse_relative_url<'a>(scheme: String, input: &'a str, base: &Url, parse_erro
                                                  '/' | '\\' | '?' | '#'))
                             {
                                 // Windows drive letter quirk
-                                (Domain(Vec::new()), remaining)
+                                (Domain(String::new()), remaining)
                             } else {
                                 // File host state
                                 try!(parse_file_host(remaining, parse_error))
@@ -160,7 +160,7 @@ fn parse_relative_url<'a>(scheme: String, input: &'a str, base: &Url, parse_erro
                             in_file_scheme, parse_error));
                         let scheme_data = RelativeSchemeData(if in_file_scheme {
                             SchemeRelativeUrl {
-                                userinfo: None, host: Domain(Vec::new()),
+                                userinfo: None, host: Domain(String::new()),
                                 port: String::new(), path: path
                             }
                         } else {
@@ -202,7 +202,7 @@ fn parse_relative_url<'a>(scheme: String, input: &'a str, base: &Url, parse_erro
                             in_file_scheme, parse_error));
                          (RelativeSchemeData(SchemeRelativeUrl {
                             userinfo: None,
-                            host: Domain(Vec::new()),
+                            host: Domain(String::new()),
                             port: String::new(),
                             path: path
                         }), remaining)
@@ -390,7 +390,7 @@ fn parse_file_host<'a>(input: &'a str, parse_error: ErrorHandler) -> ParseResult
         }
     }
     let host = if host_input.is_empty() {
-        Domain(Vec::new())
+        Domain(String::new())
     } else {
         try!(Host::parse(host_input.as_slice()))
     };
