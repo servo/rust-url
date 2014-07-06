@@ -89,10 +89,19 @@ macro_rules! is_match(
 
 pub type ParseResult<T> = Result<T, &'static str>;
 
+/// This is called on non-fatal parse errors.
+/// The handler can choose to continue or abort parsing by returning Ok() or Err(), respectively.
+/// FIXME: make this a by-ref closure when that’s supported.
+pub type ErrorHandler = fn(reason: &'static str) -> ParseResult<()>;
+
 
 impl Url {
-    pub fn parse(input: &str, base_url: Option<&Url>) -> ParseResult<Url> {
-        parser::parse_url(input, base_url)
+    pub fn parse(input: &str, base_url: Option<&Url>)
+                 -> ParseResult<Url> {
+        fn silent_handler(_reason: &'static str) -> ParseResult<()> {
+            Ok(())
+        }
+        parser::parse_url(input, base_url, silent_handler)
     }
 
     pub fn serialize(&self) -> String {

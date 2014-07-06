@@ -14,7 +14,7 @@ use encoding::EncodingRef;
 use encoding::all::UTF_8;
 
 use super::{
-    ParseResult, Url, RelativeSchemeData, OtherSchemeData,
+    ParseResult, ErrorHandler, Url, RelativeSchemeData, OtherSchemeData,
     SchemeRelativeUrl, UserInfo, Host, Domain,
     utf8_percent_encode, percent_encode_byte,
     SimpleEncodeSet, DefaultEncodeSet, UserInfoEncodeSet};
@@ -27,12 +27,8 @@ macro_rules! is_match(
 )
 
 
-fn parse_error(_message: &str) {
-    // TODO
-}
-
-
-pub fn parse_url(input: &str, base_url: Option<&Url>) -> ParseResult<Url> {
+pub fn parse_url(input: &str, base_url: Option<&Url>, parse_error: ErrorHandler)
+                 -> ParseResult<Url> {
     let input = input.trim_chars(&[' ', '\t', '\n', '\r', '\x0C']);
     match parse_scheme(input) {
         Some((scheme, remaining)) => {
@@ -40,8 +36,8 @@ pub fn parse_url(input: &str, base_url: Option<&Url>) -> ParseResult<Url> {
                 // Relative state?
                 match base_url {
                     Some(base) if scheme == base.scheme => {
-                        parse_error("Relative URL with a scheme");
-                        parse_relative_url(scheme, remaining, base)
+                        try!(parse_error("Relative URL with a scheme"));
+                        parse_relative_url(scheme, remaining, base, parse_error)
                     },
                     _ => parse_relative_url(scheme, remaining, &Url {
                         scheme: String::new(), query: None, fragment: None,
@@ -49,25 +45,25 @@ pub fn parse_url(input: &str, base_url: Option<&Url>) -> ParseResult<Url> {
                             userinfo: None, host: Domain(Vec::new()),
                             port: String::new(), path: Vec::new()
                         })
-                    }),
+                    }, parse_error),
                 }
             } else if is_relative_scheme(scheme.as_slice()) {
                 match base_url {
                     Some(base) if scheme == base.scheme => {
                         // Relative or authority state
                         if remaining.starts_with("//") {
-                            parse_absolute_url(scheme, remaining)
+                            parse_absolute_url(scheme, remaining, parse_error)
                         } else {
-                            parse_error("Relative URL with a scheme");
-                            parse_relative_url(scheme, remaining, base)
+                            try!(parse_error("Relative URL with a scheme"));
+                            parse_relative_url(scheme, remaining, base, parse_error)
                         }
                     },
-                    _ => parse_absolute_url(scheme, remaining),
+                    _ => parse_absolute_url(scheme, remaining, parse_error),
                 }
             } else {
                 // Scheme data state
-                let (scheme_data, remaining) = parse_scheme_data(remaining);
-                let (query, fragment) = parse_query_and_fragment(remaining);
+                let (scheme_data, remaining) = try!(parse_scheme_data(remaining, parse_error));
+                let (query, fragment) = try!(parse_query_and_fragment(remaining, parse_error));
                 Ok(Url { scheme: scheme, scheme_data: OtherSchemeData(scheme_data),
                          query: query, fragment: fragment })
             }
@@ -75,7 +71,7 @@ pub fn parse_url(input: &str, base_url: Option<&Url>) -> ParseResult<Url> {
         // No-scheme state
         None => match base_url {
             None => Err("Relative URL without a base"),
-            Some(base) => parse_relative_url(base.scheme.clone(), input, base)
+            Some(base) => parse_relative_url(base.scheme.clone(), input, base, parse_error)
         }
     }
 }
@@ -98,24 +94,27 @@ fn parse_scheme<'a>(input: &'a str) -> Option<(String, &'a str)> {
 }
 
 
-fn parse_absolute_url<'a>(scheme: String, input: &'a str) -> ParseResult<Url> {
+fn parse_absolute_url<'a>(scheme: String, input: &'a str, parse_error: ErrorHandler)
+                          -> ParseResult<Url> {
     // Authority first slash state
-    let remaining = skip_slashes(input);
+    let remaining = try!(skip_slashes(input, parse_error));
     // Authority state
-    let (userinfo, remaining) = parse_userinfo(remaining);
+    let (userinfo, remaining) = try!(parse_userinfo(remaining, parse_error));
     // Host state
-    let (host, port, remaining) = try!(parse_hostname(remaining, scheme.as_slice()));
-    let (path, remaining) = parse_path_start(
+    let (host, port, remaining) = try!(parse_hostname(remaining, scheme.as_slice(), parse_error));
+    let (path, remaining) = try!(parse_path_start(
         remaining,
         /* full_url= */ true,
-        /* in_file_scheme= */ false);
+        /* in_file_scheme= */ false,
+        parse_error));
     let scheme_data = RelativeSchemeData(SchemeRelativeUrl { userinfo: userinfo, host: host, port: port, path: path });
-    let (query, fragment) = parse_query_and_fragment(remaining);
+    let (query, fragment) = try!(parse_query_and_fragment(remaining, parse_error));
     Ok(Url { scheme: scheme, scheme_data: scheme_data, query: query, fragment: fragment })
 }
 
 
-fn parse_relative_url<'a>(scheme: String, input: &'a str, base: &Url) -> ParseResult<Url> {
+fn parse_relative_url<'a>(scheme: String, input: &'a str, base: &Url, parse_error: ErrorHandler)
+                          -> ParseResult<Url> {
     match base.scheme_data {
         OtherSchemeData(_) => Err("Relative URL with a non-relative-scheme base"),
         RelativeSchemeData(ref base_scheme_data) => if input.is_empty() {
@@ -140,22 +139,25 @@ fn parse_relative_url<'a>(scheme: String, input: &'a str, base: &Url) -> ParseRe
                                 (Domain(Vec::new()), remaining)
                             } else {
                                 // File host state
-                                try!(parse_file_host(remaining))
+                                try!(parse_file_host(remaining, parse_error))
                             };
-                            let (path, remaining) = parse_path_start(
-                                remaining, /* full_url= */ true, in_file_scheme);
+                            let (path, remaining) = try!(parse_path_start(
+                                remaining, /* full_url= */ true,
+                                in_file_scheme, parse_error));
                             let scheme_data = RelativeSchemeData(SchemeRelativeUrl {
                                 userinfo: None, host: host, port: String::new(), path: path });
-                            let (query, fragment) = parse_query_and_fragment(remaining);
+                            let (query, fragment) = try!(parse_query_and_fragment(
+                                remaining, parse_error));
                             Ok(Url { scheme: scheme, scheme_data: scheme_data,
                                      query: query, fragment: fragment })
                         } else {
-                            parse_absolute_url(scheme, input)
+                            parse_absolute_url(scheme, input, parse_error)
                         }
                     } else {
                         // Relative path state
-                        let (path, remaining) = parse_path(
-                            Vec::new(), input.slice_from(1), /* full_url= */ true, in_file_scheme);
+                        let (path, remaining) = try!(parse_path(
+                            Vec::new(), input.slice_from(1), /* full_url= */ true,
+                            in_file_scheme, parse_error));
                         let scheme_data = RelativeSchemeData(if in_file_scheme {
                             SchemeRelativeUrl {
                                 userinfo: None, host: Domain(Vec::new()),
@@ -169,20 +171,22 @@ fn parse_relative_url<'a>(scheme: String, input: &'a str, base: &Url) -> ParseRe
                                 path: path
                             }
                         });
-                        let (query, fragment) = parse_query_and_fragment(remaining);
+                        let (query, fragment) = try!(
+                            parse_query_and_fragment(remaining, parse_error));
                         Ok(Url { scheme: scheme, scheme_data: scheme_data,
                                  query: query, fragment: fragment })
                     }
                 },
                 '?' => {
-                    let (query, fragment) = parse_query_and_fragment(input);
+                    let (query, fragment) = try!(parse_query_and_fragment(input, parse_error));
                     Ok(Url { scheme: scheme, scheme_data: base.scheme_data.clone(),
                              query: query, fragment: fragment })
                 },
                 '#' => {
                     Ok(Url { scheme: scheme, scheme_data: base.scheme_data.clone(),
                              query: base.query.clone(),
-                             fragment: Some(parse_fragment(input.slice_from(1))) })
+                             fragment: Some(try!(
+                                parse_fragment(input.slice_from(1), parse_error))) })
                 }
                 _ => {
                     let (scheme_data, remaining) = if in_file_scheme
@@ -193,8 +197,9 @@ fn parse_relative_url<'a>(scheme: String, input: &'a str, base: &Url) -> ParseRe
                            || is_match!(input.char_at(2), '/' | '\\' | '?' | '#'))
                     {
                         // Windows drive letter quirk
-                        let (path, remaining) = parse_path(
-                            Vec::new(), input, /* full_url= */ true, in_file_scheme);
+                        let (path, remaining) = try!(parse_path(
+                            Vec::new(), input, /* full_url= */ true,
+                            in_file_scheme, parse_error));
                          (RelativeSchemeData(SchemeRelativeUrl {
                             userinfo: None,
                             host: Domain(Vec::new()),
@@ -206,8 +211,9 @@ fn parse_relative_url<'a>(scheme: String, input: &'a str, base: &Url) -> ParseRe
                         let initial_path = Vec::from_slice(
                             base_path.slice_to(base_path.len() - 1));
                         // Relative path state
-                        let (path, remaining) = parse_path(
-                            initial_path, input, /* full_url= */ true, in_file_scheme);
+                        let (path, remaining) = try!(parse_path(
+                            initial_path, input, /* full_url= */ true,
+                            in_file_scheme, parse_error));
                         (RelativeSchemeData(SchemeRelativeUrl {
                             userinfo: base_scheme_data.userinfo.clone(),
                             host: base_scheme_data.host.clone(),
@@ -215,7 +221,7 @@ fn parse_relative_url<'a>(scheme: String, input: &'a str, base: &Url) -> ParseRe
                             path: path
                         }), remaining)
                     };
-                    let (query, fragment) = parse_query_and_fragment(remaining);
+                    let (query, fragment) = try!(parse_query_and_fragment(remaining, parse_error));
                     Ok(Url { scheme: scheme, scheme_data: scheme_data,
                              query: query, fragment: fragment })
                 }
@@ -226,16 +232,17 @@ fn parse_relative_url<'a>(scheme: String, input: &'a str, base: &Url) -> ParseRe
 }
 
 
-fn skip_slashes<'a>(input: &'a str) -> &'a str {
+fn skip_slashes<'a>(input: &'a str, parse_error: ErrorHandler) -> ParseResult<&'a str> {
     let first_non_slash = input.find(|c| !is_match!(c, '/' | '\\')).unwrap_or(input.len());
     if input.slice_to(first_non_slash) != "//" {
-        parse_error("Expected two slashes")
+        try!(parse_error("Expected two slashes"));
     }
-    input.slice_from(first_non_slash)
+    Ok(input.slice_from(first_non_slash))
 }
 
 
-fn parse_userinfo<'a>(input: &'a str) -> (Option<UserInfo>, &'a str) {
+fn parse_userinfo<'a>(input: &'a str, parse_error: ErrorHandler)
+                      -> ParseResult<(Option<UserInfo>, &'a str)> {
     let mut last_at = None;
     for (i, c) in input.char_indices() {
         match c {
@@ -244,27 +251,27 @@ fn parse_userinfo<'a>(input: &'a str) -> (Option<UserInfo>, &'a str) {
             _ => (),
         }
     }
-    match last_at {
+    Ok(match last_at {
         None => (None, input),
-        Some(at) => (Some(parse_userinfo_inner(input.slice_to(at))),
-                     input.slice_from(at + 1))
-    }
+        Some(at) => (Some(try!(parse_userinfo_inner(input.slice_to(at), parse_error))),
+                          input.slice_from(at + 1))
+    })
 }
 
 
-fn parse_userinfo_inner(input: &str) -> UserInfo {
+fn parse_userinfo_inner(input: &str, parse_error: ErrorHandler) -> ParseResult<UserInfo> {
     let mut username = String::new();
     for (i, c) in input.char_indices() {
         match c {
-            ':' => return parse_userinfo_password(input.slice_from(i + 1), username),
-            '\t' | '\n' | '\r' => parse_error("Invalid character"),
+            ':' => return parse_userinfo_password(input.slice_from(i + 1), username, parse_error),
+            '\t' | '\n' | '\r' => try!(parse_error("Invalid character")),
             _ => {
                 if c == '%' {
                     if !starts_with_2_hex(input.slice_from(i + 1)) {
-                        parse_error("Invalid percent-encoded sequence")
+                        try!(parse_error("Invalid percent-encoded sequence"));
                     }
                 } else if !is_url_code_point(c) {
-                    parse_error("Non-URL code point")
+                    try!(parse_error("Non-URL code point"));
                 }
 
                 utf8_percent_encode(input.slice(i, i + c.len_utf8_bytes()),
@@ -272,22 +279,23 @@ fn parse_userinfo_inner(input: &str) -> UserInfo {
             }
         }
     }
-    UserInfo { username: username, password: None }
+    Ok(UserInfo { username: username, password: None })
 }
 
 
-fn parse_userinfo_password(input: &str, username: String) -> UserInfo {
+fn parse_userinfo_password(input: &str, username: String, parse_error: ErrorHandler)
+                           -> ParseResult<UserInfo> {
     let mut password = String::new();
     for (i, c) in input.char_indices() {
         match c {
-            '\t' | '\n' | '\r' => parse_error("Invalid character"),
+            '\t' | '\n' | '\r' => try!(parse_error("Invalid character")),
             _ => {
                 if c == '%' {
                     if !starts_with_2_hex(input.slice_from(i + 1)) {
-                        parse_error("Invalid percent-encoded sequence")
+                        try!(parse_error("Invalid percent-encoded sequence"));
                     }
                 } else if !is_url_code_point(c) {
-                    parse_error("Non-URL code point")
+                    try!(parse_error("Non-URL code point"));
                 }
 
                 utf8_percent_encode(input.slice(i, i + c.len_utf8_bytes()),
@@ -295,11 +303,12 @@ fn parse_userinfo_password(input: &str, username: String) -> UserInfo {
             }
         }
     }
-    UserInfo { username: username, password: Some(password) }
+    Ok(UserInfo { username: username, password: Some(password) })
 }
 
 
-fn parse_hostname<'a>(input: &'a str, scheme: &str) -> ParseResult<(Host, String, &'a str)> {
+fn parse_hostname<'a>(input: &'a str, scheme: &str, parse_error: ErrorHandler)
+                      -> ParseResult<(Host, String, &'a str)> {
     let mut inside_square_brackets = false;
     let mut host_input = String::new();
     let mut end = input.len();
@@ -307,14 +316,15 @@ fn parse_hostname<'a>(input: &'a str, scheme: &str) -> ParseResult<(Host, String
         match c {
             ':' if !inside_square_brackets => {
                 let host = try!(Host::parse(host_input.as_slice()));
-                let (port, remaining) = try!(parse_port(input.slice_from(i + 1), scheme));
+                let (port, remaining) = try!(
+                    parse_port(input.slice_from(i + 1), scheme, parse_error));
                 return Ok((host, port, remaining))
             },
             '/' | '\\' | '?' | '#' => {
                 end = i;
                 break
             },
-            '\t' | '\n' | '\r' => parse_error("Invalid character"),
+            '\t' | '\n' | '\r' => try!(parse_error("Invalid character")),
             c => {
                 match c {
                     '[' => inside_square_brackets = true,
@@ -330,7 +340,8 @@ fn parse_hostname<'a>(input: &'a str, scheme: &str) -> ParseResult<(Host, String
 }
 
 
-fn parse_port<'a>(input: &'a str, scheme: &str) -> ParseResult<(String, &'a str)> {
+fn parse_port<'a>(input: &'a str, scheme: &str, parse_error: ErrorHandler)
+                  -> ParseResult<(String, &'a str)> {
     let mut port = String::new();
     let mut has_initial_zero = false;
     let mut end = input.len();
@@ -348,7 +359,7 @@ fn parse_port<'a>(input: &'a str, scheme: &str) -> ParseResult<(String, &'a str)
                 end = i;
                 break
             },
-            '\t' | '\n' | '\r' => parse_error("Invalid character"),
+            '\t' | '\n' | '\r' => try!(parse_error("Invalid character")),
             _ => return Err("Invalid port number")
         }
     }
@@ -365,7 +376,7 @@ fn parse_port<'a>(input: &'a str, scheme: &str) -> ParseResult<(String, &'a str)
 }
 
 
-fn parse_file_host<'a>(input: &'a str) -> ParseResult<(Host, &'a str)> {
+fn parse_file_host<'a>(input: &'a str, parse_error: ErrorHandler) -> ParseResult<(Host, &'a str)> {
     let mut host_input = String::new();
     let mut end = input.len();
     for (i, c) in input.char_indices() {
@@ -374,7 +385,7 @@ fn parse_file_host<'a>(input: &'a str) -> ParseResult<(Host, &'a str)> {
                 end = i;
                 break
             },
-            '\t' | '\n' | '\r' => parse_error("Invalid character"),
+            '\t' | '\n' | '\r' => try!(parse_error("Invalid character")),
             _ => host_input.push_char(c)
         }
     }
@@ -387,26 +398,28 @@ fn parse_file_host<'a>(input: &'a str) -> ParseResult<(Host, &'a str)> {
 }
 
 
-fn parse_path_start<'a>(input: &'a str, full_url: bool, in_file_scheme: bool)
-           -> (Vec<String>, &'a str) {
+fn parse_path_start<'a>(input: &'a str, full_url: bool, in_file_scheme: bool,
+                        parse_error: ErrorHandler)
+                        -> ParseResult<(Vec<String>, &'a str)> {
     let mut i = 0;
     // Relative path start state
     if !input.is_empty() {
         match input.char_at(0) {
             '/' => i = 1,
             '\\' => {
-                parse_error("Backslash");
+                try!(parse_error("Backslash"));
                 i = 1;
             },
             _ => ()
         }
     }
-    parse_path(Vec::new(), input.slice_from(i), full_url, in_file_scheme)
+    parse_path(Vec::new(), input.slice_from(i), full_url, in_file_scheme, parse_error)
 }
 
 
-fn parse_path<'a>(base_path: Vec<String>, input: &'a str, full_url: bool, in_file_scheme: bool)
-           -> (Vec<String>, &'a str) {
+fn parse_path<'a>(base_path: Vec<String>, input: &'a str, full_url: bool, in_file_scheme: bool,
+                  parse_error: ErrorHandler)
+                  -> ParseResult<(Vec<String>, &'a str)> {
     // Relative path state
     let mut path = base_path;
     let mut iter = input.char_indices();
@@ -423,7 +436,7 @@ fn parse_path<'a>(base_path: Vec<String>, input: &'a str, full_url: bool, in_fil
                     break
                 },
                 '\\' => {
-                    parse_error("Backslash");
+                    try!(parse_error("Backslash"));
                     ends_with_slash = true;
                     end = i;
                     break
@@ -432,16 +445,14 @@ fn parse_path<'a>(base_path: Vec<String>, input: &'a str, full_url: bool, in_fil
                     end = i;
                     break
                 },
-                '\t' | '\n' | '\r' => {
-                    parse_error("Invalid character")
-                },
+                '\t' | '\n' | '\r' => try!(parse_error("Invalid character")),
                 _ => {
                     if c == '%' {
                         if !starts_with_2_hex(input.slice_from(i + 1)) {
-                            parse_error("Invalid percent-encoded sequence")
+                            try!(parse_error("Invalid percent-encoded sequence"));
                         }
                     } else if !is_url_code_point(c) {
-                        parse_error("Non-URL code point")
+                        try!(parse_error("Non-URL code point"));
                     }
 
                     utf8_percent_encode(input.slice(i, i + c.len_utf8_bytes()),
@@ -480,11 +491,12 @@ fn parse_path<'a>(base_path: Vec<String>, input: &'a str, full_url: bool, in_fil
             break
         }
     }
-    (path, input.slice_from(end))
+    Ok((path, input.slice_from(end)))
 }
 
 
-fn parse_scheme_data<'a>(input: &'a str) -> (String, &'a str) {
+fn parse_scheme_data<'a>(input: &'a str, parse_error: ErrorHandler)
+                         -> ParseResult<(String, &'a str)> {
     let mut scheme_data = String::new();
     let mut end = input.len();
     for (i, c) in input.char_indices() {
@@ -493,14 +505,14 @@ fn parse_scheme_data<'a>(input: &'a str) -> (String, &'a str) {
                 end = i;
                 break
             },
-            '\t' | '\n' | '\r' => parse_error("Invalid character"),
+            '\t' | '\n' | '\r' => try!(parse_error("Invalid character")),
             _ => {
                 if c == '%' {
                     if !starts_with_2_hex(input.slice_from(i + 1)) {
-                        parse_error("Invalid percent-encoded sequence")
+                        try!(parse_error("Invalid percent-encoded sequence"));
                     }
                 } else if !is_url_code_point(c) {
-                    parse_error("Non-URL code point")
+                    try!(parse_error("Non-URL code point"));
                 }
 
                 utf8_percent_encode(input.slice(i, i + c.len_utf8_bytes()),
@@ -508,31 +520,37 @@ fn parse_scheme_data<'a>(input: &'a str) -> (String, &'a str) {
             }
         }
     }
-    (scheme_data, input.slice_from(end))
+    Ok((scheme_data, input.slice_from(end)))
 }
 
 
-fn parse_query_and_fragment(input: &str) -> (Option<String>, Option<String>) {
-    if input.is_empty() {
+fn parse_query_and_fragment(input: &str, parse_error: ErrorHandler)
+                            -> ParseResult<(Option<String>, Option<String>)> {
+    Ok(if input.is_empty() {
         (None, None)
     } else {
         match input.char_at(0) {
-            '#' => (None, Some(parse_fragment(input.slice_from(1)))),
+            '#' => (None, Some(try!(parse_fragment(input.slice_from(1), parse_error)))),
             '?' => {
-                let (query, remaining) = parse_query(
+                let (query, remaining) = try!(parse_query(
                     input.slice_from(1),
                     UTF_8 as EncodingRef,  // TODO
-                    /* full_url = */ true);
-                (Some(query), remaining.map(parse_fragment))
+                    /* full_url = */ true,
+                    parse_error));
+                (Some(query), match remaining {
+                    Some(remaining) => Some(try!(parse_fragment(remaining, parse_error))),
+                    None => None
+                })
             },
             _ => fail!("Programming error")
         }
-    }
+    })
 }
 
 
-fn parse_query<'a>(input: &'a str, encoding_override: EncodingRef, full_url: bool)
-               -> (String, Option<&'a str>) {
+fn parse_query<'a>(input: &'a str, encoding_override: EncodingRef, full_url: bool,
+                   parse_error: ErrorHandler)
+                   -> ParseResult<(String, Option<&'a str>)> {
     let mut query = String::new();
     let mut remaining = None;
     for (i, c) in input.char_indices() {
@@ -541,14 +559,14 @@ fn parse_query<'a>(input: &'a str, encoding_override: EncodingRef, full_url: boo
                 remaining = Some(input.slice_from(i + 1));
                 break
             },
-            '\t' | '\n' | '\r' => parse_error("Invalid character"),
+            '\t' | '\n' | '\r' => try!(parse_error("Invalid character")),
             _ => {
                 if c == '%' {
                     if !starts_with_2_hex(input.slice_from(i + 1)) {
-                        parse_error("Invalid percent-encoded sequence")
+                        try!(parse_error("Invalid percent-encoded sequence"));
                     }
                 } else if !is_url_code_point(c) {
-                    parse_error("Non-URL code point")
+                    try!(parse_error("Non-URL code point"));
                 }
                 query.push_char(c);
             }
@@ -564,22 +582,22 @@ fn parse_query<'a>(input: &'a str, encoding_override: EncodingRef, full_url: boo
             => unsafe { query_encoded.push_byte(byte) }
         }
     }
-    (query_encoded, remaining)
+    Ok((query_encoded, remaining))
 }
 
 
-fn parse_fragment<'a>(input: &'a str) -> String {
+fn parse_fragment<'a>(input: &'a str, parse_error: ErrorHandler) -> ParseResult<String> {
     let mut fragment = String::new();
     for (i, c) in input.char_indices() {
         match c {
-            '\t' | '\n' | '\r' => parse_error("Invalid character"),
+            '\t' | '\n' | '\r' => try!(parse_error("Invalid character")),
             _ => {
                 if c == '%' {
                     if !starts_with_2_hex(input.slice_from(i + 1)) {
-                        parse_error("Invalid percent-encoded sequence")
+                        try!(parse_error("Invalid percent-encoded sequence"));
                     }
                 } else if !is_url_code_point(c) {
-                    parse_error("Non-URL code point")
+                    try!(parse_error("Non-URL code point"));
                 }
 
                 utf8_percent_encode(input.slice(i, i + c.len_utf8_bytes()),
@@ -587,7 +605,7 @@ fn parse_fragment<'a>(input: &'a str) -> String {
             }
         }
     }
-    fragment
+    Ok(fragment)
 }
 
 
