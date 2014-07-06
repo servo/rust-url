@@ -43,16 +43,11 @@ pub enum SchemeData {
 
 #[deriving(Clone, Show)]
 pub struct SchemeRelativeUrl {
-    userinfo: Option<UserInfo>,
+    username: String,
+    password: Option<String>,
     host: Host,
     port: String,
     path: Vec<String>,
-}
-
-#[deriving(Clone, Show)]
-pub struct UserInfo {
-    username: String,
-    password: Option<String>,
 }
 
 #[deriving(Clone, Show)]
@@ -119,23 +114,19 @@ impl Url {
         result.push_str(":");
         match self.scheme_data {
             RelativeSchemeData(SchemeRelativeUrl {
-                ref userinfo, ref host, ref port, ref path
+                ref username, ref password, ref host, ref port, ref path
             }) => {
                 result.push_str("//");
-                match userinfo {
-                    &None => (),
-                    &Some(UserInfo { ref username, ref password })
-                    => if username.len() > 0 || password.is_some() {
-                        result.push_str(username.as_slice());
-                        match password {
-                            &None => (),
-                            &Some(ref password) => {
-                                result.push_str(":");
-                                result.push_str(password.as_slice());
-                            }
+                if !username.is_empty() || password.is_some() {
+                    result.push_str(username.as_slice());
+                    match password {
+                        &None => (),
+                        &Some(ref password) => {
+                            result.push_str(":");
+                            result.push_str(password.as_slice());
                         }
-                        result.push_str("@");
                     }
+                    result.push_str("@");
                 }
                 result.push_str(host.serialize().as_slice());
                 if port.len() > 0 {

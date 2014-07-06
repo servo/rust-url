@@ -15,7 +15,7 @@ use encoding::all::UTF_8;
 
 use super::{
     ParseResult, ErrorHandler, Url, RelativeSchemeData, OtherSchemeData,
-    SchemeRelativeUrl, UserInfo, Host, Domain,
+    SchemeRelativeUrl, Host, Domain,
     utf8_percent_encode, percent_encode_byte,
     SimpleEncodeSet, DefaultEncodeSet, UserInfoEncodeSet};
 
@@ -42,7 +42,7 @@ pub fn parse_url(input: &str, base_url: Option<&Url>, parse_error: ErrorHandler)
                     _ => parse_relative_url(scheme, remaining, &Url {
                         scheme: String::new(), query: None, fragment: None,
                         scheme_data: RelativeSchemeData(SchemeRelativeUrl {
-                            userinfo: None, host: Domain(String::new()),
+                            username: String::new(), password: None, host: Domain(String::new()),
                             port: String::new(), path: Vec::new()
                         })
                     }, parse_error),
@@ -99,7 +99,7 @@ fn parse_absolute_url<'a>(scheme: String, input: &'a str, parse_error: ErrorHand
     // Authority first slash state
     let remaining = try!(skip_slashes(input, parse_error));
     // Authority state
-    let (userinfo, remaining) = try!(parse_userinfo(remaining, parse_error));
+    let (username, password, remaining) = try!(parse_userinfo(remaining, parse_error));
     // Host state
     let (host, port, remaining) = try!(parse_hostname(remaining, scheme.as_slice(), parse_error));
     let (path, remaining) = try!(parse_path_start(
@@ -107,7 +107,8 @@ fn parse_absolute_url<'a>(scheme: String, input: &'a str, parse_error: ErrorHand
         /* full_url= */ true,
         /* in_file_scheme= */ false,
         parse_error));
-    let scheme_data = RelativeSchemeData(SchemeRelativeUrl { userinfo: userinfo, host: host, port: port, path: path });
+    let scheme_data = RelativeSchemeData(SchemeRelativeUrl {
+        username: username, password: password, host: host, port: port, path: path });
     let (query, fragment) = try!(parse_query_and_fragment(remaining, parse_error));
     Ok(Url { scheme: scheme, scheme_data: scheme_data, query: query, fragment: fragment })
 }
@@ -145,7 +146,9 @@ fn parse_relative_url<'a>(scheme: String, input: &'a str, base: &Url, parse_erro
                                 remaining, /* full_url= */ true,
                                 in_file_scheme, parse_error));
                             let scheme_data = RelativeSchemeData(SchemeRelativeUrl {
-                                userinfo: None, host: host, port: String::new(), path: path });
+                                username: String::new(), password: None,
+                                host: host, port: String::new(), path: path
+                            });
                             let (query, fragment) = try!(parse_query_and_fragment(
                                 remaining, parse_error));
                             Ok(Url { scheme: scheme, scheme_data: scheme_data,
@@ -160,12 +163,13 @@ fn parse_relative_url<'a>(scheme: String, input: &'a str, base: &Url, parse_erro
                             in_file_scheme, parse_error));
                         let scheme_data = RelativeSchemeData(if in_file_scheme {
                             SchemeRelativeUrl {
-                                userinfo: None, host: Domain(String::new()),
-                                port: String::new(), path: path
+                                username: String::new(), password: None, host:
+                                Domain(String::new()), port: String::new(), path: path
                             }
                         } else {
                             SchemeRelativeUrl {
-                                userinfo: base_scheme_data.userinfo.clone(),
+                                username: base_scheme_data.username.clone(),
+                                password: base_scheme_data.password.clone(),
                                 host: base_scheme_data.host.clone(),
                                 port: base_scheme_data.port.clone(),
                                 path: path
@@ -201,7 +205,7 @@ fn parse_relative_url<'a>(scheme: String, input: &'a str, base: &Url, parse_erro
                             Vec::new(), input, /* full_url= */ true,
                             in_file_scheme, parse_error));
                          (RelativeSchemeData(SchemeRelativeUrl {
-                            userinfo: None,
+                            username: String::new(), password: None,
                             host: Domain(String::new()),
                             port: String::new(),
                             path: path
@@ -215,7 +219,8 @@ fn parse_relative_url<'a>(scheme: String, input: &'a str, base: &Url, parse_erro
                             initial_path, input, /* full_url= */ true,
                             in_file_scheme, parse_error));
                         (RelativeSchemeData(SchemeRelativeUrl {
-                            userinfo: base_scheme_data.userinfo.clone(),
+                            username: base_scheme_data.username.clone(),
+                            password: base_scheme_data.password.clone(),
                             host: base_scheme_data.host.clone(),
                             port: base_scheme_data.port.clone(),
                             path: path
@@ -242,7 +247,7 @@ fn skip_slashes<'a>(input: &'a str, parse_error: ErrorHandler) -> ParseResult<&'
 
 
 fn parse_userinfo<'a>(input: &'a str, parse_error: ErrorHandler)
-                      -> ParseResult<(Option<UserInfo>, &'a str)> {
+                      -> ParseResult<(String, Option<String>, &'a str)> {
     let mut last_at = None;
     for (i, c) in input.char_indices() {
         match c {
@@ -251,19 +256,19 @@ fn parse_userinfo<'a>(input: &'a str, parse_error: ErrorHandler)
             _ => (),
         }
     }
-    Ok(match last_at {
-        None => (None, input),
-        Some(at) => (Some(try!(parse_userinfo_inner(input.slice_to(at), parse_error))),
-                          input.slice_from(at + 1))
-    })
-}
+    let (input, remaining) = match last_at {
+        Some(at) => (input.slice_to(at), input.slice_from(at + 1)),
+        None => return Ok((String::new(), None, input)),
+    };
 
-
-fn parse_userinfo_inner(input: &str, parse_error: ErrorHandler) -> ParseResult<UserInfo> {
     let mut username = String::new();
+    let mut password = None;
     for (i, c) in input.char_indices() {
         match c {
-            ':' => return parse_userinfo_password(input.slice_from(i + 1), username, parse_error),
+            ':' => {
+                password = Some(try!(parse_password(input.slice_from(i + 1), parse_error)));
+                break
+            },
             '\t' | '\n' | '\r' => try!(parse_error("Invalid character")),
             _ => {
                 if c == '%' {
@@ -279,12 +284,11 @@ fn parse_userinfo_inner(input: &str, parse_error: ErrorHandler) -> ParseResult<U
             }
         }
     }
-    Ok(UserInfo { username: username, password: None })
+    Ok((username, password, remaining))
 }
 
 
-fn parse_userinfo_password(input: &str, username: String, parse_error: ErrorHandler)
-                           -> ParseResult<UserInfo> {
+fn parse_password(input: &str, parse_error: ErrorHandler) -> ParseResult<String> {
     let mut password = String::new();
     for (i, c) in input.char_indices() {
         match c {
@@ -303,7 +307,7 @@ fn parse_userinfo_password(input: &str, username: String, parse_error: ErrorHand
             }
         }
     }
-    Ok(UserInfo { username: username, password: Some(password) })
+    Ok(password)
 }
 
 
