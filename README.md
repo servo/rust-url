@@ -13,31 +13,27 @@ API
 
 ```rust
 pub struct URL {
-    scheme: ~str,
+    scheme: String,
     scheme_data: SchemeData,
-    query: Option<~str>,  // See form_urlencoded::parse_str() to get name/value pairs.
-    fragment: Option<~str>,
+    query: Option<String>,  // See form_urlencoded::parse_str() to get name/value pairs.
+    fragment: Option<String>,
 }
 
 pub enum SchemeData {
     RelativeSchemeData(SchemeRelativeURL),
-    OtherSchemeData(~str),  // data: URLs, mailto: URLs, etc.
+    OtherSchemeData(String),  // data: URLs, mailto: URLs, etc.
 }
 
 pub struct SchemeRelativeURL {
-    userinfo: Option<UserInfo>,
+    username: String,
+    password: Option<String>,
     host: Host,
-    port: ~str,
-    path: ~[~str],
-}
-
-pub struct UserInfo {
-    username: ~str,
-    password: Option<~str>,
+    port: String,
+    path: Vec<String>,
 }
 
 pub enum Host {
-    Domain(~[~str]),  // Can only be empty in the file scheme
+    Domain(String),  // Can only be empty in the file scheme
     IPv6(IPv6Address)
 }
 
@@ -52,29 +48,29 @@ impl URL {
     // base_url is used to resolve relative URLs.
     // Relative URLs without a base return an error.
     pub fn parse(input: &str, base_url: Option<&URL>) -> ParseResult<URL>
-    pub fn serialize(&self) -> ~str
-    pub fn serialize_no_fragment(&self) -> ~str
+    pub fn serialize(&self) -> String
+    pub fn serialize_no_fragment(&self) -> String
 }
 
 impl Host {
     pub fn parse(input: &str) -> ParseResult<Host>
-    pub fn serialize(&self) -> ~str
+    pub fn serialize(&self) -> String
 }
 
 impl IPv6Address {
     pub fn parse(input: &str) -> ParseResult<IPv6Address>
-    pub fn serialize(&self) -> ~str
+    pub fn serialize(&self) -> String
 }
 
 
 /// application/x-www-form-urlencoded
 /// Converts between a query string and name/value pairs.
 pub mod form_urlencoded {
-    pub fn parse_str(input: &str) -> ~[(~str, ~str)]
+    pub fn parse_str(input: &str) -> Vec<(String, String)>
     pub fn parse_bytes(input: &[u8], encoding_override: Option<encoding::EncodingRef>,
-                       use_charset: bool, isindex: bool) -> Option<~[(~str, ~str)]>
-    pub fn serialize(pairs: ~[(~str, ~str)],
-                     encoding_override: Option<encoding::EncodingRef>) -> ~str
+                       use_charset: bool, isindex: bool) -> Option<Vec<(String, String)>>
+    pub fn serialize(pairs: Vec<(String, String)>],
+                     encoding_override: Option<encoding::EncodingRef>) -> String
 }
 ```
 
