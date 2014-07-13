@@ -21,7 +21,10 @@ use std::str::from_utf8_lossy;
 use encoding::all::UTF_8;
 use encoding::types::EncodingRef;
 
+use encode_sets::{PASSWORD_ENCODE_SET, USERNAME_ENCODE_SET};
 
+
+mod encode_sets;
 mod parser;
 pub mod form_urlencoded;
 pub mod punycode;
@@ -117,7 +120,7 @@ impl Url {
         match self.scheme_data {
             RelativeSchemeData(SchemeRelativeUrl { ref mut username, .. }) => {
                 username.truncate(0);
-                utf8_percent_encode(input, UsernameEncodeSet, username);
+                utf8_percent_encode(input, USERNAME_ENCODE_SET, username);
                 Ok(())
             },
             OtherSchemeData(_) => Err("Can not set username on non-relative URL.")
@@ -129,7 +132,7 @@ impl Url {
         match self.scheme_data {
             RelativeSchemeData(SchemeRelativeUrl { ref mut password, .. }) => {
                 let mut new_password = String::new();
-                utf8_percent_encode(input, PasswordEncodeSet, &mut new_password);
+                utf8_percent_encode(input, PASSWORD_ENCODE_SET, &mut new_password);
                 *password = Some(new_password);
                 Ok(())
             },
@@ -521,37 +524,10 @@ fn to_hex_upper(value: u8) -> u8 {
 }
 
 
-enum EncodeSet {
-    SimpleEncodeSet,
-    DefaultEncodeSet,
-    UserInfoEncodeSet,
-    PasswordEncodeSet,
-    UsernameEncodeSet
-}
-
-
 #[inline]
-fn utf8_percent_encode(input: &str, encode_set: EncodeSet, output: &mut String) {
-    use Default = self::DefaultEncodeSet;
-    use UserInfo = self::UserInfoEncodeSet;
-    use Password = self::PasswordEncodeSet;
-    use Username = self::UsernameEncodeSet;
+fn utf8_percent_encode(input: &str, encode_set: &[&str], output: &mut String) {
     for byte in input.bytes() {
-        if byte < 0x20 || byte > 0x7E || match byte {
-            b' ' | b'"' | b'#' | b'<' | b'>' | b'?' | b'`'
-            => is_match!(encode_set, Default | UserInfo | Password | Username),
-            b'@'
-            => is_match!(encode_set, UserInfo | Password | Username),
-            b'/' | b'\\'
-            => is_match!(encode_set, Password | Username),
-            b':'
-            => is_match!(encode_set, Username),
-            _ => false,
-        } {
-            percent_encode_byte(byte, output)
-        } else {
-            unsafe { output.push_byte(byte) }
-        }
+        output.push_str(encode_set[byte as uint])
     }
 }
 

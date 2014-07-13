@@ -16,8 +16,8 @@ use encoding::all::UTF_8;
 use super::{
     ParseResult, ErrorHandler, Url, RelativeSchemeData, OtherSchemeData,
     SchemeRelativeUrl, Host, Domain,
-    utf8_percent_encode, percent_encode_byte,
-    SimpleEncodeSet, DefaultEncodeSet, UserInfoEncodeSet};
+    utf8_percent_encode, percent_encode_byte};
+use encode_sets::{SIMPLE_ENCODE_SET, DEFAULT_ENCODE_SET, USERINFO_ENCODE_SET};
 
 
 macro_rules! is_match(
@@ -286,7 +286,7 @@ fn parse_userinfo<'a>(input: &'a str, parse_error: ErrorHandler)
                 }
 
                 utf8_percent_encode(input.slice(i, i + c.len_utf8_bytes()),
-                                    UserInfoEncodeSet, &mut username);
+                                    USERINFO_ENCODE_SET, &mut username);
             }
         }
     }
@@ -309,7 +309,7 @@ fn parse_password(input: &str, parse_error: ErrorHandler) -> ParseResult<String>
                 }
 
                 utf8_percent_encode(input.slice(i, i + c.len_utf8_bytes()),
-                                    UserInfoEncodeSet, &mut password);
+                                    USERINFO_ENCODE_SET, &mut password);
             }
         }
     }
@@ -471,7 +471,7 @@ fn parse_path<'a>(base_path: Vec<String>, input: &'a str, full_url: bool, in_fil
                     }
 
                     utf8_percent_encode(input.slice(i, i + c.len_utf8_bytes()),
-                                        DefaultEncodeSet, &mut path_part);
+                                        DEFAULT_ENCODE_SET, &mut path_part);
                 }
             }
         }
@@ -531,7 +531,7 @@ fn parse_scheme_data<'a>(input: &'a str, parse_error: ErrorHandler)
                 }
 
                 utf8_percent_encode(input.slice(i, i + c.len_utf8_bytes()),
-                                    SimpleEncodeSet, &mut scheme_data);
+                                    SIMPLE_ENCODE_SET, &mut scheme_data);
             }
         }
     }
@@ -616,7 +616,7 @@ pub fn parse_fragment<'a>(input: &'a str, parse_error: ErrorHandler) -> ParseRes
                 }
 
                 utf8_percent_encode(input.slice(i, i + c.len_utf8_bytes()),
-                                    SimpleEncodeSet, &mut fragment);
+                                    SIMPLE_ENCODE_SET, &mut fragment);
             }
         }
     }
