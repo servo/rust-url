@@ -527,7 +527,13 @@ fn to_hex_upper(value: u8) -> u8 {
 
 #[inline]
 fn utf8_percent_encode(input: &str, encode_set: &[&str], output: &mut String) {
-    for byte in input.bytes() {
+    percent_encode(input.as_bytes(), encode_set, output)
+}
+
+
+#[inline]
+fn percent_encode(input: &[u8], encode_set: &[&str], output: &mut String) {
+    for &byte in input.iter() {
         output.push_str(encode_set[byte as uint])
     }
 }

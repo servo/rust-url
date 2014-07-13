@@ -17,8 +17,8 @@ use encoding::all::UTF_8;
 use super::{
     ParseResult, ErrorHandler, Url, RelativeSchemeData, OtherSchemeData,
     SchemeRelativeUrl, Host, Domain,
-    utf8_percent_encode, percent_encode_byte};
-use encode_sets::{SIMPLE_ENCODE_SET, DEFAULT_ENCODE_SET, USERINFO_ENCODE_SET};
+    utf8_percent_encode, percent_encode};
+use encode_sets::{SIMPLE_ENCODE_SET, DEFAULT_ENCODE_SET, USERINFO_ENCODE_SET, QUERY_ENCODE_SET};
 
 
 macro_rules! is_match(
@@ -278,14 +278,7 @@ fn parse_userinfo<'a>(input: &'a str, parse_error: ErrorHandler)
             },
             '\t' | '\n' | '\r' => try!(parse_error("Invalid character")),
             _ => {
-                if c == '%' {
-                    if !starts_with_2_hex(input.slice_from(i + 1)) {
-                        try!(parse_error("Invalid percent-encoded sequence"));
-                    }
-                } else if !is_url_code_point(c) {
-                    try!(parse_error("Non-URL code point"));
-                }
-
+                try!(check_url_code_point(input, i, c, parse_error));
                 utf8_percent_encode(input.slice(i, next_i),
                                     USERINFO_ENCODE_SET, &mut username);
             }
@@ -301,14 +294,7 @@ fn parse_password(input: &str, parse_error: ErrorHandler) -> ParseResult<String>
         match c {
             '\t' | '\n' | '\r' => try!(parse_error("Invalid character")),
             _ => {
-                if c == '%' {
-                    if !starts_with_2_hex(input.slice_from(i + 1)) {
-                        try!(parse_error("Invalid percent-encoded sequence"));
-                    }
-                } else if !is_url_code_point(c) {
-                    try!(parse_error("Non-URL code point"));
-                }
-
+                try!(check_url_code_point(input, i, c, parse_error));
                 utf8_percent_encode(input.slice(i, next_i),
                                     USERINFO_ENCODE_SET, &mut password);
             }
@@ -463,14 +449,7 @@ fn parse_path<'a>(base_path: Vec<String>, input: &'a str, full_url: bool, in_fil
                 },
                 '\t' | '\n' | '\r' => try!(parse_error("Invalid character")),
                 _ => {
-                    if c == '%' {
-                        if !starts_with_2_hex(input.slice_from(i + 1)) {
-                            try!(parse_error("Invalid percent-encoded sequence"));
-                        }
-                    } else if !is_url_code_point(c) {
-                        try!(parse_error("Non-URL code point"));
-                    }
-
+                    try!(check_url_code_point(input, i, c, parse_error));
                     utf8_percent_encode(input.slice(i, next_i),
                                         DEFAULT_ENCODE_SET, &mut path_part);
                 }
@@ -523,14 +502,7 @@ fn parse_scheme_data<'a>(input: &'a str, parse_error: ErrorHandler)
             },
             '\t' | '\n' | '\r' => try!(parse_error("Invalid character")),
             _ => {
-                if c == '%' {
-                    if !starts_with_2_hex(input.slice_from(i + 1)) {
-                        try!(parse_error("Invalid percent-encoded sequence"));
-                    }
-                } else if !is_url_code_point(c) {
-                    try!(parse_error("Non-URL code point"));
-                }
-
+                try!(check_url_code_point(input, i, c, parse_error));
                 utf8_percent_encode(input.slice(i, next_i),
                                     SIMPLE_ENCODE_SET, &mut scheme_data);
             }
@@ -577,27 +549,14 @@ pub fn parse_query<'a>(input: &'a str, encoding_override: EncodingRef, full_url:
             },
             '\t' | '\n' | '\r' => try!(parse_error("Invalid character")),
             _ => {
-                if c == '%' {
-                    if !starts_with_2_hex(input.slice_from(i + 1)) {
-                        try!(parse_error("Invalid percent-encoded sequence"));
-                    }
-                } else if !is_url_code_point(c) {
-                    try!(parse_error("Non-URL code point"));
-                }
+                try!(check_url_code_point(input, i, c, parse_error));
                 query.push_char(c);
             }
         }
     }
     let query_bytes = encoding_override.encode(query.as_slice(), encoding::EncodeReplace).unwrap();
     let mut query_encoded = String::new();
-    for &byte in query_bytes.iter() {
-        match byte {
-            b'\x00'.. b' ' | b'"' | b'#' | b'<' | b'>' | b'`' | b'~'..b'\xFF'
-            => percent_encode_byte(byte, &mut query_encoded),
-            _
-            => unsafe { query_encoded.push_byte(byte) }
-        }
-    }
+    percent_encode(query_bytes.as_slice(), QUERY_ENCODE_SET, &mut query_encoded);
     Ok((query_encoded, remaining))
 }
 
@@ -608,14 +567,7 @@ pub fn parse_fragment<'a>(input: &'a str, parse_error: ErrorHandler) -> ParseRes
         match c {
             '\t' | '\n' | '\r' => try!(parse_error("Invalid character")),
             _ => {
-                if c == '%' {
-                    if !starts_with_2_hex(input.slice_from(i + 1)) {
-                        try!(parse_error("Invalid percent-encoded sequence"));
-                    }
-                } else if !is_url_code_point(c) {
-                    try!(parse_error("Non-URL code point"));
-                }
-
+                try!(check_url_code_point(input, i, c, parse_error));
                 utf8_percent_encode(input.slice(i, next_i),
                                     SIMPLE_ENCODE_SET, &mut fragment);
             }
@@ -678,6 +630,7 @@ fn is_url_code_point(c: char) -> bool {
 // Last two of each plane: U+__FFFE to U+__FFFF for __ in 00 to 10 hex
 
 
+#[inline]
 fn is_relative_scheme(scheme: &str) -> bool {
     is_match!(scheme, "ftp" | "file" | "gopher" | "http" | "https" | "ws" | "wss")
 }
@@ -712,4 +665,17 @@ impl<'a> Iterator<(uint, char, uint)> for CharRanges<'a> {
             Some((position, ch, next))
         }
     }
+}
+
+#[inline]
+fn check_url_code_point(input: &str, i: uint, c: char, parse_error: ErrorHandler)
+                        -> ParseResult<()> {
+    if c == '%' {
+        if !starts_with_2_hex(input.slice_from(i + 1)) {
+            try!(parse_error("Invalid percent-encoded sequence"));
+        }
+    } else if !is_url_code_point(c) {
+        try!(parse_error("Non-URL code point"));
+    }
+    Ok(())
 }
