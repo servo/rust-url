@@ -1,8 +1,8 @@
-# This file is from https://github.com/annevk/web-platform-tests/raw/url/url/urltestdata.txt
+# This file is from https://github.com/w3c/web-platform-tests/blob/master/url/urltestdata.txt
 # and used under a 3-clause BSD license.
 
 # FORMAT NOT DOCUMENTED YET (parser is urltestparser.js)
-# https://github.com/annevk/web-platform-tests/blob/url/url/urltestparser.js
+# https://github.com/w3c/web-platform-tests/blob/master/url/urltestparser.js
 
 # Based on http://trac.webkit.org/browser/trunk/LayoutTests/fast/url/script-tests/segments.js
 http://example\t.\norg http://example.org/foo/bar s:http h:example.org p:/
@@ -45,7 +45,7 @@ foo://  s:foo p://
 http://a:b@c:29/d  s:http u:a pass:b h:c port:29 p:/d
 http::@c:29  s:http h:example.org p:/foo/:@c:29
 http://&a:foo(b]c@d:2/  s:http u:&a pass:foo(b]c h:d port:2 p:/
-http://::@c@d:2  s:http u: pass::%40c h:d port:2 p:/
+http://::@c@d:2  s:http pass::%40c h:d port:2 p:/
 http://foo.com:b@d/  s:http u:foo.com pass:b h:d p:/
 http://foo.com/\\@  s:http h:foo.com p://@
 http:\\\\foo.com\\  s:http h:foo.com p:/
@@ -109,7 +109,6 @@ C|/foo/bar  s:file p:/C:/foo/bar
 /\\server/file  s:file h:server p:/file
 file:///foo/bar.txt  s:file p:/foo/bar.txt
 file:///home/me  s:file p:/home/me
-file:c:\\foo\\bar.html  s:file p:/c:/foo/bar.html
 //  s:file p:/
 ///  s:file p:/
 ///test  s:file p:/test
@@ -138,7 +137,6 @@ http://example.com/foo/%2e./%2e%2e/.%2e/%2e.bar  s:http h:example.com p:/%2e.bar
 http://example.com////../..  s:http h:example.com p://
 http://example.com/foo/bar//../..  s:http h:example.com p:/foo/
 http://example.com/foo/bar//..  s:http h:example.com p:/foo/bar/
-http://example.com/foo/bar/..  s:http h:example.com p:/foo/
 http://example.com/foo  s:http h:example.com p:/foo
 http://example.com/%20foo  s:http h:example.com p:/%20foo
 http://example.com/foo%  s:http h:example.com p:/foo%
@@ -164,7 +162,7 @@ http://www.google.com/foo?bar=baz# about:blank s:http h:www.google.com p:/foo q:
 http://www.google.com/foo?bar=baz#\s\u00BB  s:http h:www.google.com p:/foo q:?bar=baz f:#\s%C2%BB
 http://[www.google.com]/
 http://www.google.com  s:http h:www.google.com p:/
-http://192.0x00A80001  s:http h:192.0x00A80001 p:/
+http://192.0x00A80001  s:http h:192.0x00a80001 p:/
 http://www/foo%2Ehtml  s:http h:www p:/foo%2Ehtml
 http://www/foo/%2E/html  s:http h:www p:/foo/html
 http://user:pass@/
@@ -241,3 +239,87 @@ http:@:www.example.com
 http:/@:www.example.com
 http://@:www.example.com
 http://:@www.example.com  s:http pass: h:www.example.com p:/
+
+#Others
+/ http://www.example.com/test s:http h:www.example.com p:/
+/test.txt  s:http h:www.example.com p:/test.txt
+.  s:http h:www.example.com p:/
+..  s:http h:www.example.com p:/
+test.txt  s:http h:www.example.com p:/test.txt
+./test.txt  s:http h:www.example.com p:/test.txt
+../test.txt  s:http h:www.example.com p:/test.txt
+../aaa/test.txt  s:http h:www.example.com p:/aaa/test.txt
+../../test.txt  s:http h:www.example.com p:/test.txt
+\u4E2D/test.txt  s:http h:www.example.com p:/%E4%B8%AD/test.txt
+http://www.example2.com  s:http h:www.example2.com p:/
+
+# Based on http://trac.webkit.org/browser/trunk/LayoutTests/fast/url/host.html
+
+# Basic canonicalization, uppercase should be converted to lowercase
+http://ExAmPlE.CoM http://other.com/ s:http p:/ h:example.com
+
+# Spaces should fail
+http://example\sexample.com
+
+# This should fail
+http://Goo%20\sgoo%7C|.com
+
+# This should fail
+http://GOO\u00a0\u3000goo.com
+
+# Other types of space (no-break, zero-width, zero-width-no-break) are
+# name-prepped away to nothing.
+XFAIL http://GOO\u200b\u2060\ufeffgoo.com  s:http p:/ h:googoo.com
+
+# Ideographic full stop (full-width period for Chinese, etc.) should be
+# treated as a dot.
+XFAIL http://www.foo\u3002bar.com  s:http p:/ h:www.foo.bar.com
+
+# Invalid unicode characters should fail...
+http://\ufdd0zyx.com
+
+# ...This is the same as previous but with with escaped.
+http://%ef%b7%90zyx.com
+
+# Test name prepping, fullwidth input should be converted to ASCII and NOT
+# IDN-ized. This is "Go" in fullwidth UTF-8/UTF-16.
+XFAIL http://\uff27\uff4f.com  s:http p:/ h:go.com
+
+# URL spec forbids the following.
+# https://www.w3.org/Bugs/Public/show_bug.cgi?id=24257
+http://\uff05\uff14\uff11.com
+http://%ef%bc%85%ef%bc%94%ef%bc%91.com
+
+# ...%00 in fullwidth should fail (also as escaped UTF-8 input)
+http://\uff05\uff10\uff10.com
+http://%ef%bc%85%ef%bc%90%ef%bc%90.com
+
+# Basic IDN support, UTF-8 and UTF-16 input should be converted to IDN
+XFAIL http://\u4f60\u597d\u4f60\u597d  s:http p:/ h:xn--6qqa088eba
+
+# Invalid escaped characters should fail and the percents should be
+# escaped. https://www.w3.org/Bugs/Public/show_bug.cgi?id=24191
+http://%zz%66%a.com
+
+# If we get an invalid character that has been escaped.
+http://%25
+http://hello%00
+
+# Escaped numbers should be treated like IP addresses if they are.
+XFAIL http://%30%78%63%30%2e%30%32%35%30.01  s:http p:/ h:127.0.0.1
+XFAIL http://%30%78%63%30%2e%30%32%35%30.01%2e
+
+# Invalid escaping should trigger the regular host error handling.
+http://%3g%78%63%30%2e%30%32%35%30%2E.01
+
+# Something that isn't exactly an IP should get treated as a host and
+# spaces escaped.
+http://192.168.0.1\shello
+
+# Fullwidth and escaped UTF-8 fullwidth should still be treated as IP.
+# These are "0Xc0.0250.01" in fullwidth.
+XFAIL http://\uff10\uff38\uff43\uff10\uff0e\uff10\uff12\uff15\uff10\uff0e\uff10\uff11  s:http p:/ h:192.168.0.1
+
+# Broken IP addresses.
+XFAIL http://192.168.0.257
+http://[google.com]

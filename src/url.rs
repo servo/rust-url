@@ -17,6 +17,7 @@ extern crate serialize;
 
 use std::cmp;
 use std::str::from_utf8_lossy;
+use std::ascii::OwnedStrAsciiExt;
 
 use encoding::all::UTF_8;
 use encoding::types::EncodingRef;
@@ -310,7 +311,7 @@ impl Host {
             ]).is_some() {
                 Err("Invalid domain character.")
             } else {
-                Ok(Domain(domain.into_string()))
+                Ok(Domain(domain.into_string().into_ascii_lower()))
             }
         }
     }
