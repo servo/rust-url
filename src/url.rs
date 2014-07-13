@@ -6,7 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-#![crate_id = "url_"]
+#![crate_name = "url_"]
 #![crate_type = "lib"]
 #![feature(macro_rules)]
 
