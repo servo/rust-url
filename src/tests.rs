@@ -25,7 +25,8 @@ fn test_url_parsing() {
             port: expected_port,
             path: expected_path,
             query: expected_query,
-            fragment: expected_fragment
+            fragment: expected_fragment,
+            expected_failure: expected_failure,
         } = test;
         let base = match Url::parse(base.as_slice(), None) {
             Ok(base) => base,
@@ -33,13 +34,37 @@ fn test_url_parsing() {
         };
         let url = Url::parse(input.as_slice(), Some(&base));
         if expected_scheme.is_none() {
-            assert!(url.is_err(), "Expected a parse error for URL {}", input);
+            if url.is_ok() && !expected_failure {
+                fail!("Expected a parse error for URL {}", input);
+            }
             continue
         }
         let Url { scheme, scheme_data, query, fragment } = match url {
             Ok(url) => url,
-            Err(message) => fail!("Error parsing URL {}: {}", input, message)
+            Err(message) => {
+                if expected_failure {
+                    continue
+                } else {
+                    fail!("Error parsing URL {}: {}", input, message)
+                }
+            }
         };
+
+        macro_rules! assert_eq {
+            ($a: expr, $b: expr) => {
+                {
+                    let a = $a;
+                    let b = $b;
+                    if a != b {
+                        if expected_failure {
+                            continue
+                        } else {
+                            fail!("{} != {}", a, b)
+                        }
+                    }
+                }
+            }
+        }
 
         assert_eq!(Some(scheme), expected_scheme);
         match scheme_data {
@@ -65,6 +90,8 @@ fn test_url_parsing() {
         }
         assert_eq!(opt_prepend("?", query), expected_query);
         assert_eq!(opt_prepend("#", fragment), expected_fragment);
+
+        assert!(!expected_failure, "Unexpected success for {}", input);
     }
 }
 
@@ -79,6 +106,7 @@ struct Test {
     path: Option<String>,
     query: Option<String>,
     fragment: Option<String>,
+    expected_failure: bool,
 }
 
 fn parse_test_data(input: &str) -> Vec<Test> {
@@ -88,6 +116,10 @@ fn parse_test_data(input: &str) -> Vec<Test> {
             continue
         }
         let mut pieces = line.split(' ').collect::<Vec<&str>>();
+        let expected_failure = *pieces.get(0) == "XFAIL";
+        if expected_failure {
+            pieces.shift();
+        }
         let input = unescape(pieces.shift().unwrap());
         let mut test = Test {
             input: input,
@@ -104,6 +136,7 @@ fn parse_test_data(input: &str) -> Vec<Test> {
             path: None,
             query: None,
             fragment: None,
+            expected_failure: expected_failure,
         };
         for piece in pieces.move_iter() {
             if piece == "" || piece.starts_with("#") {
