@@ -8,6 +8,7 @@
 
 
 use std::ascii::StrAsciiExt;
+use std::str::CharRange;
 
 use encoding;
 use encoding::EncodingRef;
@@ -269,7 +270,7 @@ fn parse_userinfo<'a>(input: &'a str, parse_error: ErrorHandler)
 
     let mut username = String::new();
     let mut password = None;
-    for (i, c) in input.char_indices() {
+    for (i, c, next_i) in input.char_ranges() {
         match c {
             ':' => {
                 password = Some(try!(parse_password(input.slice_from(i + 1), parse_error)));
@@ -285,7 +286,7 @@ fn parse_userinfo<'a>(input: &'a str, parse_error: ErrorHandler)
                     try!(parse_error("Non-URL code point"));
                 }
 
-                utf8_percent_encode(input.slice(i, i + c.len_utf8_bytes()),
+                utf8_percent_encode(input.slice(i, next_i),
                                     USERINFO_ENCODE_SET, &mut username);
             }
         }
@@ -296,7 +297,7 @@ fn parse_userinfo<'a>(input: &'a str, parse_error: ErrorHandler)
 
 fn parse_password(input: &str, parse_error: ErrorHandler) -> ParseResult<String> {
     let mut password = String::new();
-    for (i, c) in input.char_indices() {
+    for (i, c, next_i) in input.char_ranges() {
         match c {
             '\t' | '\n' | '\r' => try!(parse_error("Invalid character")),
             _ => {
@@ -308,7 +309,7 @@ fn parse_password(input: &str, parse_error: ErrorHandler) -> ParseResult<String>
                     try!(parse_error("Non-URL code point"));
                 }
 
-                utf8_percent_encode(input.slice(i, i + c.len_utf8_bytes()),
+                utf8_percent_encode(input.slice(i, next_i),
                                     USERINFO_ENCODE_SET, &mut password);
             }
         }
@@ -437,13 +438,13 @@ fn parse_path<'a>(base_path: Vec<String>, input: &'a str, full_url: bool, in_fil
                   -> ParseResult<(Vec<String>, &'a str)> {
     // Relative path state
     let mut path = base_path;
-    let mut iter = input.char_indices();
+    let mut iter = input.char_ranges();
     let mut end;
     loop {
         let mut path_part = String::new();
         let mut ends_with_slash = false;
         end = input.len();
-        for (i, c) in iter {
+        for (i, c, next_i) in iter {
             match c {
                 '/' => {
                     ends_with_slash = true;
@@ -470,7 +471,7 @@ fn parse_path<'a>(base_path: Vec<String>, input: &'a str, full_url: bool, in_fil
                         try!(parse_error("Non-URL code point"));
                     }
 
-                    utf8_percent_encode(input.slice(i, i + c.len_utf8_bytes()),
+                    utf8_percent_encode(input.slice(i, next_i),
                                         DEFAULT_ENCODE_SET, &mut path_part);
                 }
             }
@@ -514,7 +515,7 @@ fn parse_scheme_data<'a>(input: &'a str, parse_error: ErrorHandler)
                          -> ParseResult<(String, &'a str)> {
     let mut scheme_data = String::new();
     let mut end = input.len();
-    for (i, c) in input.char_indices() {
+    for (i, c, next_i) in input.char_ranges() {
         match c {
             '?' | '#' => {
                 end = i;
@@ -530,7 +531,7 @@ fn parse_scheme_data<'a>(input: &'a str, parse_error: ErrorHandler)
                     try!(parse_error("Non-URL code point"));
                 }
 
-                utf8_percent_encode(input.slice(i, i + c.len_utf8_bytes()),
+                utf8_percent_encode(input.slice(i, next_i),
                                     SIMPLE_ENCODE_SET, &mut scheme_data);
             }
         }
@@ -603,7 +604,7 @@ pub fn parse_query<'a>(input: &'a str, encoding_override: EncodingRef, full_url:
 
 pub fn parse_fragment<'a>(input: &'a str, parse_error: ErrorHandler) -> ParseResult<String> {
     let mut fragment = String::new();
-    for (i, c) in input.char_indices() {
+    for (i, c, next_i) in input.char_ranges() {
         match c {
             '\t' | '\n' | '\r' => try!(parse_error("Invalid character")),
             _ => {
@@ -615,7 +616,7 @@ pub fn parse_fragment<'a>(input: &'a str, parse_error: ErrorHandler) -> ParseRes
                     try!(parse_error("Non-URL code point"));
                 }
 
-                utf8_percent_encode(input.slice(i, i + c.len_utf8_bytes()),
+                utf8_percent_encode(input.slice(i, next_i),
                                     SIMPLE_ENCODE_SET, &mut fragment);
             }
         }
@@ -679,4 +680,36 @@ fn is_url_code_point(c: char) -> bool {
 
 fn is_relative_scheme(scheme: &str) -> bool {
     is_match!(scheme, "ftp" | "file" | "gopher" | "http" | "https" | "ws" | "wss")
+}
+
+
+pub trait StrCharRanges<'a> {
+    fn char_ranges(&self) -> CharRanges<'a>;
+}
+
+
+impl<'a> StrCharRanges<'a> for &'a str {
+    #[inline]
+    fn char_ranges(&self) -> CharRanges<'a> {
+        CharRanges { slice: *self, position: 0 }
+    }
+}
+
+pub struct CharRanges<'a> {
+    slice: &'a str,
+    position: uint,
+}
+
+impl<'a> Iterator<(uint, char, uint)> for CharRanges<'a> {
+    #[inline]
+    fn next(&mut self) -> Option<(uint, char, uint)> {
+        if self.position == self.slice.len() {
+            None
+        } else {
+            let position = self.position;
+            let CharRange { ch, next } = self.slice.char_range_at(position);
+            self.position = next;
+            Some((position, ch, next))
+        }
+    }
 }
