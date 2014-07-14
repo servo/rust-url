@@ -279,6 +279,8 @@ fn parse_userinfo<'a>(input: &'a str, parse_error: ErrorHandler)
             '\t' | '\n' | '\r' => try!(parse_error("Invalid character")),
             _ => {
                 try!(check_url_code_point(input, i, c, parse_error));
+                // The spec says to use the default encode set,
+                // but also replaces '@' by '%40' in an earlier step.
                 utf8_percent_encode(input.slice(i, next_i),
                                     USERINFO_ENCODE_SET, &mut username);
             }
@@ -295,6 +297,8 @@ fn parse_password(input: &str, parse_error: ErrorHandler) -> ParseResult<String>
             '\t' | '\n' | '\r' => try!(parse_error("Invalid character")),
             _ => {
                 try!(check_url_code_point(input, i, c, parse_error));
+                // The spec says to use the default encode set,
+                // but also replaces '@' by '%40' in an earlier step.
                 utf8_percent_encode(input.slice(i, next_i),
                                     USERINFO_ENCODE_SET, &mut password);
             }
