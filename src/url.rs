@@ -107,7 +107,7 @@ impl Url {
 
     /// `URLUtils.protocol` setter
     pub fn set_scheme(&mut self, input: &str) -> ParseResult<()> {
-        match parser::parse_scheme(input.as_slice(), /* in_setter = */ true) {
+        match parser::parse_scheme(input.as_slice(), parser::SetterContext) {
             Some((scheme, _)) => {
                 self.scheme = scheme;
                 Ok(())
@@ -145,8 +145,8 @@ impl Url {
     pub fn set_host_and_port(&mut self, input: &str) -> ParseResult<()> {
         match self.scheme_data {
             RelativeSchemeData(SchemeRelativeUrl { ref mut host, ref mut port, .. }) => {
-                let (new_host, new_port, _) = try!(parser::parse_hostname(
-                    input, self.scheme.as_slice(), silent_handler, /* skip_port = */ false));
+                let (new_host, new_port, _) = try!(parser::parse_host(
+                    input, self.scheme.as_slice(), silent_handler));
                 *host = new_host;
                 *port = new_port;
                 Ok(())
@@ -159,8 +159,8 @@ impl Url {
     pub fn set_host(&mut self, input: &str) -> ParseResult<()> {
         match self.scheme_data {
             RelativeSchemeData(SchemeRelativeUrl { ref mut host, .. }) => {
-                let (new_host, _, _) = try!(parser::parse_hostname(
-                    input, self.scheme.as_slice(), silent_handler, /* skip_port = */ true));
+                let (new_host, _) = try!(parser::parse_hostname(
+                    input, silent_handler));
                 *host = new_host;
                 Ok(())
             },
@@ -189,8 +189,10 @@ impl Url {
         match self.scheme_data {
             RelativeSchemeData(SchemeRelativeUrl { ref mut path, .. }) => {
                 let (new_path, _) = try!(parser::parse_path_start(
-                    input, /* full_url = */ false,
-                    self.scheme.as_slice() == "file", silent_handler));
+                    input, parser::SetterContext,
+                    if self.scheme.as_slice() == "file" { parser::FileScheme }
+                        else { parser::NonFileScheme },
+                    silent_handler));
                 *path = new_path;
                 Ok(())
             },
@@ -211,7 +213,7 @@ impl Url {
             let input = if input.starts_with("?") { input.slice_from(1) } else { input };
             let encoding_override = UTF_8 as EncodingRef;  // TODO
             let (new_query, _) = try!(parser::parse_query(
-                input, encoding_override, /* full_url = */ false, silent_handler));
+                input, encoding_override, parser::SetterContext, silent_handler));
             Some(new_query)
         };
         Ok(())
