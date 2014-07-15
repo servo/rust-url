@@ -44,38 +44,38 @@ pub fn parse_url(input: &str, base_url: Option<&Url>, parse_error: ErrorHandler)
                  -> ParseResult<Url> {
     let input = input.trim_chars(&[' ', '\t', '\n', '\r', '\x0C']);
     let (scheme, remaining) = match parse_scheme(input, UrlParserContext) {
+        Some((scheme, remaining)) => (scheme, remaining),
         // No-scheme state
-        None => match base_url {
-            None => return Err("Relative URL without a base"),
-            Some(base) => return parse_relative_url(base.scheme.clone(), input, base, parse_error)
+        None => return match base_url {
+            Some(&Url { ref scheme, scheme_data: RelativeSchemeData(ref base),
+                        ref query, fragment: _ }) => {
+                parse_relative_url(input, scheme.clone(), base, query, parse_error)
+            },
+            Some(_) => Err("Relative URL with a non-relative base"),
+            None => Err("Relative URL without a base"),
         },
-        Some((scheme, remaining)) => (scheme, remaining)
     };
     if scheme.as_slice() == "file" {
         // Relative state?
         match base_url {
-            Some(base) if scheme == base.scheme => {
-                try!(parse_error("Relative URL with a scheme"));
-                parse_relative_url(scheme, remaining, base, parse_error)
+            Some(&Url { scheme: ref base_scheme, scheme_data: RelativeSchemeData(ref base),
+                        ref query, fragment: _ })
+            if scheme == *base_scheme => {
+                parse_relative_url(remaining, scheme, base, query, parse_error)
             },
-            _ => parse_relative_url(scheme, remaining, &Url {
-                scheme: String::new(), query: None, fragment: None,
-                scheme_data: RelativeSchemeData(SchemeRelativeUrl {
-                    username: String::new(), password: None, host: Domain(String::new()),
-                    port: String::new(), path: Vec::new()
-                })
-            }, parse_error),
+            // FIXME: Should not have to use a made-up base URL.
+            _ => parse_relative_url(remaining, scheme, &SchemeRelativeUrl {
+                username: String::new(), password: None, host: Domain(String::new()),
+                port: String::new(), path: Vec::new()
+            }, &None, parse_error)
         }
     } else if is_relative_scheme(scheme.as_slice()) {
         match base_url {
-            Some(base) if scheme == base.scheme => {
-                // Relative or authority state
-                if remaining.starts_with("//") {
-                    parse_absolute_url(scheme, remaining, parse_error)
-                } else {
-                    try!(parse_error("Relative URL with a scheme"));
-                    parse_relative_url(scheme, remaining, base, parse_error)
-                }
+            Some(&Url { scheme: ref base_scheme, scheme_data: RelativeSchemeData(ref base),
+                        ref query, fragment: _ })
+            if scheme == *base_scheme && !remaining.starts_with("//") => {
+                try!(parse_error("Relative URL with a scheme"));
+                parse_relative_url(remaining, scheme, base, query, parse_error)
             },
             _ => parse_absolute_url(scheme, remaining, parse_error),
         }
@@ -103,7 +103,7 @@ pub fn parse_scheme<'a>(input: &'a str, context: Context) -> Option<(String, &'a
             _ => return None,
         }
     }
-    // EOF
+    // EOF before ':'
     match context {
         SetterContext => Some((input.to_ascii_lower(), "")),
         UrlParserContext => None
@@ -128,18 +128,13 @@ fn parse_absolute_url<'a>(scheme: String, input: &'a str, parse_error: ErrorHand
 }
 
 
-fn parse_relative_url<'a>(scheme: String, input: &'a str, base: &Url, parse_error: ErrorHandler)
+fn parse_relative_url<'a>(input: &'a str, scheme: String, base: &SchemeRelativeUrl,
+                          base_query: &Option<String>, parse_error: ErrorHandler)
                           -> ParseResult<Url> {
-    let base_scheme_data = match base.scheme_data {
-        OtherSchemeData(_) => return Err("Relative URL with a non-relative-scheme base"),
-        RelativeSchemeData(ref base_scheme_data) => {
-            if input.is_empty() {
-                return Ok(Url { scheme: scheme, scheme_data: base.scheme_data.clone(),
-                                query: base.query.clone(), fragment: None })
-            }
-            base_scheme_data
-        }
-    };
+    if input.is_empty() {
+        return Ok(Url { scheme: scheme, scheme_data: RelativeSchemeData(base.clone()),
+                        query: base_query.clone(), fragment: None })
+    }
     let scheme_type = if scheme.as_slice() == "file" { FileScheme } else { NonFileScheme };
     match input.char_at(0) {
         '/' | '\\' => {
@@ -186,10 +181,10 @@ fn parse_relative_url<'a>(scheme: String, input: &'a str, base: &Url, parse_erro
                     }
                 } else {
                     SchemeRelativeUrl {
-                        username: base_scheme_data.username.clone(),
-                        password: base_scheme_data.password.clone(),
-                        host: base_scheme_data.host.clone(),
-                        port: base_scheme_data.port.clone(),
+                        username: base.username.clone(),
+                        password: base.password.clone(),
+                        host: base.host.clone(),
+                        port: base.port.clone(),
                         path: path
                     }
                 });
@@ -201,14 +196,13 @@ fn parse_relative_url<'a>(scheme: String, input: &'a str, base: &Url, parse_erro
         },
         '?' => {
             let (query, fragment) = try!(parse_query_and_fragment(input, parse_error));
-            Ok(Url { scheme: scheme, scheme_data: base.scheme_data.clone(),
+            Ok(Url { scheme: scheme, scheme_data: RelativeSchemeData(base.clone()),
                      query: query, fragment: fragment })
         },
         '#' => {
-            Ok(Url { scheme: scheme, scheme_data: base.scheme_data.clone(),
-                     query: base.query.clone(),
-                     fragment: Some(try!(
-                        parse_fragment(input.slice_from(1), parse_error))) })
+            let fragment = Some(try!(parse_fragment(input.slice_from(1), parse_error)));
+            Ok(Url { scheme: scheme, scheme_data: RelativeSchemeData(base.clone()),
+                     query: base_query.clone(), fragment: fragment })
         }
         _ => {
             let (scheme_data, remaining) = if scheme_type == FileScheme
@@ -229,7 +223,7 @@ fn parse_relative_url<'a>(scheme: String, input: &'a str, base: &Url, parse_erro
                     path: path
                 }), remaining)
             } else {
-                let base_path = base_scheme_data.path.as_slice();
+                let base_path = base.path.as_slice();
                 let initial_path = Vec::from_slice(
                     base_path.slice_to(base_path.len() - 1));
                 // Relative path state
@@ -237,10 +231,10 @@ fn parse_relative_url<'a>(scheme: String, input: &'a str, base: &Url, parse_erro
                     initial_path, input, UrlParserContext,
                     scheme_type, parse_error));
                 (RelativeSchemeData(SchemeRelativeUrl {
-                    username: base_scheme_data.username.clone(),
-                    password: base_scheme_data.password.clone(),
-                    host: base_scheme_data.host.clone(),
-                    port: base_scheme_data.port.clone(),
+                    username: base.username.clone(),
+                    password: base.password.clone(),
+                    host: base.host.clone(),
+                    port: base.port.clone(),
                     path: path
                 }), remaining)
             };
@@ -548,7 +542,8 @@ fn parse_query_and_fragment(input: &str, parse_error: ErrorHandler)
             };
             Ok((Some(query), fragment))
         },
-        _ => fail!("Programming error")
+        _ => fail!("Programming error. parse_query_and_fragment() should not \
+                    have been called with input \"{}\"", input)
     }
 }
 
