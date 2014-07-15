@@ -34,10 +34,10 @@ mod tests;
 
 
 pub struct Url {
-    scheme: String,
-    scheme_data: SchemeData,
-    query: Option<String>,  // See form_urlencoded::parse_str() to get name/value pairs.
-    fragment: Option<String>,
+    pub scheme: String,
+    pub scheme_data: SchemeData,
+    pub query: Option<String>,  // See form_urlencoded::parse_str() to get name/value pairs.
+    pub fragment: Option<String>,
     encoding_override: Option<EncodingRef>,
 }
 
@@ -49,11 +49,11 @@ pub enum SchemeData {
 
 #[deriving(Clone)]
 pub struct SchemeRelativeUrl {
-    username: String,
-    password: Option<String>,
-    host: Host,
-    port: String,
-    path: Vec<String>,
+    pub username: String,
+    pub password: Option<String>,
+    pub host: Host,
+    pub port: String,
+    pub path: Vec<String>,
 }
 
 #[deriving(Clone)]
@@ -63,7 +63,7 @@ pub enum Host {
 }
 
 pub struct Ipv6Address {
-    pieces: [u16, ..8]
+    pub pieces: [u16, ..8]
 }
 
 impl Clone for Ipv6Address {
