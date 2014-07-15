@@ -7,7 +7,8 @@
 // except according to those terms.
 
 #![crate_name = "url_"]
-#![crate_type = "lib"]
+#![crate_type = "dylib"]
+#![crate_type = "rlib"]
 #![feature(macro_rules, default_type_params)]
 
 extern crate encoding;
