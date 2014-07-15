@@ -10,3 +10,7 @@ install:
 script:
   - cargo build --verbose
   - cargo test --verbose
+
+branches:
+  except:
+    - servo-backport

@@ -431,7 +431,7 @@ fn parse_path<'a>(base_path: &[String], input: &'a str, context: Context,
                   scheme_type: SchemeType, parser: &UrlParser)
                   -> ParseResult<(Vec<String>, &'a str)> {
     // Relative path state
-    let mut path = base_path.to_vec();
+    let mut path = base_path.to_owned();
     let mut iter = input.char_ranges();
     let mut end;
     loop {
@@ -484,7 +484,7 @@ fn parse_path<'a>(base_path: &[String], input: &'a str, context: Context,
                    && path_part.as_slice().char_at(1) == '|' {
                     // Windows drive letter quirk
                     unsafe {
-                        *path_part.as_mut_vec().get_mut(1) = b':'
+                        *path_part.as_mut_vec().get_mut(1) = ':' as u8
                     }
                 }
                 path.push(path_part)
@@ -597,9 +597,9 @@ fn starts_with_ascii_alpha(string: &str) -> bool {
 }
 
 #[inline]
-fn is_ascii_hex_digit(byte: u8) -> bool {
-    match byte {
-        b'a'..b'f' | b'A'..b'F' | b'0'..b'9' => true,
+fn is_ascii_hex_digit(c: char) -> bool {
+    match c {
+        'a'..'f' | 'A'..'F' | '0'..'9' => true,
         _ => false,
     }
 }
@@ -607,8 +607,8 @@ fn is_ascii_hex_digit(byte: u8) -> bool {
 #[inline]
 fn starts_with_2_hex(input: &str) -> bool {
     input.len() >= 2
-    && is_ascii_hex_digit(input.as_bytes()[0])
-    && is_ascii_hex_digit(input.as_bytes()[1])
+    && is_ascii_hex_digit(input.char_at(0))
+    && is_ascii_hex_digit(input.char_at(1))
 }
 
 #[inline]

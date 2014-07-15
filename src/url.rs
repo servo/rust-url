@@ -6,7 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-#![crate_name = "url_"]
+#![crate_id = "url_"]
 #![crate_type = "dylib"]
 #![crate_type = "rlib"]
 #![feature(macro_rules, default_type_params)]
@@ -20,6 +20,7 @@ use std::cmp;
 use std::fmt::{Formatter, FormatError, Show};
 use std::hash;
 use std::path::Path;
+use std::str;
 use std::ascii::OwnedStrAsciiExt;
 
 use encoding::EncodingRef;
@@ -232,11 +233,11 @@ impl Url {
     }
 
     pub fn serialize(&self) -> String {
-        self.to_string()
+        self.to_str()
     }
 
     pub fn serialize_no_fragment(&self) -> String {
-        UrlNoFragmentFormatter{ url: self }.to_string()
+        UrlNoFragmentFormatter{ url: self }.to_str()
     }
 
     #[inline]
@@ -311,7 +312,7 @@ impl Show for Url {
         match self.fragment {
             None => (),
             Some(ref fragment) => {
-                try!(formatter.write(b"#"));
+                try!(formatter.write("#".as_bytes()));
                 try!(formatter.write(fragment.as_bytes()));
             }
         }
@@ -326,12 +327,12 @@ struct UrlNoFragmentFormatter<'a> {
 impl<'a> Show for UrlNoFragmentFormatter<'a> {
     fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
         try!(formatter.write(self.url.scheme.as_bytes()));
-        try!(formatter.write(b":"));
+        try!(formatter.write(":".as_bytes()));
         try!(self.url.scheme_data.fmt(formatter));
         match self.url.query {
             None => (),
             Some(ref query) => {
-                try!(formatter.write(b"?"));
+                try!(formatter.write("?".as_bytes()));
                 try!(formatter.write(query.as_bytes()));
             }
         }
@@ -362,7 +363,7 @@ impl RelativeSchemeData {
                 } else {
                     let mut bytes = Vec::new();
                     for path_part in self.path.iter() {
-                        bytes.push(b'/');
+                        bytes.push('/' as u8);
                         percent_decode_to(path_part.as_bytes(), &mut bytes);
                     }
                     Ok(Path::new(bytes))
@@ -381,7 +382,7 @@ impl RelativeSchemeData {
     }
 
     pub fn serialize_path(&self) -> String {
-        PathFormatter { path: &self.path }.to_string()
+        PathFormatter { path: &self.path }.to_str()
     }
 }
 
@@ -392,10 +393,10 @@ struct PathFormatter<'a> {
 impl<'a> Show for PathFormatter<'a> {
     fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
         if self.path.is_empty() {
-            formatter.write(b"/")
+            formatter.write("/".as_bytes())
         } else {
             for path_part in self.path.iter() {
-                try!(formatter.write(b"/"));
+                try!(formatter.write("/".as_bytes()));
                 try!(formatter.write(path_part.as_bytes()));
             }
             Ok(())
@@ -405,21 +406,21 @@ impl<'a> Show for PathFormatter<'a> {
 
 impl Show for RelativeSchemeData {
     fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
-        try!(formatter.write(b"//"));
+        try!(formatter.write("//".as_bytes()));
         if !self.username.is_empty() || self.password.is_some() {
             try!(formatter.write(self.username.as_bytes()));
             match self.password {
                 None => (),
                 Some(ref password) => {
-                    try!(formatter.write(b":"));
+                    try!(formatter.write(":".as_bytes()));
                     try!(formatter.write(password.as_bytes()));
                 }
             }
-            try!(formatter.write(b"@"));
+            try!(formatter.write("@".as_bytes()));
         }
         try!(self.host.fmt(formatter));
         if !self.port.is_empty() {
-            try!(formatter.write(b":"));
+            try!(formatter.write(":".as_bytes()));
             try!(formatter.write(self.port.as_bytes()));
         }
         PathFormatter { path: &self.path }.fmt(formatter)
@@ -588,7 +589,7 @@ impl Host {
             }
         } else {
             let decoded = percent_decode(input.as_bytes());
-            let domain = String::from_utf8_lossy(decoded.as_slice());
+            let domain = str::from_utf8_lossy(decoded.as_slice());
             // TODO: Remove this check and use IDNA "domain to ASCII"
             if !domain.as_slice().is_ascii() {
                 Err("Non-ASCII domains (IDNA) are not supported yet.")
@@ -603,7 +604,7 @@ impl Host {
     }
 
     pub fn serialize(&self) -> String {
-        self.to_string()
+        self.to_str()
     }
 }
 
@@ -613,9 +614,9 @@ impl Show for Host {
         match *self {
             Domain(ref domain) => domain.fmt(formatter),
             Ipv6(ref address) => {
-                try!(formatter.write(b"["));
+                try!(formatter.write("[".as_bytes()));
                 try!(address.fmt(formatter));
-                formatter.write(b"]")
+                formatter.write("]".as_bytes())
             }
         }
     }
@@ -631,8 +632,8 @@ impl Ipv6Address {
         let mut piece_pointer = 0u;
         let mut compress_pointer = None;
         let mut i = 0u;
-        if input[0] == b':' {
-            if input[1] != b':' {
+        if input[0] == ':' as u8 {
+            if input[1] != ':' as u8 {
                 return Err("Invalid IPv6 address")
             }
             i = 2;
@@ -644,7 +645,7 @@ impl Ipv6Address {
             if piece_pointer == 8 {
                 return Err("Invalid IPv6 address")
             }
-            if input[i] == b':' {
+            if input[i] == ':' as u8 {
                 if compress_pointer.is_some() {
                     return Err("Invalid IPv6 address")
                 }
@@ -666,15 +667,15 @@ impl Ipv6Address {
                 }
             }
             if i < len {
-                match input[i] {
-                    b'.' => {
+                match input[i] as char {
+                    '.' => {
                         if i == start {
                             return Err("Invalid IPv6 address")
                         }
                         i = start;
                         is_ip_v4 = true;
                     },
-                    b':' => {
+                    ':' => {
                         i += 1;
                         if i == len {
                             return Err("Invalid IPv6 address")
@@ -698,8 +699,8 @@ impl Ipv6Address {
             while i < len {
                 let mut value = 0u16;
                 while i < len {
-                    let digit = match input[i] {
-                        c @ b'0' .. b'9' => c - b'0',
+                    let digit = match input[i] as char {
+                        c @ '0' .. '9' => c as u8 - '0' as u8,
                         _ => break
                     };
                     value = value * 10 + digit as u16;
@@ -707,7 +708,7 @@ impl Ipv6Address {
                         return Err("Invalid IPv6 address")
                     }
                 }
-                if dots_seen < 3 && !(i < len && input[i] == b'.') {
+                if dots_seen < 3 && !(i < len && input[i] == '.' as u8) {
                     return Err("Invalid IPv6 address")
                 }
                 pieces[piece_pointer] = pieces[piece_pointer] * 0x100 + value;
@@ -741,7 +742,7 @@ impl Ipv6Address {
     }
 
     pub fn serialize(&self) -> String {
-        self.to_string()
+        self.to_str()
     }
 }
 
@@ -752,9 +753,9 @@ impl Show for Ipv6Address {
         let mut i = 0;
         while i < 8 {
             if i == compress_start {
-                try!(formatter.write(b":"));
+                try!(formatter.write(":".as_bytes()));
                 if i == 0 {
-                    try!(formatter.write(b":"));
+                    try!(formatter.write(":".as_bytes()));
                 }
                 if compress_end < 8 {
                     i = compress_end;
@@ -764,7 +765,7 @@ impl Show for Ipv6Address {
             }
             try!(write!(formatter, "{:X}", self.pieces[i as uint]));
             if i < 7 {
-                try!(formatter.write(b":"));
+                try!(formatter.write(":".as_bytes()));
             }
             i += 1;
         }
@@ -805,10 +806,10 @@ fn longest_zero_sequence(pieces: &[u16, ..8]) -> (int, int) {
 
 #[inline]
 fn from_hex(byte: u8) -> Option<u8> {
-    match byte {
-        b'0' .. b'9' => Some(byte - b'0'),  // 0..9
-        b'A' .. b'F' => Some(byte + 10 - b'A'),  // A..F
-        b'a' .. b'f' => Some(byte + 10 - b'a'),  // a..f
+    match byte as char {
+        '0' .. '9' => Some(byte - '0' as u8),  // 0..9
+        'A' .. 'F' => Some(byte + 10 - 'A' as u8),  // A..F
+        'a' .. 'f' => Some(byte + 10 - 'a' as u8),  // a..f
         _ => None
     }
 }
@@ -840,7 +841,7 @@ pub fn percent_decode_to(input: &[u8], output: &mut Vec<u8>) {
     let mut i = 0u;
     while i < input.len() {
         let c = input[i];
-        if c == b'%' && i + 2 < input.len() {
+        if c == '%' as u8 && i + 2 < input.len() {
             match (from_hex(input[i + 1]), from_hex(input[i + 2])) {
                 (Some(h), Some(l)) => {
                     output.push(h * 0x10 + l);
