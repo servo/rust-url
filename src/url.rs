@@ -41,13 +41,13 @@ pub struct Url {
     encoding_override: Option<EncodingRef>,
 }
 
-#[deriving(Clone)]
+#[deriving(PartialEq, Eq, Clone)]
 pub enum SchemeData {
     RelativeSchemeData(SchemeRelativeUrl),
     OtherSchemeData(String),  // data: URLs, mailto: URLs, etc.
 }
 
-#[deriving(Clone)]
+#[deriving(PartialEq, Eq, Clone)]
 pub struct SchemeRelativeUrl {
     pub username: String,
     pub password: Option<String>,
@@ -56,7 +56,7 @@ pub struct SchemeRelativeUrl {
     pub path: Vec<String>,
 }
 
-#[deriving(Clone)]
+#[deriving(PartialEq, Eq, Clone)]
 pub enum Host {
     Domain(String),
     Ipv6(Ipv6Address)
@@ -72,9 +72,11 @@ impl Clone for Ipv6Address {
     }
 }
 
-impl ::std::fmt::Show for Ipv6Address {
-    fn fmt(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        self.pieces.as_slice().fmt(formatter)
+impl Eq for Ipv6Address {}
+
+impl PartialEq for Ipv6Address {
+    fn eq(&self, other: &Ipv6Address) -> bool {
+        self.pieces == other.pieces
     }
 }
 
@@ -87,6 +89,18 @@ impl Clone for Url {
             fragment: self.fragment.clone(),
             encoding_override: self.encoding_override,
         }
+    }
+}
+
+impl Eq for Url {}
+
+impl PartialEq for Url {
+    fn eq(&self, other: &Url) -> bool {
+        self.scheme == other.scheme &&
+        self.scheme_data == other.scheme_data &&
+        self.query == other.query &&
+        self.fragment == other.fragment &&
+        self.encoding_override.map(|e| e.name()) == other.encoding_override.map(|e| e.name())
     }
 }
 
