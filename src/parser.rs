@@ -140,7 +140,9 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, base: &SchemeRelativeU
         '/' | '\\' => {
             // Relative slash state
             if input.len() > 1 && is_match!(input.char_at(1), '/' | '\\') {
+                if input.char_at(1) == '\\' { try!(parse_error("backslash")) }
                 if scheme_type == FileScheme {
+                    // File host state
                     let remaining = input.slice_from(2);
                     let (host, remaining) = if remaining.len() >= 2
                        && starts_with_ascii_alpha(remaining)
@@ -152,7 +154,6 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, base: &SchemeRelativeU
                         // Windows drive letter quirk
                         (Domain(String::new()), remaining)
                     } else {
-                        // File host state
                         try!(parse_file_host(remaining, parse_error))
                     };
                     let (path, remaining) = try!(parse_path_start(
@@ -172,7 +173,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, base: &SchemeRelativeU
             } else {
                 // Relative path state
                 let (path, remaining) = try!(parse_path(
-                    Vec::new(), input.slice_from(1), UrlParserContext,
+                    [], input.slice_from(1), UrlParserContext,
                     scheme_type, parse_error));
                 let scheme_data = RelativeSchemeData(if scheme_type == FileScheme {
                     SchemeRelativeUrl {
@@ -214,7 +215,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, base: &SchemeRelativeU
             {
                 // Windows drive letter quirk
                 let (path, remaining) = try!(parse_path(
-                    Vec::new(), input, UrlParserContext,
+                    [], input, UrlParserContext,
                     scheme_type, parse_error));
                  (RelativeSchemeData(SchemeRelativeUrl {
                     username: String::new(), password: None,
@@ -223,12 +224,10 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, base: &SchemeRelativeU
                     path: path
                 }), remaining)
             } else {
-                let base_path = base.path.as_slice();
-                let initial_path = Vec::from_slice(
-                    base_path.slice_to(base_path.len() - 1));
+                let base_path = base.path.slice_to(base.path.len() - 1);
                 // Relative path state
                 let (path, remaining) = try!(parse_path(
-                    initial_path, input, UrlParserContext,
+                    base_path, input, UrlParserContext,
                     scheme_type, parse_error));
                 (RelativeSchemeData(SchemeRelativeUrl {
                     username: base.username.clone(),
@@ -260,7 +259,10 @@ fn parse_userinfo<'a>(input: &'a str, parse_error: ErrorHandler)
     let mut last_at = None;
     for (i, c) in input.char_indices() {
         match c {
-            '@' => last_at = Some(i),
+            '@' => {
+                if last_at.is_some() { try!(parse_error("@ in userinfo")) }
+                last_at = Some(i)
+            },
             '/' | '\\' | '?' | '#' => break,
             _ => (),
         }
@@ -426,15 +428,15 @@ pub fn parse_path_start<'a>(input: &'a str, context: Context, scheme_type: Schem
             _ => ()
         }
     }
-    parse_path(Vec::new(), input.slice_from(i), context, scheme_type, parse_error)
+    parse_path([], input.slice_from(i), context, scheme_type, parse_error)
 }
 
 
-fn parse_path<'a>(base_path: Vec<String>, input: &'a str, context: Context,
+fn parse_path<'a>(base_path: &[String], input: &'a str, context: Context,
                   scheme_type: SchemeType, parse_error: ErrorHandler)
                   -> ParseResult<(Vec<String>, &'a str)> {
     // Relative path state
-    let mut path = base_path;
+    let mut path = base_path.to_owned();
     let mut iter = input.char_ranges();
     let mut end;
     loop {
