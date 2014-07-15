@@ -577,13 +577,13 @@ fn to_hex_upper(value: u8) -> u8 {
 
 
 #[inline]
-fn utf8_percent_encode(input: &str, encode_set: &[&str], output: &mut String) {
+pub fn utf8_percent_encode(input: &str, encode_set: &[&str], output: &mut String) {
     percent_encode(input.as_bytes(), encode_set, output)
 }
 
 
 #[inline]
-fn percent_encode(input: &[u8], encode_set: &[&str], output: &mut String) {
+pub fn percent_encode(input: &[u8], encode_set: &[&str], output: &mut String) {
     for &byte in input.iter() {
         output.push_str(encode_set[byte as uint])
     }
@@ -591,7 +591,7 @@ fn percent_encode(input: &[u8], encode_set: &[&str], output: &mut String) {
 
 
 #[inline]
-fn percent_encode_byte(byte: u8, output: &mut String) {
+pub fn percent_encode_byte(byte: u8, output: &mut String) {
     unsafe {
         output.push_bytes([
             b'%', to_hex_upper(byte >> 4), to_hex_upper(byte & 0x0F)
@@ -601,7 +601,7 @@ fn percent_encode_byte(byte: u8, output: &mut String) {
 
 
 #[inline]
-fn percent_decode(input: &[u8]) -> Vec<u8> {
+pub fn percent_decode(input: &[u8]) -> Vec<u8> {
     let mut output = Vec::new();
     let mut i = 0u;
     while i < input.len() {
