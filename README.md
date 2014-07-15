@@ -89,6 +89,4 @@ Not necessarily in the given order:
   [Nameprep](http://tools.ietf.org/html/rfc3491) is the other big part.
 * Add lots of tests.
   Contribute them to [web-platform-tests](https://github.com/w3c/web-platform-tests/tree/master/url).
-* Report know/suspected spec bugs and test suite bugs.
-* Refactor to reduce code duplication.
 * Consider switching the spec from a state machine to functional style, like this code.
