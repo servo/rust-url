@@ -8,7 +8,7 @@
 
 #![crate_name = "url_"]
 #![crate_type = "lib"]
-#![feature(macro_rules)]
+#![feature(macro_rules, default_type_params)]
 
 extern crate encoding;
 
@@ -16,6 +16,7 @@ extern crate encoding;
 extern crate serialize;
 
 use std::cmp;
+use std::hash;
 use std::str::from_utf8_lossy;
 use std::ascii::OwnedStrAsciiExt;
 
@@ -101,6 +102,12 @@ impl PartialEq for Url {
         self.query == other.query &&
         self.fragment == other.fragment &&
         self.encoding_override.map(|e| e.name()) == other.encoding_override.map(|e| e.name())
+    }
+}
+
+impl<S: hash::Writer> hash::Hash<S> for Url {
+    fn hash(&self, state: &mut S) {
+        self.serialize().hash(state)
     }
 }
 
