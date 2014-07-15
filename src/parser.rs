@@ -12,7 +12,6 @@ use std::str::CharRange;
 
 use encoding;
 use encoding::EncodingRef;
-use encoding::all::UTF_8;
 
 use super::{
     ParseResult, ErrorHandler, Url, RelativeSchemeData, OtherSchemeData,
@@ -40,7 +39,8 @@ pub enum SchemeType {
 }
 
 
-pub fn parse_url(input: &str, base_url: Option<&Url>, parse_error: ErrorHandler)
+pub fn parse_url(input: &str, base_url: Option<&Url>, encoding_override: Option<EncodingRef>,
+                 parse_error: ErrorHandler)
                  -> ParseResult<Url> {
     let input = input.trim_chars(&[' ', '\t', '\n', '\r', '\x0C']);
     let (scheme, remaining) = match parse_scheme(input, UrlParserContext) {
@@ -48,8 +48,9 @@ pub fn parse_url(input: &str, base_url: Option<&Url>, parse_error: ErrorHandler)
         // No-scheme state
         None => return match base_url {
             Some(&Url { ref scheme, scheme_data: RelativeSchemeData(ref base),
-                        ref query, fragment: _ }) => {
-                parse_relative_url(input, scheme.clone(), base, query, parse_error)
+                        ref query, .. }) => {
+                parse_relative_url(input, scheme.clone(), base, query,
+                                   encoding_override, parse_error)
             },
             Some(_) => Err("Relative URL with a non-relative base"),
             None => Err("Relative URL without a base"),
@@ -59,32 +60,33 @@ pub fn parse_url(input: &str, base_url: Option<&Url>, parse_error: ErrorHandler)
         // Relative state?
         match base_url {
             Some(&Url { scheme: ref base_scheme, scheme_data: RelativeSchemeData(ref base),
-                        ref query, fragment: _ })
+                        ref query, .. })
             if scheme == *base_scheme => {
-                parse_relative_url(remaining, scheme, base, query, parse_error)
+                parse_relative_url(remaining, scheme, base, query, encoding_override, parse_error)
             },
             // FIXME: Should not have to use a made-up base URL.
             _ => parse_relative_url(remaining, scheme, &SchemeRelativeUrl {
                 username: String::new(), password: None, host: Domain(String::new()),
                 port: String::new(), path: Vec::new()
-            }, &None, parse_error)
+            }, &None, encoding_override, parse_error)
         }
     } else if is_relative_scheme(scheme.as_slice()) {
         match base_url {
             Some(&Url { scheme: ref base_scheme, scheme_data: RelativeSchemeData(ref base),
-                        ref query, fragment: _ })
+                        ref query, .. })
             if scheme == *base_scheme && !remaining.starts_with("//") => {
                 try!(parse_error("Relative URL with a scheme"));
-                parse_relative_url(remaining, scheme, base, query, parse_error)
+                parse_relative_url(remaining, scheme, base, query, encoding_override, parse_error)
             },
-            _ => parse_absolute_url(scheme, remaining, parse_error),
+            _ => parse_absolute_url(scheme, remaining, encoding_override, parse_error),
         }
     } else {
         // Scheme data state
         let (scheme_data, remaining) = try!(parse_scheme_data(remaining, parse_error));
-        let (query, fragment) = try!(parse_query_and_fragment(remaining, parse_error));
+        let (query, fragment) = try!(parse_query_and_fragment(
+            remaining, encoding_override, parse_error));
         Ok(Url { scheme: scheme, scheme_data: OtherSchemeData(scheme_data),
-                 query: query, fragment: fragment })
+                 query: query, fragment: fragment, encoding_override: encoding_override })
     }
 }
 
@@ -111,7 +113,8 @@ pub fn parse_scheme<'a>(input: &'a str, context: Context) -> Option<(String, &'a
 }
 
 
-fn parse_absolute_url<'a>(scheme: String, input: &'a str, parse_error: ErrorHandler)
+fn parse_absolute_url<'a>(scheme: String, input: &'a str, encoding_override: Option<EncodingRef>,
+                          parse_error: ErrorHandler)
                           -> ParseResult<Url> {
     // Authority first slash state
     let remaining = try!(skip_slashes(input, parse_error));
@@ -123,17 +126,21 @@ fn parse_absolute_url<'a>(scheme: String, input: &'a str, parse_error: ErrorHand
         remaining, UrlParserContext, NonFileScheme, parse_error));
     let scheme_data = RelativeSchemeData(SchemeRelativeUrl {
         username: username, password: password, host: host, port: port, path: path });
-    let (query, fragment) = try!(parse_query_and_fragment(remaining, parse_error));
-    Ok(Url { scheme: scheme, scheme_data: scheme_data, query: query, fragment: fragment })
+    let (query, fragment) = try!(parse_query_and_fragment(
+        remaining, encoding_override, parse_error));
+    Ok(Url { scheme: scheme, scheme_data: scheme_data, query: query, fragment: fragment,
+             encoding_override: encoding_override })
 }
 
 
 fn parse_relative_url<'a>(input: &'a str, scheme: String, base: &SchemeRelativeUrl,
-                          base_query: &Option<String>, parse_error: ErrorHandler)
+                          base_query: &Option<String>, encoding_override: Option<EncodingRef>,
+                          parse_error: ErrorHandler)
                           -> ParseResult<Url> {
     if input.is_empty() {
         return Ok(Url { scheme: scheme, scheme_data: RelativeSchemeData(base.clone()),
-                        query: base_query.clone(), fragment: None })
+                        query: base_query.clone(), fragment: None,
+                        encoding_override: encoding_override })
     }
     let scheme_type = if scheme.as_slice() == "file" { FileScheme } else { NonFileScheme };
     match input.char_at(0) {
@@ -164,11 +171,12 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, base: &SchemeRelativeU
                         host: host, port: String::new(), path: path
                     });
                     let (query, fragment) = try!(parse_query_and_fragment(
-                        remaining, parse_error));
+                        remaining, encoding_override, parse_error));
                     Ok(Url { scheme: scheme, scheme_data: scheme_data,
-                             query: query, fragment: fragment })
+                             query: query, fragment: fragment,
+                             encoding_override: encoding_override })
                 } else {
-                    parse_absolute_url(scheme, input, parse_error)
+                    parse_absolute_url(scheme, input, encoding_override, parse_error)
                 }
             } else {
                 // Relative path state
@@ -190,20 +198,25 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, base: &SchemeRelativeU
                     }
                 });
                 let (query, fragment) = try!(
-                    parse_query_and_fragment(remaining, parse_error));
+                    parse_query_and_fragment(
+                        remaining, encoding_override, parse_error));
                 Ok(Url { scheme: scheme, scheme_data: scheme_data,
-                         query: query, fragment: fragment })
+                         query: query, fragment: fragment,
+                         encoding_override: encoding_override })
             }
         },
         '?' => {
-            let (query, fragment) = try!(parse_query_and_fragment(input, parse_error));
+            let (query, fragment) = try!(parse_query_and_fragment(
+                input, encoding_override, parse_error));
             Ok(Url { scheme: scheme, scheme_data: RelativeSchemeData(base.clone()),
-                     query: query, fragment: fragment })
+                     query: query, fragment: fragment,
+                     encoding_override: encoding_override })
         },
         '#' => {
             let fragment = Some(try!(parse_fragment(input.slice_from(1), parse_error)));
             Ok(Url { scheme: scheme, scheme_data: RelativeSchemeData(base.clone()),
-                     query: base_query.clone(), fragment: fragment })
+                     query: base_query.clone(), fragment: fragment,
+                     encoding_override: encoding_override })
         }
         _ => {
             let (scheme_data, remaining) = if scheme_type == FileScheme
@@ -237,9 +250,11 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, base: &SchemeRelativeU
                     path: path
                 }), remaining)
             };
-            let (query, fragment) = try!(parse_query_and_fragment(remaining, parse_error));
+            let (query, fragment) = try!(parse_query_and_fragment(
+                remaining, encoding_override, parse_error));
             Ok(Url { scheme: scheme, scheme_data: scheme_data,
-                     query: query, fragment: fragment })
+                     query: query, fragment: fragment,
+                     encoding_override: encoding_override })
         }
     }
 }
@@ -525,7 +540,8 @@ fn parse_scheme_data<'a>(input: &'a str, parse_error: ErrorHandler)
 }
 
 
-fn parse_query_and_fragment(input: &str, parse_error: ErrorHandler)
+fn parse_query_and_fragment(input: &str, encoding_override: Option<EncodingRef>,
+                            parse_error: ErrorHandler)
                             -> ParseResult<(Option<String>, Option<String>)> {
     if input.is_empty() {
         return Ok((None, None))
@@ -534,10 +550,7 @@ fn parse_query_and_fragment(input: &str, parse_error: ErrorHandler)
         '#' => Ok((None, Some(try!(parse_fragment(input.slice_from(1), parse_error))))),
         '?' => {
             let (query, remaining) = try!(parse_query(
-                input.slice_from(1),
-                UTF_8 as EncodingRef,  // TODO
-                UrlParserContext,
-                parse_error));
+                input.slice_from(1), encoding_override, UrlParserContext, parse_error));
             let fragment = match remaining {
                 Some(remaining) => Some(try!(parse_fragment(remaining, parse_error))),
                 None => None
@@ -550,7 +563,7 @@ fn parse_query_and_fragment(input: &str, parse_error: ErrorHandler)
 }
 
 
-pub fn parse_query<'a>(input: &'a str, encoding_override: EncodingRef, context: Context,
+pub fn parse_query<'a>(input: &'a str, encoding_override: Option<EncodingRef>, context: Context,
                    parse_error: ErrorHandler)
                    -> ParseResult<(String, Option<&'a str>)> {
     let mut query = String::new();
@@ -568,7 +581,14 @@ pub fn parse_query<'a>(input: &'a str, encoding_override: EncodingRef, context: 
             }
         }
     }
-    let query_bytes = encoding_override.encode(query.as_slice(), encoding::EncodeReplace).unwrap();
+    let encoded;
+    let query_bytes = match encoding_override {
+        Some(encoding) => {
+            encoded = encoding.encode(query.as_slice(), encoding::EncodeReplace).unwrap();
+            encoded.as_slice()
+        },
+        None => query.as_bytes()  // UTF-8
+    };
     let mut query_encoded = String::new();
     percent_encode(query_bytes.as_slice(), QUERY_ENCODE_SET, &mut query_encoded);
     Ok((query_encoded, remaining))

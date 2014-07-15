@@ -19,8 +19,7 @@ use std::cmp;
 use std::str::from_utf8_lossy;
 use std::ascii::OwnedStrAsciiExt;
 
-use encoding::all::UTF_8;
-use encoding::types::EncodingRef;
+use encoding::EncodingRef;
 
 use encode_sets::{PASSWORD_ENCODE_SET, USERNAME_ENCODE_SET};
 
@@ -34,21 +33,21 @@ pub mod punycode;
 mod tests;
 
 
-#[deriving(Clone, Show)]
 pub struct Url {
     scheme: String,
     scheme_data: SchemeData,
     query: Option<String>,  // See form_urlencoded::parse_str() to get name/value pairs.
     fragment: Option<String>,
+    encoding_override: Option<EncodingRef>,
 }
 
-#[deriving(Clone, Show)]
+#[deriving(Clone)]
 pub enum SchemeData {
     RelativeSchemeData(SchemeRelativeUrl),
     OtherSchemeData(String),  // data: URLs, mailto: URLs, etc.
 }
 
-#[deriving(Clone, Show)]
+#[deriving(Clone)]
 pub struct SchemeRelativeUrl {
     username: String,
     password: Option<String>,
@@ -57,7 +56,7 @@ pub struct SchemeRelativeUrl {
     path: Vec<String>,
 }
 
-#[deriving(Clone, Show)]
+#[deriving(Clone)]
 pub enum Host {
     Domain(String),
     Ipv6(Ipv6Address)
@@ -79,6 +78,17 @@ impl ::std::fmt::Show for Ipv6Address {
     }
 }
 
+impl Clone for Url {
+    fn clone(&self) -> Url {
+        Url {
+            scheme: self.scheme.clone(),
+            scheme_data: self.scheme_data.clone(),
+            query: self.query.clone(),
+            fragment: self.fragment.clone(),
+            encoding_override: self.encoding_override,
+        }
+    }
+}
 
 macro_rules! is_match(
     ($value:expr, $($pattern:pat)|+) => (
@@ -102,7 +112,8 @@ fn silent_handler(_reason: &'static str) -> ParseResult<()> {
 impl Url {
     pub fn parse(input: &str, base_url: Option<&Url>)
                  -> ParseResult<Url> {
-        parser::parse_url(input, base_url, silent_handler)
+        let encoding_override = None;
+        parser::parse_url(input, base_url, encoding_override, silent_handler)
     }
 
     pub fn serialize(&self) -> String {
@@ -285,9 +296,8 @@ impl UrlUtils for Url {
             None
         } else {
             let input = if input.starts_with("?") { input.slice_from(1) } else { input };
-            let encoding_override = UTF_8 as EncodingRef;  // TODO
             let (new_query, _) = try!(parser::parse_query(
-                input, encoding_override, parser::SetterContext, silent_handler));
+                input, self.encoding_override, parser::SetterContext, silent_handler));
             Some(new_query)
         };
         Ok(())

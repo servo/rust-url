@@ -39,7 +39,7 @@ fn test_url_parsing() {
             }
             continue
         }
-        let Url { scheme, scheme_data, query, fragment } = match url {
+        let Url { scheme, scheme_data, query, fragment, .. } = match url {
             Ok(url) => url,
             Err(message) => {
                 if expected_failure {
