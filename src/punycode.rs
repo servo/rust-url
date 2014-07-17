@@ -196,14 +196,13 @@ fn value_to_digit(value: u32, output: &mut String) {
 #[cfg(test)]
 mod tests {
     use super::{decode, encode_str};
-    use std::str::from_chars;
     use serialize::json::{from_str, List, Object, String};
 
     fn one_test(description: &str, decoded: &str, encoded: &str) {
         match decode(encoded) {
             None => fail!("Decoding {} failed.", encoded),
             Some(result) => {
-                let result = from_chars(result.as_slice());
+                let result = String::from_chars(result.as_slice());
                 assert!(result.as_slice() == decoded,
                         format!("Incorrect decoding of {}:\n   {}\n!= {}\n{}",
                                 encoded, result.as_slice(), decoded, description))

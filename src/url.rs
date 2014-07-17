@@ -18,7 +18,6 @@ extern crate serialize;
 
 use std::cmp;
 use std::hash;
-use std::str::from_utf8_lossy;
 use std::ascii::OwnedStrAsciiExt;
 
 use encoding::EncodingRef;
@@ -353,7 +352,7 @@ impl Host {
             }
         } else {
             let decoded = percent_decode(input.as_bytes());
-            let domain = from_utf8_lossy(decoded.as_slice());
+            let domain = String::from_utf8_lossy(decoded.as_slice());
             // TODO: Remove this check and use IDNA "domain to ASCII"
             if !domain.as_slice().is_ascii() {
                 Err("Non-ASCII domains (IDNA) are not supported yet.")
