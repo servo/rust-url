@@ -193,6 +193,64 @@ impl Url {
         }
         result
     }
+
+    pub fn non_relative_scheme_data<'a>(&'a self) -> Option<&'a str> {
+        match self.scheme_data {
+            RelativeSchemeData(..) => None,
+            OtherSchemeData(ref scheme_data) => Some(scheme_data.as_slice()),
+        }
+    }
+
+    pub fn relative_scheme_data<'a>(&'a self) -> Option<&'a RelativeSchemeData> {
+        match self.scheme_data {
+            RelativeSchemeData(ref scheme_data) => Some(scheme_data),
+            OtherSchemeData(..) => None,
+        }
+    }
+
+    pub fn host<'a>(&'a self) -> Option<&'a Host> {
+        match self.scheme_data {
+            RelativeSchemeData(ref scheme_data) => Some(&scheme_data.host),
+            OtherSchemeData(..) => None,
+        }
+    }
+
+    pub fn port<'a>(&'a self) -> Option<&'a str> {
+        match self.scheme_data {
+            RelativeSchemeData(ref scheme_data) => Some(scheme_data.port.as_slice()),
+            OtherSchemeData(..) => None,
+        }
+    }
+
+    pub fn path<'a>(&'a self) -> Option<&'a [String]> {
+        match self.scheme_data {
+            RelativeSchemeData(ref scheme_data) => Some(scheme_data.path.as_slice()),
+            OtherSchemeData(..) => None,
+        }
+    }
+
+    pub fn serialize_path(&self) -> Option<String> {
+        match self.scheme_data {
+            RelativeSchemeData(ref scheme_data) => Some(scheme_data.serialize_path()),
+            OtherSchemeData(..) => None,
+        }
+    }
+}
+
+
+impl RelativeSchemeData {
+    pub fn serialize_path(&self) -> String {
+        if self.path.is_empty() {
+            "/".to_string()
+        } else {
+            let mut result = String::new();
+            for path_part in self.path.iter() {
+                result.push_str("/");
+                result.push_str(path_part.as_slice());
+            }
+            result
+        }
+    }
 }
 
 
