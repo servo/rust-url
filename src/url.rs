@@ -91,7 +91,8 @@ impl<S: hash::Writer> hash::Hash<S> for Url {
 pub struct UrlParser<'a> {
     base_url: Option<&'a Url>,
     encoding_override: Option<EncodingRef>,
-    parse_error: ErrorHandler,
+    error_handler: ErrorHandler,
+    schemes: fn(scheme: &str) -> SchemeType,
 }
 
 
@@ -101,7 +102,8 @@ impl<'a> UrlParser<'a> {
         UrlParser {
             base_url: None,
             encoding_override: None,
-            parse_error: silent_handler,
+            error_handler: silent_handler,
+            schemes: whatwg_schemes,
         }
     }
 
@@ -118,14 +120,53 @@ impl<'a> UrlParser<'a> {
     }
 
     #[inline]
-    pub fn parse_error_handler<'b>(&'b mut self, value: ErrorHandler) -> &'b mut UrlParser<'a> {
-        self.parse_error = value;
+    pub fn error_handler<'b>(&'b mut self, value: ErrorHandler) -> &'b mut UrlParser<'a> {
+        self.error_handler = value;
+        self
+    }
+
+    #[inline]
+    pub fn schemes<'b>(&'b mut self, value: fn(scheme: &str) -> SchemeType)
+                       -> &'b mut UrlParser<'a> {
+        self.schemes = value;
         self
     }
 
     #[inline]
     pub fn parse(&self, input: &str) -> ParseResult<Url> {
         parser::parse_url(input, self)
+    }
+
+    #[inline]
+    fn parse_error(&self, message: &'static str) -> ParseResult<()> {
+        (self.error_handler)(message)
+    }
+
+    #[inline]
+    fn get_scheme_type(&self, scheme: &str) -> SchemeType {
+        (self.schemes)(scheme)
+    }
+}
+
+
+#[deriving(PartialEq, Eq)]
+pub enum SchemeType {
+    FileLikeScheme,
+    RelativeScheme(&'static str),  // str is the default port, in ASCII decimal.
+    NonRelativeScheme,
+}
+
+/// http://url.spec.whatwg.org/#relative-scheme
+fn whatwg_schemes(scheme: &str) -> SchemeType {
+    match scheme {
+        "file" => FileLikeScheme,
+        "ftp" => RelativeScheme("21"),
+        "gopher" => RelativeScheme("70"),
+        "http" => RelativeScheme("80"),
+        "https" => RelativeScheme("443"),
+        "ws" => RelativeScheme("80"),
+        "wss" => RelativeScheme("443"),
+        _ => NonRelativeScheme,
     }
 }
 
@@ -333,8 +374,9 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
     fn set_host_and_port(&mut self, input: &str) -> ParseResult<()> {
         match self.url.scheme_data {
             RelativeSchemeData(RelativeSchemeData { ref mut host, ref mut port, .. }) => {
+                let scheme_type = self.parser.get_scheme_type(self.url.scheme.as_slice());
                 let (new_host, new_port, _) = try!(parser::parse_host(
-                    input, self.url.scheme.as_slice(), self.parser));
+                    input, scheme_type, self.parser));
                 *host = new_host;
                 *port = new_port;
                 Ok(())
@@ -359,11 +401,11 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
     fn set_port(&mut self, input: &str) -> ParseResult<()> {
         match self.url.scheme_data {
             RelativeSchemeData(RelativeSchemeData { ref mut port, .. }) => {
-                if self.url.scheme.as_slice() == "file" {
+                let scheme_type = self.parser.get_scheme_type(self.url.scheme.as_slice());
+                if scheme_type == FileLikeScheme {
                     return Err("Can not set port on file: URL.")
                 }
-                let (new_port, _) = try!(parser::parse_port(
-                    input, self.url.scheme.as_slice(), self.parser));
+                let (new_port, _) = try!(parser::parse_port(input, scheme_type, self.parser));
                 *port = new_port;
                 Ok(())
             },
@@ -375,11 +417,9 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
     fn set_path(&mut self, input: &str) -> ParseResult<()> {
         match self.url.scheme_data {
             RelativeSchemeData(RelativeSchemeData { ref mut path, .. }) => {
+                let scheme_type = self.parser.get_scheme_type(self.url.scheme.as_slice());
                 let (new_path, _) = try!(parser::parse_path_start(
-                    input, parser::SetterContext,
-                    if self.url.scheme.as_slice() == "file" { parser::FileScheme }
-                        else { parser::NonFileScheme },
-                    self.parser));
+                    input, parser::SetterContext, scheme_type, self.parser));
                 *path = new_path;
                 Ok(())
             },

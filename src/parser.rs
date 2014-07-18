@@ -14,6 +14,7 @@ use encoding;
 
 use super::{
     ParseResult, UrlParser, Url, RelativeSchemeData, OtherSchemeData, Host, Domain,
+    SchemeType, FileLikeScheme, RelativeScheme, NonRelativeScheme,
     utf8_percent_encode, percent_encode};
 use encode_sets::{SIMPLE_ENCODE_SET, DEFAULT_ENCODE_SET, USERINFO_ENCODE_SET, QUERY_ENCODE_SET};
 
@@ -24,22 +25,11 @@ macro_rules! is_match(
     );
 )
 
-macro_rules! parse_error(
-    ($parser: expr, $message: expr) => (
-        try!(($parser.parse_error)($message))
-    );
-)
 
 #[deriving(PartialEq, Eq)]
 pub enum Context {
     UrlParserContext,
     SetterContext,
-}
-
-#[deriving(PartialEq, Eq)]
-pub enum SchemeType {
-    FileScheme,
-    NonFileScheme,
 }
 
 
@@ -51,42 +41,48 @@ pub fn parse_url(input: &str, parser: &UrlParser) -> ParseResult<Url> {
         None => return match parser.base_url {
             Some(&Url { ref scheme, scheme_data: RelativeSchemeData(ref base),
                         ref query, .. }) => {
-                parse_relative_url(input, scheme.clone(), base, query, parser)
+                let scheme_type = parser.get_scheme_type(scheme.as_slice());
+                parse_relative_url(input, scheme.clone(), scheme_type, base, query, parser)
             },
             Some(_) => Err("Relative URL with a non-relative base"),
             None => Err("Relative URL without a base"),
         },
     };
-    if scheme.as_slice() == "file" {
-        // Relative state?
-        match parser.base_url {
-            Some(&Url { scheme: ref base_scheme, scheme_data: RelativeSchemeData(ref base),
-                        ref query, .. })
-            if scheme == *base_scheme => {
-                parse_relative_url(remaining, scheme, base, query, parser)
-            },
-            // FIXME: Should not have to use a made-up base URL.
-            _ => parse_relative_url(remaining, scheme, &RelativeSchemeData {
-                username: String::new(), password: None, host: Domain(String::new()),
-                port: String::new(), path: Vec::new()
-            }, &None, parser)
+    let scheme_type = parser.get_scheme_type(scheme.as_slice());
+    match scheme_type {
+        FileLikeScheme => {
+            // Relative state?
+            match parser.base_url {
+                Some(&Url { scheme: ref base_scheme, scheme_data: RelativeSchemeData(ref base),
+                            ref query, .. })
+                if scheme == *base_scheme => {
+                    parse_relative_url(remaining, scheme, scheme_type, base, query, parser)
+                },
+                // FIXME: Should not have to use a made-up base URL.
+                _ => parse_relative_url(remaining, scheme, scheme_type, &RelativeSchemeData {
+                    username: String::new(), password: None, host: Domain(String::new()),
+                    port: String::new(), path: Vec::new()
+                }, &None, parser)
+            }
+        },
+        RelativeScheme(..) => {
+            match parser.base_url {
+                Some(&Url { scheme: ref base_scheme, scheme_data: RelativeSchemeData(ref base),
+                            ref query, .. })
+                if scheme == *base_scheme && !remaining.starts_with("//") => {
+                    try!(parser.parse_error("Relative URL with a scheme"));
+                    parse_relative_url(remaining, scheme, scheme_type, base, query, parser)
+                },
+                _ => parse_absolute_url(scheme, scheme_type, remaining, parser),
+            }
+        },
+        NonRelativeScheme => {
+            // Scheme data state
+            let (scheme_data, remaining) = try!(parse_scheme_data(remaining, parser));
+            let (query, fragment) = try!(parse_query_and_fragment(remaining, parser));
+            Ok(Url { scheme: scheme, scheme_data: OtherSchemeData(scheme_data),
+                     query: query, fragment: fragment })
         }
-    } else if is_relative_scheme(scheme.as_slice()) {
-        match parser.base_url {
-            Some(&Url { scheme: ref base_scheme, scheme_data: RelativeSchemeData(ref base),
-                        ref query, .. })
-            if scheme == *base_scheme && !remaining.starts_with("//") => {
-                parse_error!(parser, "Relative URL with a scheme");
-                parse_relative_url(remaining, scheme, base, query, parser)
-            },
-            _ => parse_absolute_url(scheme, remaining, parser),
-        }
-    } else {
-        // Scheme data state
-        let (scheme_data, remaining) = try!(parse_scheme_data(remaining, parser));
-        let (query, fragment) = try!(parse_query_and_fragment(remaining, parser));
-        Ok(Url { scheme: scheme, scheme_data: OtherSchemeData(scheme_data),
-                 query: query, fragment: fragment })
     }
 }
 
@@ -113,15 +109,16 @@ pub fn parse_scheme<'a>(input: &'a str, context: Context) -> Option<(String, &'a
 }
 
 
-fn parse_absolute_url<'a>(scheme: String, input: &'a str, parser: &UrlParser) -> ParseResult<Url> {
+fn parse_absolute_url<'a>(scheme: String, scheme_type: SchemeType,
+                          input: &'a str, parser: &UrlParser) -> ParseResult<Url> {
     // Authority first slash state
     let remaining = try!(skip_slashes(input, parser));
     // Authority state
     let (username, password, remaining) = try!(parse_userinfo(remaining, parser));
     // Host state
-    let (host, port, remaining) = try!(parse_host(remaining, scheme.as_slice(), parser));
+    let (host, port, remaining) = try!(parse_host(remaining, scheme_type, parser));
     let (path, remaining) = try!(parse_path_start(
-        remaining, UrlParserContext, NonFileScheme, parser));
+        remaining, UrlParserContext, scheme_type, parser));
     let scheme_data = RelativeSchemeData(RelativeSchemeData {
         username: username, password: password, host: host, port: port, path: path });
     let (query, fragment) = try!(parse_query_and_fragment(remaining, parser));
@@ -129,20 +126,20 @@ fn parse_absolute_url<'a>(scheme: String, input: &'a str, parser: &UrlParser) ->
 }
 
 
-fn parse_relative_url<'a>(input: &'a str, scheme: String, base: &RelativeSchemeData,
-                          base_query: &Option<String>, parser: &UrlParser)
+fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeType,
+                          base: &RelativeSchemeData, base_query: &Option<String>,
+                          parser: &UrlParser)
                           -> ParseResult<Url> {
     if input.is_empty() {
         return Ok(Url { scheme: scheme, scheme_data: RelativeSchemeData(base.clone()),
                         query: base_query.clone(), fragment: None })
     }
-    let scheme_type = if scheme.as_slice() == "file" { FileScheme } else { NonFileScheme };
     match input.char_at(0) {
         '/' | '\\' => {
             // Relative slash state
             if input.len() > 1 && is_match!(input.char_at(1), '/' | '\\') {
-                if input.char_at(1) == '\\' { parse_error!(parser, "backslash") }
-                if scheme_type == FileScheme {
+                if input.char_at(1) == '\\' { try!(parser.parse_error("backslash")) }
+                if scheme_type == FileLikeScheme {
                     // File host state
                     let remaining = input.slice_from(2);
                     let (host, remaining) = if remaining.len() >= 2
@@ -167,13 +164,13 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, base: &RelativeSchemeD
                     Ok(Url { scheme: scheme, scheme_data: scheme_data,
                              query: query, fragment: fragment })
                 } else {
-                    parse_absolute_url(scheme, input, parser)
+                    parse_absolute_url(scheme, scheme_type, input, parser)
                 }
             } else {
                 // Relative path state
                 let (path, remaining) = try!(parse_path(
                     [], input.slice_from(1), UrlParserContext, scheme_type, parser));
-                let scheme_data = RelativeSchemeData(if scheme_type == FileScheme {
+                let scheme_data = RelativeSchemeData(if scheme_type == FileLikeScheme {
                     RelativeSchemeData {
                         username: String::new(), password: None, host:
                         Domain(String::new()), port: String::new(), path: path
@@ -204,7 +201,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, base: &RelativeSchemeD
                      query: base_query.clone(), fragment: fragment })
         }
         _ => {
-            let (scheme_data, remaining) = if scheme_type == FileScheme
+            let (scheme_data, remaining) = if scheme_type == FileLikeScheme
                && input.len() >= 2
                && starts_with_ascii_alpha(input)
                && is_match!(input.char_at(1), ':' | '|')
@@ -244,7 +241,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, base: &RelativeSchemeD
 fn skip_slashes<'a>(input: &'a str, parser: &UrlParser) -> ParseResult<&'a str> {
     let first_non_slash = input.find(|c| !is_match!(c, '/' | '\\')).unwrap_or(input.len());
     if input.slice_to(first_non_slash) != "//" {
-        parse_error!(parser, "Expected two slashes");
+        try!(parser.parse_error("Expected two slashes"));
     }
     Ok(input.slice_from(first_non_slash))
 }
@@ -256,7 +253,7 @@ fn parse_userinfo<'a>(input: &'a str, parser: &UrlParser)
     for (i, c) in input.char_indices() {
         match c {
             '@' => {
-                if last_at.is_some() { parse_error!(parser, "@ in userinfo") }
+                if last_at.is_some() { try!(parser.parse_error("@ in userinfo")) }
                 last_at = Some(i)
             },
             '/' | '\\' | '?' | '#' => break,
@@ -276,7 +273,7 @@ fn parse_userinfo<'a>(input: &'a str, parser: &UrlParser)
                 password = Some(try!(parse_password(input.slice_from(i + 1), parser)));
                 break
             },
-            '\t' | '\n' | '\r' => parse_error!(parser, "Invalid character"),
+            '\t' | '\n' | '\r' => try!(parser.parse_error("Invalid character")),
             _ => {
                 try!(check_url_code_point(input, i, c, parser));
                 // The spec says to use the default encode set,
@@ -294,7 +291,7 @@ fn parse_password(input: &str, parser: &UrlParser) -> ParseResult<String> {
     let mut password = String::new();
     for (i, c, next_i) in input.char_ranges() {
         match c {
-            '\t' | '\n' | '\r' => parse_error!(parser, "Invalid character"),
+            '\t' | '\n' | '\r' => try!(parser.parse_error("Invalid character")),
             _ => {
                 try!(check_url_code_point(input, i, c, parser));
                 // The spec says to use the default encode set,
@@ -308,11 +305,11 @@ fn parse_password(input: &str, parser: &UrlParser) -> ParseResult<String> {
 }
 
 
-pub fn parse_host<'a>(input: &'a str, scheme: &str, parser: &UrlParser)
+pub fn parse_host<'a>(input: &'a str, scheme_type: SchemeType, parser: &UrlParser)
                           -> ParseResult<(Host, String, &'a str)> {
     let (host, remaining) = try!(parse_hostname(input, parser));
     let (port, remaining) = if remaining.starts_with(":") {
-        try!(parse_port(remaining.slice_from(1), scheme, parser))
+        try!(parse_port(remaining.slice_from(1), scheme_type, parser))
     } else {
         (String::new(), remaining)
     };
@@ -335,7 +332,7 @@ pub fn parse_hostname<'a>(input: &'a str, parser: &UrlParser)
                 end = i;
                 break
             },
-            '\t' | '\n' | '\r' => parse_error!(parser, "Invalid character"),
+            '\t' | '\n' | '\r' => try!(parser.parse_error("Invalid character")),
             c => {
                 match c {
                     '[' => inside_square_brackets = true,
@@ -351,7 +348,7 @@ pub fn parse_hostname<'a>(input: &'a str, parser: &UrlParser)
 }
 
 
-pub fn parse_port<'a>(input: &'a str, scheme: &str, parser: &UrlParser)
+pub fn parse_port<'a>(input: &'a str, scheme_type: SchemeType, parser: &UrlParser)
                   -> ParseResult<(String, &'a str)> {
     let mut port = String::new();
     let mut has_initial_zero = false;
@@ -370,18 +367,20 @@ pub fn parse_port<'a>(input: &'a str, scheme: &str, parser: &UrlParser)
                 end = i;
                 break
             },
-            '\t' | '\n' | '\r' => parse_error!(parser, "Invalid character"),
+            '\t' | '\n' | '\r' => try!(parser.parse_error("Invalid character")),
             _ => return Err("Invalid port number")
         }
     }
     if port.is_empty() && has_initial_zero {
         port.push_str("0")
     }
-    match (scheme, port.as_slice()) {
-        ("ftp", "21") | ("gopher", "70") | ("http", "80") |
-        ("https", "443") | ("ws", "80") | ("wss", "443")
-        => port.truncate(0),
-        _ => (),
+    match scheme_type {
+        RelativeScheme(default_port) => {
+            if port.as_slice() == default_port {
+                port.truncate(0)
+            }
+        },
+        _ => {},  // Can only happen when UrlUtils is misused
     }
     return Ok((port, input.slice_from(end)))
 }
@@ -396,7 +395,7 @@ fn parse_file_host<'a>(input: &'a str, parser: &UrlParser) -> ParseResult<(Host,
                 end = i;
                 break
             },
-            '\t' | '\n' | '\r' => parse_error!(parser, "Invalid character"),
+            '\t' | '\n' | '\r' => try!(parser.parse_error("Invalid character")),
             _ => host_input.push_char(c)
         }
     }
@@ -418,7 +417,7 @@ pub fn parse_path_start<'a>(input: &'a str, context: Context, scheme_type: Schem
         match input.char_at(0) {
             '/' => i = 1,
             '\\' => {
-                parse_error!(parser, "Backslash");
+                try!(parser.parse_error("Backslash"));
                 i = 1;
             },
             _ => ()
@@ -447,7 +446,7 @@ fn parse_path<'a>(base_path: &[String], input: &'a str, context: Context,
                     break
                 },
                 '\\' => {
-                    parse_error!(parser, "Backslash");
+                    try!(parser.parse_error("Backslash"));
                     ends_with_slash = true;
                     end = i;
                     break
@@ -456,7 +455,7 @@ fn parse_path<'a>(base_path: &[String], input: &'a str, context: Context,
                     end = i;
                     break
                 },
-                '\t' | '\n' | '\r' => parse_error!(parser, "Invalid character"),
+                '\t' | '\n' | '\r' => try!(parser.parse_error("Invalid character")),
                 _ => {
                     try!(check_url_code_point(input, i, c, parser));
                     utf8_percent_encode(input.slice(i, next_i),
@@ -478,7 +477,7 @@ fn parse_path<'a>(base_path: &[String], input: &'a str, context: Context,
                 }
             },
             _ => {
-                if scheme_type == FileScheme
+                if scheme_type == FileLikeScheme
                    && path.is_empty()
                    && path_part.len() == 2
                    && starts_with_ascii_alpha(path_part.as_slice())
@@ -509,7 +508,7 @@ fn parse_scheme_data<'a>(input: &'a str, parser: &UrlParser)
                 end = i;
                 break
             },
-            '\t' | '\n' | '\r' => parse_error!(parser, "Invalid character"),
+            '\t' | '\n' | '\r' => try!(parser.parse_error("Invalid character")),
             _ => {
                 try!(check_url_code_point(input, i, c, parser));
                 utf8_percent_encode(input.slice(i, next_i),
@@ -553,7 +552,7 @@ pub fn parse_query<'a>(input: &'a str, context: Context, parser: &UrlParser)
                 remaining = Some(input.slice_from(i + 1));
                 break
             },
-            '\t' | '\n' | '\r' => parse_error!(parser, "Invalid character"),
+            '\t' | '\n' | '\r' => try!(parser.parse_error("Invalid character")),
             _ => {
                 try!(check_url_code_point(input, i, c, parser));
                 query.push_char(c);
@@ -578,7 +577,7 @@ pub fn parse_fragment<'a>(input: &'a str, parser: &UrlParser) -> ParseResult<Str
     let mut fragment = String::new();
     for (i, c, next_i) in input.char_ranges() {
         match c {
-            '\t' | '\n' | '\r' => parse_error!(parser, "Invalid character"),
+            '\t' | '\n' | '\r' => try!(parser.parse_error("Invalid character")),
             _ => {
                 try!(check_url_code_point(input, i, c, parser));
                 utf8_percent_encode(input.slice(i, next_i),
@@ -643,12 +642,6 @@ fn is_url_code_point(c: char) -> bool {
 // Last two of each plane: U+__FFFE to U+__FFFF for __ in 00 to 10 hex
 
 
-#[inline]
-fn is_relative_scheme(scheme: &str) -> bool {
-    is_match!(scheme, "ftp" | "file" | "gopher" | "http" | "https" | "ws" | "wss")
-}
-
-
 pub trait StrCharRanges<'a> {
     fn char_ranges(&self) -> CharRanges<'a>;
 }
@@ -685,10 +678,10 @@ fn check_url_code_point(input: &str, i: uint, c: char, parser: &UrlParser)
                         -> ParseResult<()> {
     if c == '%' {
         if !starts_with_2_hex(input.slice_from(i + 1)) {
-            parse_error!(parser, "Invalid percent-encoded sequence");
+            try!(parser.parse_error("Invalid percent-encoded sequence"));
         }
     } else if !is_url_code_point(c) {
-        parse_error!(parser, "Non-URL code point");
+        try!(parser.parse_error("Non-URL code point"));
     }
     Ok(())
 }
