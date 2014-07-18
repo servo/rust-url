@@ -75,7 +75,9 @@ pub fn parse_bytes(input: &[u8], encoding_override: Option<EncodingRef>,
 }
 
 
-pub fn serialize(pairs: Vec<(String, String)>, encoding_override: Option<EncodingRef>) -> String {
+pub fn serialize<'a, I: Iterator<(&'a str, &'a str)>>(
+        mut pairs: I, encoding_override: Option<EncodingRef>)
+        -> String {
     #[inline]
     fn byte_serialize(input: &str, output: &mut String,
                      encoding_override: Option<EncodingRef>) {
@@ -99,12 +101,12 @@ pub fn serialize(pairs: Vec<(String, String)>, encoding_override: Option<Encodin
     }
 
     let mut output = String::new();
-    for &(ref name, ref value) in pairs.iter() {
+    for (name, value) in pairs {
         if output.len() > 0 {
             output.push_str("&");
-            byte_serialize(name.as_slice(), &mut output, encoding_override);
+            byte_serialize(name, &mut output, encoding_override);
             output.push_str("=");
-            byte_serialize(value.as_slice(), &mut output, encoding_override);
+            byte_serialize(value, &mut output, encoding_override);
         }
     }
     output
