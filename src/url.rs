@@ -34,12 +34,12 @@ pub mod punycode;
 mod tests;
 
 
+#[deriving(PartialEq, Eq, Clone)]
 pub struct Url {
     pub scheme: String,
     pub scheme_data: SchemeData,
     pub query: Option<String>,  // See form_urlencoded::parse_str() to get name/value pairs.
     pub fragment: Option<String>,
-    encoding_override: Option<EncodingRef>,
 }
 
 #[deriving(PartialEq, Eq, Clone)]
@@ -78,30 +78,6 @@ impl Eq for Ipv6Address {}
 impl PartialEq for Ipv6Address {
     fn eq(&self, other: &Ipv6Address) -> bool {
         self.pieces == other.pieces
-    }
-}
-
-impl Clone for Url {
-    fn clone(&self) -> Url {
-        Url {
-            scheme: self.scheme.clone(),
-            scheme_data: self.scheme_data.clone(),
-            query: self.query.clone(),
-            fragment: self.fragment.clone(),
-            encoding_override: self.encoding_override,
-        }
-    }
-}
-
-impl Eq for Url {}
-
-impl PartialEq for Url {
-    fn eq(&self, other: &Url) -> bool {
-        self.scheme == other.scheme &&
-        self.scheme_data == other.scheme_data &&
-        self.query == other.query &&
-        self.fragment == other.fragment &&
-        self.encoding_override.map(|e| e.name()) == other.encoding_override.map(|e| e.name())
     }
 }
 
@@ -295,6 +271,13 @@ impl RelativeSchemeData {
 }
 
 
+#[allow(dead_code)]
+struct UrlUtilsWrapper<'a> {
+    url: &'a mut Url,
+    parser: &'a UrlParser<'a>,
+}
+
+
 /// These methods are not meant for use in Rust code,
 /// only to help implement the JavaScript URLUtils API: http://url.spec.whatwg.org/#urlutils
 trait UrlUtils {
@@ -309,12 +292,12 @@ trait UrlUtils {
     fn set_fragment(&mut self, input: &str) -> ParseResult<()>;
 }
 
-impl UrlUtils for Url {
+impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
     /// `URLUtils.protocol` setter
     fn set_scheme(&mut self, input: &str) -> ParseResult<()> {
         match parser::parse_scheme(input.as_slice(), parser::SetterContext) {
             Some((scheme, _)) => {
-                self.scheme = scheme;
+                self.url.scheme = scheme;
                 Ok(())
             },
             None => Err("Invalid scheme"),
@@ -323,7 +306,7 @@ impl UrlUtils for Url {
 
     /// `URLUtils.username` setter
     fn set_username(&mut self, input: &str) -> ParseResult<()> {
-        match self.scheme_data {
+        match self.url.scheme_data {
             RelativeSchemeData(RelativeSchemeData { ref mut username, .. }) => {
                 username.truncate(0);
                 utf8_percent_encode(input, USERNAME_ENCODE_SET, username);
@@ -335,7 +318,7 @@ impl UrlUtils for Url {
 
     /// `URLUtils.password` setter
     fn set_password(&mut self, input: &str) -> ParseResult<()> {
-        match self.scheme_data {
+        match self.url.scheme_data {
             RelativeSchemeData(RelativeSchemeData { ref mut password, .. }) => {
                 let mut new_password = String::new();
                 utf8_percent_encode(input, PASSWORD_ENCODE_SET, &mut new_password);
@@ -348,10 +331,10 @@ impl UrlUtils for Url {
 
     /// `URLUtils.host` setter
     fn set_host_and_port(&mut self, input: &str) -> ParseResult<()> {
-        match self.scheme_data {
+        match self.url.scheme_data {
             RelativeSchemeData(RelativeSchemeData { ref mut host, ref mut port, .. }) => {
                 let (new_host, new_port, _) = try!(parser::parse_host(
-                    input, self.scheme.as_slice(), &UrlParser::new()));
+                    input, self.url.scheme.as_slice(), self.parser));
                 *host = new_host;
                 *port = new_port;
                 Ok(())
@@ -362,10 +345,9 @@ impl UrlUtils for Url {
 
     /// `URLUtils.hostname` setter
     fn set_host(&mut self, input: &str) -> ParseResult<()> {
-        match self.scheme_data {
+        match self.url.scheme_data {
             RelativeSchemeData(RelativeSchemeData { ref mut host, .. }) => {
-                let (new_host, _) = try!(parser::parse_hostname(
-                    input, &UrlParser::new()));
+                let (new_host, _) = try!(parser::parse_hostname(input, self.parser));
                 *host = new_host;
                 Ok(())
             },
@@ -375,13 +357,13 @@ impl UrlUtils for Url {
 
     /// `URLUtils.port` setter
     fn set_port(&mut self, input: &str) -> ParseResult<()> {
-        match self.scheme_data {
+        match self.url.scheme_data {
             RelativeSchemeData(RelativeSchemeData { ref mut port, .. }) => {
-                if self.scheme.as_slice() == "file" {
+                if self.url.scheme.as_slice() == "file" {
                     return Err("Can not set port on file: URL.")
                 }
                 let (new_port, _) = try!(parser::parse_port(
-                    input, self.scheme.as_slice(), &UrlParser::new()));
+                    input, self.url.scheme.as_slice(), self.parser));
                 *port = new_port;
                 Ok(())
             },
@@ -391,13 +373,13 @@ impl UrlUtils for Url {
 
     /// `URLUtils.pathname` setter
     fn set_path(&mut self, input: &str) -> ParseResult<()> {
-        match self.scheme_data {
+        match self.url.scheme_data {
             RelativeSchemeData(RelativeSchemeData { ref mut path, .. }) => {
                 let (new_path, _) = try!(parser::parse_path_start(
                     input, parser::SetterContext,
-                    if self.scheme.as_slice() == "file" { parser::FileScheme }
+                    if self.url.scheme.as_slice() == "file" { parser::FileScheme }
                         else { parser::NonFileScheme },
-                    &UrlParser::new()));
+                    self.parser));
                 *path = new_path;
                 Ok(())
             },
@@ -408,21 +390,16 @@ impl UrlUtils for Url {
     /// `URLUtils.search` setter
     fn set_query(&mut self, input: &str) -> ParseResult<()> {
         // FIXME: This is in the spec, but seems superfluous.
-        match self.scheme_data {
+        match self.url.scheme_data {
             RelativeSchemeData(_) => (),
             OtherSchemeData(_) => return Err("Can not set query on non-relative URL.")
         }
-        self.query = if input.is_empty() {
+        self.url.query = if input.is_empty() {
             None
         } else {
-            let mut parser = UrlParser::new();
-            let parser = match self.encoding_override {
-                None => &parser,
-                Some(encoding) => &*parser.encoding_override(encoding),
-            };
             let input = if input.starts_with("?") { input.slice_from(1) } else { input };
             let (new_query, _) = try!(parser::parse_query(
-                input, parser::SetterContext, parser));
+                input, parser::SetterContext, self.parser));
             Some(new_query)
         };
         Ok(())
@@ -430,14 +407,14 @@ impl UrlUtils for Url {
 
     /// `URLUtils.hash` setter
     fn set_fragment(&mut self, input: &str) -> ParseResult<()> {
-        if self.scheme.as_slice() == "javascript" {
+        if self.url.scheme.as_slice() == "javascript" {
             return Err("Can not set fragment on a javascript: URL.")
         }
-        self.fragment = if input.is_empty() {
+        self.url.fragment = if input.is_empty() {
             None
         } else {
             let input = if input.starts_with("#") { input.slice_from(1) } else { input };
-            Some(try!(parser::parse_fragment(input, &UrlParser::new())))
+            Some(try!(parser::parse_fragment(input, self.parser)))
         };
         Ok(())
     }

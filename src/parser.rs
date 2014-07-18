@@ -86,7 +86,7 @@ pub fn parse_url(input: &str, parser: &UrlParser) -> ParseResult<Url> {
         let (scheme_data, remaining) = try!(parse_scheme_data(remaining, parser));
         let (query, fragment) = try!(parse_query_and_fragment(remaining, parser));
         Ok(Url { scheme: scheme, scheme_data: OtherSchemeData(scheme_data),
-                 query: query, fragment: fragment, encoding_override: parser.encoding_override })
+                 query: query, fragment: fragment })
     }
 }
 
@@ -125,8 +125,7 @@ fn parse_absolute_url<'a>(scheme: String, input: &'a str, parser: &UrlParser) ->
     let scheme_data = RelativeSchemeData(RelativeSchemeData {
         username: username, password: password, host: host, port: port, path: path });
     let (query, fragment) = try!(parse_query_and_fragment(remaining, parser));
-    Ok(Url { scheme: scheme, scheme_data: scheme_data, query: query, fragment: fragment,
-             encoding_override: parser.encoding_override })
+    Ok(Url { scheme: scheme, scheme_data: scheme_data, query: query, fragment: fragment })
 }
 
 
@@ -135,8 +134,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, base: &RelativeSchemeD
                           -> ParseResult<Url> {
     if input.is_empty() {
         return Ok(Url { scheme: scheme, scheme_data: RelativeSchemeData(base.clone()),
-                        query: base_query.clone(), fragment: None,
-                        encoding_override: parser.encoding_override })
+                        query: base_query.clone(), fragment: None })
     }
     let scheme_type = if scheme.as_slice() == "file" { FileScheme } else { NonFileScheme };
     match input.char_at(0) {
@@ -167,8 +165,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, base: &RelativeSchemeD
                     });
                     let (query, fragment) = try!(parse_query_and_fragment(remaining, parser));
                     Ok(Url { scheme: scheme, scheme_data: scheme_data,
-                             query: query, fragment: fragment,
-                             encoding_override: parser.encoding_override })
+                             query: query, fragment: fragment })
                 } else {
                     parse_absolute_url(scheme, input, parser)
                 }
@@ -193,21 +190,18 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, base: &RelativeSchemeD
                 let (query, fragment) = try!(
                     parse_query_and_fragment(remaining, parser));
                 Ok(Url { scheme: scheme, scheme_data: scheme_data,
-                         query: query, fragment: fragment,
-                         encoding_override: parser.encoding_override })
+                         query: query, fragment: fragment })
             }
         },
         '?' => {
             let (query, fragment) = try!(parse_query_and_fragment(input, parser));
             Ok(Url { scheme: scheme, scheme_data: RelativeSchemeData(base.clone()),
-                     query: query, fragment: fragment,
-                     encoding_override: parser.encoding_override })
+                     query: query, fragment: fragment })
         },
         '#' => {
             let fragment = Some(try!(parse_fragment(input.slice_from(1), parser)));
             Ok(Url { scheme: scheme, scheme_data: RelativeSchemeData(base.clone()),
-                     query: base_query.clone(), fragment: fragment,
-                     encoding_override: parser.encoding_override })
+                     query: base_query.clone(), fragment: fragment })
         }
         _ => {
             let (scheme_data, remaining) = if scheme_type == FileScheme
@@ -241,8 +235,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, base: &RelativeSchemeD
             };
             let (query, fragment) = try!(parse_query_and_fragment(remaining, parser));
             Ok(Url { scheme: scheme, scheme_data: scheme_data,
-                     query: query, fragment: fragment,
-                     encoding_override: parser.encoding_override })
+                     query: query, fragment: fragment })
         }
     }
 }
