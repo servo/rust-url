@@ -9,7 +9,7 @@
 
 use std::char;
 use std::u32;
-use super::{Url, RelativeSchemeData, OtherSchemeData};
+use super::{UrlParser, Url, RelativeSchemeData, OtherSchemeData};
 
 
 #[test]
@@ -28,11 +28,11 @@ fn test_url_parsing() {
             fragment: expected_fragment,
             expected_failure: expected_failure,
         } = test;
-        let base = match Url::parse(base.as_slice(), None) {
+        let base = match Url::parse(base.as_slice()) {
             Ok(base) => base,
             Err(message) => fail!("Error parsing base {}: {}", base, message)
         };
-        let url = Url::parse(input.as_slice(), Some(&base));
+        let url = UrlParser::new().base_url(&base).parse(input.as_slice());
         if expected_scheme.is_none() {
             if url.is_ok() && !expected_failure {
                 fail!("Expected a parse error for URL {}", input);

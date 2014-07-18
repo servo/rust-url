@@ -111,11 +111,47 @@ impl<S: hash::Writer> hash::Hash<S> for Url {
     }
 }
 
-macro_rules! is_match(
-    ($value:expr, $($pattern:pat)|+) => (
-        match $value { $($pattern)|+ => true, _ => false }
-    );
-)
+
+pub struct UrlParser<'a> {
+    base_url: Option<&'a Url>,
+    encoding_override: Option<EncodingRef>,
+    parse_error: ErrorHandler,
+}
+
+
+impl<'a> UrlParser<'a> {
+    #[inline]
+    pub fn new() -> UrlParser<'a> {
+        UrlParser {
+            base_url: None,
+            encoding_override: None,
+            parse_error: silent_handler,
+        }
+    }
+
+    #[inline]
+    pub fn base_url<'b>(&'b mut self, value: &'a Url) -> &'b mut UrlParser<'a> {
+        self.base_url = Some(value);
+        self
+    }
+
+    #[inline]
+    pub fn encoding_override<'b>(&'b mut self, value: EncodingRef) -> &'b mut UrlParser<'a> {
+        self.encoding_override = Some(value);
+        self
+    }
+
+    #[inline]
+    pub fn parse_error_handler<'b>(&'b mut self, value: ErrorHandler) -> &'b mut UrlParser<'a> {
+        self.parse_error = value;
+        self
+    }
+
+    #[inline]
+    pub fn parse(&self, input: &str) -> ParseResult<Url> {
+        parser::parse_url(input, self)
+    }
+}
 
 
 pub type ParseResult<T> = Result<T, &'static str>;
@@ -131,10 +167,9 @@ fn silent_handler(_reason: &'static str) -> ParseResult<()> {
 
 
 impl Url {
-    pub fn parse(input: &str, base_url: Option<&Url>)
-                 -> ParseResult<Url> {
-        let encoding_override = None;
-        parser::parse_url(input, base_url, encoding_override, silent_handler)
+    #[inline]
+    pub fn parse(input: &str) -> ParseResult<Url> {
+        UrlParser::new().parse(input)
     }
 
     pub fn serialize(&self) -> String {
@@ -194,6 +229,7 @@ impl Url {
         result
     }
 
+    #[inline]
     pub fn non_relative_scheme_data<'a>(&'a self) -> Option<&'a str> {
         match self.scheme_data {
             RelativeSchemeData(..) => None,
@@ -201,6 +237,7 @@ impl Url {
         }
     }
 
+    #[inline]
     pub fn relative_scheme_data<'a>(&'a self) -> Option<&'a RelativeSchemeData> {
         match self.scheme_data {
             RelativeSchemeData(ref scheme_data) => Some(scheme_data),
@@ -208,6 +245,7 @@ impl Url {
         }
     }
 
+    #[inline]
     pub fn host<'a>(&'a self) -> Option<&'a Host> {
         match self.scheme_data {
             RelativeSchemeData(ref scheme_data) => Some(&scheme_data.host),
@@ -215,6 +253,7 @@ impl Url {
         }
     }
 
+    #[inline]
     pub fn port<'a>(&'a self) -> Option<&'a str> {
         match self.scheme_data {
             RelativeSchemeData(ref scheme_data) => Some(scheme_data.port.as_slice()),
@@ -222,6 +261,7 @@ impl Url {
         }
     }
 
+    #[inline]
     pub fn path<'a>(&'a self) -> Option<&'a [String]> {
         match self.scheme_data {
             RelativeSchemeData(ref scheme_data) => Some(scheme_data.path.as_slice()),
@@ -229,6 +269,7 @@ impl Url {
         }
     }
 
+    #[inline]
     pub fn serialize_path(&self) -> Option<String> {
         match self.scheme_data {
             RelativeSchemeData(ref scheme_data) => Some(scheme_data.serialize_path()),
@@ -310,7 +351,7 @@ impl UrlUtils for Url {
         match self.scheme_data {
             RelativeSchemeData(RelativeSchemeData { ref mut host, ref mut port, .. }) => {
                 let (new_host, new_port, _) = try!(parser::parse_host(
-                    input, self.scheme.as_slice(), silent_handler));
+                    input, self.scheme.as_slice(), &UrlParser::new()));
                 *host = new_host;
                 *port = new_port;
                 Ok(())
@@ -324,7 +365,7 @@ impl UrlUtils for Url {
         match self.scheme_data {
             RelativeSchemeData(RelativeSchemeData { ref mut host, .. }) => {
                 let (new_host, _) = try!(parser::parse_hostname(
-                    input, silent_handler));
+                    input, &UrlParser::new()));
                 *host = new_host;
                 Ok(())
             },
@@ -340,7 +381,7 @@ impl UrlUtils for Url {
                     return Err("Can not set port on file: URL.")
                 }
                 let (new_port, _) = try!(parser::parse_port(
-                    input, self.scheme.as_slice(), silent_handler));
+                    input, self.scheme.as_slice(), &UrlParser::new()));
                 *port = new_port;
                 Ok(())
             },
@@ -356,7 +397,7 @@ impl UrlUtils for Url {
                     input, parser::SetterContext,
                     if self.scheme.as_slice() == "file" { parser::FileScheme }
                         else { parser::NonFileScheme },
-                    silent_handler));
+                    &UrlParser::new()));
                 *path = new_path;
                 Ok(())
             },
@@ -374,9 +415,14 @@ impl UrlUtils for Url {
         self.query = if input.is_empty() {
             None
         } else {
+            let mut parser = UrlParser::new();
+            let parser = match self.encoding_override {
+                None => &parser,
+                Some(encoding) => &*parser.encoding_override(encoding),
+            };
             let input = if input.starts_with("?") { input.slice_from(1) } else { input };
             let (new_query, _) = try!(parser::parse_query(
-                input, self.encoding_override, parser::SetterContext, silent_handler));
+                input, parser::SetterContext, parser));
             Some(new_query)
         };
         Ok(())
@@ -391,7 +437,7 @@ impl UrlUtils for Url {
             None
         } else {
             let input = if input.starts_with("#") { input.slice_from(1) } else { input };
-            Some(try!(parser::parse_fragment(input, silent_handler)))
+            Some(try!(parser::parse_fragment(input, &UrlParser::new())))
         };
         Ok(())
     }
