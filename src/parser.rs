@@ -14,8 +14,7 @@ use encoding;
 use encoding::EncodingRef;
 
 use super::{
-    ParseResult, ErrorHandler, Url, RelativeSchemeData, OtherSchemeData,
-    SchemeRelativeUrl, Host, Domain,
+    ParseResult, ErrorHandler, Url, RelativeSchemeData, OtherSchemeData, Host, Domain,
     utf8_percent_encode, percent_encode};
 use encode_sets::{SIMPLE_ENCODE_SET, DEFAULT_ENCODE_SET, USERINFO_ENCODE_SET, QUERY_ENCODE_SET};
 
@@ -65,7 +64,7 @@ pub fn parse_url(input: &str, base_url: Option<&Url>, encoding_override: Option<
                 parse_relative_url(remaining, scheme, base, query, encoding_override, parse_error)
             },
             // FIXME: Should not have to use a made-up base URL.
-            _ => parse_relative_url(remaining, scheme, &SchemeRelativeUrl {
+            _ => parse_relative_url(remaining, scheme, &RelativeSchemeData {
                 username: String::new(), password: None, host: Domain(String::new()),
                 port: String::new(), path: Vec::new()
             }, &None, encoding_override, parse_error)
@@ -124,7 +123,7 @@ fn parse_absolute_url<'a>(scheme: String, input: &'a str, encoding_override: Opt
     let (host, port, remaining) = try!(parse_host(remaining, scheme.as_slice(), parse_error));
     let (path, remaining) = try!(parse_path_start(
         remaining, UrlParserContext, NonFileScheme, parse_error));
-    let scheme_data = RelativeSchemeData(SchemeRelativeUrl {
+    let scheme_data = RelativeSchemeData(RelativeSchemeData {
         username: username, password: password, host: host, port: port, path: path });
     let (query, fragment) = try!(parse_query_and_fragment(
         remaining, encoding_override, parse_error));
@@ -133,7 +132,7 @@ fn parse_absolute_url<'a>(scheme: String, input: &'a str, encoding_override: Opt
 }
 
 
-fn parse_relative_url<'a>(input: &'a str, scheme: String, base: &SchemeRelativeUrl,
+fn parse_relative_url<'a>(input: &'a str, scheme: String, base: &RelativeSchemeData,
                           base_query: &Option<String>, encoding_override: Option<EncodingRef>,
                           parse_error: ErrorHandler)
                           -> ParseResult<Url> {
@@ -166,7 +165,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, base: &SchemeRelativeU
                     let (path, remaining) = try!(parse_path_start(
                         remaining, UrlParserContext,
                         scheme_type, parse_error));
-                    let scheme_data = RelativeSchemeData(SchemeRelativeUrl {
+                    let scheme_data = RelativeSchemeData(RelativeSchemeData {
                         username: String::new(), password: None,
                         host: host, port: String::new(), path: path
                     });
@@ -184,12 +183,12 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, base: &SchemeRelativeU
                     [], input.slice_from(1), UrlParserContext,
                     scheme_type, parse_error));
                 let scheme_data = RelativeSchemeData(if scheme_type == FileScheme {
-                    SchemeRelativeUrl {
+                    RelativeSchemeData {
                         username: String::new(), password: None, host:
                         Domain(String::new()), port: String::new(), path: path
                     }
                 } else {
-                    SchemeRelativeUrl {
+                    RelativeSchemeData {
                         username: base.username.clone(),
                         password: base.password.clone(),
                         host: base.host.clone(),
@@ -230,7 +229,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, base: &SchemeRelativeU
                 let (path, remaining) = try!(parse_path(
                     [], input, UrlParserContext,
                     scheme_type, parse_error));
-                 (RelativeSchemeData(SchemeRelativeUrl {
+                 (RelativeSchemeData(RelativeSchemeData {
                     username: String::new(), password: None,
                     host: Domain(String::new()),
                     port: String::new(),
@@ -242,7 +241,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, base: &SchemeRelativeU
                 let (path, remaining) = try!(parse_path(
                     base_path, input, UrlParserContext,
                     scheme_type, parse_error));
-                (RelativeSchemeData(SchemeRelativeUrl {
+                (RelativeSchemeData(RelativeSchemeData {
                     username: base.username.clone(),
                     password: base.password.clone(),
                     host: base.host.clone(),

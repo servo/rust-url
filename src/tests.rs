@@ -9,7 +9,7 @@
 
 use std::char;
 use std::u32;
-use super::{Url, RelativeSchemeData, SchemeRelativeUrl, OtherSchemeData};
+use super::{Url, RelativeSchemeData, OtherSchemeData};
 
 
 #[test]
@@ -68,7 +68,7 @@ fn test_url_parsing() {
 
         assert_eq!(Some(scheme), expected_scheme);
         match scheme_data {
-            RelativeSchemeData(SchemeRelativeUrl { username, password, host, port, path }) => {
+            RelativeSchemeData(RelativeSchemeData { username, password, host, port, path }) => {
                 assert_eq!(username, expected_username);
                 assert_eq!(password, expected_password);
                 let host = host.serialize();

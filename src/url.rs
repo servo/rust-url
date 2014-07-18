@@ -44,12 +44,12 @@ pub struct Url {
 
 #[deriving(PartialEq, Eq, Clone)]
 pub enum SchemeData {
-    RelativeSchemeData(SchemeRelativeUrl),
+    RelativeSchemeData(RelativeSchemeData),
     OtherSchemeData(String),  // data: URLs, mailto: URLs, etc.
 }
 
 #[deriving(PartialEq, Eq, Clone)]
-pub struct SchemeRelativeUrl {
+pub struct RelativeSchemeData {
     pub username: String,
     pub password: Option<String>,
     pub host: Host,
@@ -153,7 +153,7 @@ impl Url {
         let mut result = self.scheme.clone();
         result.push_str(":");
         match self.scheme_data {
-            RelativeSchemeData(SchemeRelativeUrl {
+            RelativeSchemeData(RelativeSchemeData {
                 ref username, ref password, ref host, ref port, ref path
             }) => {
                 result.push_str("//");
@@ -225,7 +225,7 @@ impl UrlUtils for Url {
     /// `URLUtils.username` setter
     fn set_username(&mut self, input: &str) -> ParseResult<()> {
         match self.scheme_data {
-            RelativeSchemeData(SchemeRelativeUrl { ref mut username, .. }) => {
+            RelativeSchemeData(RelativeSchemeData { ref mut username, .. }) => {
                 username.truncate(0);
                 utf8_percent_encode(input, USERNAME_ENCODE_SET, username);
                 Ok(())
@@ -237,7 +237,7 @@ impl UrlUtils for Url {
     /// `URLUtils.password` setter
     fn set_password(&mut self, input: &str) -> ParseResult<()> {
         match self.scheme_data {
-            RelativeSchemeData(SchemeRelativeUrl { ref mut password, .. }) => {
+            RelativeSchemeData(RelativeSchemeData { ref mut password, .. }) => {
                 let mut new_password = String::new();
                 utf8_percent_encode(input, PASSWORD_ENCODE_SET, &mut new_password);
                 *password = Some(new_password);
@@ -250,7 +250,7 @@ impl UrlUtils for Url {
     /// `URLUtils.host` setter
     fn set_host_and_port(&mut self, input: &str) -> ParseResult<()> {
         match self.scheme_data {
-            RelativeSchemeData(SchemeRelativeUrl { ref mut host, ref mut port, .. }) => {
+            RelativeSchemeData(RelativeSchemeData { ref mut host, ref mut port, .. }) => {
                 let (new_host, new_port, _) = try!(parser::parse_host(
                     input, self.scheme.as_slice(), silent_handler));
                 *host = new_host;
@@ -264,7 +264,7 @@ impl UrlUtils for Url {
     /// `URLUtils.hostname` setter
     fn set_host(&mut self, input: &str) -> ParseResult<()> {
         match self.scheme_data {
-            RelativeSchemeData(SchemeRelativeUrl { ref mut host, .. }) => {
+            RelativeSchemeData(RelativeSchemeData { ref mut host, .. }) => {
                 let (new_host, _) = try!(parser::parse_hostname(
                     input, silent_handler));
                 *host = new_host;
@@ -277,7 +277,7 @@ impl UrlUtils for Url {
     /// `URLUtils.port` setter
     fn set_port(&mut self, input: &str) -> ParseResult<()> {
         match self.scheme_data {
-            RelativeSchemeData(SchemeRelativeUrl { ref mut port, .. }) => {
+            RelativeSchemeData(RelativeSchemeData { ref mut port, .. }) => {
                 if self.scheme.as_slice() == "file" {
                     return Err("Can not set port on file: URL.")
                 }
@@ -293,7 +293,7 @@ impl UrlUtils for Url {
     /// `URLUtils.pathname` setter
     fn set_path(&mut self, input: &str) -> ParseResult<()> {
         match self.scheme_data {
-            RelativeSchemeData(SchemeRelativeUrl { ref mut path, .. }) => {
+            RelativeSchemeData(RelativeSchemeData { ref mut path, .. }) => {
                 let (new_path, _) = try!(parser::parse_path_start(
                     input, parser::SetterContext,
                     if self.scheme.as_slice() == "file" { parser::FileScheme }
