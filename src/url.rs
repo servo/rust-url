@@ -92,7 +92,7 @@ pub struct UrlParser<'a> {
     base_url: Option<&'a Url>,
     query_encoding_override: Option<EncodingRef>,
     error_handler: ErrorHandler,
-    schemes: fn(scheme: &str) -> SchemeType,
+    scheme_type_mapper: fn(scheme: &str) -> SchemeType,
 }
 
 
@@ -103,7 +103,7 @@ impl<'a> UrlParser<'a> {
             base_url: None,
             query_encoding_override: None,
             error_handler: silent_handler,
-            schemes: whatwg_schemes,
+            scheme_type_mapper: whatwg_scheme_type_mapper,
         }
     }
 
@@ -126,9 +126,9 @@ impl<'a> UrlParser<'a> {
     }
 
     #[inline]
-    pub fn schemes<'b>(&'b mut self, value: fn(scheme: &str) -> SchemeType)
+    pub fn scheme_type_mapper<'b>(&'b mut self, value: fn(scheme: &str) -> SchemeType)
                        -> &'b mut UrlParser<'a> {
-        self.schemes = value;
+        self.scheme_type_mapper = value;
         self
     }
 
@@ -144,7 +144,7 @@ impl<'a> UrlParser<'a> {
 
     #[inline]
     fn get_scheme_type(&self, scheme: &str) -> SchemeType {
-        (self.schemes)(scheme)
+        (self.scheme_type_mapper)(scheme)
     }
 }
 
@@ -157,7 +157,7 @@ pub enum SchemeType {
 }
 
 /// http://url.spec.whatwg.org/#relative-scheme
-fn whatwg_schemes(scheme: &str) -> SchemeType {
+fn whatwg_scheme_type_mapper(scheme: &str) -> SchemeType {
     match scheme {
         "file" => FileLikeScheme,
         "ftp" => RelativeScheme("21"),
