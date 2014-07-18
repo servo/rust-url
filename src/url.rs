@@ -90,7 +90,7 @@ impl<S: hash::Writer> hash::Hash<S> for Url {
 
 pub struct UrlParser<'a> {
     base_url: Option<&'a Url>,
-    encoding_override: Option<EncodingRef>,
+    query_encoding_override: Option<EncodingRef>,
     error_handler: ErrorHandler,
     schemes: fn(scheme: &str) -> SchemeType,
 }
@@ -101,7 +101,7 @@ impl<'a> UrlParser<'a> {
     pub fn new() -> UrlParser<'a> {
         UrlParser {
             base_url: None,
-            encoding_override: None,
+            query_encoding_override: None,
             error_handler: silent_handler,
             schemes: whatwg_schemes,
         }
@@ -114,8 +114,8 @@ impl<'a> UrlParser<'a> {
     }
 
     #[inline]
-    pub fn encoding_override<'b>(&'b mut self, value: EncodingRef) -> &'b mut UrlParser<'a> {
-        self.encoding_override = Some(value);
+    pub fn query_encoding_override<'b>(&'b mut self, value: EncodingRef) -> &'b mut UrlParser<'a> {
+        self.query_encoding_override = Some(value);
         self
     }
 
