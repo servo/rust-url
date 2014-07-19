@@ -189,6 +189,14 @@ impl Url {
         UrlParser::new().parse(input)
     }
 
+    #[inline]
+    pub fn to_file_path(&self) -> Result<Path, ()> {
+        match self.scheme_data {
+            RelativeSchemeData(ref scheme_data) => scheme_data.to_file_path(),
+            OtherSchemeData(..) => Err(()),
+        }
+    }
+
     pub fn serialize(&self) -> String {
         let mut result = self.serialize_no_fragment();
         match self.fragment {
@@ -313,6 +321,27 @@ impl Url {
 
 
 impl RelativeSchemeData {
+    // FIXME: Figure out what to do on Windows.
+    #[cfg(unix)]
+    pub fn to_file_path(&self) -> Result<Path, ()> {
+        // FIXME: Figure out what to do w.r.t host.
+        match self.domain() {
+            Some("") => {
+                if self.path.is_empty() {
+                    Ok(Path::new("/"))
+                } else {
+                    let mut bytes = Vec::new();
+                    for path_part in self.path.iter() {
+                        bytes.push(b'/');
+                        percent_decode(path_part.as_bytes(), &mut bytes);
+                    }
+                    Ok(Path::new(bytes))
+                }
+            }
+            _ => Err(())
+        }
+    }
+
     #[inline]
     pub fn domain<'a>(&'a self) -> Option<&'a str> {
         match self.host {
