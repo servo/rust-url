@@ -480,7 +480,8 @@ impl Host {
                 Err("Invalid Ipv6 address")
             }
         } else {
-            let decoded = percent_decode(input.as_bytes());
+            let mut decoded = Vec::new();
+            percent_decode(input.as_bytes(), &mut decoded);
             let domain = String::from_utf8_lossy(decoded.as_slice());
             // TODO: Remove this check and use IDNA "domain to ASCII"
             if !domain.as_slice().is_ascii() {
@@ -729,8 +730,7 @@ pub fn percent_encode_byte(byte: u8, output: &mut String) {
 
 
 #[inline]
-pub fn percent_decode(input: &[u8]) -> Vec<u8> {
-    let mut output = Vec::new();
+pub fn percent_decode(input: &[u8], output: &mut Vec<u8>) {
     let mut i = 0u;
     while i < input.len() {
         let c = input[i];
@@ -748,5 +748,4 @@ pub fn percent_decode(input: &[u8]) -> Vec<u8> {
         output.push(c);
         i += 1;
     }
-    output
 }

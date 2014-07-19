@@ -65,7 +65,8 @@ pub fn parse_bytes(input: &[u8], encoding_override: Option<EncodingRef>,
 
     #[inline]
     fn decode(input: Vec<u8>, encoding_override: EncodingRef) -> String {
-        let bytes = percent_decode(input.as_slice());
+        let mut bytes = Vec::new();
+        percent_decode(input.as_slice(), &mut bytes);
         encoding_override.decode(bytes.as_slice(), encoding::DecodeReplace).unwrap()
     }
 
