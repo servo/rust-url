@@ -431,7 +431,7 @@ fn parse_path<'a>(base_path: &[String], input: &'a str, context: Context,
                   scheme_type: SchemeType, parser: &UrlParser)
                   -> ParseResult<(Vec<String>, &'a str)> {
     // Relative path state
-    let mut path = base_path.to_owned();
+    let mut path = base_path.to_vec();
     let mut iter = input.char_ranges();
     let mut end;
     loop {
