@@ -18,11 +18,13 @@ extern crate serialize;
 
 use std::cmp;
 use std::hash;
+use std::path;
+use std::path::Path;
 use std::ascii::OwnedStrAsciiExt;
 
 use encoding::EncodingRef;
 
-use encode_sets::{PASSWORD_ENCODE_SET, USERNAME_ENCODE_SET};
+use encode_sets::{PASSWORD_ENCODE_SET, USERNAME_ENCODE_SET, DEFAULT_ENCODE_SET};
 
 
 mod encode_sets;
@@ -187,6 +189,24 @@ impl Url {
     #[inline]
     pub fn parse(input: &str) -> ParseResult<Url> {
         UrlParser::new().parse(input)
+    }
+
+    // FIXME: Figure out what to do on Windows
+    #[cfg(unix)]
+    pub fn from_file_path(&self, path: &Path) -> Result<Url, ()> {
+        let path = try!(encode_file_path(path));
+        Ok(Url {
+            scheme: "file".to_string(),
+            scheme_data: RelativeSchemeData(RelativeSchemeData {
+                username: "".to_string(),
+                password: None,
+                port: "".to_string(),
+                host: Domain("".to_string()),
+                path: path,
+            }),
+            query: None,
+            fragment: None,
+        })
     }
 
     #[inline]
@@ -793,4 +813,18 @@ pub fn percent_decode(input: &[u8], output: &mut Vec<u8>) {
         output.push(c);
         i += 1;
     }
+}
+
+// FIXME: Figure out what to do on Windows
+#[cfg(unix)]
+fn encode_file_path(path: &Path) -> Result<Vec<String>, ()> {
+    let path = path.as_vec();
+    if !path::is_sep_byte(&path[0]) {
+        return Err(())  // Not an absolute path
+    }
+    Ok(path.slice_from(1).split(path::is_sep_byte).map(|path_part| {
+        let mut encoded = String::new();
+        percent_encode(path_part, DEFAULT_ENCODE_SET, &mut encoded);
+        encoded
+    }).collect())
 }
