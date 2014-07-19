@@ -18,7 +18,6 @@ extern crate serialize;
 
 use std::cmp;
 use std::hash;
-use std::path;
 use std::path::Path;
 use std::ascii::OwnedStrAsciiExt;
 
@@ -195,7 +194,21 @@ impl Url {
     #[cfg(unix)]
     pub fn from_file_path(path: &Path) -> Result<Url, ()> {
         let path = try!(encode_file_path(path));
-        Ok(Url {
+        Ok(Url::from_path_common(path))
+    }
+
+    // FIXME: Figure out what to do on Windows
+    #[cfg(unix)]
+    pub fn from_directory_path(path: &Path) -> Result<Url, ()> {
+        let mut path = try!(encode_file_path(path));
+        // Add an empty path component (i.e. a trailing slash in serialization)
+        // so that the entire path is used as a base URL.
+        path.push("".to_string());
+        Ok(Url::from_path_common(path))
+    }
+
+    fn from_path_common(path: Vec<String>) -> Url {
+        Url {
             scheme: "file".to_string(),
             scheme_data: RelativeSchemeData(RelativeSchemeData {
                 username: "".to_string(),
@@ -206,7 +219,7 @@ impl Url {
             }),
             query: None,
             fragment: None,
-        })
+        }
     }
 
     #[inline]
@@ -818,11 +831,10 @@ pub fn percent_decode(input: &[u8], output: &mut Vec<u8>) {
 // FIXME: Figure out what to do on Windows
 #[cfg(unix)]
 fn encode_file_path(path: &Path) -> Result<Vec<String>, ()> {
-    let path = path.as_vec();
-    if !path::is_sep_byte(&path[0]) {
-        return Err(())  // Not an absolute path
+    if !path.is_absolute() {
+        return Err(())
     }
-    Ok(path.slice_from(1).split(path::is_sep_byte).map(|path_part| {
+    Ok(path.components().map(|path_part| {
         let mut encoded = String::new();
         percent_encode(path_part, DEFAULT_ENCODE_SET, &mut encoded);
         encoded
