@@ -271,6 +271,14 @@ impl Url {
     }
 
     #[inline]
+    pub fn domain<'a>(&'a self) -> Option<&'a str> {
+        match self.scheme_data {
+            RelativeSchemeData(ref scheme_data) => scheme_data.domain(),
+            OtherSchemeData(..) => None,
+        }
+    }
+
+    #[inline]
     pub fn port<'a>(&'a self) -> Option<&'a str> {
         match self.scheme_data {
             RelativeSchemeData(ref scheme_data) => Some(scheme_data.port.as_slice()),
@@ -305,6 +313,14 @@ impl Url {
 
 
 impl RelativeSchemeData {
+    #[inline]
+    pub fn domain<'a>(&'a self) -> Option<&'a str> {
+        match self.host {
+            Domain(ref domain) => Some(domain.as_slice()),
+            _ => None,
+        }
+    }
+
     pub fn serialize_path(&self) -> String {
         if self.path.is_empty() {
             "/".to_string()
