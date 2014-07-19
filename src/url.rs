@@ -287,6 +287,14 @@ impl Url {
     }
 
     #[inline]
+    pub fn serialize_host(&self) -> Option<String> {
+        match self.scheme_data {
+            RelativeSchemeData(ref scheme_data) => Some(scheme_data.host.serialize()),
+            OtherSchemeData(..) => None,
+        }
+    }
+
+    #[inline]
     pub fn serialize_path(&self) -> Option<String> {
         match self.scheme_data {
             RelativeSchemeData(ref scheme_data) => Some(scheme_data.serialize_path()),
