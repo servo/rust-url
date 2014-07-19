@@ -193,7 +193,7 @@ impl Url {
 
     // FIXME: Figure out what to do on Windows
     #[cfg(unix)]
-    pub fn from_file_path(&self, path: &Path) -> Result<Url, ()> {
+    pub fn from_file_path(path: &Path) -> Result<Url, ()> {
         let path = try!(encode_file_path(path));
         Ok(Url {
             scheme: "file".to_string(),
