@@ -17,6 +17,7 @@ extern crate encoding;
 extern crate serialize;
 
 use std::cmp;
+use std::fmt::{Formatter, FormatError, Show};
 use std::hash;
 use std::path::Path;
 use std::ascii::OwnedStrAsciiExt;
@@ -231,60 +232,11 @@ impl Url {
     }
 
     pub fn serialize(&self) -> String {
-        let mut result = self.serialize_no_fragment();
-        match self.fragment {
-            None => (),
-            Some(ref fragment) => {
-                result.push_str("#");
-                result.push_str(fragment.as_slice());
-            }
-        }
-        result
+        self.to_string()
     }
 
     pub fn serialize_no_fragment(&self) -> String {
-        let mut result = self.scheme.clone();
-        result.push_str(":");
-        match self.scheme_data {
-            RelativeSchemeData(RelativeSchemeData {
-                ref username, ref password, ref host, ref port, ref path
-            }) => {
-                result.push_str("//");
-                if !username.is_empty() || password.is_some() {
-                    result.push_str(username.as_slice());
-                    match password {
-                        &None => (),
-                        &Some(ref password) => {
-                            result.push_str(":");
-                            result.push_str(password.as_slice());
-                        }
-                    }
-                    result.push_str("@");
-                }
-                result.push_str(host.serialize().as_slice());
-                if port.len() > 0 {
-                    result.push_str(":");
-                    result.push_str(port.as_slice());
-                }
-                if path.len() > 0 {
-                    for path_part in path.iter() {
-                        result.push_str("/");
-                        result.push_str(path_part.as_slice());
-                    }
-                } else {
-                    result.push_str("/");
-                }
-            },
-            OtherSchemeData(ref data) => result.push_str(data.as_slice()),
-        }
-        match self.query {
-            None => (),
-            Some(ref query) => {
-                result.push_str("?");
-                result.push_str(query.as_slice());
-            }
-        }
-        result
+        UrlNoFragmentFormatter{ url: self }.to_string()
     }
 
     #[inline]
@@ -353,6 +305,51 @@ impl Url {
 }
 
 
+impl Show for Url {
+    fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
+        try!(UrlNoFragmentFormatter{ url: self }.fmt(formatter));
+        match self.fragment {
+            None => (),
+            Some(ref fragment) => {
+                try!(formatter.write(b"#"));
+                try!(formatter.write(fragment.as_bytes()));
+            }
+        }
+        Ok(())
+    }
+}
+
+struct UrlNoFragmentFormatter<'a> {
+    url: &'a Url
+}
+
+impl<'a> Show for UrlNoFragmentFormatter<'a> {
+    fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
+        try!(formatter.write(self.url.scheme.as_bytes()));
+        try!(formatter.write(b":"));
+        try!(self.url.scheme_data.fmt(formatter));
+        match self.url.query {
+            None => (),
+            Some(ref query) => {
+                try!(formatter.write(b"?"));
+                try!(formatter.write(query.as_bytes()));
+            }
+        }
+        Ok(())
+    }
+}
+
+
+impl Show for SchemeData {
+    fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
+        match *self {
+            RelativeSchemeData(ref scheme_data) => scheme_data.fmt(formatter),
+            OtherSchemeData(ref scheme_data) => scheme_data.fmt(formatter),
+        }
+    }
+}
+
+
 impl RelativeSchemeData {
     // FIXME: Figure out what to do on Windows.
     #[cfg(unix)]
@@ -384,16 +381,48 @@ impl RelativeSchemeData {
     }
 
     pub fn serialize_path(&self) -> String {
+        PathFormatter { path: &self.path }.to_string()
+    }
+}
+
+struct PathFormatter<'a> {
+    path: &'a Vec<String>
+}
+
+impl<'a> Show for PathFormatter<'a> {
+    fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
         if self.path.is_empty() {
-            "/".to_string()
+            formatter.write(b"/")
         } else {
-            let mut result = String::new();
             for path_part in self.path.iter() {
-                result.push_str("/");
-                result.push_str(path_part.as_slice());
+                try!(formatter.write(b"/"));
+                try!(formatter.write(path_part.as_bytes()));
             }
-            result
+            Ok(())
         }
+    }
+}
+
+impl Show for RelativeSchemeData {
+    fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
+        try!(formatter.write(b"//"));
+        if !self.username.is_empty() || self.password.is_some() {
+            try!(formatter.write(self.username.as_bytes()));
+            match self.password {
+                None => (),
+                Some(ref password) => {
+                    try!(formatter.write(b":"));
+                    try!(formatter.write(password.as_bytes()));
+                }
+            }
+            try!(formatter.write(b"@"));
+        }
+        try!(self.host.fmt(formatter));
+        if !self.port.is_empty() {
+            try!(formatter.write(b":"));
+            try!(formatter.write(self.port.as_bytes()));
+        }
+        PathFormatter { path: &self.path }.fmt(formatter)
     }
 }
 
@@ -575,13 +604,19 @@ impl Host {
     }
 
     pub fn serialize(&self) -> String {
+        self.to_string()
+    }
+}
+
+
+impl Show for Host {
+    fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
         match *self {
-            Domain(ref domain) => domain.clone(),
+            Domain(ref domain) => domain.fmt(formatter),
             Ipv6(ref address) => {
-                let mut result = String::from_str("[");
-                result.push_str(address.serialize().as_slice());
-                result.push_str("]");
-                result
+                try!(formatter.write(b"["));
+                try!(address.fmt(formatter));
+                formatter.write(b"]")
             }
         }
     }
@@ -707,14 +742,20 @@ impl Ipv6Address {
     }
 
     pub fn serialize(&self) -> String {
-        let mut output = String::new();
+        self.to_string()
+    }
+}
+
+
+impl Show for Ipv6Address {
+    fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
         let (compress_start, compress_end) = longest_zero_sequence(&self.pieces);
         let mut i = 0;
         while i < 8 {
             if i == compress_start {
-                output.push_str(":");
+                try!(formatter.write(b":"));
                 if i == 0 {
-                    output.push_str(":");
+                    try!(formatter.write(b":"));
                 }
                 if compress_end < 8 {
                     i = compress_end;
@@ -722,13 +763,13 @@ impl Ipv6Address {
                     break;
                 }
             }
-            output.push_str(format!("{:X}", self.pieces[i as uint]).as_slice());
+            try!(write!(formatter, "{:X}", self.pieces[i as uint]));
             if i < 7 {
-                output.push_str(":");
+                try!(formatter.write(b":"));
             }
             i += 1;
         }
-        output
+        Ok(())
     }
 }
 
