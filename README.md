@@ -1,6 +1,8 @@
 rust-url
 ========
 
+[![Build Status](https://travis-ci.org/mozilla-servo/rust-url.svg?branch=master)](https://travis-ci.org/mozilla-servo/rust-url)
+
 Rust implementation of the [URL Standard](http://url.spec.whatwg.org/).
 
 This is a replacement for Rust’s “old” (as of July 2014) `url` crate.
