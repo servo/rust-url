@@ -1,7 +1,7 @@
 rust-url
 ========
 
-[![Build Status](https://travis-ci.org/mozilla-servo/rust-url.svg?branch=master)](https://travis-ci.org/mozilla-servo/rust-url)
+[![Build Status](https://travis-ci.org/servo/rust-url.svg?branch=master)](https://travis-ci.org/mozilla-servo/rust-url)
 
 Rust implementation of the [URL Standard](http://url.spec.whatwg.org/).
 
