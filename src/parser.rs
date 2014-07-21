@@ -567,9 +567,8 @@ pub fn parse_query<'a>(input: &'a str, context: Context, parser: &UrlParser)
         },
         None => query.as_bytes()  // UTF-8
     };
-    let mut query_encoded = String::new();
-    percent_encode(query_bytes.as_slice(), QUERY_ENCODE_SET, &mut query_encoded);
-    Ok((query_encoded, remaining))
+    ;
+    Ok((percent_encode(query_bytes.as_slice(), QUERY_ENCODE_SET), remaining))
 }
 
 

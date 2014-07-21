@@ -363,7 +363,7 @@ impl RelativeSchemeData {
                     let mut bytes = Vec::new();
                     for path_part in self.path.iter() {
                         bytes.push(b'/');
-                        percent_decode(path_part.as_bytes(), &mut bytes);
+                        percent_decode_to(path_part.as_bytes(), &mut bytes);
                     }
                     Ok(Path::new(bytes))
                 }
@@ -587,8 +587,7 @@ impl Host {
                 Err("Invalid Ipv6 address")
             }
         } else {
-            let mut decoded = Vec::new();
-            percent_decode(input.as_bytes(), &mut decoded);
+            let decoded = percent_decode(input.as_bytes());
             let domain = String::from_utf8_lossy(decoded.as_slice());
             // TODO: Remove this check and use IDNA "domain to ASCII"
             if !domain.as_slice().is_ascii() {
@@ -817,12 +816,12 @@ fn from_hex(byte: u8) -> Option<u8> {
 
 #[inline]
 pub fn utf8_percent_encode(input: &str, encode_set: &[&str], output: &mut String) {
-    percent_encode(input.as_bytes(), encode_set, output)
+    percent_encode_to(input.as_bytes(), encode_set, output)
 }
 
 
 #[inline]
-pub fn percent_encode(input: &[u8], encode_set: &[&str], output: &mut String) {
+pub fn percent_encode_to(input: &[u8], encode_set: &[&str], output: &mut String) {
     for &byte in input.iter() {
         output.push_str(encode_set[byte as uint])
     }
@@ -830,7 +829,14 @@ pub fn percent_encode(input: &[u8], encode_set: &[&str], output: &mut String) {
 
 
 #[inline]
-pub fn percent_decode(input: &[u8], output: &mut Vec<u8>) {
+pub fn percent_encode(input: &[u8], encode_set: &[&str]) -> String {
+    let mut output = String::new();
+    percent_encode_to(input, encode_set, &mut output);
+    output
+}
+
+
+pub fn percent_decode_to(input: &[u8], output: &mut Vec<u8>) {
     let mut i = 0u;
     while i < input.len() {
         let c = input[i];
@@ -850,15 +856,20 @@ pub fn percent_decode(input: &[u8], output: &mut Vec<u8>) {
     }
 }
 
+
+#[inline]
+pub fn percent_decode(input: &[u8]) -> Vec<u8> {
+    let mut output = Vec::new();
+    percent_decode_to(input, &mut output);
+    output
+}
+
+
 // FIXME: Figure out what to do on Windows
 #[cfg(unix)]
 fn encode_file_path(path: &Path) -> Result<Vec<String>, ()> {
     if !path.is_absolute() {
         return Err(())
     }
-    Ok(path.components().map(|path_part| {
-        let mut encoded = String::new();
-        percent_encode(path_part, DEFAULT_ENCODE_SET, &mut encoded);
-        encoded
-    }).collect())
+    Ok(path.components().map(|c| percent_encode(c, DEFAULT_ENCODE_SET)).collect())
 }

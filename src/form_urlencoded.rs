@@ -18,7 +18,7 @@ use encoding::EncodingRef;
 use encoding::all::UTF_8;
 use encoding::label::encoding_from_whatwg_label;
 
-use super::{percent_encode, percent_decode};
+use super::{percent_encode_to, percent_decode};
 use encode_sets::FORM_URLENCODED_ENCODE_SET;
 
 
@@ -66,9 +66,9 @@ pub fn parse_bytes(input: &[u8], encoding_override: Option<EncodingRef>,
 
     #[inline]
     fn decode(input: Vec<u8>, encoding_override: EncodingRef) -> String {
-        let mut bytes = Vec::new();
-        percent_decode(input.as_slice(), &mut bytes);
-        encoding_override.decode(bytes.as_slice(), encoding::DecodeReplace).unwrap()
+        encoding_override.decode(
+            percent_decode(input.as_slice()).as_slice(),
+            encoding::DecodeReplace).unwrap()
     }
 
     Some(pairs.move_iter().map(
@@ -96,7 +96,7 @@ pub fn serialize<'a, I: Iterator<(&'a str, &'a str)>>(
             if byte == b' ' {
                 output.push_str("+")
             } else {
-                percent_encode([byte], FORM_URLENCODED_ENCODE_SET, output)
+                percent_encode_to([byte], FORM_URLENCODED_ENCODE_SET, output)
             }
         }
     }
