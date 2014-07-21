@@ -814,15 +814,6 @@ fn from_hex(byte: u8) -> Option<u8> {
     }
 }
 
-#[inline]
-fn to_hex_upper(value: u8) -> u8 {
-    match value {
-        0 .. 9 => b'0' + value,
-        10 .. 15 => b'A' + value - 10,
-        _ => fail!()
-    }
-}
-
 
 #[inline]
 pub fn utf8_percent_encode(input: &str, encode_set: &[&str], output: &mut String) {
@@ -834,16 +825,6 @@ pub fn utf8_percent_encode(input: &str, encode_set: &[&str], output: &mut String
 pub fn percent_encode(input: &[u8], encode_set: &[&str], output: &mut String) {
     for &byte in input.iter() {
         output.push_str(encode_set[byte as uint])
-    }
-}
-
-
-#[inline]
-pub fn percent_encode_byte(byte: u8, output: &mut String) {
-    unsafe {
-        output.push_bytes([
-            b'%', to_hex_upper(byte >> 4), to_hex_upper(byte & 0x0F)
-        ])
     }
 }
 

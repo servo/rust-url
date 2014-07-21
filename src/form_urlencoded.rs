@@ -18,7 +18,8 @@ use encoding::EncodingRef;
 use encoding::all::UTF_8;
 use encoding::label::encoding_from_whatwg_label;
 
-use super::{percent_encode_byte, percent_decode};
+use super::{percent_encode, percent_decode};
+use encode_sets::FORM_URLENCODED_ENCODE_SET;
 
 
 pub fn parse_str(input: &str) -> Vec<(String, String)> {
@@ -92,11 +93,10 @@ pub fn serialize<'a, I: Iterator<(&'a str, &'a str)>>(
         };
 
         for &byte in input.iter() {
-            match byte {
-                b' ' => output.push_str("+"),
-                b'*' | b'-' | b'.' | b'0' .. b'9' | b'A' .. b'Z' | b'_' | b'a' .. b'z'
-                => unsafe { output.push_byte(byte) },
-                _ => percent_encode_byte(byte, output),
+            if byte == b' ' {
+                output.push_str("+")
+            } else {
+                percent_encode([byte], FORM_URLENCODED_ENCODE_SET, output)
             }
         }
     }

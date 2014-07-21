@@ -23,11 +23,12 @@ print('''\
 ''')
 for name, encoded in [
     ('SIMPLE_ENCODE_SET',   ''),
-    ('QUERY_ENCODE_SET',    ' "#<>`'),
-    ('DEFAULT_ENCODE_SET',  ' "#<>`?'),
-    ('USERINFO_ENCODE_SET', ' "#<>`?@'),
-    ('PASSWORD_ENCODE_SET', ' "#<>`?@/\\'),
-    ('USERNAME_ENCODE_SET', ' "#<>`?@/\\:'),
+    ('QUERY_ENCODE_SET',    r''' "#<>`'''),
+    ('DEFAULT_ENCODE_SET',  r''' "#<>`?'''),
+    ('USERINFO_ENCODE_SET', r''' "#<>`?@'''),
+    ('PASSWORD_ENCODE_SET', r''' "#<>`?@\/'''),
+    ('USERNAME_ENCODE_SET', r''' "#<>`?@\/:'''),
+    ('FORM_URLENCODED_ENCODE_SET', r''' !"#$%&\'()+,/:;<=>?@[\]^`{|}'''),
 ]:
     print(
         "pub static %s: [&'static str, ..256] = [\n%s\n];\n\n"
