@@ -116,14 +116,14 @@ fn parse_test_data(input: &str) -> Vec<Test> {
             continue
         }
         let mut pieces = line.split(' ').collect::<Vec<&str>>();
-        let expected_failure = pieces[0] == "XFAIL";
+        let expected_failure = *pieces.get(0) == "XFAIL";
         if expected_failure {
             pieces.shift();
         }
         let input = unescape(pieces.shift().unwrap());
         let mut test = Test {
             input: input,
-            base: if pieces.is_empty() || pieces[0] == "" {
+            base: if pieces.is_empty() || *pieces.get(0) == "" {
                 tests.last().unwrap().base.clone()
             } else {
                 unescape(pieces.shift().unwrap())
