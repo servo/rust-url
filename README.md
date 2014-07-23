@@ -17,9 +17,7 @@ To do
 
 Not necessarily in the given order:
 
-* Land it in rust-http and Servo.
 * Write documentation
-* Set up continuous integration and documentation hosting
 * Deprecate and later remove rustc’s old liburl
 * Add `data:` URL parsing.
 * Add [IDNA support](http://url.spec.whatwg.org/#idna).
