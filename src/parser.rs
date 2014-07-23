@@ -15,7 +15,7 @@ use encoding;
 use super::{
     ParseResult, UrlParser, Url, RelativeSchemeData, OtherSchemeData, Host, Domain,
     SchemeType, FileLikeScheme, RelativeScheme, NonRelativeScheme,
-    utf8_percent_encode, percent_encode};
+    utf8_percent_encode_to, percent_encode};
 use encode_sets::{SIMPLE_ENCODE_SET, DEFAULT_ENCODE_SET, USERINFO_ENCODE_SET, QUERY_ENCODE_SET};
 
 
@@ -278,7 +278,7 @@ fn parse_userinfo<'a>(input: &'a str, parser: &UrlParser)
                 try!(check_url_code_point(input, i, c, parser));
                 // The spec says to use the default encode set,
                 // but also replaces '@' by '%40' in an earlier step.
-                utf8_percent_encode(input.slice(i, next_i),
+                utf8_percent_encode_to(input.slice(i, next_i),
                                     USERINFO_ENCODE_SET, &mut username);
             }
         }
@@ -296,7 +296,7 @@ fn parse_password(input: &str, parser: &UrlParser) -> ParseResult<String> {
                 try!(check_url_code_point(input, i, c, parser));
                 // The spec says to use the default encode set,
                 // but also replaces '@' by '%40' in an earlier step.
-                utf8_percent_encode(input.slice(i, next_i),
+                utf8_percent_encode_to(input.slice(i, next_i),
                                     USERINFO_ENCODE_SET, &mut password);
             }
         }
@@ -458,7 +458,7 @@ fn parse_path<'a>(base_path: &[String], input: &'a str, context: Context,
                 '\t' | '\n' | '\r' => try!(parser.parse_error("Invalid character")),
                 _ => {
                     try!(check_url_code_point(input, i, c, parser));
-                    utf8_percent_encode(input.slice(i, next_i),
+                    utf8_percent_encode_to(input.slice(i, next_i),
                                         DEFAULT_ENCODE_SET, &mut path_part);
                 }
             }
@@ -511,7 +511,7 @@ fn parse_scheme_data<'a>(input: &'a str, parser: &UrlParser)
             '\t' | '\n' | '\r' => try!(parser.parse_error("Invalid character")),
             _ => {
                 try!(check_url_code_point(input, i, c, parser));
-                utf8_percent_encode(input.slice(i, next_i),
+                utf8_percent_encode_to(input.slice(i, next_i),
                                     SIMPLE_ENCODE_SET, &mut scheme_data);
             }
         }
@@ -579,7 +579,7 @@ pub fn parse_fragment<'a>(input: &'a str, parser: &UrlParser) -> ParseResult<Str
             '\t' | '\n' | '\r' => try!(parser.parse_error("Invalid character")),
             _ => {
                 try!(check_url_code_point(input, i, c, parser));
-                utf8_percent_encode(input.slice(i, next_i),
+                utf8_percent_encode_to(input.slice(i, next_i),
                                     SIMPLE_ENCODE_SET, &mut fragment);
             }
         }

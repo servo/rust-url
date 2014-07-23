@@ -465,7 +465,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
         match self.url.scheme_data {
             RelativeSchemeData(RelativeSchemeData { ref mut username, .. }) => {
                 username.truncate(0);
-                utf8_percent_encode(input, USERNAME_ENCODE_SET, username);
+                utf8_percent_encode_to(input, USERNAME_ENCODE_SET, username);
                 Ok(())
             },
             OtherSchemeData(_) => Err("Can not set username on non-relative URL.")
@@ -477,7 +477,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
         match self.url.scheme_data {
             RelativeSchemeData(RelativeSchemeData { ref mut password, .. }) => {
                 let mut new_password = String::new();
-                utf8_percent_encode(input, PASSWORD_ENCODE_SET, &mut new_password);
+                utf8_percent_encode_to(input, PASSWORD_ENCODE_SET, &mut new_password);
                 *password = Some(new_password);
                 Ok(())
             },
@@ -815,7 +815,7 @@ fn from_hex(byte: u8) -> Option<u8> {
 
 
 #[inline]
-pub fn utf8_percent_encode(input: &str, encode_set: &[&str], output: &mut String) {
+pub fn utf8_percent_encode_to(input: &str, encode_set: &[&str], output: &mut String) {
     percent_encode_to(input.as_bytes(), encode_set, output)
 }
 
