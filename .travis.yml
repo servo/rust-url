@@ -11,7 +11,7 @@ script:
   - cargo build
   - cargo test
   - rustdoc src/url.rs -L target/deps
-  - echo '<meta http-equiv=refresh content=0;url=url_/index.html>' > doc/index.html
+  - echo '<meta http-equiv=refresh content=0;url=url_/>' > doc/index.html
 
 after_success: |
   [ $TRAVIS_BRANCH = master ] &&
