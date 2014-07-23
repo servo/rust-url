@@ -1,1 +1,3 @@
 /target
+/doc/*
+!/doc/github.png

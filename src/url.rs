@@ -9,6 +9,110 @@
 #![crate_name = "url_"]
 #![crate_type = "dylib"]
 #![crate_type = "rlib"]
+
+//! <a href="https://github.com/servo/rust-url"><img style="position: absolute; top: 0; left: 0; border: 0;" src="../github.png" alt="Fork me on GitHub"></a>
+//! <style>.sidebar { margin-top: 53px }</style>
+//!
+//! rust-url is an implementation of the [URL Standard](http://url.spec.whatwg.org/)
+//! for the [Rust](http://rust-lang.org/) programming language.
+//!
+//! It builds with [Cargo](http://crates.io/).
+//! To use it in your project, add this to your `Cargo.toml` file:
+//!
+//! ```Cargo
+//! [dependencies.url]
+//! git = "https://github.com/servo/rust-url"
+//! ```
+//!
+//! This is a replacement of the [`url` crate](http://doc.rust-lang.org/url/index.html)
+//! currently distributed with Rust.
+//! rust-url’s crate is currently named `url_` with an underscore to avoid a naming conflict,
+//! but the intent is to rename it to just `url` when the old crate eventually
+//! [goes away](https://github.com/rust-lang/rust/issues/15874).
+//! Therefore, it is recommended that you use this crate as follows:
+//!
+//! ```ignore
+//! extern crate url = "url_";
+//!
+//! use url::{Url, ...};
+//! ```
+//!
+//! … so that, when the renaming is done, you will only need to change this one line.
+//!
+//! # URL parsing and data structures
+//!
+//! First, URL parsing may fail for various reasons and therefore returns a `Result`.
+//!
+//! ```
+//! # use url_::Url;
+//! assert!(Url::parse("http://[:::1]") == Err("Invalid IPv6 address"))
+//! ```
+//!
+//! Let’s parse a valid URL and look at its components.
+//!
+//! ```
+//! # use url_::{Url, RelativeSchemeData, OtherSchemeData};
+//! let issue_list_url = Url::parse(
+//!     "https://github.com/rust-lang/rust/issues?labels=E-easy&state=open"
+//! ).unwrap();
+//!
+//!
+//! assert!(issue_list_url.scheme == "https".to_string());
+//! assert!(issue_list_url.domain() == Some("github.com"));
+//! assert!(issue_list_url.port() == Some(""));
+//! assert!(issue_list_url.path() == Some(&["rust-lang".to_string(),
+//!                                         "rust".to_string(),
+//!                                         "issues".to_string()]));
+//! assert!(issue_list_url.query == Some("labels=E-easy&state=open".to_string()));
+//! assert!(issue_list_url.fragment == None);
+//! match issue_list_url.scheme_data {
+//!     RelativeSchemeData(..) => {},  // Expected
+//!     OtherSchemeData(..) => fail!(),
+//! }
+//! ```
+//!
+//! The `scheme`, `query`, and `fragment` are directly fields of the `Url` struct:
+//! they apply to all URLs.
+//! Every other components has accessors because they only apply to URLs said to be
+//! “in a relative scheme”. `https` is a relative scheme, but `data` is not:
+//!
+//! ```
+//! # use url_::{Url, OtherSchemeData};
+//! let data_url = Url::parse("data:text/plain,Hello#").unwrap();
+//!
+//! assert!(data_url.scheme == "data".to_string());
+//! assert!(data_url.scheme_data == OtherSchemeData("text/plain,Hello".to_string()));
+//! assert!(data_url.non_relative_scheme_data() == Some("text/plain,Hello"));
+//! assert!(data_url.query == None);
+//! assert!(data_url.fragment == Some("".to_string()));
+//! ```
+//!
+//! # Base URL
+//!
+//! Many contexts allow URL *references* that can be relative to a *base URL*:
+//!
+//! ```html
+//! <link rel="stylesheet" href="../main.css">
+//! ```
+//!
+//! Since parsed URL are absolute, giving a base is required:
+//!
+//! ```
+//! # use url_::Url;
+//! assert!(Url::parse("../main.css") == Err("Relative URL without a base"))
+//! ```
+//!
+//! `UrlParser` is a method-chaining API to provide various optional parameters
+//! to URL parsing, including a base URL.
+//!
+//! ```
+//! # use url_::{Url, UrlParser};
+//! let this_document = Url::parse("http://servo.github.io/rust-url/url/index.html").unwrap();
+//! let css_url = UrlParser::new().base_url(&this_document).parse("../main.css").unwrap();
+//! assert!(css_url.serialize() == "http://servo.github.io/rust-url/main.css".to_string());
+//! ```
+
+
 #![feature(macro_rules, default_type_params)]
 
 extern crate encoding;
