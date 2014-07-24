@@ -13,7 +13,7 @@ use std::str::CharRange;
 use encoding;
 
 use super::{
-    ParseResult, UrlParser, Url, RelativeSchemeData, OtherSchemeData, Host, Domain,
+    ParseResult, UrlParser, Url, RelativeSchemeData, NonRelativeSchemeData, Host, Domain,
     SchemeType, FileLikeScheme, RelativeScheme, NonRelativeScheme,
     utf8_percent_encode_to, percent_encode};
 use encode_sets::{SIMPLE_ENCODE_SET, DEFAULT_ENCODE_SET, USERINFO_ENCODE_SET, QUERY_ENCODE_SET};
@@ -80,7 +80,7 @@ pub fn parse_url(input: &str, parser: &UrlParser) -> ParseResult<Url> {
             // Scheme data state
             let (scheme_data, remaining) = try!(parse_scheme_data(remaining, parser));
             let (query, fragment) = try!(parse_query_and_fragment(remaining, parser));
-            Ok(Url { scheme: scheme, scheme_data: OtherSchemeData(scheme_data),
+            Ok(Url { scheme: scheme, scheme_data: NonRelativeSchemeData(scheme_data),
                      query: query, fragment: fragment })
         }
     }

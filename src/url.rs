@@ -51,7 +51,7 @@
 //! Let’s parse a valid URL and look at its components.
 //!
 //! ```
-//! # use url_::{Url, RelativeSchemeData, OtherSchemeData};
+//! # use url_::{Url, RelativeSchemeData, NonRelativeSchemeData};
 //! let issue_list_url = Url::parse(
 //!     "https://github.com/rust-lang/rust/issues?labels=E-easy&state=open"
 //! ).unwrap();
@@ -67,7 +67,7 @@
 //! assert!(issue_list_url.fragment == None);
 //! match issue_list_url.scheme_data {
 //!     RelativeSchemeData(..) => {},  // Expected
-//!     OtherSchemeData(..) => fail!(),
+//!     NonRelativeSchemeData(..) => fail!(),
 //! }
 //! ```
 //!
@@ -77,11 +77,11 @@
 //! “in a relative scheme”. `https` is a relative scheme, but `data` is not:
 //!
 //! ```
-//! # use url_::{Url, OtherSchemeData};
+//! # use url_::{Url, NonRelativeSchemeData};
 //! let data_url = Url::parse("data:text/plain,Hello#").unwrap();
 //!
 //! assert!(data_url.scheme == "data".to_string());
-//! assert!(data_url.scheme_data == OtherSchemeData("text/plain,Hello".to_string()));
+//! assert!(data_url.scheme_data == NonRelativeSchemeData("text/plain,Hello".to_string()));
 //! assert!(data_url.non_relative_scheme_data() == Some("text/plain,Hello"));
 //! assert!(data_url.query == None);
 //! assert!(data_url.fragment == Some("".to_string()));
@@ -151,7 +151,7 @@ pub struct Url {
 #[deriving(PartialEq, Eq, Clone)]
 pub enum SchemeData {
     RelativeSchemeData(RelativeSchemeData),
-    OtherSchemeData(String),  // data: URLs, mailto: URLs, etc.
+    NonRelativeSchemeData(String),  // data: URLs, mailto: URLs, etc.
 }
 
 #[deriving(PartialEq, Eq, Clone)]
@@ -331,7 +331,7 @@ impl Url {
     pub fn to_file_path(&self) -> Result<Path, ()> {
         match self.scheme_data {
             RelativeSchemeData(ref scheme_data) => scheme_data.to_file_path(),
-            OtherSchemeData(..) => Err(()),
+            NonRelativeSchemeData(..) => Err(()),
         }
     }
 
@@ -347,7 +347,7 @@ impl Url {
     pub fn non_relative_scheme_data<'a>(&'a self) -> Option<&'a str> {
         match self.scheme_data {
             RelativeSchemeData(..) => None,
-            OtherSchemeData(ref scheme_data) => Some(scheme_data.as_slice()),
+            NonRelativeSchemeData(ref scheme_data) => Some(scheme_data.as_slice()),
         }
     }
 
@@ -355,7 +355,7 @@ impl Url {
     pub fn relative_scheme_data<'a>(&'a self) -> Option<&'a RelativeSchemeData> {
         match self.scheme_data {
             RelativeSchemeData(ref scheme_data) => Some(scheme_data),
-            OtherSchemeData(..) => None,
+            NonRelativeSchemeData(..) => None,
         }
     }
 
@@ -363,7 +363,7 @@ impl Url {
     pub fn host<'a>(&'a self) -> Option<&'a Host> {
         match self.scheme_data {
             RelativeSchemeData(ref scheme_data) => Some(&scheme_data.host),
-            OtherSchemeData(..) => None,
+            NonRelativeSchemeData(..) => None,
         }
     }
 
@@ -371,7 +371,7 @@ impl Url {
     pub fn domain<'a>(&'a self) -> Option<&'a str> {
         match self.scheme_data {
             RelativeSchemeData(ref scheme_data) => scheme_data.domain(),
-            OtherSchemeData(..) => None,
+            NonRelativeSchemeData(..) => None,
         }
     }
 
@@ -379,7 +379,7 @@ impl Url {
     pub fn port<'a>(&'a self) -> Option<&'a str> {
         match self.scheme_data {
             RelativeSchemeData(ref scheme_data) => Some(scheme_data.port.as_slice()),
-            OtherSchemeData(..) => None,
+            NonRelativeSchemeData(..) => None,
         }
     }
 
@@ -387,7 +387,7 @@ impl Url {
     pub fn path<'a>(&'a self) -> Option<&'a [String]> {
         match self.scheme_data {
             RelativeSchemeData(ref scheme_data) => Some(scheme_data.path.as_slice()),
-            OtherSchemeData(..) => None,
+            NonRelativeSchemeData(..) => None,
         }
     }
 
@@ -395,7 +395,7 @@ impl Url {
     pub fn serialize_host(&self) -> Option<String> {
         match self.scheme_data {
             RelativeSchemeData(ref scheme_data) => Some(scheme_data.host.serialize()),
-            OtherSchemeData(..) => None,
+            NonRelativeSchemeData(..) => None,
         }
     }
 
@@ -403,7 +403,7 @@ impl Url {
     pub fn serialize_path(&self) -> Option<String> {
         match self.scheme_data {
             RelativeSchemeData(ref scheme_data) => Some(scheme_data.serialize_path()),
-            OtherSchemeData(..) => None,
+            NonRelativeSchemeData(..) => None,
         }
     }
 }
@@ -448,7 +448,7 @@ impl Show for SchemeData {
     fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
         match *self {
             RelativeSchemeData(ref scheme_data) => scheme_data.fmt(formatter),
-            OtherSchemeData(ref scheme_data) => scheme_data.fmt(formatter),
+            NonRelativeSchemeData(ref scheme_data) => scheme_data.fmt(formatter),
         }
     }
 }
@@ -572,7 +572,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
                 utf8_percent_encode_to(input, USERNAME_ENCODE_SET, username);
                 Ok(())
             },
-            OtherSchemeData(_) => Err("Can not set username on non-relative URL.")
+            NonRelativeSchemeData(_) => Err("Can not set username on non-relative URL.")
         }
     }
 
@@ -585,7 +585,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
                 *password = Some(new_password);
                 Ok(())
             },
-            OtherSchemeData(_) => Err("Can not set password on non-relative URL.")
+            NonRelativeSchemeData(_) => Err("Can not set password on non-relative URL.")
         }
     }
 
@@ -600,7 +600,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
                 *port = new_port;
                 Ok(())
             },
-            OtherSchemeData(_) => Err("Can not set host/port on non-relative URL.")
+            NonRelativeSchemeData(_) => Err("Can not set host/port on non-relative URL.")
         }
     }
 
@@ -612,7 +612,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
                 *host = new_host;
                 Ok(())
             },
-            OtherSchemeData(_) => Err("Can not set host on non-relative URL.")
+            NonRelativeSchemeData(_) => Err("Can not set host on non-relative URL.")
         }
     }
 
@@ -628,7 +628,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
                 *port = new_port;
                 Ok(())
             },
-            OtherSchemeData(_) => Err("Can not set port on non-relative URL.")
+            NonRelativeSchemeData(_) => Err("Can not set port on non-relative URL.")
         }
     }
 
@@ -642,7 +642,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
                 *path = new_path;
                 Ok(())
             },
-            OtherSchemeData(_) => Err("Can not set path on non-relative URL.")
+            NonRelativeSchemeData(_) => Err("Can not set path on non-relative URL.")
         }
     }
 
@@ -651,7 +651,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
         // FIXME: This is in the spec, but seems superfluous.
         match self.url.scheme_data {
             RelativeSchemeData(_) => (),
-            OtherSchemeData(_) => return Err("Can not set query on non-relative URL.")
+            NonRelativeSchemeData(_) => return Err("Can not set query on non-relative URL.")
         }
         self.url.query = if input.is_empty() {
             None

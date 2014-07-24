@@ -9,7 +9,7 @@
 
 use std::char;
 use std::u32;
-use super::{UrlParser, Url, RelativeSchemeData, OtherSchemeData};
+use super::{UrlParser, Url, RelativeSchemeData, NonRelativeSchemeData};
 
 
 #[test]
@@ -77,7 +77,7 @@ fn test_url_parsing() {
                 assert_eq!(Some("/".to_string().append(path.connect("/").as_slice())),
                            expected_path);
             },
-            OtherSchemeData(scheme_data) => {
+            NonRelativeSchemeData(scheme_data) => {
                 assert_eq!(Some(scheme_data), expected_path);
                 assert_eq!(String::new(), expected_username);
                 assert_eq!(None, expected_password);
