@@ -6,7 +6,12 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-/// Punycode implementation: http://tools.ietf.org/html/rfc3492
+//! Punycode ([RFC 3492](http://tools.ietf.org/html/rfc3492)) implementation.
+//!
+//! Since Punycode fundamentally works on unicode code points,
+//! `encode` and `decode` take and return slices and vectors of `char`.
+//! `encode_str` and `decode_to_string` provide convenience wrappers
+//! that convert from and to Rust’s UTF-8 based `str` and `String` types.
 
 use std::u32;
 use std::char;
@@ -37,6 +42,7 @@ fn adapt(mut delta: u32, num_points: u32, first_time: bool) -> u32 {
 
 
 /// Convert Punycode to Unicode.
+///
 /// Return None on malformed input or overflow.
 /// Overflow can only happen on inputs that take more than
 /// 63 encoded bytes, the DNS limit on domain name labels.
@@ -111,12 +117,17 @@ pub fn decode(input: &str) -> Option<Vec<char>> {
 }
 
 
+/// Convert an Unicode `str` to Punycode.
+///
+/// This is a convenience wrapper around `encode`.
+#[inline]
 pub fn encode_str(input: &str) -> Option<String> {
     encode(input.chars().collect::<Vec<char>>().as_slice())
 }
 
 
 /// Convert Unicode to Punycode.
+///
 /// Return None on overflow, which can only happen on inputs that would take more than
 /// 63 encoded bytes, the DNS limit on domain name labels.
 pub fn encode(input: &[char]) -> Option<String> {

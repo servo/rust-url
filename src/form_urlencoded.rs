@@ -6,10 +6,12 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-/// Parser and serializer for `application/x-www-form-urlencoded`
-///
-/// Converts between a string (such as an URL’s query string)
-/// and a list of name/value pairs.
+//! Parser and serializer for the [`application/x-www-form-urlencoded` format](
+//! http://url.spec.whatwg.org/#application/x-www-form-urlencoded),
+//! as used by HTML forms.
+//!
+//! Converts between a string (such as an URL’s query string)
+//! and a sequence of (name, value) pairs.
 
 use std::str;
 
@@ -22,11 +24,23 @@ use super::{percent_encode_to, percent_decode};
 use encode_sets::FORM_URLENCODED_ENCODE_SET;
 
 
+/// Convert a string in the `application/x-www-form-urlencoded` format
+/// into a vector of (name, value) pairs.
+#[inline]
 pub fn parse_str(input: &str) -> Vec<(String, String)> {
     parse_bytes(input.as_bytes(), None, false, false).unwrap()
 }
 
 
+/// Convert a byte string in the `application/x-www-form-urlencoded` format
+/// into a vector of (name, value) pairs.
+///
+/// Arguments:
+///
+/// * `encoding_override`: The character encoding each name and values is decoded as
+///    after percent-decoding. Defaults to UTF-8.
+/// * `use_charset`: The *use _charset_ flag*. If in doubt, set to `false`.
+/// * `isindex`: The *isindex flag*. If in doubt, set to `false`.
 pub fn parse_bytes(input: &[u8], encoding_override: Option<EncodingRef>,
                    mut use_charset: bool, mut isindex: bool) -> Option<Vec<(String, String)>> {
     let mut encoding_override = encoding_override.unwrap_or(UTF_8 as EncodingRef);
@@ -77,12 +91,19 @@ pub fn parse_bytes(input: &[u8], encoding_override: Option<EncodingRef>,
 }
 
 
+/// Convert an iterator of (name, value) pairs
+/// into a string in the `application/x-www-form-urlencoded` format.
+///
+/// Arguments:
+///
+/// * `encoding_override`: The character encoding each name and values is encoded as
+///    before percent-encoding. Defaults to UTF-8.
 pub fn serialize<'a, I: Iterator<(&'a str, &'a str)>>(
         mut pairs: I, encoding_override: Option<EncodingRef>)
         -> String {
     #[inline]
     fn byte_serialize(input: &str, output: &mut String,
-                     encoding_override: Option<EncodingRef>) {
+                      encoding_override: Option<EncodingRef>) {
         let keep_alive;
         let input = match encoding_override {
             None => input.as_bytes(),  // "Encode" to UTF-8
