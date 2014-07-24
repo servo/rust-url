@@ -41,6 +41,15 @@ fn adapt(mut delta: u32, num_points: u32, first_time: bool) -> u32 {
 }
 
 
+/// Convert Punycode to an Unicode `String`.
+///
+/// This is a convenience wrapper around `decode`.
+#[inline]
+pub fn decode_to_string(input: &str) -> Option<String> {
+    decode(input).map(|chars| String::from_chars(chars.as_slice()))
+}
+
+
 /// Convert Punycode to Unicode.
 ///
 /// Return None on malformed input or overflow.
