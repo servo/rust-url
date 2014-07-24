@@ -11,6 +11,8 @@ See [Rust bug #10707](https://github.com/mozilla/rust/issues/10707).
 This buils with [Cargo](https://github.com/rust-lang/cargo),
 pulling in [rust-encoding](https://github.com/lifthrasiir/rust-encoding) as a depedency.
 
+[Documentation](http://servo.github.io/rust-url/url/index.html)
+
 
 To do
 -----
