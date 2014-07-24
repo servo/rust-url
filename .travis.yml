@@ -10,7 +10,8 @@ install:
 script:
   - cargo build
   - cargo test
-  - make doc test-doc
+  - ./doc.sh
+  - ./doc.sh --test
 
 after_success: |
   [ $TRAVIS_BRANCH = master ] &&
