@@ -918,24 +918,48 @@ fn from_hex(byte: u8) -> Option<u8> {
 }
 
 
+pub struct EncodeSet {
+    map: &'static [&'static str, ..256],
+}
+
+pub static SIMPLE_ENCODE_SET: EncodeSet = EncodeSet { map: &encode_sets::SIMPLE };
+pub static QUERY_ENCODE_SET: EncodeSet = EncodeSet { map: &encode_sets::QUERY };
+pub static DEFAULT_ENCODE_SET: EncodeSet = EncodeSet { map: &encode_sets::DEFAULT };
+pub static USERINFO_ENCODE_SET: EncodeSet = EncodeSet { map: &encode_sets::USERINFO };
+pub static PASSWORD_ENCODE_SET: EncodeSet = EncodeSet { map: &encode_sets::PASSWORD };
+pub static USERNAME_ENCODE_SET: EncodeSet = EncodeSet { map: &encode_sets::USERNAME };
+pub static FORM_URLENCODED_ENCODE_SET: EncodeSet = EncodeSet { map: &encode_sets::FORM_URLENCODED };
+
+
 #[inline]
-pub fn utf8_percent_encode_to(input: &str, encode_set: &[&str], output: &mut String) {
+pub fn percent_encode_to(input: &[u8], encode_set: EncodeSet, output: &mut String) {
+    for &byte in input.iter() {
+        output.push_str(encode_set.map[byte as uint])
+    }
+}
+
+
+/// Percent-encode the given bytes.
+///
+/// The returned string. is within the ASCII range.
+#[inline]
+pub fn percent_encode(input: &[u8], encode_set: EncodeSet) -> String {
+    let mut output = String::new();
+    percent_encode_to(input, encode_set, &mut output);
+    output
+}
+
+
+#[inline]
+pub fn utf8_percent_encode_to(input: &str, encode_set: EncodeSet, output: &mut String) {
     percent_encode_to(input.as_bytes(), encode_set, output)
 }
 
 
 #[inline]
-pub fn percent_encode_to(input: &[u8], encode_set: &[&str], output: &mut String) {
-    for &byte in input.iter() {
-        output.push_str(encode_set[byte as uint])
-    }
-}
-
-
-#[inline]
-pub fn percent_encode(input: &[u8], encode_set: &[&str]) -> String {
+pub fn utf8_percent_encode(input: &str, encode_set: EncodeSet) -> String {
     let mut output = String::new();
-    percent_encode_to(input, encode_set, &mut output);
+    utf8_percent_encode_to(input, encode_set, &mut output);
     output
 }
 

@@ -20,8 +20,7 @@ use encoding::EncodingRef;
 use encoding::all::UTF_8;
 use encoding::label::encoding_from_whatwg_label;
 
-use super::{percent_encode_to, percent_decode};
-use encode_sets::FORM_URLENCODED_ENCODE_SET;
+use super::{percent_encode_to, percent_decode, FORM_URLENCODED_ENCODE_SET};
 
 
 /// Convert a string in the `application/x-www-form-urlencoded` format

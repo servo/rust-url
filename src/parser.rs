@@ -15,8 +15,8 @@ use encoding;
 use super::{
     ParseResult, UrlParser, Url, RelativeSchemeData, NonRelativeSchemeData, Host, Domain,
     SchemeType, FileLikeScheme, RelativeScheme, NonRelativeScheme,
-    utf8_percent_encode_to, percent_encode};
-use encode_sets::{SIMPLE_ENCODE_SET, DEFAULT_ENCODE_SET, USERINFO_ENCODE_SET, QUERY_ENCODE_SET};
+    utf8_percent_encode_to, percent_encode,
+    SIMPLE_ENCODE_SET, DEFAULT_ENCODE_SET, USERINFO_ENCODE_SET, QUERY_ENCODE_SET};
 
 
 macro_rules! is_match(
