@@ -257,7 +257,7 @@ impl<'a> UrlParser<'a> {
 
 #[deriving(PartialEq, Eq)]
 pub enum SchemeType {
-    FileLikeScheme,
+    FileLikeRelativeScheme,
     RelativeScheme(&'static str),  // str is the default port, in ASCII decimal.
     NonRelativeScheme,
 }
@@ -265,7 +265,7 @@ pub enum SchemeType {
 /// http://url.spec.whatwg.org/#relative-scheme
 fn whatwg_scheme_type_mapper(scheme: &str) -> SchemeType {
     match scheme {
-        "file" => FileLikeScheme,
+        "file" => FileLikeRelativeScheme,
         "ftp" => RelativeScheme("21"),
         "gopher" => RelativeScheme("70"),
         "http" => RelativeScheme("80"),
@@ -621,7 +621,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
         match self.url.scheme_data {
             RelativeSchemeData(RelativeSchemeData { ref mut port, .. }) => {
                 let scheme_type = self.parser.get_scheme_type(self.url.scheme.as_slice());
-                if scheme_type == FileLikeScheme {
+                if scheme_type == FileLikeRelativeScheme {
                     return Err("Can not set port on file: URL.")
                 }
                 let (new_port, _) = try!(parser::parse_port(input, scheme_type, self.parser));

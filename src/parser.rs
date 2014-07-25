@@ -14,7 +14,7 @@ use encoding;
 
 use super::{
     ParseResult, UrlParser, Url, RelativeSchemeData, NonRelativeSchemeData, Host, Domain,
-    SchemeType, FileLikeScheme, RelativeScheme, NonRelativeScheme,
+    SchemeType, FileLikeRelativeScheme, RelativeScheme, NonRelativeScheme,
     utf8_percent_encode_to, percent_encode,
     SIMPLE_ENCODE_SET, DEFAULT_ENCODE_SET, USERINFO_ENCODE_SET, QUERY_ENCODE_SET};
 
@@ -50,7 +50,7 @@ pub fn parse_url(input: &str, parser: &UrlParser) -> ParseResult<Url> {
     };
     let scheme_type = parser.get_scheme_type(scheme.as_slice());
     match scheme_type {
-        FileLikeScheme => {
+        FileLikeRelativeScheme => {
             // Relative state?
             match parser.base_url {
                 Some(&Url { scheme: ref base_scheme, scheme_data: RelativeSchemeData(ref base),
@@ -139,7 +139,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeTyp
             // Relative slash state
             if input.len() > 1 && is_match!(input.char_at(1), '/' | '\\') {
                 if input.char_at(1) == '\\' { try!(parser.parse_error("backslash")) }
-                if scheme_type == FileLikeScheme {
+                if scheme_type == FileLikeRelativeScheme {
                     // File host state
                     let remaining = input.slice_from(2);
                     let (host, remaining) = if remaining.len() >= 2
@@ -170,7 +170,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeTyp
                 // Relative path state
                 let (path, remaining) = try!(parse_path(
                     [], input.slice_from(1), UrlParserContext, scheme_type, parser));
-                let scheme_data = RelativeSchemeData(if scheme_type == FileLikeScheme {
+                let scheme_data = RelativeSchemeData(if scheme_type == FileLikeRelativeScheme {
                     RelativeSchemeData {
                         username: String::new(), password: None, host:
                         Domain(String::new()), port: String::new(), path: path
@@ -201,7 +201,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeTyp
                      query: base_query.clone(), fragment: fragment })
         }
         _ => {
-            let (scheme_data, remaining) = if scheme_type == FileLikeScheme
+            let (scheme_data, remaining) = if scheme_type == FileLikeRelativeScheme
                && input.len() >= 2
                && starts_with_ascii_alpha(input)
                && is_match!(input.char_at(1), ':' | '|')
@@ -477,7 +477,7 @@ fn parse_path<'a>(base_path: &[String], input: &'a str, context: Context,
                 }
             },
             _ => {
-                if scheme_type == FileLikeScheme
+                if scheme_type == FileLikeRelativeScheme
                    && path.is_empty()
                    && path_part.len() == 2
                    && starts_with_ascii_alpha(path_part.as_slice())
