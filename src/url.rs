@@ -11,7 +11,7 @@
 #![crate_type = "rlib"]
 
 //! <a href="https://github.com/servo/rust-url"><img style="position: absolute; top: 0; left: 0; border: 0;" src="../github.png" alt="Fork me on GitHub"></a>
-//! <style>.sidebar { margin-top: 53px }</style>
+//! <style>.sidebar { display: none }</style>
 //!
 //! rust-url is an implementation of the [URL Standard](http://url.spec.whatwg.org/)
 //! for the [Rust](http://rust-lang.org/) programming language.
