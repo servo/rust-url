@@ -361,50 +361,32 @@ impl Url {
 
     #[inline]
     pub fn host<'a>(&'a self) -> Option<&'a Host> {
-        match self.scheme_data {
-            RelativeSchemeData(ref scheme_data) => Some(&scheme_data.host),
-            NonRelativeSchemeData(..) => None,
-        }
+        self.relative_scheme_data().map(|scheme_data| &scheme_data.host)
     }
 
     #[inline]
     pub fn domain<'a>(&'a self) -> Option<&'a str> {
-        match self.scheme_data {
-            RelativeSchemeData(ref scheme_data) => scheme_data.domain(),
-            NonRelativeSchemeData(..) => None,
-        }
+        self.relative_scheme_data().and_then(|scheme_data| scheme_data.domain())
     }
 
     #[inline]
     pub fn port<'a>(&'a self) -> Option<&'a str> {
-        match self.scheme_data {
-            RelativeSchemeData(ref scheme_data) => Some(scheme_data.port.as_slice()),
-            NonRelativeSchemeData(..) => None,
-        }
+        self.relative_scheme_data().map(|scheme_data| scheme_data.port.as_slice())
     }
 
     #[inline]
     pub fn path<'a>(&'a self) -> Option<&'a [String]> {
-        match self.scheme_data {
-            RelativeSchemeData(ref scheme_data) => Some(scheme_data.path.as_slice()),
-            NonRelativeSchemeData(..) => None,
-        }
+        self.relative_scheme_data().map(|scheme_data| scheme_data.path.as_slice())
     }
 
     #[inline]
     pub fn serialize_host(&self) -> Option<String> {
-        match self.scheme_data {
-            RelativeSchemeData(ref scheme_data) => Some(scheme_data.host.serialize()),
-            NonRelativeSchemeData(..) => None,
-        }
+        self.relative_scheme_data().map(|scheme_data| scheme_data.host.serialize())
     }
 
     #[inline]
     pub fn serialize_path(&self) -> Option<String> {
-        match self.scheme_data {
-            RelativeSchemeData(ref scheme_data) => Some(scheme_data.serialize_path()),
-            NonRelativeSchemeData(..) => None,
-        }
+        self.relative_scheme_data().map(|scheme_data| scheme_data.serialize_path())
     }
 }
 
