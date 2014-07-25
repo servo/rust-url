@@ -460,7 +460,7 @@ impl RelativeSchemeData {
     pub fn to_file_path(&self) -> Result<Path, ()> {
         // FIXME: Figure out what to do w.r.t host.
         match self.domain() {
-            Some("") => {
+            Some("") | Some("localhost") => {
                 if self.path.is_empty() {
                     Ok(Path::new("/"))
                 } else {
