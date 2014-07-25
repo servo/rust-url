@@ -419,6 +419,20 @@ impl Url {
         self.relative_scheme_data().map(|scheme_data| scheme_data.serialize_path())
     }
 
+    /// Parse the URL’s query string, if any, as `application/x-www-form-urlencoded`
+    /// and return a vector of (key, value) pairs.
+    #[inline]
+    pub fn query_pairs(&self) -> Option<Vec<(String, String)>> {
+        self.query.as_ref().map(|query| form_urlencoded::parse_str(query.as_slice()))
+    }
+
+    /// Serialize an iterator of (key, value) pairs as `application/x-www-form-urlencoded`
+    /// and set it as the URL’s query string.
+    #[inline]
+    pub fn set_query_from_pairs<'a, I: Iterator<(&'a str, &'a str)>>(&mut self, pairs: I) {
+        self.query = Some(form_urlencoded::serialize(pairs, None));
+    }
+
     /// Percent-decode the URL’s query string, if any.
     ///
     /// This is “lossy”: invalid UTF-8 percent-encoded byte sequences
