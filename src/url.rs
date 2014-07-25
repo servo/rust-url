@@ -360,6 +360,17 @@ impl Url {
     }
 
     #[inline]
+    pub fn username<'a>(&'a self) -> Option<&'a str> {
+        self.relative_scheme_data().map(|scheme_data| scheme_data.username.as_slice())
+    }
+
+    #[inline]
+    pub fn password<'a>(&'a self) -> Option<&'a str> {
+        self.relative_scheme_data().and_then(|scheme_data|
+            scheme_data.password.as_ref().map(|password| password.as_slice()))
+    }
+
+    #[inline]
     pub fn host<'a>(&'a self) -> Option<&'a Host> {
         self.relative_scheme_data().map(|scheme_data| &scheme_data.host)
     }
