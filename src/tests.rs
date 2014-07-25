@@ -118,15 +118,15 @@ fn parse_test_data(input: &str) -> Vec<Test> {
         let mut pieces = line.split(' ').collect::<Vec<&str>>();
         let expected_failure = pieces[0] == "XFAIL";
         if expected_failure {
-            pieces.shift();
+            pieces.remove(0);
         }
-        let input = unescape(pieces.shift().unwrap());
+        let input = unescape(pieces.remove(0).unwrap());
         let mut test = Test {
             input: input,
             base: if pieces.is_empty() || pieces[0] == "" {
                 tests.last().unwrap().base.clone()
             } else {
-                unescape(pieces.shift().unwrap())
+                unescape(pieces.remove(0).unwrap())
             },
             scheme: None,
             username: String::new(),

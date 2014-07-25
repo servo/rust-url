@@ -15,7 +15,7 @@
 
 use std::u32;
 use std::char;
-use std::str;
+use std::string;
 
 // Bootstring parameters for Punycode
 static BASE: u32 = 36;
@@ -144,7 +144,7 @@ pub fn encode(input: &[char]) -> Option<String> {
     let output_bytes = input.iter().filter_map(|&c|
         if c.is_ascii() { Some(c as u8) } else { None }
     ).collect();
-    let mut output = unsafe { str::raw::from_utf8_owned(output_bytes) };
+    let mut output = unsafe { string::raw::from_utf8(output_bytes) };
     let basic_length = output.len() as u32;
     if basic_length > 0 {
         output.push_str("-")
