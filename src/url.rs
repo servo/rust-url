@@ -469,7 +469,10 @@ impl RelativeSchemeData {
                         bytes.push(b'/');
                         percent_decode_to(path_part.as_bytes(), &mut bytes);
                     }
-                    Ok(Path::new(bytes))
+                    let path = Path::new(bytes);
+                    debug_assert!(path.is_absolute(),
+                                  "to_file_path() failed to produce an absolute Path")
+                    Ok(path)
                 }
             }
             _ => Err(())
