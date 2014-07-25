@@ -364,10 +364,29 @@ impl Url {
         self.relative_scheme_data().map(|scheme_data| scheme_data.username.as_slice())
     }
 
+    /// Percent-decode the URL’s username, if any.
+    ///
+    /// This is “lossy”: invalid UTF-8 percent-encoded byte sequences
+    /// will be replaced � U+FFFD, the replacement character.
+    #[inline]
+    pub fn lossy_precent_decode_username(&self) -> Option<String> {
+        self.relative_scheme_data().map(|scheme_data| scheme_data.lossy_precent_decode_username())
+    }
+
     #[inline]
     pub fn password<'a>(&'a self) -> Option<&'a str> {
         self.relative_scheme_data().and_then(|scheme_data|
             scheme_data.password.as_ref().map(|password| password.as_slice()))
+    }
+
+    /// Percent-decode the URL’s password, if any.
+    ///
+    /// This is “lossy”: invalid UTF-8 percent-encoded byte sequences
+    /// will be replaced � U+FFFD, the replacement character.
+    #[inline]
+    pub fn lossy_precent_decode_password(&self) -> Option<String> {
+        self.relative_scheme_data().and_then(|scheme_data|
+            scheme_data.lossy_precent_decode_password())
     }
 
     #[inline]
@@ -398,6 +417,24 @@ impl Url {
     #[inline]
     pub fn serialize_path(&self) -> Option<String> {
         self.relative_scheme_data().map(|scheme_data| scheme_data.serialize_path())
+    }
+
+    /// Percent-decode the URL’s query string, if any.
+    ///
+    /// This is “lossy”: invalid UTF-8 percent-encoded byte sequences
+    /// will be replaced � U+FFFD, the replacement character.
+    #[inline]
+    pub fn lossy_precent_decode_query(&self) -> Option<String> {
+        self.query.as_ref().map(|value| lossy_utf8_percent_decode(value.as_bytes()))
+    }
+
+    /// Percent-decode the URL’s fragment identifier, if any.
+    ///
+    /// This is “lossy”: invalid UTF-8 percent-encoded byte sequences
+    /// will be replaced � U+FFFD, the replacement character.
+    #[inline]
+    pub fn lossy_precent_decode_fragment(&self) -> Option<String> {
+        self.fragment.as_ref().map(|value| lossy_utf8_percent_decode(value.as_bytes()))
     }
 }
 
@@ -448,6 +485,24 @@ impl Show for SchemeData {
 
 
 impl RelativeSchemeData {
+    /// Percent-decode the URL’s username.
+    ///
+    /// This is “lossy”: invalid UTF-8 percent-encoded byte sequences
+    /// will be replaced � U+FFFD, the replacement character.
+    #[inline]
+    pub fn lossy_precent_decode_username(&self) -> String {
+        lossy_utf8_percent_decode(self.username.as_bytes())
+    }
+
+    /// Percent-decode the URL’s password, if any.
+    ///
+    /// This is “lossy”: invalid UTF-8 percent-encoded byte sequences
+    /// will be replaced � U+FFFD, the replacement character.
+    #[inline]
+    pub fn lossy_precent_decode_password(&self) -> Option<String> {
+        self.password.as_ref().map(|value| lossy_utf8_percent_decode(value.as_bytes()))
+    }
+
     // FIXME: Figure out what to do on Windows.
     #[cfg(unix)]
     pub fn to_file_path(&self) -> Result<Path, ()> {
@@ -986,6 +1041,12 @@ pub fn percent_decode(input: &[u8]) -> Vec<u8> {
     let mut output = Vec::new();
     percent_decode_to(input, &mut output);
     output
+}
+
+
+#[inline]
+pub fn lossy_utf8_percent_decode(input: &[u8]) -> String {
+    String::from_utf8_lossy(percent_decode(input).as_slice()).into_string()
 }
 
 
