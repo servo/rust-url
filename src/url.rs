@@ -24,7 +24,10 @@
 //! git = "https://github.com/servo/rust-url"
 //! ```
 //!
-//! This is a replacement of the [`url` crate](http://doc.rust-lang.org/url/index.html)
+//! This will automatically pull in the
+//! [rust-encoding](https://github.com/lifthrasiir/rust-encoding) dependency.
+//!
+//! rust-url is a replacement of the [`url` crate](http://doc.rust-lang.org/url/index.html)
 //! currently distributed with Rust.
 //! rust-url’s crate is currently named `url_` with an underscore to avoid a naming conflict,
 //! but the intent is to rename it to just `url` when the old crate eventually
@@ -37,7 +40,8 @@
 //! use url::{Url, ...};
 //! ```
 //!
-//! … so that, when the renaming is done, you will only need to change this one line.
+//! That way, when the renaming is done, you will only need to change the `extern crate` line.
+//!
 //!
 //! # URL parsing and data structures
 //!
@@ -87,6 +91,7 @@
 //! assert!(data_url.fragment == Some("".to_string()));
 //! ```
 //!
+//!
 //! # Base URL
 //!
 //! Many contexts allow URL *references* that can be relative to a *base URL*:
@@ -128,8 +133,6 @@ use std::ascii::OwnedStrAsciiExt;
 
 use encoding::EncodingRef;
 
-use encode_sets::{PASSWORD_ENCODE_SET, USERNAME_ENCODE_SET, DEFAULT_ENCODE_SET};
-
 
 mod encode_sets;
 mod parser;
@@ -140,35 +143,105 @@ pub mod punycode;
 mod tests;
 
 
+/// The parsed representation of an absolute URL.
 #[deriving(PartialEq, Eq, Clone)]
 pub struct Url {
+    /// The scheme (a.k.a. protocol) of the URL, in ASCII lower case.
     pub scheme: String,
+
+    /// The components of the URL whose representation depends on where the scheme is *relative*.
     pub scheme_data: SchemeData,
-    pub query: Option<String>,  // See form_urlencoded::parse_str() to get name/value pairs.
+
+    /// The query string of the URL.
+    ///
+    /// `None` if the `?` delimiter character was not part of the parsed input,
+    /// otherwise a possibly empty, pecent-encoded string.
+    ///
+    /// Percent encoded strings are within the ASCII range.
+    ///
+    /// See also the `query_pairs`, `set_query_from_pairs`,
+    /// and `lossy_precent_decode_query` methods.
+    pub query: Option<String>,
+
+    /// The fragment identifier of the URL.
+    ///
+    /// `None` if the `#` delimiter character was not part of the parsed input,
+    /// otherwise a possibly empty, pecent-encoded string.
+    ///
+    /// Percent encoded strings are within the ASCII range.
+    ///
+    /// See also the `lossy_precent_decode_fragment` method.
     pub fragment: Option<String>,
 }
 
+/// The components of the URL whose representation depends on where the scheme is *relative*.
 #[deriving(PartialEq, Eq, Clone)]
 pub enum SchemeData {
+    /// Components for URLs in a *relative* scheme such as HTTP.
     RelativeSchemeData(RelativeSchemeData),
-    NonRelativeSchemeData(String),  // data: URLs, mailto: URLs, etc.
+
+    /// No further structure is assumed for *non-relative* schemes such as `data` and `mailto`.
+    ///
+    /// This is a single percent-encoded string, whose interpretation depends on the scheme.
+    ///
+    /// Percent encoded strings are within the ASCII range.
+    NonRelativeSchemeData(String),
 }
 
+/// Components for URLs in a *relative* scheme such as HTTP.
 #[deriving(PartialEq, Eq, Clone)]
 pub struct RelativeSchemeData {
+    /// The username of the URL, as a possibly empty, pecent-encoded string.
+    ///
+    /// Percent encoded strings are within the ASCII range.
+    ///
+    /// See also the `lossy_precent_decode_username` method.
     pub username: String,
+
+    /// The password of the URL.
+    ///
+    /// `None` if the `:` delimiter character was not part of the parsed input,
+    /// otherwise a possibly empty, pecent-encoded string.
+    ///
+    /// Percent encoded strings are within the ASCII range.
+    ///
+    /// See also the `lossy_precent_decode_password` method.
     pub password: Option<String>,
+
+    /// The host of the URL, either a domain name or an IPv4 address
     pub host: Host,
+
+    /// The port number of the URL, in ASCII decimal,
+    /// or the empty string for no port number (in the file scheme) or the default port number.
     pub port: String,
+
+    /// The path of the URL, as vector of pecent-encoded strings.
+    ///
+    /// Percent encoded strings are within the ASCII range.
+    ///
+    /// See also the `serialize_path` method and,
+    /// for URLs in the `file` scheme, the `to_file_path` method.
     pub path: Vec<String>,
 }
 
+
+/// The host name of an URL.
 #[deriving(PartialEq, Eq, Clone)]
 pub enum Host {
+    /// A (DNS) domain name or an IPv4 address.
+    ///
+    /// FIXME: IPv4 probably should be a separate variant.
+    /// See https://www.w3.org/Bugs/Public/show_bug.cgi?id=26431
     Domain(String),
-    Ipv6(Ipv6Address)
+
+    /// An IPv6 address, represented inside `[...]` square brackets
+    /// so that `:` colon characters in the address are not ambiguous
+    /// with the port number delimiter.
+    Ipv6(Ipv6Address),
 }
 
+
+/// A 128 bit IPv6 address
 pub struct Ipv6Address {
     pub pieces: [u16, ..8]
 }
@@ -194,6 +267,7 @@ impl<S: hash::Writer> hash::Hash<S> for Url {
 }
 
 
+/// A set of optional parameters for URL parsing.
 pub struct UrlParser<'a> {
     base_url: Option<&'a Url>,
     query_encoding_override: Option<EncodingRef>,
@@ -202,7 +276,9 @@ pub struct UrlParser<'a> {
 }
 
 
+/// A method-chaining API to provide a set of optional parameters for URL parsing.
 impl<'a> UrlParser<'a> {
+    /// Return a new UrlParser with default parameters.
     #[inline]
     pub fn new() -> UrlParser<'a> {
         UrlParser {
@@ -213,24 +289,64 @@ impl<'a> UrlParser<'a> {
         }
     }
 
+    /// Set the base URL used for resolving relative URL references, and return the `UrlParser`.
+    /// The default is no base URL, so that relative URLs references fail to parse.
     #[inline]
     pub fn base_url<'b>(&'b mut self, value: &'a Url) -> &'b mut UrlParser<'a> {
         self.base_url = Some(value);
         self
     }
 
+    /// Set the character encoding the query string is encoded as before percent-encoding,
+    /// and return the `UrlParser`.
+    ///
+    /// This legacy quirk is only relevant to HTML.
     #[inline]
     pub fn query_encoding_override<'b>(&'b mut self, value: EncodingRef) -> &'b mut UrlParser<'a> {
         self.query_encoding_override = Some(value);
         self
     }
 
+    /// Set an error handler for non-fatal parse errors, and return the `UrlParser`.
+    ///
+    /// Non-fatal parse errors are normally ignored by the parser,
+    /// but indicate violations of authoring requirements.
+    /// An error handler can be used, for example, to log these errors in the console
+    /// of a browser’s developer tools.
+    ///
+    /// The error handler can choose to make the error fatal by returning `Err(..)`
     #[inline]
     pub fn error_handler<'b>(&'b mut self, value: ErrorHandler) -> &'b mut UrlParser<'a> {
         self.error_handler = value;
         self
     }
 
+    /// Set a *scheme type mapper*, and return the `UrlParser`.
+    ///
+    /// The URL parser behaves differently based on the `SchemeType` of the URL.
+    /// See the documentation for `SchemeType` for more details.
+    /// A *scheme type mapper* returns a `SchemeType`
+    /// based on the scheme as an ASCII lower case string,
+    /// as found in the `scheme` field of an `Url` struct.
+    ///
+    /// The default scheme type mapper is as follows:
+    ///
+    /// ```ignore
+    /// match scheme {
+    ///     "file" => FileLikeRelativeScheme,
+    ///     "ftp" => RelativeScheme("21"),
+    ///     "gopher" => RelativeScheme("70"),
+    ///     "http" => RelativeScheme("80"),
+    ///     "https" => RelativeScheme("443"),
+    ///     "ws" => RelativeScheme("80"),
+    ///     "wss" => RelativeScheme("443"),
+    ///     _ => NonRelativeScheme,
+    /// }
+    /// ```
+    ///
+    /// Note that unknown schemes default to non-relative.
+    /// Overriding the scheme type mapper can allow, for example,
+    /// parsing URLs in the `git` or `irc` scheme as relative.
     #[inline]
     pub fn scheme_type_mapper<'b>(&'b mut self, value: fn(scheme: &str) -> SchemeType)
                        -> &'b mut UrlParser<'a> {
@@ -238,11 +354,16 @@ impl<'a> UrlParser<'a> {
         self
     }
 
+    /// Parse `input` as an URL, with all the parameters previously set in the `UrlParser`.
     #[inline]
     pub fn parse(&self, input: &str) -> ParseResult<Url> {
         parser::parse_url(input, self)
     }
+}
 
+
+/// Private convenience methods for use in parser.rs
+impl<'a> UrlParser<'a> {
     #[inline]
     fn parse_error(&self, message: &'static str) -> ParseResult<()> {
         (self.error_handler)(message)
@@ -255,11 +376,33 @@ impl<'a> UrlParser<'a> {
 }
 
 
+/// Determines the behavior of the URL parser for a given scheme.
 #[deriving(PartialEq, Eq)]
 pub enum SchemeType {
-    FileLikeRelativeScheme,
-    RelativeScheme(&'static str),  // str is the default port, in ASCII decimal.
+    /// Indicate that the scheme is *non-relative*.
+    ///
+    /// The *scheme data* of the URL
+    /// (everything other than the scheme, query string, and fragment identifier)
+    /// is parsed as a single percent-encoded string of which no structure is assumed.
+    /// That string may need to be parsed further, per a scheme-specific format.
     NonRelativeScheme,
+
+    /// Indicate that the scheme is *relative*, and what the default port number is.
+    ///
+    /// The *scheme data* is structured as
+    /// *username*, *password*, *host*, *port number*, and *path*.
+    /// Relative URL references are supported, if a base URL was given.
+    /// The string value indicates the default port number as a string of ASCII digits,
+    /// or the empty string to indicate no default port number.
+    RelativeScheme(&'static str),
+
+    /// Indicate a *relative* scheme similar to the *file* scheme.
+    ///
+    /// For example, you might want to have distinct `git+file` and `hg+file` URL schemes.
+    ///
+    /// This is like `RelativeScheme` except the host can be empty, there is no port number,
+    /// and path parsing has (platform-independent) quirks to support Windows filenames.
+    FileLikeRelativeScheme,
 }
 
 /// http://url.spec.whatwg.org/#relative-scheme
@@ -280,7 +423,10 @@ fn whatwg_scheme_type_mapper(scheme: &str) -> SchemeType {
 pub type ParseResult<T> = Result<T, &'static str>;
 
 /// This is called on non-fatal parse errors.
+///
 /// The handler can choose to continue or abort parsing by returning Ok() or Err(), respectively.
+/// See the `UrlParser::error_handler` method.
+///
 /// FIXME: make this a by-ref closure when that’s supported.
 pub type ErrorHandler = fn(reason: &'static str) -> ParseResult<()>;
 
@@ -290,19 +436,43 @@ fn silent_handler(_reason: &'static str) -> ParseResult<()> {
 
 
 impl Url {
+    /// Parse an URL with the default `UrlParser` parameters.
+    ///
+    /// In particular, relative URL references are parse errors since no base URL is provided.
     #[inline]
     pub fn parse(input: &str) -> ParseResult<Url> {
         UrlParser::new().parse(input)
     }
 
-    // FIXME: Figure out what to do on Windows
+    /// Convert a file name as `std::path::Path` into an URL in the `file` scheme.
+    ///
+    /// This returns `Err` if the given path is not absolute.
+    ///
+    /// This is Unix-only for now. FIXME: Figure out what to do on Windows.
     #[cfg(unix)]
     pub fn from_file_path(path: &Path) -> Result<Url, ()> {
         let path = try!(encode_file_path(path));
         Ok(Url::from_path_common(path))
     }
 
-    // FIXME: Figure out what to do on Windows
+    /// Convert a directory name as `std::path::Path` into an URL in the `file` scheme.
+    ///
+    /// This returns `Err` if the given path is not absolute.
+    ///
+    /// Compared to `from_file_path`, this adds an empty component to the path
+    /// (or, in terms of URL syntax, adds a trailing slash)
+    /// so that the entire path is considered when using this URL as a base URL.
+    ///
+    /// For example:
+    ///
+    /// * `"index.html"` parsed with `Url::from_directory_path(Path::new("/var/www"))`
+    ///   as the base URL is `file:///var/www/index.html`
+    /// * `"index.html"` parsed with `Url::from_file_path(Path::new("/var/www/"))`
+    ///   as the base URL is `file:///var/index.html`, which might not be what was intended.
+    ///
+    /// (Note that `Path::new` removes any trailing slash.)
+    ///
+    /// This is Unix-only for now. FIXME: Figure out what to do on Windows.
     #[cfg(unix)]
     pub fn from_directory_path(path: &Path) -> Result<Url, ()> {
         let mut path = try!(encode_file_path(path));
@@ -327,7 +497,19 @@ impl Url {
         }
     }
 
+    /// Assuming the URL is in the `file` scheme or similar,
+    /// convert its path to an absolute `std::path::Path`.
+    ///
+    /// **Note:** This does not actually check the URL’s `scheme`,
+    /// and may give nonsensical results for other schemes.
+    /// It is the user’s responsibility to check the URL’s scheme before calling this.
+    ///
+    /// Returns `Err` if the URL is *non-relative*,
+    /// or if its host is neither empty nor `"localhost"`.
+    ///
+    /// This is Unix-only for now. FIXME: Figure out what to do on Windows.
     #[inline]
+    #[cfg(unix)]
     pub fn to_file_path(&self) -> Result<Path, ()> {
         match self.scheme_data {
             RelativeSchemeData(ref scheme_data) => scheme_data.to_file_path(),
@@ -335,14 +517,17 @@ impl Url {
         }
     }
 
+    /// Return the serialization of this URL as a string.
     pub fn serialize(&self) -> String {
         self.to_string()
     }
 
+    /// Return the serialization of this URL, without the fragment identifier, as a string
     pub fn serialize_no_fragment(&self) -> String {
         UrlNoFragmentFormatter{ url: self }.to_string()
     }
 
+    /// If the URL is *non-relative*, return the string scheme data.
     #[inline]
     pub fn non_relative_scheme_data<'a>(&'a self) -> Option<&'a str> {
         match self.scheme_data {
@@ -351,6 +536,7 @@ impl Url {
         }
     }
 
+    /// If the URL is in a *relative scheme*, return the structured scheme data.
     #[inline]
     pub fn relative_scheme_data<'a>(&'a self) -> Option<&'a RelativeSchemeData> {
         match self.scheme_data {
@@ -359,6 +545,7 @@ impl Url {
         }
     }
 
+    /// If the URL is in a *relative scheme*, return its username.
     #[inline]
     pub fn username<'a>(&'a self) -> Option<&'a str> {
         self.relative_scheme_data().map(|scheme_data| scheme_data.username.as_slice())
@@ -373,6 +560,7 @@ impl Url {
         self.relative_scheme_data().map(|scheme_data| scheme_data.lossy_precent_decode_username())
     }
 
+    /// If the URL is in a *relative scheme*, return its password, if any.
     #[inline]
     pub fn password<'a>(&'a self) -> Option<&'a str> {
         self.relative_scheme_data().and_then(|scheme_data|
@@ -389,31 +577,43 @@ impl Url {
             scheme_data.lossy_precent_decode_password())
     }
 
+    /// If the URL is in a *relative scheme*, return its structured host.
     #[inline]
     pub fn host<'a>(&'a self) -> Option<&'a Host> {
         self.relative_scheme_data().map(|scheme_data| &scheme_data.host)
     }
 
+    /// If the URL is in a *relative scheme* and its host is a domain,
+    /// return the domain as a string.
     #[inline]
     pub fn domain<'a>(&'a self) -> Option<&'a str> {
         self.relative_scheme_data().and_then(|scheme_data| scheme_data.domain())
     }
 
-    #[inline]
-    pub fn port<'a>(&'a self) -> Option<&'a str> {
-        self.relative_scheme_data().map(|scheme_data| scheme_data.port.as_slice())
-    }
-
-    #[inline]
-    pub fn path<'a>(&'a self) -> Option<&'a [String]> {
-        self.relative_scheme_data().map(|scheme_data| scheme_data.path.as_slice())
-    }
-
+    /// If the URL is in a *relative scheme*, serialize its host as a string.
+    ///
+    /// A domain a returned as-is, an IPv6 address between [] square brackets.
     #[inline]
     pub fn serialize_host(&self) -> Option<String> {
         self.relative_scheme_data().map(|scheme_data| scheme_data.host.serialize())
     }
 
+    /// If the URL is in a *relative scheme*, return its port.
+    #[inline]
+    pub fn port<'a>(&'a self) -> Option<&'a str> {
+        self.relative_scheme_data().map(|scheme_data| scheme_data.port.as_slice())
+    }
+
+    /// If the URL is in a *relative scheme*, return its path components.
+    #[inline]
+    pub fn path<'a>(&'a self) -> Option<&'a [String]> {
+        self.relative_scheme_data().map(|scheme_data| scheme_data.path.as_slice())
+    }
+
+    /// If the URL is in a *relative scheme*, serialize its path as a string.
+    ///
+    /// The returned string starts with a "/" slash, and components are separated by slashes.
+    /// A trailing slash represents an empty last component.
     #[inline]
     pub fn serialize_path(&self) -> Option<String> {
         self.relative_scheme_data().map(|scheme_data| scheme_data.serialize_path())
@@ -517,7 +717,16 @@ impl RelativeSchemeData {
         self.password.as_ref().map(|value| lossy_utf8_percent_decode(value.as_bytes()))
     }
 
-    // FIXME: Figure out what to do on Windows.
+    /// Assuming the URL is in the `file` scheme or similar,
+    /// convert its path to an absolute `std::path::Path`.
+    ///
+    /// **Note:** This does not actually check the URL’s `scheme`,
+    /// and may give nonsensical results for other schemes.
+    /// It is the user’s responsibility to check the URL’s scheme before calling this.
+    ///
+    /// Returns `Err` if the host is neither empty nor `"localhost"`.
+    ///
+    /// This is Unix-only for now. FIXME: Figure out what to do on Windows.
     #[cfg(unix)]
     pub fn to_file_path(&self) -> Result<Path, ()> {
         // FIXME: Figure out what to do w.r.t host.
@@ -541,6 +750,7 @@ impl RelativeSchemeData {
         }
     }
 
+    /// If the host is a domain, return the domain as a string.
     #[inline]
     pub fn domain<'a>(&'a self) -> Option<&'a str> {
         match self.host {
@@ -549,6 +759,10 @@ impl RelativeSchemeData {
         }
     }
 
+    /// Serialize the path as a string.
+    ///
+    /// The returned string starts with a "/" slash, and components are separated by slashes.
+    /// A trailing slash represents an empty last component.
     pub fn serialize_path(&self) -> String {
         PathFormatter { path: &self.path }.to_string()
     }
@@ -605,6 +819,7 @@ struct UrlUtilsWrapper<'a> {
 
 /// These methods are not meant for use in Rust code,
 /// only to help implement the JavaScript URLUtils API: http://url.spec.whatwg.org/#urlutils
+#[doc(hidden)]
 trait UrlUtils {
     fn set_scheme(&mut self, input: &str) -> ParseResult<()>;
     fn set_username(&mut self, input: &str) -> ParseResult<()>;
@@ -746,6 +961,12 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
 
 
 impl Host {
+    /// Parse a host: either an IPv6 address in [] square brackets, or a domain.
+    ///
+    /// Returns `Err` for an empty host, an invalid IPv6 address,
+    /// or a or invalid non-ASCII domain.
+    ///
+    /// FIXME: Add IDNA support for non-ASCII domains.
     pub fn parse(input: &str) -> ParseResult<Host> {
         if input.len() == 0 {
             Err("Empty host")
@@ -771,6 +992,9 @@ impl Host {
         }
     }
 
+    /// Serialize the host as a string.
+    ///
+    /// A domain a returned as-is, an IPv6 address between [] square brackets.
     pub fn serialize(&self) -> String {
         self.to_string()
     }
@@ -792,6 +1016,7 @@ impl Show for Host {
 
 
 impl Ipv6Address {
+    /// Parse an IPv6 address, without the [] square brackets.
     pub fn parse(input: &str) -> ParseResult<Ipv6Address> {
         let input = input.as_bytes();
         let len = input.len();
@@ -909,6 +1134,7 @@ impl Ipv6Address {
         Ok(Ipv6Address { pieces: pieces })
     }
 
+    /// Serialize the IPv6 address to a string.
     pub fn serialize(&self) -> String {
         self.to_string()
     }
@@ -983,19 +1209,54 @@ fn from_hex(byte: u8) -> Option<u8> {
 }
 
 
+/// Represents a set of characters / bytes that should be percent-encoded.
+///
+/// See [encode sets specification](http://url.spec.whatwg.org/#simple-encode-set).
+///
+/// Different characters need to be encoded in different parts of an URL.
+/// For example, a literal `?` question mark in an URL’s path would indicate
+/// the start of the query string.
+/// A question mark meant to be part of the path therefore needs to be percent-encoded.
+/// In the query string however, a question mark does not have any special meaning
+/// and does not need to be percent-encoded.
+///
+/// Since the implementation details of `EncodeSet` are private,
+/// the set of available encode sets is not extensible beyond the ones
+/// provided here.
+/// If you need a different encode set,
+/// please [file a bug](https://github.com/servo/rust-url/issues)
+/// explaining the use case.
 pub struct EncodeSet {
     map: &'static [&'static str, ..256],
 }
 
+/// This encode set is used for fragment identifier and non-relative scheme data.
 pub static SIMPLE_ENCODE_SET: EncodeSet = EncodeSet { map: &encode_sets::SIMPLE };
+
+/// This encode set is used in the URL parser for query strings.
 pub static QUERY_ENCODE_SET: EncodeSet = EncodeSet { map: &encode_sets::QUERY };
+
+/// This encode set is used for path components.
 pub static DEFAULT_ENCODE_SET: EncodeSet = EncodeSet { map: &encode_sets::DEFAULT };
+
+/// This encode set is used in the URL parser for usernames and passwords.
 pub static USERINFO_ENCODE_SET: EncodeSet = EncodeSet { map: &encode_sets::USERINFO };
+
+/// This encode set should be used when setting the password field of a parsed URL.
 pub static PASSWORD_ENCODE_SET: EncodeSet = EncodeSet { map: &encode_sets::PASSWORD };
+
+/// This encode set should be used when setting the username field of a parsed URL.
 pub static USERNAME_ENCODE_SET: EncodeSet = EncodeSet { map: &encode_sets::USERNAME };
-pub static FORM_URLENCODED_ENCODE_SET: EncodeSet = EncodeSet { map: &encode_sets::FORM_URLENCODED };
+
+/// This encode set is used in `application/x-www-form-urlencoded` serialization.
+pub static FORM_URLENCODED_ENCODE_SET: EncodeSet = EncodeSet {
+    map: &encode_sets::FORM_URLENCODED,
+};
 
 
+/// Percent-encode the given bytes, and push the result to `output`.
+///
+/// The pushed strings are within the ASCII range.
 #[inline]
 pub fn percent_encode_to(input: &[u8], encode_set: EncodeSet, output: &mut String) {
     for &byte in input.iter() {
@@ -1006,7 +1267,7 @@ pub fn percent_encode_to(input: &[u8], encode_set: EncodeSet, output: &mut Strin
 
 /// Percent-encode the given bytes.
 ///
-/// The returned string. is within the ASCII range.
+/// The returned string is within the ASCII range.
 #[inline]
 pub fn percent_encode(input: &[u8], encode_set: EncodeSet) -> String {
     let mut output = String::new();
@@ -1015,12 +1276,18 @@ pub fn percent_encode(input: &[u8], encode_set: EncodeSet) -> String {
 }
 
 
+/// Percent-encode the UTF-8 encoding of the given string, and push the result to `output`.
+///
+/// The pushed strings are within the ASCII range.
 #[inline]
 pub fn utf8_percent_encode_to(input: &str, encode_set: EncodeSet, output: &mut String) {
     percent_encode_to(input.as_bytes(), encode_set, output)
 }
 
 
+/// Percent-encode the UTF-8 encoding of the given string.
+///
+/// The returned string is within the ASCII range.
 #[inline]
 pub fn utf8_percent_encode(input: &str, encode_set: EncodeSet) -> String {
     let mut output = String::new();
@@ -1029,6 +1296,7 @@ pub fn utf8_percent_encode(input: &str, encode_set: EncodeSet) -> String {
 }
 
 
+/// Percent-decode the given bytes, and push the result to `output`.
 pub fn percent_decode_to(input: &[u8], output: &mut Vec<u8>) {
     let mut i = 0u;
     while i < input.len() {
@@ -1050,6 +1318,7 @@ pub fn percent_decode_to(input: &[u8], output: &mut Vec<u8>) {
 }
 
 
+/// Percent-decode the given bytes.
 #[inline]
 pub fn percent_decode(input: &[u8]) -> Vec<u8> {
     let mut output = Vec::new();
@@ -1058,6 +1327,10 @@ pub fn percent_decode(input: &[u8]) -> Vec<u8> {
 }
 
 
+/// Percent-decode the given bytes, and decode the result as UTF-8.
+///
+/// This is “lossy”: invalid UTF-8 percent-encoded byte sequences
+/// will be replaced � U+FFFD, the replacement character.
 #[inline]
 pub fn lossy_utf8_percent_decode(input: &[u8]) -> String {
     String::from_utf8_lossy(percent_decode(input).as_slice()).into_string()

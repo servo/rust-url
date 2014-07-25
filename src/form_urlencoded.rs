@@ -90,10 +90,10 @@ pub fn parse_bytes(input: &[u8], encoding_override: Option<EncodingRef>,
 }
 
 
-/// Convert a slice of (name, value) pairs
+/// Convert a slice of owned (name, value) pairs
 /// into a string in the `application/x-www-form-urlencoded` format.
 #[inline]
-pub fn serialize_slice(pairs: &[(String, String)]) -> String {
+pub fn serialize_owned(pairs: &[(String, String)]) -> String {
     serialize(pairs.iter().map(|&(ref n, ref v)| (n.as_slice(), v.as_slice())), None)
 }
 
