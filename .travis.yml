@@ -16,6 +16,7 @@ script:
 after_success: |
   [ $TRAVIS_BRANCH = master ] &&
   [ $TRAVIS_PULL_REQUEST = false ] &&
+  find doc -type f | xargs sed -i 's|url_/|url/|g' &&
   mv doc/url_ doc/url &&
   echo '<meta http-equiv=refresh content=0;url=url/index.html>' > doc/index.html &&
   sudo pip install ghp-import &&
