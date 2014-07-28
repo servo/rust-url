@@ -928,11 +928,6 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
 
     /// `URLUtils.search` setter
     fn set_query(&mut self, input: &str) -> ParseResult<()> {
-        // FIXME: This is in the spec, but seems superfluous.
-        match self.url.scheme_data {
-            RelativeSchemeData(_) => (),
-            NonRelativeSchemeData(_) => return Err("Can not set query on non-relative URL.")
-        }
         self.url.query = if input.is_empty() {
             None
         } else {
