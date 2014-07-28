@@ -1157,7 +1157,7 @@ impl Show for Ipv6Address {
                     break;
                 }
             }
-            try!(write!(formatter, "{:X}", self.pieces[i as uint]));
+            try!(write!(formatter, "{:x}", self.pieces[i as uint]));
             if i < 7 {
                 try!(formatter.write(b":"));
             }
