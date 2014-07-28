@@ -19,7 +19,6 @@ To do
 
 Not necessarily in the given order:
 
-* Write documentation
 * Deprecate and later remove rustc’s old liburl
 * Add `data:` URL parsing.
 * Add [IDNA support](http://url.spec.whatwg.org/#idna).
