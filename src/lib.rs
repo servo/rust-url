@@ -6,9 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-#![crate_name = "url_"]
-#![crate_type = "dylib"]
-#![crate_type = "rlib"]
+#![crate_name = "url"]
 
 //! <a href="https://github.com/servo/rust-url"><img style="position: absolute; top: 0; left: 0; border: 0;" src="../github.png" alt="Fork me on GitHub"></a>
 //! <style>.sidebar { display: none }</style>
@@ -29,18 +27,12 @@
 //!
 //! rust-url is a replacement of the [`url` crate](http://doc.rust-lang.org/url/index.html)
 //! currently distributed with Rust.
-//! rust-url’s crate is currently named `url_` with an underscore to avoid a naming conflict,
-//! but the intent is to rename it to just `url` when the old crate eventually
-//! [goes away](https://github.com/rust-lang/rust/issues/15874).
-//! Therefore, it is recommended that you use this crate as follows:
+//! rust-url’s crate is also named `url`.
+//! Cargo will automatically resolve the name conflict,
+//! but that means that you can not also use the old `url` in the same crate.
 //!
-//! ```ignore
-//! extern crate url = "url_";
-//!
-//! use url::{Url, ...};
-//! ```
-//!
-//! That way, when the renaming is done, you will only need to change the `extern crate` line.
+//! If you’re not using Cargo, you’ll need to pass `--extern url=/path/to/liburl.rlib`
+//! explicitly to rustc.
 //!
 //!
 //! # URL parsing and data structures
@@ -48,14 +40,16 @@
 //! First, URL parsing may fail for various reasons and therefore returns a `Result`.
 //!
 //! ```
-//! # use url_::Url;
+//! use url::Url;
+//!
 //! assert!(Url::parse("http://[:::1]") == Err("Invalid IPv6 address"))
 //! ```
 //!
 //! Let’s parse a valid URL and look at its components.
 //!
 //! ```
-//! # use url_::{Url, RelativeSchemeData, NonRelativeSchemeData};
+//! use url::{Url, RelativeSchemeData, NonRelativeSchemeData};
+//!
 //! let issue_list_url = Url::parse(
 //!     "https://github.com/rust-lang/rust/issues?labels=E-easy&state=open"
 //! ).unwrap();
@@ -81,7 +75,8 @@
 //! “in a relative scheme”. `https` is a relative scheme, but `data` is not:
 //!
 //! ```
-//! # use url_::{Url, NonRelativeSchemeData};
+//! use url::{Url, NonRelativeSchemeData};
+//!
 //! let data_url = Url::parse("data:text/plain,Hello#").unwrap();
 //!
 //! assert!(data_url.scheme == "data".to_string());
@@ -103,7 +98,8 @@
 //! Since parsed URL are absolute, giving a base is required:
 //!
 //! ```
-//! # use url_::Url;
+//! use url::Url;
+//!
 //! assert!(Url::parse("../main.css") == Err("Relative URL without a base"))
 //! ```
 //!
@@ -111,7 +107,8 @@
 //! to URL parsing, including a base URL.
 //!
 //! ```
-//! # use url_::{Url, UrlParser};
+//! use url::{Url, UrlParser};
+//!
 //! let this_document = Url::parse("http://servo.github.io/rust-url/url/index.html").unwrap();
 //! let css_url = UrlParser::new().base_url(&this_document).parse("../main.css").unwrap();
 //! assert!(css_url.serialize() == "http://servo.github.io/rust-url/main.css".to_string());
