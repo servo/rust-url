@@ -1085,6 +1085,7 @@ impl Ipv6Address {
             }
             let mut dots_seen = 0u;
             while i < len {
+                // FIXME: https://github.com/whatwg/url/commit/1c22aa119c354e0020117e02571cec53f7c01064
                 let mut value = 0u16;
                 while i < len {
                     let digit = match input[i] {
