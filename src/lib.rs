@@ -329,15 +329,17 @@ impl<'a> UrlParser<'a> {
     /// The default scheme type mapper is as follows:
     ///
     /// ```ignore
-    /// match scheme {
-    ///     "file" => FileLikeRelativeScheme,
-    ///     "ftp" => RelativeScheme("21"),
-    ///     "gopher" => RelativeScheme("70"),
-    ///     "http" => RelativeScheme("80"),
-    ///     "https" => RelativeScheme("443"),
-    ///     "ws" => RelativeScheme("80"),
-    ///     "wss" => RelativeScheme("443"),
-    ///     _ => NonRelativeScheme,
+    /// fn whatwg_scheme_type_mapper(scheme: &str) -> SchemeType {
+    ///     match scheme {
+    ///         "file" => FileLikeRelativeScheme,
+    ///         "ftp" => RelativeScheme("21"),
+    ///         "gopher" => RelativeScheme("70"),
+    ///         "http" => RelativeScheme("80"),
+    ///         "https" => RelativeScheme("443"),
+    ///         "ws" => RelativeScheme("80"),
+    ///         "wss" => RelativeScheme("443"),
+    ///         _ => NonRelativeScheme,
+    ///     }
     /// }
     /// ```
     ///
@@ -403,7 +405,7 @@ pub enum SchemeType {
 }
 
 /// http://url.spec.whatwg.org/#relative-scheme
-fn whatwg_scheme_type_mapper(scheme: &str) -> SchemeType {
+pub fn whatwg_scheme_type_mapper(scheme: &str) -> SchemeType {
     match scheme {
         "file" => FileLikeRelativeScheme,
         "ftp" => RelativeScheme("21"),
