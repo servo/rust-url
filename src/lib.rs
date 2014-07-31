@@ -40,9 +40,9 @@
 //! First, URL parsing may fail for various reasons and therefore returns a `Result`.
 //!
 //! ```
-//! use url::Url;
+//! use url::{Url, InvalidIpv6Address};
 //!
-//! assert!(Url::parse("http://[:::1]") == Err("Invalid IPv6 address"))
+//! assert!(Url::parse("http://[:::1]") == Err(InvalidIpv6Address))
 //! ```
 //!
 //! Let’s parse a valid URL and look at its components.
@@ -98,9 +98,9 @@
 //! Since parsed URL are absolute, giving a base is required:
 //!
 //! ```
-//! use url::Url;
+//! use url::{Url, RelativeUrlWithoutBase};
 //!
-//! assert!(Url::parse("../main.css") == Err("Relative URL without a base"))
+//! assert!(Url::parse("../main.css") == Err(RelativeUrlWithoutBase))
 //! ```
 //!
 //! `UrlParser` is a method-chaining API to provide various optional parameters
@@ -364,8 +364,8 @@ impl<'a> UrlParser<'a> {
 /// Private convenience methods for use in parser.rs
 impl<'a> UrlParser<'a> {
     #[inline]
-    fn parse_error(&self, message: &'static str) -> ParseResult<()> {
-        (self.error_handler)(message)
+    fn parse_error(&self, error: ParseError) -> ParseResult<()> {
+        (self.error_handler)(error)
     }
 
     #[inline]
@@ -419,7 +419,58 @@ pub fn whatwg_scheme_type_mapper(scheme: &str) -> SchemeType {
 }
 
 
-pub type ParseResult<T> = Result<T, &'static str>;
+pub type ParseResult<T> = Result<T, ParseError>;
+
+/// Errors that can occur during parsing.
+#[deriving(PartialEq, Eq, Clone)]
+pub enum ParseError {
+    EmptyHost,
+    InvalidScheme,
+    InvalidPort,
+    InvalidIpv6Address,
+    InvalidDomainCharacter,
+    InvalidCharacter,
+    InvalidBackslash,
+    InvalidPercentEncoded,
+    InvalidAtSymbolInUser,
+    ExpectedTwoSlashes,
+    NonUrlCodePoint,
+    RelativeUrlWithScheme,
+    RelativeUrlWithoutBase,
+    RelativeUrlWithNonRelativeBase,
+    NonAsciiDomainsNotSupportedYet,
+    CannotSetFileScheme(&'static str),
+    CannotSetJavascriptScheme(&'static str),
+    CannotSetNonRelativeScheme(&'static str)
+}
+
+impl Show for ParseError {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), FormatError> {
+        match *self {
+            EmptyHost => "Empty host",
+            InvalidScheme => "Invalid scheme",
+            InvalidPort => "Invalid port number",
+            InvalidIpv6Address => "Invalid IPv6 address",
+            InvalidDomainCharacter => "Invalid domain character",
+            InvalidCharacter => "Invalid character",
+            InvalidBackslash => "Invalid backslash",
+            InvalidPercentEncoded => "Invalid percent-encoded sequence",
+            InvalidAtSymbolInUser => "Invalid @-symbol in user",
+            ExpectedTwoSlashes => "Expected two slashes (//)",
+            NonUrlCodePoint => "Non URL code point",
+            RelativeUrlWithScheme => "Relative URL with scheme",
+            RelativeUrlWithoutBase => "Relative URL without a base",
+            RelativeUrlWithNonRelativeBase => "Relative URL with a non-relative base",
+            NonAsciiDomainsNotSupportedYet => "Non Ascii domains are not support yet",
+            CannotSetFileScheme(ref part) =>
+                return write!(fmt, "Cannot set {} on file: URLs", part),
+            CannotSetJavascriptScheme(ref part) =>
+                return write!(fmt, "Cannot set {} on javascript: URLs", part),
+            CannotSetNonRelativeScheme(ref part) =>
+                return write!(fmt, "Cannot set {} on non-relative URLs", part),
+        }.fmt(fmt)
+    }
+}
 
 /// This is called on non-fatal parse errors.
 ///
@@ -427,9 +478,9 @@ pub type ParseResult<T> = Result<T, &'static str>;
 /// See the `UrlParser::error_handler` method.
 ///
 /// FIXME: make this a by-ref closure when that’s supported.
-pub type ErrorHandler = fn(reason: &'static str) -> ParseResult<()>;
+pub type ErrorHandler = fn(reason: ParseError) -> ParseResult<()>;
 
-fn silent_handler(_reason: &'static str) -> ParseResult<()> {
+fn silent_handler(_reason: ParseError) -> ParseResult<()> {
     Ok(())
 }
 
@@ -839,7 +890,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
                 self.url.scheme = scheme;
                 Ok(())
             },
-            None => Err("Invalid scheme"),
+            None => Err(InvalidScheme),
         }
     }
 
@@ -851,7 +902,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
                 utf8_percent_encode_to(input, USERNAME_ENCODE_SET, username);
                 Ok(())
             },
-            NonRelativeSchemeData(_) => Err("Can not set username on non-relative URL.")
+            NonRelativeSchemeData(_) => Err(CannotSetNonRelativeScheme("username"))
         }
     }
 
@@ -864,7 +915,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
                 *password = Some(new_password);
                 Ok(())
             },
-            NonRelativeSchemeData(_) => Err("Can not set password on non-relative URL.")
+            NonRelativeSchemeData(_) => Err(CannotSetNonRelativeScheme("password"))
         }
     }
 
@@ -879,7 +930,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
                 *port = new_port;
                 Ok(())
             },
-            NonRelativeSchemeData(_) => Err("Can not set host/port on non-relative URL.")
+            NonRelativeSchemeData(_) => Err(CannotSetNonRelativeScheme("host/port"))
         }
     }
 
@@ -891,7 +942,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
                 *host = new_host;
                 Ok(())
             },
-            NonRelativeSchemeData(_) => Err("Can not set host on non-relative URL.")
+            NonRelativeSchemeData(_) => Err(CannotSetNonRelativeScheme("host"))
         }
     }
 
@@ -901,13 +952,13 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
             RelativeSchemeData(RelativeSchemeData { ref mut port, .. }) => {
                 let scheme_type = self.parser.get_scheme_type(self.url.scheme.as_slice());
                 if scheme_type == FileLikeRelativeScheme {
-                    return Err("Can not set port on file: URL.")
+                    return Err(CannotSetFileScheme("port"));
                 }
                 let (new_port, _) = try!(parser::parse_port(input, scheme_type, self.parser));
                 *port = new_port;
                 Ok(())
             },
-            NonRelativeSchemeData(_) => Err("Can not set port on non-relative URL.")
+            NonRelativeSchemeData(_) => Err(CannotSetNonRelativeScheme("port"))
         }
     }
 
@@ -921,7 +972,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
                 *path = new_path;
                 Ok(())
             },
-            NonRelativeSchemeData(_) => Err("Can not set path on non-relative URL.")
+            NonRelativeSchemeData(_) => Err(CannotSetNonRelativeScheme("path"))
         }
     }
 
@@ -941,7 +992,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
     /// `URLUtils.hash` setter
     fn set_fragment(&mut self, input: &str) -> ParseResult<()> {
         if self.url.scheme.as_slice() == "javascript" {
-            return Err("Can not set fragment on a javascript: URL.")
+            return Err(CannotSetJavascriptScheme("fragment"))
         }
         self.url.fragment = if input.is_empty() {
             None
@@ -963,23 +1014,23 @@ impl Host {
     /// FIXME: Add IDNA support for non-ASCII domains.
     pub fn parse(input: &str) -> ParseResult<Host> {
         if input.len() == 0 {
-            Err("Empty host")
+            Err(EmptyHost)
         } else if input.starts_with("[") {
             if input.ends_with("]") {
                 Ipv6Address::parse(input.slice(1, input.len() - 1)).map(Ipv6)
             } else {
-                Err("Invalid Ipv6 address")
+                Err(InvalidIpv6Address)
             }
         } else {
             let decoded = percent_decode(input.as_bytes());
             let domain = String::from_utf8_lossy(decoded.as_slice());
             // TODO: Remove this check and use IDNA "domain to ASCII"
             if !domain.as_slice().is_ascii() {
-                Err("Non-ASCII domains (IDNA) are not supported yet.")
+                Err(NonAsciiDomainsNotSupportedYet)
             } else if domain.as_slice().find(&[
                 '\0', '\t', '\n', '\r', ' ', '#', '%', '/', ':', '?', '@', '[', '\\', ']'
             ]).is_some() {
-                Err("Invalid domain character.")
+                Err(InvalidDomainCharacter)
             } else {
                 Ok(Domain(domain.into_string().into_ascii_lower()))
             }
@@ -1021,7 +1072,7 @@ impl Ipv6Address {
         let mut i = 0u;
         if input[0] == b':' {
             if input[1] != b':' {
-                return Err("Invalid IPv6 address")
+                return Err(InvalidIpv6Address)
             }
             i = 2;
             piece_pointer = 1;
@@ -1030,11 +1081,11 @@ impl Ipv6Address {
 
         while i < len {
             if piece_pointer == 8 {
-                return Err("Invalid IPv6 address")
+                return Err(InvalidIpv6Address)
             }
             if input[i] == b':' {
                 if compress_pointer.is_some() {
-                    return Err("Invalid IPv6 address")
+                    return Err(InvalidIpv6Address)
                 }
                 i += 1;
                 piece_pointer += 1;
@@ -1057,7 +1108,7 @@ impl Ipv6Address {
                 match input[i] {
                     b'.' => {
                         if i == start {
-                            return Err("Invalid IPv6 address")
+                            return Err(InvalidIpv6Address)
                         }
                         i = start;
                         is_ip_v4 = true;
@@ -1065,10 +1116,10 @@ impl Ipv6Address {
                     b':' => {
                         i += 1;
                         if i == len {
-                            return Err("Invalid IPv6 address")
+                            return Err(InvalidIpv6Address)
                         }
                     },
-                    _ => return Err("Invalid IPv6 address")
+                    _ => return Err(InvalidIpv6Address)
                 }
             }
             if is_ip_v4 {
@@ -1080,7 +1131,7 @@ impl Ipv6Address {
 
         if is_ip_v4 {
             if piece_pointer > 6 {
-                return Err("Invalid IPv6 address")
+                return Err(InvalidIpv6Address)
             }
             let mut dots_seen = 0u;
             while i < len {
@@ -1093,11 +1144,11 @@ impl Ipv6Address {
                     };
                     value = value * 10 + digit as u16;
                     if value == 0 || value > 255 {
-                        return Err("Invalid IPv6 address")
+                        return Err(InvalidIpv6Address)
                     }
                 }
                 if dots_seen < 3 && !(i < len && input[i] == b'.') {
-                    return Err("Invalid IPv6 address")
+                    return Err(InvalidIpv6Address)
                 }
                 pieces[piece_pointer] = pieces[piece_pointer] * 0x100 + value;
                 if dots_seen == 0 || dots_seen == 2 {
@@ -1105,7 +1156,7 @@ impl Ipv6Address {
                 }
                 i += 1;
                 if dots_seen == 3 && i < len {
-                    return Err("Invalid IPv6 address")
+                    return Err(InvalidIpv6Address)
                 }
                 dots_seen += 1;
             }
@@ -1123,7 +1174,7 @@ impl Ipv6Address {
                 }
             }
             _ => if piece_pointer != 8 {
-                return Err("Invalid IPv6 address")
+                return Err(InvalidIpv6Address)
             }
         }
         Ok(Ipv6Address { pieces: pieces })
