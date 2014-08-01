@@ -15,6 +15,9 @@ use encoding;
 use super::{
     ParseResult, UrlParser, Url, RelativeSchemeData, NonRelativeSchemeData, Host, Domain,
     SchemeType, FileLikeRelativeScheme, RelativeScheme, NonRelativeScheme,
+    InvalidPort, InvalidCharacter, InvalidBackslash, RelativeUrlWithScheme,
+    ExpectedTwoSlashes, InvalidAtSymbolInUser, InvalidPercentEncoded, NonUrlCodePoint,
+    RelativeUrlWithNonRelativeBase, RelativeUrlWithoutBase,
     utf8_percent_encode_to, percent_encode,
     SIMPLE_ENCODE_SET, DEFAULT_ENCODE_SET, USERINFO_ENCODE_SET, QUERY_ENCODE_SET};
 
@@ -44,8 +47,8 @@ pub fn parse_url(input: &str, parser: &UrlParser) -> ParseResult<Url> {
                 let scheme_type = parser.get_scheme_type(scheme.as_slice());
                 parse_relative_url(input, scheme.clone(), scheme_type, base, query, parser)
             },
-            Some(_) => Err("Relative URL with a non-relative base"),
-            None => Err("Relative URL without a base"),
+            Some(_) => Err(RelativeUrlWithNonRelativeBase),
+            None => Err(RelativeUrlWithoutBase),
         },
     };
     let scheme_type = parser.get_scheme_type(scheme.as_slice());
@@ -70,7 +73,7 @@ pub fn parse_url(input: &str, parser: &UrlParser) -> ParseResult<Url> {
                 Some(&Url { scheme: ref base_scheme, scheme_data: RelativeSchemeData(ref base),
                             ref query, .. })
                 if scheme == *base_scheme && !remaining.starts_with("//") => {
-                    try!(parser.parse_error("Relative URL with a scheme"));
+                    try!(parser.parse_error(RelativeUrlWithScheme));
                     parse_relative_url(remaining, scheme, scheme_type, base, query, parser)
                 },
                 _ => parse_absolute_url(scheme, scheme_type, remaining, parser),
@@ -138,7 +141,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeTyp
         '/' | '\\' => {
             // Relative slash state
             if input.len() > 1 && is_match!(input.char_at(1), '/' | '\\') {
-                if input.char_at(1) == '\\' { try!(parser.parse_error("backslash")) }
+                if input.char_at(1) == '\\' { try!(parser.parse_error(InvalidBackslash)) }
                 if scheme_type == FileLikeRelativeScheme {
                     // File host state
                     let remaining = input.slice_from(2);
@@ -241,7 +244,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeTyp
 fn skip_slashes<'a>(input: &'a str, parser: &UrlParser) -> ParseResult<&'a str> {
     let first_non_slash = input.find(|c| !is_match!(c, '/' | '\\')).unwrap_or(input.len());
     if input.slice_to(first_non_slash) != "//" {
-        try!(parser.parse_error("Expected two slashes"));
+        try!(parser.parse_error(ExpectedTwoSlashes));
     }
     Ok(input.slice_from(first_non_slash))
 }
@@ -253,7 +256,7 @@ fn parse_userinfo<'a>(input: &'a str, parser: &UrlParser)
     for (i, c) in input.char_indices() {
         match c {
             '@' => {
-                if last_at.is_some() { try!(parser.parse_error("@ in userinfo")) }
+                if last_at.is_some() { try!(parser.parse_error(InvalidAtSymbolInUser)) }
                 last_at = Some(i)
             },
             '/' | '\\' | '?' | '#' => break,
@@ -273,7 +276,7 @@ fn parse_userinfo<'a>(input: &'a str, parser: &UrlParser)
                 password = Some(try!(parse_password(input.slice_from(i + 1), parser)));
                 break
             },
-            '\t' | '\n' | '\r' => try!(parser.parse_error("Invalid character")),
+            '\t' | '\n' | '\r' => try!(parser.parse_error(InvalidCharacter)),
             _ => {
                 try!(check_url_code_point(input, i, c, parser));
                 // The spec says to use the default encode set,
@@ -291,7 +294,7 @@ fn parse_password(input: &str, parser: &UrlParser) -> ParseResult<String> {
     let mut password = String::new();
     for (i, c, next_i) in input.char_ranges() {
         match c {
-            '\t' | '\n' | '\r' => try!(parser.parse_error("Invalid character")),
+            '\t' | '\n' | '\r' => try!(parser.parse_error(InvalidCharacter)),
             _ => {
                 try!(check_url_code_point(input, i, c, parser));
                 // The spec says to use the default encode set,
@@ -332,7 +335,7 @@ pub fn parse_hostname<'a>(input: &'a str, parser: &UrlParser)
                 end = i;
                 break
             },
-            '\t' | '\n' | '\r' => try!(parser.parse_error("Invalid character")),
+            '\t' | '\n' | '\r' => try!(parser.parse_error(InvalidCharacter)),
             c => {
                 match c {
                     '[' => inside_square_brackets = true,
@@ -367,8 +370,8 @@ pub fn parse_port<'a>(input: &'a str, scheme_type: SchemeType, parser: &UrlParse
                 end = i;
                 break
             },
-            '\t' | '\n' | '\r' => try!(parser.parse_error("Invalid character")),
-            _ => return Err("Invalid port number")
+            '\t' | '\n' | '\r' => try!(parser.parse_error(InvalidCharacter)),
+            _ => return Err(InvalidPort)
         }
     }
     if port.is_empty() && has_initial_zero {
@@ -395,7 +398,7 @@ fn parse_file_host<'a>(input: &'a str, parser: &UrlParser) -> ParseResult<(Host,
                 end = i;
                 break
             },
-            '\t' | '\n' | '\r' => try!(parser.parse_error("Invalid character")),
+            '\t' | '\n' | '\r' => try!(parser.parse_error(InvalidCharacter)),
             _ => host_input.push_char(c)
         }
     }
@@ -417,7 +420,7 @@ pub fn parse_path_start<'a>(input: &'a str, context: Context, scheme_type: Schem
         match input.char_at(0) {
             '/' => i = 1,
             '\\' => {
-                try!(parser.parse_error("Backslash"));
+                try!(parser.parse_error(InvalidBackslash));
                 i = 1;
             },
             _ => ()
@@ -446,7 +449,7 @@ fn parse_path<'a>(base_path: &[String], input: &'a str, context: Context,
                     break
                 },
                 '\\' => {
-                    try!(parser.parse_error("Backslash"));
+                    try!(parser.parse_error(InvalidBackslash));
                     ends_with_slash = true;
                     end = i;
                     break
@@ -455,7 +458,7 @@ fn parse_path<'a>(base_path: &[String], input: &'a str, context: Context,
                     end = i;
                     break
                 },
-                '\t' | '\n' | '\r' => try!(parser.parse_error("Invalid character")),
+                '\t' | '\n' | '\r' => try!(parser.parse_error(InvalidCharacter)),
                 _ => {
                     try!(check_url_code_point(input, i, c, parser));
                     utf8_percent_encode_to(input.slice(i, next_i),
@@ -508,7 +511,7 @@ fn parse_scheme_data<'a>(input: &'a str, parser: &UrlParser)
                 end = i;
                 break
             },
-            '\t' | '\n' | '\r' => try!(parser.parse_error("Invalid character")),
+            '\t' | '\n' | '\r' => try!(parser.parse_error(InvalidCharacter)),
             _ => {
                 try!(check_url_code_point(input, i, c, parser));
                 utf8_percent_encode_to(input.slice(i, next_i),
@@ -552,7 +555,7 @@ pub fn parse_query<'a>(input: &'a str, context: Context, parser: &UrlParser)
                 remaining = Some(input.slice_from(i + 1));
                 break
             },
-            '\t' | '\n' | '\r' => try!(parser.parse_error("Invalid character")),
+            '\t' | '\n' | '\r' => try!(parser.parse_error(InvalidCharacter)),
             _ => {
                 try!(check_url_code_point(input, i, c, parser));
                 query.push_char(c);
@@ -576,7 +579,7 @@ pub fn parse_fragment<'a>(input: &'a str, parser: &UrlParser) -> ParseResult<Str
     let mut fragment = String::new();
     for (i, c, next_i) in input.char_ranges() {
         match c {
-            '\t' | '\n' | '\r' => try!(parser.parse_error("Invalid character")),
+            '\t' | '\n' | '\r' => try!(parser.parse_error(InvalidCharacter)),
             _ => {
                 try!(check_url_code_point(input, i, c, parser));
                 utf8_percent_encode_to(input.slice(i, next_i),
@@ -677,10 +680,10 @@ fn check_url_code_point(input: &str, i: uint, c: char, parser: &UrlParser)
                         -> ParseResult<()> {
     if c == '%' {
         if !starts_with_2_hex(input.slice_from(i + 1)) {
-            try!(parser.parse_error("Invalid percent-encoded sequence"));
+            try!(parser.parse_error(InvalidPercentEncoded));
         }
     } else if !is_url_code_point(c) {
-        try!(parser.parse_error("Non-URL code point"));
+        try!(parser.parse_error(NonUrlCodePoint));
     }
     Ok(())
 }
