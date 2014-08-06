@@ -197,6 +197,14 @@ fn unescape(input: &str) -> String {
 }
 
 
+fn set_path(url: &mut Url, path: Vec<String>) {
+    match url.scheme_data {
+        RelativeSchemeData(ref mut scheme_data) => scheme_data.path = path,
+        _ => fail!()
+    }
+}
+
+
 #[test]
 fn file_paths() {
     assert_eq!(Url::from_file_path(&path::posix::Path::new("relative")), Err(()));
@@ -206,9 +214,16 @@ fn file_paths() {
     assert_eq!(Url::from_file_path(&path::windows::Path::new(r"\drive-relative")), Err(()));
     assert_eq!(Url::from_file_path(&path::windows::Path::new(r"\\ucn\")), Err(()));
 
-    let url = Url::from_file_path(&path::posix::Path::new("/foo/bar")).unwrap();
+    let mut url = Url::from_file_path(&path::posix::Path::new("/foo/bar")).unwrap();
     assert_eq!(url.host(), Some(&Domain("".to_string())));
     assert_eq!(url.path(), Some(&["foo".to_string(), "bar".to_string()]));
+    assert!(url.to_file_path() == Ok(path::posix::Path::new("/foo/bar")));
+
+    set_path(&mut url, vec!["foo".to_string(), "ba\0r".to_string()]);
+    assert!(url.to_file_path() == Err(()));
+
+    set_path(&mut url, vec!["foo".to_string(), "ba%00r".to_string()]);
+    assert!(url.to_file_path() == Err(()));
 
     let url = Url::from_file_path(&path::windows::Path::new(r"C:\foo\bar")).unwrap();
     assert_eq!(url.host(), Some(&Domain("".to_string())));
