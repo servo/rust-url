@@ -129,7 +129,7 @@ extern crate serialize;
 use std::cmp;
 use std::fmt::{Formatter, FormatError, Show};
 use std::hash;
-use std::path::Path;
+use std::path;
 use std::ascii::OwnedStrAsciiExt;
 
 use encoding::EncodingRef;
@@ -500,18 +500,17 @@ impl Url {
 
     /// Convert a file name as `std::path::Path` into an URL in the `file` scheme.
     ///
-    /// This returns `Err` if the given path is not absolute.
-    ///
-    /// This is Unix-only for now. FIXME: Figure out what to do on Windows.
-    #[cfg(unix)]
-    pub fn from_file_path(path: &Path) -> Result<Url, ()> {
-        let path = try!(encode_file_path(path));
+    /// This returns `Err` if the given path is not absolute
+    /// or, with a Windows path, if the prefix is not a disk prefix (e.g. `C:`).
+    pub fn from_file_path<T: ToUrlPath>(path: &T) -> Result<Url, ()> {
+        let path = try!(path.to_url_path());
         Ok(Url::from_path_common(path))
     }
 
     /// Convert a directory name as `std::path::Path` into an URL in the `file` scheme.
     ///
-    /// This returns `Err` if the given path is not absolute.
+    /// This returns `Err` if the given path is not absolute
+    /// or, with a Windows path, if the prefix is not a disk prefix (e.g. `C:`).
     ///
     /// Compared to `from_file_path`, this adds an empty component to the path
     /// (or, in terms of URL syntax, adds a trailing slash)
@@ -525,11 +524,8 @@ impl Url {
     ///   as the base URL is `file:///var/index.html`, which might not be what was intended.
     ///
     /// (Note that `Path::new` removes any trailing slash.)
-    ///
-    /// This is Unix-only for now. FIXME: Figure out what to do on Windows.
-    #[cfg(unix)]
-    pub fn from_directory_path(path: &Path) -> Result<Url, ()> {
-        let mut path = try!(encode_file_path(path));
+    pub fn from_directory_path<T: ToUrlPath>(path: &T) -> Result<Url, ()> {
+        let mut path = try!(path.to_url_path());
         // Add an empty path component (i.e. a trailing slash in serialization)
         // so that the entire path is used as a base URL.
         path.push("".to_string());
@@ -1387,11 +1383,36 @@ pub fn lossy_utf8_percent_decode(input: &[u8]) -> String {
 }
 
 
-// FIXME: Figure out what to do on Windows
-#[cfg(unix)]
-fn encode_file_path(path: &Path) -> Result<Vec<String>, ()> {
-    if !path.is_absolute() {
-        return Err(())
-    }
-    Ok(path.components().map(|c| percent_encode(c, DEFAULT_ENCODE_SET)).collect())
+trait ToUrlPath {
+    fn to_url_path(&self) -> Result<Vec<String>, ()>;
 }
+
+impl ToUrlPath for path::posix::Path {
+    fn to_url_path(&self) -> Result<Vec<String>, ()> {
+        if !self.is_absolute() {
+            return Err(())
+        }
+        Ok(self.components().map(|c| percent_encode(c, DEFAULT_ENCODE_SET)).collect())
+    }
+}
+
+
+impl ToUrlPath for path::windows::Path {
+    fn to_url_path(&self) -> Result<Vec<String>, ()> {
+        if !self.is_absolute() {
+            return Err(())
+        }
+        if path::windows::prefix(self) != Some(path::windows::DiskPrefix) {
+            // FIXME: do something with UNC and other prefixes?
+            return Err(())
+        }
+        // Start with the prefix, e.g. "C:"
+        let mut path = vec![self.as_str().unwrap().slice_to(2).to_string()];
+        // self.components() does not include the prefix
+        for component in self.components() {
+            path.push(percent_encode(component, DEFAULT_ENCODE_SET));
+        }
+        Ok(path)
+    }
+}
+
