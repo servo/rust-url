@@ -233,6 +233,8 @@ fn file_paths() {
     let mut url = Url::from_file_path(&path::windows::Path::new(r"C:\foo\bar")).unwrap();
     assert_eq!(url.host(), Some(&Domain("".to_string())));
     assert_eq!(url.path(), Some(&["C:".to_string(), "foo".to_string(), "bar".to_string()]));
+    assert!(url.to_file_path::<path::windows::Path>()
+            == Ok(path::windows::Path::new(r"C:\foo\bar")));
 
     set_path(&mut url, vec!["C:".to_string(), "foo".to_string(), "ba\0r".to_string()]);
     assert!(url.to_file_path::<path::windows::Path>() == Err(()));
