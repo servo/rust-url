@@ -1465,6 +1465,8 @@ impl FromUrlPath for path::windows::Path {
             Some(path) => {
                 debug_assert!(path.is_absolute(),
                               "to_file_path() failed to produce an absolute Path")
+                debug_assert!(path::windows::prefix(&path) != Some(path::windows::DiskPrefix),
+                              "to_file_path() failed to produce a Path with a disk prefix")
                 Ok(path)
             }
         }
