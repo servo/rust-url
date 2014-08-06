@@ -592,7 +592,7 @@ pub fn parse_fragment<'a>(input: &'a str, parser: &UrlParser) -> ParseResult<Str
 
 
 #[inline]
-fn starts_with_ascii_alpha(string: &str) -> bool {
+pub fn starts_with_ascii_alpha(string: &str) -> bool {
     match string.char_at(0) {
         'a'..'z' | 'A'..'Z' => true,
         _ => false,

@@ -220,14 +220,29 @@ fn file_paths() {
     assert!(url.to_file_path() == Ok(path::posix::Path::new("/foo/bar")));
 
     set_path(&mut url, vec!["foo".to_string(), "ba\0r".to_string()]);
-    assert!(url.to_file_path() == Err(()));
+    assert!(url.to_file_path::<path::posix::Path>() == Err(()));
 
     set_path(&mut url, vec!["foo".to_string(), "ba%00r".to_string()]);
-    assert!(url.to_file_path() == Err(()));
+    assert!(url.to_file_path::<path::posix::Path>() == Err(()));
 
-    let url = Url::from_file_path(&path::windows::Path::new(r"C:\foo\bar")).unwrap();
+    // Invalid UTF-8
+    set_path(&mut url, vec!["foo".to_string(), "ba%80r".to_string()]);
+    assert!(url.to_file_path() == Ok(path::posix::Path::new(
+        /* note: byte string, invalid UTF-8 */ b"/foo/ba\x80r")));
+
+    let mut url = Url::from_file_path(&path::windows::Path::new(r"C:\foo\bar")).unwrap();
     assert_eq!(url.host(), Some(&Domain("".to_string())));
     assert_eq!(url.path(), Some(&["C:".to_string(), "foo".to_string(), "bar".to_string()]));
+
+    set_path(&mut url, vec!["C:".to_string(), "foo".to_string(), "ba\0r".to_string()]);
+    assert!(url.to_file_path::<path::windows::Path>() == Err(()));
+
+    set_path(&mut url, vec!["C:".to_string(), "foo".to_string(), "ba%00r".to_string()]);
+    assert!(url.to_file_path::<path::windows::Path>() == Err(()));
+
+    // Invalid UTF-8
+    set_path(&mut url, vec!["C:".to_string(), "foo".to_string(), "ba%80r".to_string()]);
+    assert!(url.to_file_path::<path::windows::Path>() == Err(()));
 }
 
 

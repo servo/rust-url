@@ -554,13 +554,21 @@ impl Url {
     /// and may give nonsensical results for other schemes.
     /// It is the user’s responsibility to check the URL’s scheme before calling this.
     ///
-    /// Returns `Err` if the URL is *non-relative*,
-    /// or if its host is neither empty nor `"localhost"`.
+    /// The return type (when `Ok()`) is generic and can be either `std::path::posix::Path`
+    /// or `std::path::windows::Path`.
+    /// (Use `std::path::Path` to pick one of them depending on the local system.)
+    /// If the compiler can not infer the desired type from context, you may have to specifiy it:
     ///
-    /// This is Unix-only for now. FIXME: Figure out what to do on Windows.
+    /// ```rust
+    /// let path = url.to_file_path::<std::path::posix::Path>();
+    /// ```
+    ///
+    /// Returns `Err` if the host is neither empty nor `"localhost"`,
+    /// or if `Path::new_opt()` returns `None`.
+    /// (That is, if the percent-decoded path contains a NUL byte or,
+    /// for a Windows path, is not UTF-8.)
     #[inline]
-    #[cfg(unix)]
-    pub fn to_file_path(&self) -> Result<Path, ()> {
+    pub fn to_file_path<T: FromUrlPath>(&self) -> Result<T, ()> {
         match self.scheme_data {
             RelativeSchemeData(ref scheme_data) => scheme_data.to_file_path(),
             NonRelativeSchemeData(..) => Err(()),
@@ -774,32 +782,24 @@ impl RelativeSchemeData {
     /// and may give nonsensical results for other schemes.
     /// It is the user’s responsibility to check the URL’s scheme before calling this.
     ///
-    /// Returns `Err` if the host is neither empty nor `"localhost"`.
+    /// The return type (when `Ok()`) is generic and can be either `std::path::posix::Path`
+    /// or `std::path::windows::Path`.
+    /// (Use `std::path::Path` to pick one of them depending on the local system.)
+    /// If the compiler can not infer the desired type from context, you may have to specifiy it:
     ///
-    /// This is Unix-only for now. FIXME: Figure out what to do on Windows.
-    #[cfg(unix)]
-    pub fn to_file_path(&self) -> Result<Path, ()> {
+    /// ```rust
+    /// let path = url.to_file_path::<std::path::posix::Path>();
+    /// ```
+    ///
+    /// Returns `Err` if the host is neither empty nor `"localhost"`,
+    /// or if `Path::new_opt()` returns `None`.
+    /// (That is, if the percent-decoded path contains a NUL byte or,
+    /// for a Windows path, is not UTF-8.)
+    #[inline]
+    pub fn to_file_path<T: FromUrlPath>(&self) -> Result<T, ()> {
         // FIXME: Figure out what to do w.r.t host.
         match self.domain() {
-            Some("") | Some("localhost") => {
-                if self.path.is_empty() {
-                    Ok(Path::new("/"))
-                } else {
-                    let mut bytes = Vec::new();
-                    for path_part in self.path.iter() {
-                        bytes.push(b'/');
-                        percent_decode_to(path_part.as_bytes(), &mut bytes);
-                    }
-                    match Path::new_opt(bytes) {
-                        None => Err(()),  // Path contains a NUL byte
-                        Some(path) => {
-                            debug_assert!(path.is_absolute(),
-                                          "to_file_path() failed to produce an absolute Path")
-                            Ok(path)
-                        }
-                    }
-                }
-            }
+            Some("") | Some("localhost") => FromUrlPath::from_url_path(self.path.as_slice()),
             _ => Err(())
         }
     }
@@ -1400,7 +1400,6 @@ impl ToUrlPath for path::posix::Path {
     }
 }
 
-
 impl ToUrlPath for path::windows::Path {
     fn to_url_path(&self) -> Result<Vec<String>, ()> {
         if !self.is_absolute() {
@@ -1420,3 +1419,54 @@ impl ToUrlPath for path::windows::Path {
     }
 }
 
+
+trait FromUrlPath {
+    fn from_url_path(path: &[String]) -> Result<Self, ()>;
+}
+
+impl FromUrlPath for path::posix::Path {
+    fn from_url_path(path: &[String]) -> Result<path::posix::Path, ()> {
+        if path.is_empty() {
+            return Ok(path::posix::Path::new("/"))
+        }
+        let mut bytes = Vec::new();
+        for path_part in path.iter() {
+            bytes.push(b'/');
+            percent_decode_to(path_part.as_bytes(), &mut bytes);
+        }
+        match path::posix::Path::new_opt(bytes) {
+            None => Err(()),  // Path contains a NUL byte
+            Some(path) => {
+                debug_assert!(path.is_absolute(),
+                              "to_file_path() failed to produce an absolute Path")
+                Ok(path)
+            }
+        }
+    }
+}
+
+impl FromUrlPath for path::windows::Path {
+    fn from_url_path(path: &[String]) -> Result<path::windows::Path, ()> {
+        if path.is_empty() {
+            return Err(())
+        }
+        let prefix = path[0].as_slice();
+        if prefix.len() != 2 || !parser::starts_with_ascii_alpha(prefix)
+                || prefix.char_at(1) != ':' {
+            return Err(())
+        }
+        let mut bytes = prefix.as_bytes().to_vec();
+        for path_part in path.slice_from(1).iter() {
+            bytes.push(b'\\');
+            percent_decode_to(path_part.as_bytes(), &mut bytes);
+        }
+        match path::windows::Path::new_opt(bytes) {
+            None => Err(()),  // Path contains a NUL byte or invalid UTF-8
+            Some(path) => {
+                debug_assert!(path.is_absolute(),
+                              "to_file_path() failed to produce an absolute Path")
+                Ok(path)
+            }
+        }
+    }
+}
