@@ -559,7 +559,7 @@ impl Url {
     /// (Use `std::path::Path` to pick one of them depending on the local system.)
     /// If the compiler can not infer the desired type from context, you may have to specifiy it:
     ///
-    /// ```rust
+    /// ```ignore
     /// let path = url.to_file_path::<std::path::posix::Path>();
     /// ```
     ///
@@ -787,7 +787,7 @@ impl RelativeSchemeData {
     /// (Use `std::path::Path` to pick one of them depending on the local system.)
     /// If the compiler can not infer the desired type from context, you may have to specifiy it:
     ///
-    /// ```rust
+    /// ```ignore
     /// let path = url.to_file_path::<std::path::posix::Path>();
     /// ```
     ///
