@@ -10,6 +10,7 @@ after_success: |
   [ $TRAVIS_BRANCH = master ] &&
   [ $TRAVIS_PULL_REQUEST = false ] &&
   echo '<meta http-equiv=refresh content=0;url=url/index.html>' > target/doc/index.html &&
+  cp github.png target/doc/ &&
   sudo pip install ghp-import &&
   ghp-import -n target/doc &&
   git push -fq https://${TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages
