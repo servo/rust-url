@@ -10,15 +10,14 @@ install:
 script:
   - cargo build
   - cargo test
-  - ./doc.sh
-  - ./doc.sh --test
+  - cargo doc
 
 after_success: |
   [ $TRAVIS_BRANCH = master ] &&
   [ $TRAVIS_PULL_REQUEST = false ] &&
-  echo '<meta http-equiv=refresh content=0;url=url/index.html>' > doc/index.html &&
+  echo '<meta http-equiv=refresh content=0;url=url/index.html>' > target/doc/index.html &&
   sudo pip install ghp-import &&
-  ghp-import -n doc &&
+  ghp-import -n target/doc &&
   git push -fq https://${TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages
 
 env:
