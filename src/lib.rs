@@ -594,6 +594,15 @@ impl Url {
         }
     }
 
+    /// If the URL is *non-relative*, return a mutable reference to the string scheme data.
+    #[inline]
+    pub fn non_relative_scheme_data_mut<'a>(&'a mut self) -> Option<&'a mut String> {
+        match self.scheme_data {
+            RelativeSchemeData(..) => None,
+            NonRelativeSchemeData(ref mut scheme_data) => Some(scheme_data),
+        }
+    }
+
     /// If the URL is in a *relative scheme*, return the structured scheme data.
     #[inline]
     pub fn relative_scheme_data<'a>(&'a self) -> Option<&'a RelativeSchemeData> {
@@ -603,10 +612,26 @@ impl Url {
         }
     }
 
+    /// If the URL is in a *relative scheme*,
+    /// return a mutable reference to the structured scheme data.
+    #[inline]
+    pub fn relative_scheme_data_mut<'a>(&'a mut self) -> Option<&'a mut RelativeSchemeData> {
+        match self.scheme_data {
+            RelativeSchemeData(ref mut scheme_data) => Some(scheme_data),
+            NonRelativeSchemeData(..) => None,
+        }
+    }
+
     /// If the URL is in a *relative scheme*, return its username.
     #[inline]
     pub fn username<'a>(&'a self) -> Option<&'a str> {
         self.relative_scheme_data().map(|scheme_data| scheme_data.username.as_slice())
+    }
+
+    /// If the URL is in a *relative scheme*, return a mutable reference to its username.
+    #[inline]
+    pub fn username_mut<'a>(&'a mut self) -> Option<&'a mut String> {
+        self.relative_scheme_data_mut().map(|scheme_data| &mut scheme_data.username)
     }
 
     /// Percent-decode the URL’s username, if any.
@@ -625,6 +650,12 @@ impl Url {
             scheme_data.password.as_ref().map(|password| password.as_slice()))
     }
 
+    /// If the URL is in a *relative scheme*, return a mutable reference to its password, if any.
+    #[inline]
+    pub fn password_mut<'a>(&'a mut self) -> Option<&'a mut String> {
+        self.relative_scheme_data_mut().and_then(|scheme_data| scheme_data.password.as_mut())
+    }
+
     /// Percent-decode the URL’s password, if any.
     ///
     /// This is “lossy”: invalid UTF-8 percent-encoded byte sequences
@@ -641,11 +672,24 @@ impl Url {
         self.relative_scheme_data().map(|scheme_data| &scheme_data.host)
     }
 
+    /// If the URL is in a *relative scheme*, return a mutable reference to its structured host.
+    #[inline]
+    pub fn host_mut<'a>(&'a mut self) -> Option<&'a mut Host> {
+        self.relative_scheme_data_mut().map(|scheme_data| &mut scheme_data.host)
+    }
+
     /// If the URL is in a *relative scheme* and its host is a domain,
     /// return the domain as a string.
     #[inline]
     pub fn domain<'a>(&'a self) -> Option<&'a str> {
         self.relative_scheme_data().and_then(|scheme_data| scheme_data.domain())
+    }
+
+    /// If the URL is in a *relative scheme* and its host is a domain,
+    /// return a mutable reference to the domain string.
+    #[inline]
+    pub fn domain_mut<'a>(&'a mut self) -> Option<&'a mut String> {
+        self.relative_scheme_data_mut().and_then(|scheme_data| scheme_data.domain_mut())
     }
 
     /// If the URL is in a *relative scheme*, serialize its host as a string.
@@ -662,10 +706,22 @@ impl Url {
         self.relative_scheme_data().map(|scheme_data| scheme_data.port.as_slice())
     }
 
+    /// If the URL is in a *relative scheme*, return a mutable reference to its port.
+    #[inline]
+    pub fn port_mut<'a>(&'a mut self) -> Option<&'a mut String> {
+        self.relative_scheme_data_mut().map(|scheme_data| &mut scheme_data.port)
+    }
+
     /// If the URL is in a *relative scheme*, return its path components.
     #[inline]
     pub fn path<'a>(&'a self) -> Option<&'a [String]> {
         self.relative_scheme_data().map(|scheme_data| scheme_data.path.as_slice())
+    }
+
+    /// If the URL is in a *relative scheme*, return a mutable reference to its path components.
+    #[inline]
+    pub fn path_mut<'a>(&'a mut self) -> Option<&'a mut Vec<String>> {
+        self.relative_scheme_data_mut().map(|scheme_data| &mut scheme_data.path)
     }
 
     /// If the URL is in a *relative scheme*, serialize its path as a string.
@@ -809,6 +865,15 @@ impl RelativeSchemeData {
     pub fn domain<'a>(&'a self) -> Option<&'a str> {
         match self.host {
             Domain(ref domain) => Some(domain.as_slice()),
+            _ => None,
+        }
+    }
+
+    /// If the host is a domain, return a mutable reference to the domain string.
+    #[inline]
+    pub fn domain_mut<'a>(&'a mut self) -> Option<&'a mut String> {
+        match self.host {
+            Domain(ref mut domain) => Some(domain),
             _ => None,
         }
     }
