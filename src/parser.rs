@@ -8,18 +8,19 @@
 
 
 use std::ascii::StrAsciiExt;
+use std::fmt::{Formatter, FormatError, Show};
 use std::str::CharRange;
 
 use encoding;
 
 use super::{
-    ParseResult, UrlParser, Url, RelativeSchemeData, NonRelativeSchemeData, Host, Domain,
+    UrlParser, Url, RelativeSchemeData, NonRelativeSchemeData, Host, Domain,
     SchemeType, FileLikeRelativeScheme, RelativeScheme, NonRelativeScheme,
-    InvalidPort, InvalidCharacter, InvalidBackslash, RelativeUrlWithScheme,
-    ExpectedTwoSlashes, InvalidAtSymbolInUser, InvalidPercentEncoded, NonUrlCodePoint,
-    RelativeUrlWithNonRelativeBase, RelativeUrlWithoutBase,
+};
+use percent_encoding::{
     utf8_percent_encode_to, percent_encode,
-    SIMPLE_ENCODE_SET, DEFAULT_ENCODE_SET, USERINFO_ENCODE_SET, QUERY_ENCODE_SET};
+    SIMPLE_ENCODE_SET, DEFAULT_ENCODE_SET, USERINFO_ENCODE_SET, QUERY_ENCODE_SET
+};
 
 
 macro_rules! is_match(
@@ -27,6 +28,68 @@ macro_rules! is_match(
         match $value { $($pattern)|+ => true, _ => false }
     );
 )
+
+
+pub type ParseResult<T> = Result<T, ParseError>;
+
+/// Errors that can occur during parsing.
+#[deriving(PartialEq, Eq, Clone)]
+pub enum ParseError {
+    EmptyHost,
+    InvalidScheme,
+    InvalidPort,
+    InvalidIpv6Address,
+    InvalidDomainCharacter,
+    InvalidCharacter,
+    InvalidBackslash,
+    InvalidPercentEncoded,
+    InvalidAtSymbolInUser,
+    ExpectedTwoSlashes,
+    NonUrlCodePoint,
+    RelativeUrlWithScheme,
+    RelativeUrlWithoutBase,
+    RelativeUrlWithNonRelativeBase,
+    NonAsciiDomainsNotSupportedYet,
+    CannotSetFileScheme(&'static str),
+    CannotSetJavascriptScheme(&'static str),
+    CannotSetNonRelativeScheme(&'static str)
+}
+
+impl Show for ParseError {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), FormatError> {
+        match *self {
+            EmptyHost => "Empty host",
+            InvalidScheme => "Invalid scheme",
+            InvalidPort => "Invalid port number",
+            InvalidIpv6Address => "Invalid IPv6 address",
+            InvalidDomainCharacter => "Invalid domain character",
+            InvalidCharacter => "Invalid character",
+            InvalidBackslash => "Invalid backslash",
+            InvalidPercentEncoded => "Invalid percent-encoded sequence",
+            InvalidAtSymbolInUser => "Invalid @-symbol in user",
+            ExpectedTwoSlashes => "Expected two slashes (//)",
+            NonUrlCodePoint => "Non URL code point",
+            RelativeUrlWithScheme => "Relative URL with scheme",
+            RelativeUrlWithoutBase => "Relative URL without a base",
+            RelativeUrlWithNonRelativeBase => "Relative URL with a non-relative base",
+            NonAsciiDomainsNotSupportedYet => "Non Ascii domains are not support yet",
+            CannotSetFileScheme(ref part) =>
+                return write!(fmt, "Cannot set {} on file: URLs", part),
+            CannotSetJavascriptScheme(ref part) =>
+                return write!(fmt, "Cannot set {} on javascript: URLs", part),
+            CannotSetNonRelativeScheme(ref part) =>
+                return write!(fmt, "Cannot set {} on non-relative URLs", part),
+        }.fmt(fmt)
+    }
+}
+
+/// This is called on non-fatal parse errors.
+///
+/// The handler can choose to continue or abort parsing by returning Ok() or Err(), respectively.
+/// See the `UrlParser::error_handler` method.
+///
+/// FIXME: make this a by-ref closure when that’s supported.
+pub type ErrorHandler = fn(reason: ParseError) -> ParseResult<()>;
 
 
 #[deriving(PartialEq, Eq)]
