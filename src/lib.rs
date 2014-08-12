@@ -59,7 +59,7 @@ let issue_list_url = Url::parse(
 
 assert!(issue_list_url.scheme == "https".to_string());
 assert!(issue_list_url.domain() == Some("github.com"));
-assert!(issue_list_url.port() == Some(""));
+assert!(issue_list_url.port() == None);
 assert!(issue_list_url.path() == Some(&["rust-lang".to_string(),
                                         "rust".to_string(),
                                         "issues".to_string()]));
@@ -230,9 +230,9 @@ pub struct RelativeSchemeData {
     /// The host of the URL, either a domain name or an IPv4 address
     pub host: Host,
 
-    /// The port number of the URL, in ASCII decimal,
-    /// or the empty string for no port number (in the file scheme) or the default port number.
-    pub port: String,
+    /// The port number of the URL.
+    /// `None` for file-like schemes, or to indicate the default port number.
+    pub port: Option<u16>,
 
     /// The path of the URL, as vector of pecent-encoded strings.
     ///
@@ -319,12 +319,12 @@ impl<'a> UrlParser<'a> {
     /// fn whatwg_scheme_type_mapper(scheme: &str) -> SchemeType {
     ///     match scheme {
     ///         "file" => FileLikeRelativeScheme,
-    ///         "ftp" => RelativeScheme("21"),
-    ///         "gopher" => RelativeScheme("70"),
-    ///         "http" => RelativeScheme("80"),
-    ///         "https" => RelativeScheme("443"),
-    ///         "ws" => RelativeScheme("80"),
-    ///         "wss" => RelativeScheme("443"),
+    ///         "ftp" => RelativeScheme(21),
+    ///         "gopher" => RelativeScheme(70),
+    ///         "http" => RelativeScheme(80),
+    ///         "https" => RelativeScheme(443),
+    ///         "ws" => RelativeScheme(80),
+    ///         "wss" => RelativeScheme(443),
     ///         _ => NonRelativeScheme,
     ///     }
     /// }
@@ -380,7 +380,7 @@ pub enum SchemeType {
     /// Relative URL references are supported, if a base URL was given.
     /// The string value indicates the default port number as a string of ASCII digits,
     /// or the empty string to indicate no default port number.
-    RelativeScheme(&'static str),
+    RelativeScheme(u16),
 
     /// Indicate a *relative* scheme similar to the *file* scheme.
     ///
@@ -395,12 +395,12 @@ pub enum SchemeType {
 pub fn whatwg_scheme_type_mapper(scheme: &str) -> SchemeType {
     match scheme {
         "file" => FileLikeRelativeScheme,
-        "ftp" => RelativeScheme("21"),
-        "gopher" => RelativeScheme("70"),
-        "http" => RelativeScheme("80"),
-        "https" => RelativeScheme("443"),
-        "ws" => RelativeScheme("80"),
-        "wss" => RelativeScheme("443"),
+        "ftp" => RelativeScheme(21),
+        "gopher" => RelativeScheme(70),
+        "http" => RelativeScheme(80),
+        "https" => RelativeScheme(443),
+        "ws" => RelativeScheme(80),
+        "wss" => RelativeScheme(443),
         _ => NonRelativeScheme,
     }
 }
@@ -455,7 +455,7 @@ impl Url {
             scheme_data: RelativeSchemeData(RelativeSchemeData {
                 username: "".to_string(),
                 password: None,
-                port: "".to_string(),
+                port: None,
                 host: Domain("".to_string()),
                 path: path,
             }),
@@ -617,15 +617,15 @@ impl Url {
         self.relative_scheme_data().map(|scheme_data| scheme_data.host.serialize())
     }
 
-    /// If the URL is in a *relative scheme*, return its port.
+    /// If the URL is in a *relative scheme* and has a port number, return it.
     #[inline]
-    pub fn port<'a>(&'a self) -> Option<&'a str> {
-        self.relative_scheme_data().map(|scheme_data| scheme_data.port.as_slice())
+    pub fn port<'a>(&'a self) -> Option<u16> {
+        self.relative_scheme_data().and_then(|scheme_data| scheme_data.port)
     }
 
     /// If the URL is in a *relative scheme*, return a mutable reference to its port.
     #[inline]
-    pub fn port_mut<'a>(&'a mut self) -> Option<&'a mut String> {
+    pub fn port_mut<'a>(&'a mut self) -> Option<&'a mut Option<u16>> {
         self.relative_scheme_data_mut().map(|scheme_data| &mut scheme_data.port)
     }
 
@@ -837,9 +837,11 @@ impl Show for RelativeSchemeData {
             try!(formatter.write(b"@"));
         }
         try!(self.host.fmt(formatter));
-        if !self.port.is_empty() {
-            try!(formatter.write(b":"));
-            try!(formatter.write(self.port.as_bytes()));
+        match self.port {
+            Some(port) => {
+                try!(write!(formatter, ":{}", port));
+            },
+            None => {}
         }
         PathFormatter { path: &self.path }.fmt(formatter)
     }

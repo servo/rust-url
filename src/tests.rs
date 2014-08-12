@@ -83,7 +83,7 @@ fn url_parsing() {
                 assert_eq!(String::new(), expected_username);
                 assert_eq!(None, expected_password);
                 assert_eq!(String::new(), expected_host);
-                assert_eq!(String::new(), expected_port);
+                assert_eq!(None, expected_port);
             },
         }
         fn opt_prepend(prefix: &str, opt_s: Option<String>) -> Option<String> {
@@ -103,7 +103,7 @@ struct Test {
     username: String,
     password: Option<String>,
     host: String,
-    port: String,
+    port: Option<u16>,
     path: Option<String>,
     query: Option<String>,
     fragment: Option<String>,
@@ -133,7 +133,7 @@ fn parse_test_data(input: &str) -> Vec<Test> {
             username: String::new(),
             password: None,
             host: String::new(),
-            port: String::new(),
+            port: None,
             path: None,
             query: None,
             fragment: None,
@@ -150,7 +150,7 @@ fn parse_test_data(input: &str) -> Vec<Test> {
                 "u" => test.username = value,
                 "pass" => test.password = Some(value),
                 "h" => test.host = value,
-                "port" => test.port = value,
+                "port" => test.port = Some(from_str(value.as_slice()).unwrap()),
                 "p" => test.path = Some(value),
                 "q" => test.query = Some(value),
                 "f" => test.fragment = Some(value),

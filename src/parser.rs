@@ -127,7 +127,7 @@ pub fn parse_url(input: &str, parser: &UrlParser) -> ParseResult<Url> {
                 // FIXME: Should not have to use a made-up base URL.
                 _ => parse_relative_url(remaining, scheme, scheme_type, &RelativeSchemeData {
                     username: String::new(), password: None, host: Domain(String::new()),
-                    port: String::new(), path: Vec::new()
+                    port: None, path: Vec::new()
                 }, &None, parser)
             }
         },
@@ -224,7 +224,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeTyp
                         remaining, UrlParserContext, scheme_type, parser));
                     let scheme_data = RelativeSchemeData(RelativeSchemeData {
                         username: String::new(), password: None,
-                        host: host, port: String::new(), path: path
+                        host: host, port: None, path: path
                     });
                     let (query, fragment) = try!(parse_query_and_fragment(remaining, parser));
                     Ok(Url { scheme: scheme, scheme_data: scheme_data,
@@ -239,7 +239,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeTyp
                 let scheme_data = RelativeSchemeData(if scheme_type == FileLikeRelativeScheme {
                     RelativeSchemeData {
                         username: String::new(), password: None, host:
-                        Domain(String::new()), port: String::new(), path: path
+                        Domain(String::new()), port: None, path: path
                     }
                 } else {
                     RelativeSchemeData {
@@ -280,7 +280,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeTyp
                  (RelativeSchemeData(RelativeSchemeData {
                     username: String::new(), password: None,
                     host: Domain(String::new()),
-                    port: String::new(),
+                    port: None,
                     path: path
                 }), remaining)
             } else {
@@ -372,12 +372,12 @@ fn parse_password(input: &str, parser: &UrlParser) -> ParseResult<String> {
 
 
 pub fn parse_host<'a>(input: &'a str, scheme_type: SchemeType, parser: &UrlParser)
-                          -> ParseResult<(Host, String, &'a str)> {
+                          -> ParseResult<(Host, Option<u16>, &'a str)> {
     let (host, remaining) = try!(parse_hostname(input, parser));
     let (port, remaining) = if remaining.starts_with(":") {
         try!(parse_port(remaining.slice_from(1), scheme_type, parser))
     } else {
-        (String::new(), remaining)
+        (None, remaining)
     };
     Ok((host, port, remaining))
 }
@@ -415,19 +415,18 @@ pub fn parse_hostname<'a>(input: &'a str, parser: &UrlParser)
 
 
 pub fn parse_port<'a>(input: &'a str, scheme_type: SchemeType, parser: &UrlParser)
-                  -> ParseResult<(String, &'a str)> {
-    let mut port = String::new();
-    let mut has_initial_zero = false;
+                      -> ParseResult<(Option<u16>, &'a str)> {
+    let mut port = 0;
+    let mut has_any_digit = false;
     let mut end = input.len();
     for (i, c) in input.char_indices() {
         match c {
-            '1'..'9' => port.push_char(c),
-            '0' => {
-                if port.is_empty() {
-                    has_initial_zero = true
-                } else {
-                    port.push_char(c)
+            '0'..'9' => {
+                port = port * 10 + (c as u32 - '0' as u32);
+                if port > ::std::u16::MAX as u32 {
+                    return Err(InvalidPort)
                 }
+                has_any_digit = true;
             },
             '/' | '\\' | '?' | '#' => {
                 end = i;
@@ -437,17 +436,17 @@ pub fn parse_port<'a>(input: &'a str, scheme_type: SchemeType, parser: &UrlParse
             _ => return Err(InvalidPort)
         }
     }
-    if port.is_empty() && has_initial_zero {
-        port.push_str("0")
-    }
-    match scheme_type {
-        RelativeScheme(default_port) => {
-            if port.as_slice() == default_port {
-                port.truncate(0)
+    let port = port as u16;
+    let port = if has_any_digit {
+        match scheme_type {
+            RelativeScheme(default_port) => {
+                if port == default_port { None } else { Some(port) }
             }
-        },
-        _ => {},  // Can only happen when UrlUtils is misused
-    }
+            _ => Some(port as u16),  // Can only happen when UrlUtils is misused
+        }
+    } else {
+        None
+    };
     return Ok((port, input.slice_from(end)))
 }
 
