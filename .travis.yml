@@ -13,7 +13,7 @@ after_success: |
   cp github.png target/doc/ &&
   sudo pip install ghp-import &&
   ghp-import -n target/doc &&
-  git push -fq https://${TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages
+  git push -f https://${TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages
 
 env:
   - secure: DoxnyDvhhRocCKtvyRe0Wa4P/zwhEcSH67kSa1f+KMuLzZQqIxFqCGTha2KzKyuymMMVyUC1Is+MWzVjBtAaIHCm07Do/TH9rWijTZx0pWK9bJ8idxzycGTsZJEyzDQbkpGNRsAfygxwP2r+K6VSE6MDg2M6AjnSLzpjWMLqr+s=
