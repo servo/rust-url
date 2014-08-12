@@ -931,3 +931,36 @@ impl FromUrlPath for path::windows::Path {
         }
     }
 }
+
+
+impl Url {
+    pub fn to_relative_scheme_url(self) -> Result<RelativeSchemeUrl, Url> {
+        match self.scheme_data {
+            RelativeSchemeData(RelativeSchemeData { username, password, host, port, path }) => {
+                Ok(RelativeSchemeUrl {
+                    scheme: self.scheme,
+                    username: username,
+                    password: password,
+                    host: host,
+                    port: port,
+                    path: path,
+                    query: self.query,
+                    fragment: self.fragment,
+                })
+            },
+            _ => Err(self)
+        }
+    }
+}
+
+
+pub struct RelativeSchemeUrl {
+    pub scheme: String,
+    pub username: String,
+    pub password: Option<String>,
+    pub host: Host,
+    pub port: String,
+    pub path: Vec<String>,
+    pub query: Option<String>,
+    pub fragment: Option<String>,
+}
