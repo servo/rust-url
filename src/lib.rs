@@ -161,7 +161,7 @@ pub struct Url {
     /// Percent encoded strings are within the ASCII range.
     ///
     /// See also the `query_pairs`, `set_query_from_pairs`,
-    /// and `lossy_precent_decode_query` methods.
+    /// and `lossy_percent_decode_query` methods.
     pub query: Option<String>,
 
     /// The fragment identifier of the URL.
@@ -171,7 +171,7 @@ pub struct Url {
     ///
     /// Percent encoded strings are within the ASCII range.
     ///
-    /// See also the `lossy_precent_decode_fragment` method.
+    /// See also the `lossy_percent_decode_fragment` method.
     pub fragment: Option<String>,
 }
 
@@ -196,7 +196,7 @@ pub struct RelativeSchemeData {
     ///
     /// Percent encoded strings are within the ASCII range.
     ///
-    /// See also the `lossy_precent_decode_username` method.
+    /// See also the `lossy_percent_decode_username` method.
     pub username: String,
 
     /// The password of the URL.
@@ -206,7 +206,7 @@ pub struct RelativeSchemeData {
     ///
     /// Percent encoded strings are within the ASCII range.
     ///
-    /// See also the `lossy_precent_decode_password` method.
+    /// See also the `lossy_percent_decode_password` method.
     pub password: Option<String>,
 
     /// The host of the URL, either a domain name or an IPv4 address
@@ -639,8 +639,8 @@ impl Url {
     /// This is “lossy”: invalid UTF-8 percent-encoded byte sequences
     /// will be replaced � U+FFFD, the replacement character.
     #[inline]
-    pub fn lossy_precent_decode_username(&self) -> Option<String> {
-        self.relative_scheme_data().map(|scheme_data| scheme_data.lossy_precent_decode_username())
+    pub fn lossy_percent_decode_username(&self) -> Option<String> {
+        self.relative_scheme_data().map(|scheme_data| scheme_data.lossy_percent_decode_username())
     }
 
     /// If the URL is in a *relative scheme*, return its password, if any.
@@ -661,9 +661,9 @@ impl Url {
     /// This is “lossy”: invalid UTF-8 percent-encoded byte sequences
     /// will be replaced � U+FFFD, the replacement character.
     #[inline]
-    pub fn lossy_precent_decode_password(&self) -> Option<String> {
+    pub fn lossy_percent_decode_password(&self) -> Option<String> {
         self.relative_scheme_data().and_then(|scheme_data|
-            scheme_data.lossy_precent_decode_password())
+            scheme_data.lossy_percent_decode_password())
     }
 
     /// If the URL is in a *relative scheme*, return its structured host.
@@ -752,7 +752,7 @@ impl Url {
     /// This is “lossy”: invalid UTF-8 percent-encoded byte sequences
     /// will be replaced � U+FFFD, the replacement character.
     #[inline]
-    pub fn lossy_precent_decode_query(&self) -> Option<String> {
+    pub fn lossy_percent_decode_query(&self) -> Option<String> {
         self.query.as_ref().map(|value| lossy_utf8_percent_decode(value.as_bytes()))
     }
 
@@ -761,7 +761,7 @@ impl Url {
     /// This is “lossy”: invalid UTF-8 percent-encoded byte sequences
     /// will be replaced � U+FFFD, the replacement character.
     #[inline]
-    pub fn lossy_precent_decode_fragment(&self) -> Option<String> {
+    pub fn lossy_percent_decode_fragment(&self) -> Option<String> {
         self.fragment.as_ref().map(|value| lossy_utf8_percent_decode(value.as_bytes()))
     }
 }
@@ -818,7 +818,7 @@ impl RelativeSchemeData {
     /// This is “lossy”: invalid UTF-8 percent-encoded byte sequences
     /// will be replaced � U+FFFD, the replacement character.
     #[inline]
-    pub fn lossy_precent_decode_username(&self) -> String {
+    pub fn lossy_percent_decode_username(&self) -> String {
         lossy_utf8_percent_decode(self.username.as_bytes())
     }
 
@@ -827,7 +827,7 @@ impl RelativeSchemeData {
     /// This is “lossy”: invalid UTF-8 percent-encoded byte sequences
     /// will be replaced � U+FFFD, the replacement character.
     #[inline]
-    pub fn lossy_precent_decode_password(&self) -> Option<String> {
+    pub fn lossy_percent_decode_password(&self) -> Option<String> {
         self.password.as_ref().map(|value| lossy_utf8_percent_decode(value.as_bytes()))
     }
 
