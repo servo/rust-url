@@ -150,6 +150,7 @@ pub use percent_encoding::{
     PASSWORD_ENCODE_SET, USERNAME_ENCODE_SET, FORM_URLENCODED_ENCODE_SET, EncodeSet,
 };
 
+use format::{PathFormatter, UserInfoFormatter, UrlNoFragmentFormatter};
 
 mod host;
 mod parser;
@@ -157,6 +158,7 @@ mod urlutils;
 pub mod percent_encoding;
 pub mod form_urlencoded;
 pub mod punycode;
+pub mod format;
 
 #[cfg(test)]
 mod tests;
@@ -583,6 +585,14 @@ impl Url {
             scheme_data.lossy_percent_decode_password())
     }
 
+    /// Serialize the URL's username and password, if any.
+    ///
+    /// Format: "<username>:<password>@"
+    #[inline]
+    pub fn serialize_userinfo<'a>(&'a mut self) -> Option<String> {
+        self.relative_scheme_data().map(|scheme_data| scheme_data.serialize_userinfo())
+    }
+
     /// If the URL is in a *relative scheme*, return its structured host.
     #[inline]
     pub fn host<'a>(&'a self) -> Option<&'a Host> {
@@ -698,26 +708,6 @@ impl Show for Url {
     }
 }
 
-struct UrlNoFragmentFormatter<'a> {
-    url: &'a Url
-}
-
-impl<'a> Show for UrlNoFragmentFormatter<'a> {
-    fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
-        try!(formatter.write(self.url.scheme.as_bytes()));
-        try!(formatter.write(b":"));
-        try!(self.url.scheme_data.fmt(formatter));
-        match self.url.query {
-            None => (),
-            Some(ref query) => {
-                try!(formatter.write(b"?"));
-                try!(formatter.write(query.as_bytes()));
-            }
-        }
-        Ok(())
-    }
-}
-
 
 impl Show for SchemeData {
     fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
@@ -800,50 +790,49 @@ impl RelativeSchemeData {
     /// The returned string starts with a "/" slash, and components are separated by slashes.
     /// A trailing slash represents an empty last component.
     pub fn serialize_path(&self) -> String {
-        PathFormatter { path: &self.path }.to_string()
+        PathFormatter {
+            path: self.path.as_slice()
+        }.to_string()
+    }
+
+    /// Serialize the userinfo as a string.
+    ///
+    /// Format: "<username>:<password>@".
+    pub fn serialize_userinfo(&self) -> String {
+        UserInfoFormatter {
+            username: self.username.as_slice(),
+            password: self.password.as_ref().map(|s| s.as_slice())
+        }.to_string()
     }
 }
 
-struct PathFormatter<'a> {
-    path: &'a Vec<String>
-}
-
-impl<'a> Show for PathFormatter<'a> {
-    fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
-        if self.path.is_empty() {
-            formatter.write(b"/")
-        } else {
-            for path_part in self.path.iter() {
-                try!(formatter.write(b"/"));
-                try!(formatter.write(path_part.as_bytes()));
-            }
-            Ok(())
-        }
-    }
-}
 
 impl Show for RelativeSchemeData {
     fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
+        // Write the scheme-trailing double slashes.
         try!(formatter.write(b"//"));
-        if !self.username.is_empty() || self.password.is_some() {
-            try!(formatter.write(self.username.as_bytes()));
-            match self.password {
-                None => (),
-                Some(ref password) => {
-                    try!(formatter.write(b":"));
-                    try!(formatter.write(password.as_bytes()));
-                }
-            }
-            try!(formatter.write(b"@"));
-        }
+
+        // Write the user info.
+        try!(UserInfoFormatter {
+            username: self.username.as_slice(),
+            password: self.password.as_ref().map(|s| s.as_slice())
+        }.fmt(formatter));
+
+        // Write the host.
         try!(self.host.fmt(formatter));
+
+        // Write the port.
         match self.port {
             Some(port) => {
                 try!(write!(formatter, ":{}", port));
             },
             None => {}
         }
-        PathFormatter { path: &self.path }.fmt(formatter)
+
+        // Write the path.
+        PathFormatter {
+            path: self.path.as_slice()
+        }.fmt(formatter)
     }
 }
 
@@ -851,6 +840,7 @@ impl Show for RelativeSchemeData {
 trait ToUrlPath {
     fn to_url_path(&self) -> Result<Vec<String>, ()>;
 }
+
 
 impl ToUrlPath for path::posix::Path {
     fn to_url_path(&self) -> Result<Vec<String>, ()> {
@@ -860,6 +850,7 @@ impl ToUrlPath for path::posix::Path {
         Ok(self.components().map(|c| percent_encode(c, DEFAULT_ENCODE_SET)).collect())
     }
 }
+
 
 impl ToUrlPath for path::windows::Path {
     fn to_url_path(&self) -> Result<Vec<String>, ()> {
@@ -885,6 +876,7 @@ trait FromUrlPath {
     fn from_url_path(path: &[String]) -> Result<Self, ()>;
 }
 
+
 impl FromUrlPath for path::posix::Path {
     fn from_url_path(path: &[String]) -> Result<path::posix::Path, ()> {
         if path.is_empty() {
@@ -905,6 +897,7 @@ impl FromUrlPath for path::posix::Path {
         }
     }
 }
+
 
 impl FromUrlPath for path::windows::Path {
     fn from_url_path(path: &[String]) -> Result<path::windows::Path, ()> {
