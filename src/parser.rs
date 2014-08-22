@@ -127,7 +127,7 @@ pub fn parse_url(input: &str, parser: &UrlParser) -> ParseResult<Url> {
                 // FIXME: Should not have to use a made-up base URL.
                 _ => parse_relative_url(remaining, scheme, scheme_type, &RelativeSchemeData {
                     username: String::new(), password: None, host: Domain(String::new()),
-                    port: None, path: Vec::new()
+                    port: None, default_port: None, path: Vec::new()
                 }, &None, parser)
             }
         },
@@ -182,11 +182,13 @@ fn parse_absolute_url<'a>(scheme: String, scheme_type: SchemeType,
     // Authority state
     let (username, password, remaining) = try!(parse_userinfo(remaining, parser));
     // Host state
-    let (host, port, remaining) = try!(parse_host(remaining, scheme_type, parser));
+    let (host, port, default_port, remaining) = try!(parse_host(remaining, scheme_type, parser));
     let (path, remaining) = try!(parse_path_start(
         remaining, UrlParserContext, scheme_type, parser));
     let scheme_data = RelativeSchemeData(RelativeSchemeData {
-        username: username, password: password, host: host, port: port, path: path });
+        username: username, password: password,
+        host: host, port: port, default_port: default_port,
+        path: path });
     let (query, fragment) = try!(parse_query_and_fragment(remaining, parser));
     Ok(Url { scheme: scheme, scheme_data: scheme_data, query: query, fragment: fragment })
 }
@@ -224,7 +226,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeTyp
                         remaining, UrlParserContext, scheme_type, parser));
                     let scheme_data = RelativeSchemeData(RelativeSchemeData {
                         username: String::new(), password: None,
-                        host: host, port: None, path: path
+                        host: host, port: None, default_port: None, path: path
                     });
                     let (query, fragment) = try!(parse_query_and_fragment(remaining, parser));
                     Ok(Url { scheme: scheme, scheme_data: scheme_data,
@@ -239,7 +241,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeTyp
                 let scheme_data = RelativeSchemeData(if scheme_type == FileLikeRelativeScheme {
                     RelativeSchemeData {
                         username: String::new(), password: None, host:
-                        Domain(String::new()), port: None, path: path
+                        Domain(String::new()), port: None, default_port: None, path: path
                     }
                 } else {
                     RelativeSchemeData {
@@ -247,6 +249,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeTyp
                         password: base.password.clone(),
                         host: base.host.clone(),
                         port: base.port.clone(),
+                        default_port: base.default_port.clone(),
                         path: path
                     }
                 });
@@ -281,6 +284,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeTyp
                     username: String::new(), password: None,
                     host: Domain(String::new()),
                     port: None,
+                    default_port: None,
                     path: path
                 }), remaining)
             } else {
@@ -293,6 +297,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeTyp
                     password: base.password.clone(),
                     host: base.host.clone(),
                     port: base.port.clone(),
+                    default_port: base.default_port.clone(),
                     path: path
                 }), remaining)
             };
@@ -372,14 +377,14 @@ fn parse_password(input: &str, parser: &UrlParser) -> ParseResult<String> {
 
 
 pub fn parse_host<'a>(input: &'a str, scheme_type: SchemeType, parser: &UrlParser)
-                          -> ParseResult<(Host, Option<u16>, &'a str)> {
+                          -> ParseResult<(Host, Option<u16>, Option<u16>, &'a str)> {
     let (host, remaining) = try!(parse_hostname(input, parser));
-    let (port, remaining) = if remaining.starts_with(":") {
+    let (port, default_port, remaining) = if remaining.starts_with(":") {
         try!(parse_port(remaining.slice_from(1), scheme_type, parser))
     } else {
-        (None, remaining)
+        (None, scheme_type.default_port(), remaining)
     };
-    Ok((host, port, remaining))
+    Ok((host, port, default_port, remaining))
 }
 
 
@@ -415,7 +420,7 @@ pub fn parse_hostname<'a>(input: &'a str, parser: &UrlParser)
 
 
 pub fn parse_port<'a>(input: &'a str, scheme_type: SchemeType, parser: &UrlParser)
-                      -> ParseResult<(Option<u16>, &'a str)> {
+                      -> ParseResult<(Option<u16>, Option<u16>, &'a str)> {
     let mut port = 0;
     let mut has_any_digit = false;
     let mut end = input.len();
@@ -436,18 +441,12 @@ pub fn parse_port<'a>(input: &'a str, scheme_type: SchemeType, parser: &UrlParse
             _ => return Err(InvalidPort)
         }
     }
-    let port = port as u16;
-    let port = if has_any_digit {
-        match scheme_type {
-            RelativeScheme(default_port) => {
-                if port == default_port { None } else { Some(port) }
-            }
-            _ => Some(port as u16),  // Can only happen when UrlUtils is misused
-        }
-    } else {
-        None
-    };
-    return Ok((port, input.slice_from(end)))
+    let default_port = scheme_type.default_port();
+    let mut port = Some(port as u16);
+    if !has_any_digit || port == default_port {
+        port = None;
+    }
+    return Ok((port, default_port, input.slice_from(end)))
 }
 
 

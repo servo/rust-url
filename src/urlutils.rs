@@ -78,12 +78,15 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
     /// `URLUtils.host` setter
     fn set_host_and_port(&mut self, input: &str) -> ParseResult<()> {
         match self.url.scheme_data {
-            RelativeSchemeData(RelativeSchemeData { ref mut host, ref mut port, .. }) => {
+            RelativeSchemeData(RelativeSchemeData {
+                ref mut host, ref mut port, ref mut default_port, ..
+            }) => {
                 let scheme_type = self.parser.get_scheme_type(self.url.scheme.as_slice());
-                let (new_host, new_port, _) = try!(::parser::parse_host(
+                let (new_host, new_port, new_default_port, _) = try!(::parser::parse_host(
                     input, scheme_type, self.parser));
                 *host = new_host;
                 *port = new_port;
+                *default_port = new_default_port;
                 Ok(())
             },
             NonRelativeSchemeData(_) => Err(CannotSetNonRelativeScheme("host/port"))
@@ -105,13 +108,15 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
     /// `URLUtils.port` setter
     fn set_port(&mut self, input: &str) -> ParseResult<()> {
         match self.url.scheme_data {
-            RelativeSchemeData(RelativeSchemeData { ref mut port, .. }) => {
+            RelativeSchemeData(RelativeSchemeData { ref mut port, ref mut default_port, .. }) => {
                 let scheme_type = self.parser.get_scheme_type(self.url.scheme.as_slice());
                 if scheme_type == FileLikeRelativeScheme {
                     return Err(CannotSetFileScheme("port"));
                 }
-                let (new_port, _) = try!(::parser::parse_port(input, scheme_type, self.parser));
+                let (new_port, new_default_port, _) = try!(::parser::parse_port(
+                    input, scheme_type, self.parser));
                 *port = new_port;
+                *default_port = new_default_port;
                 Ok(())
             },
             NonRelativeSchemeData(_) => Err(CannotSetNonRelativeScheme("port"))

@@ -69,7 +69,9 @@ fn url_parsing() {
 
         assert_eq!(Some(scheme), expected_scheme);
         match scheme_data {
-            RelativeSchemeData(RelativeSchemeData { username, password, host, port, path }) => {
+            RelativeSchemeData(RelativeSchemeData {
+                username, password, host, port, default_port: _, path,
+            }) => {
                 assert_eq!(username, expected_username);
                 assert_eq!(password, expected_password);
                 let host = host.serialize();

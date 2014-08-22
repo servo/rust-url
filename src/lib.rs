@@ -236,6 +236,10 @@ pub struct RelativeSchemeData {
     /// `None` for file-like schemes, or to indicate the default port number.
     pub port: Option<u16>,
 
+    /// The default port number for the URL’s scheme.
+    /// `None` for file-like schemes.
+    pub default_port: Option<u16>,
+
     /// The path of the URL, as vector of pecent-encoded strings.
     ///
     /// Percent encoded strings are within the ASCII range.
@@ -393,6 +397,16 @@ pub enum SchemeType {
     FileLikeRelativeScheme,
 }
 
+
+impl SchemeType {
+    pub fn default_port(&self) -> Option<u16> {
+        match self {
+            &RelativeScheme(default_port) => Some(default_port),
+            _ => None,
+        }
+    }
+}
+
 /// http://url.spec.whatwg.org/#relative-scheme
 pub fn whatwg_scheme_type_mapper(scheme: &str) -> SchemeType {
     match scheme {
@@ -458,6 +472,7 @@ impl Url {
                 username: "".to_string(),
                 password: None,
                 port: None,
+                default_port: None,
                 host: Domain("".to_string()),
                 path: path,
             }),
@@ -639,6 +654,13 @@ impl Url {
         self.relative_scheme_data_mut().map(|scheme_data| &mut scheme_data.port)
     }
 
+    /// If the URL is in a *relative scheme* that is not a file-like,
+    /// return its port number, even if it is the default.
+    #[inline]
+    pub fn port_or_default(&self) -> Option<u16> {
+        self.relative_scheme_data().and_then(|scheme_data| scheme_data.port_or_default())
+    }
+
     /// If the URL is in a *relative scheme*, return its path components.
     #[inline]
     pub fn path<'a>(&'a self) -> Option<&'a [String]> {
@@ -783,6 +805,13 @@ impl RelativeSchemeData {
             Domain(ref mut domain) => Some(domain),
             _ => None,
         }
+    }
+
+    /// Return the port number of the URL, even if it is the default.
+    /// Return `None` for file-like URLs.
+    #[inline]
+    pub fn port_or_default(&self) -> Option<u16> {
+        self.port.or(self.default_port)
     }
 
     /// Serialize the path as a string.
