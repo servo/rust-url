@@ -7,6 +7,7 @@
 // except according to those terms.
 
 #![crate_name = "url"]
+#![crate_type = "lib"]
 
 /*!
 
