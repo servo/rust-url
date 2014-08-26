@@ -74,9 +74,9 @@ impl Host {
             // TODO: Remove this check and use IDNA "domain to ASCII"
             if !domain.as_slice().is_ascii() {
                 Err(NonAsciiDomainsNotSupportedYet)
-            } else if domain.as_slice().find(&[
+            } else if domain.as_slice().find([
                 '\0', '\t', '\n', '\r', ' ', '#', '%', '/', ':', '?', '@', '[', '\\', ']'
-            ]).is_some() {
+            ].as_slice()).is_some() {
                 Err(InvalidDomainCharacter)
             } else {
                 Ok(Domain(domain.into_string().into_ascii_lower()))
