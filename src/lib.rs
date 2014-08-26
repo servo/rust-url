@@ -351,6 +351,12 @@ impl<'a> UrlParser<'a> {
     }
 }
 
+impl std::from_str::FromStr for Url {
+    fn from_str(string: &str) -> Option<Url> {
+        Url::parse(string).ok()
+    }
+}
+
 
 /// Private convenience methods for use in parser.rs
 impl<'a> UrlParser<'a> {
