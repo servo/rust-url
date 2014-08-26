@@ -210,7 +210,7 @@ fn file_paths() {
 
     let mut url = Url::from_file_path(&path::posix::Path::new("/foo/bar")).unwrap();
     assert_eq!(url.host(), Some(&Domain("".to_string())));
-    assert_eq!(url.path(), Some(&["foo".to_string(), "bar".to_string()]));
+    assert_eq!(url.path(), Some(["foo".to_string(), "bar".to_string()].as_slice()));
     assert!(url.to_file_path() == Ok(path::posix::Path::new("/foo/bar")));
 
     *url.path_mut().unwrap().get_mut(1) = "ba\0r".to_string();
@@ -226,7 +226,7 @@ fn file_paths() {
 
     let mut url = Url::from_file_path(&path::windows::Path::new(r"C:\foo\bar")).unwrap();
     assert_eq!(url.host(), Some(&Domain("".to_string())));
-    assert_eq!(url.path(), Some(&["C:".to_string(), "foo".to_string(), "bar".to_string()]));
+    assert_eq!(url.path(), Some(["C:".to_string(), "foo".to_string(), "bar".to_string()].as_slice()));
     assert!(url.to_file_path::<path::windows::Path>()
             == Ok(path::windows::Path::new(r"C:\foo\bar")));
 
@@ -253,10 +253,10 @@ fn directory_paths() {
 
     let url = Url::from_directory_path(&path::posix::Path::new("/foo/bar")).unwrap();
     assert_eq!(url.host(), Some(&Domain("".to_string())));
-    assert_eq!(url.path(), Some(&["foo".to_string(), "bar".to_string(), "".to_string()]));
+    assert_eq!(url.path(), Some(["foo".to_string(), "bar".to_string(), "".to_string()].as_slice()));
 
     let url = Url::from_directory_path(&path::windows::Path::new(r"C:\foo\bar")).unwrap();
     assert_eq!(url.host(), Some(&Domain("".to_string())));
-    assert_eq!(url.path(), Some(&[
-        "C:".to_string(), "foo".to_string(), "bar".to_string(), "".to_string()]));
+    assert_eq!(url.path(), Some([
+        "C:".to_string(), "foo".to_string(), "bar".to_string(), "".to_string()].as_slice()));
 }
