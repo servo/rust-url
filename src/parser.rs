@@ -100,7 +100,7 @@ pub enum Context {
 
 
 pub fn parse_url(input: &str, parser: &UrlParser) -> ParseResult<Url> {
-    let input = input.trim_chars(&[' ', '\t', '\n', '\r', '\x0C']);
+    let input = input.trim_chars([' ', '\t', '\n', '\r', '\x0C'].as_slice());
     let (scheme, remaining) = match parse_scheme(input, UrlParserContext) {
         Some((scheme, remaining)) => (scheme, remaining),
         // No-scheme state
