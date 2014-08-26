@@ -52,10 +52,7 @@ pub fn parse_bytes(input: &[u8], encoding_override: Option<EncodingRef>,
         } else {
             let (name, value) = match piece.position_elem(&b'=') {
                 Some(position) => (piece.slice_to(position), piece.slice_from(position + 1)),
-                None => {
-                    let tmp: (&[u8], &[u8]) = if isindex { (&[], piece) } else { (piece, &[]) };
-                    tmp
-                }
+                None => if isindex { ([].as_slice(), piece) } else { (piece, [].as_slice()) }
             };
             let name = replace_plus(name);
             let value = replace_plus(value);
