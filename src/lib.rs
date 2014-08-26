@@ -247,6 +247,40 @@ pub struct RelativeSchemeData {
     pub path: Vec<String>,
 }
 
+/// The Authority part of a URI.
+pub struct Authority<'a> {
+    username: Option<&'a str>,
+    password: Option<&'a str>,
+    host: Option<&'a Host>,
+    port: Option<u16>
+}
+
+impl<'a> Show for Authority<'a> {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), FormatError> {
+        match self.username {
+            Some(ref u) => {
+                try!(UserInfoFormatter {
+                    username: *u,
+                    password: self.password
+                }.fmt(fmt));
+            },
+            None => ()
+        }
+        match self.host {
+            Some(ref h) => try!(h.fmt(fmt)),
+            None => ()
+        }
+        match self.port {
+            Some(ref p) => {
+                try!(':'.fmt(fmt));
+                try!(p.fmt(fmt));
+            },
+            None => ()
+        }
+        Ok(())
+    }
+}
+
 impl<S: hash::Writer> hash::Hash<S> for Url {
     fn hash(&self, state: &mut S) {
         self.serialize().hash(state)
@@ -552,6 +586,17 @@ impl Url {
             RelativeSchemeData(ref mut scheme_data) => Some(scheme_data),
             NonRelativeSchemeData(..) => None,
         }
+    }
+
+    /// If the URL is in a *relative scheme*, return its Authority.
+    #[inline]
+    pub fn authority<'a>(&'a self) -> Option<Authority<'a>> {
+        self.relative_scheme_data().and(Some(Authority {
+            username: self.username(),
+            password: self.password(),
+            host: self.host(),
+            port: self.port()
+        }))
     }
 
     /// If the URL is in a *relative scheme*, return its username.

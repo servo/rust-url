@@ -144,4 +144,23 @@ mod tests {
             assert_eq!(url.to_string(), result.to_string());
         }
     }
+
+    #[test]
+    fn authorities() {
+        let data = [
+            ("http://example.com/", "example.com"),
+            ("http://noslash.com", "noslash.com"),
+            ("http://@emptyuser.com/", "emptyuser.com"),
+            ("http://:@emptypass.com/", ":@emptypass.com"),
+            ("http://user@user.com/", "user@user.com"),
+            ("http://user:pass@userpass.com/", "user:pass@userpass.com"),
+            ("http://host.com:8080/path", "host.com:8080"),
+            ("http://user:pass@host.com:8080/path", "user:pass@host.com:8080"),
+        ];
+        for &(input, result) in data.iter() {
+            let url = Url::parse(input).unwrap();
+            let auth = url.authority().unwrap();
+            assert_eq!(auth.to_string(), result.to_string());
+        }
+    }
 }
