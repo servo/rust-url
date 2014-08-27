@@ -349,6 +349,46 @@ impl<'a> UrlParser<'a> {
     pub fn parse(&self, input: &str) -> ParseResult<Url> {
         parser::parse_url(input, self)
     }
+
+    /// Parse `input` as a “standalone” URL path,
+    /// with an optional query string and fragment identifier.
+    ///
+    /// This is typically found in the start line of an HTTP header.
+    ///
+    /// Note that while the start line has no fragment identifier in the HTTP RFC,
+    /// servers typically parse it and ignore it
+    /// (rather than having it be part of the path or query string.)
+    ///
+    /// On success, return `(path, query_string, fragment_identifier)`
+    #[inline]
+    pub fn parse_path(&self, input: &str)
+                      -> ParseResult<(Vec<String>, Option<String>, Option<String>)> {
+        parser::parse_standalone_path(input, self)
+    }
+}
+
+
+/// Parse `input` as a “standalone” URL path,
+/// with an optional query string and fragment identifier.
+///
+/// This is typically found in the start line of an HTTP header.
+///
+/// Note that while the start line has no fragment identifier in the HTTP RFC,
+/// servers typically parse it and ignore it
+/// (rather than having it be part of the path or query string.)
+///
+/// On success, return `(path, query_string, fragment_identifier)`
+///
+/// ```rust
+/// let (path, query, fragment) = url::parse_path("/foo/bar/../baz?q=42").unwrap();
+/// assert_eq!(path, vec!["foo".to_string(), "baz".to_string()]);
+/// assert_eq!(query, Some("q=42".to_string()));
+/// assert_eq!(fragment, None);
+/// ```
+#[inline]
+pub fn parse_path(input: &str)
+                  -> ParseResult<(Vec<String>, Option<String>, Option<String>)> {
+    UrlParser::new().parse_path(input)
 }
 
 

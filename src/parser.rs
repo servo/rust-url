@@ -45,6 +45,7 @@ pub enum ParseError {
     InvalidPercentEncoded,
     InvalidAtSymbolInUser,
     ExpectedTwoSlashes,
+    ExpectedInitialSlash,
     NonUrlCodePoint,
     RelativeUrlWithScheme,
     RelativeUrlWithoutBase,
@@ -68,6 +69,7 @@ impl Show for ParseError {
             InvalidPercentEncoded => "Invalid percent-encoded sequence",
             InvalidAtSymbolInUser => "Invalid @-symbol in user",
             ExpectedTwoSlashes => "Expected two slashes (//)",
+            ExpectedInitialSlash => "Expected the input to start with a slash",
             NonUrlCodePoint => "Non URL code point",
             RelativeUrlWithScheme => "Relative URL with scheme",
             RelativeUrlWithoutBase => "Relative URL without a base",
@@ -469,6 +471,22 @@ fn parse_file_host<'a>(input: &'a str, parser: &UrlParser) -> ParseResult<(Host,
         try!(Host::parse(host_input.as_slice()))
     };
     Ok((host, input.slice_from(end)))
+}
+
+
+pub fn parse_standalone_path(input: &str, parser: &UrlParser)
+                             -> ParseResult<(Vec<String>, Option<String>, Option<String>)> {
+    if !input.starts_with("/") {
+        if input.starts_with("\\") {
+            try!(parser.parse_error(InvalidBackslash));
+        } else {
+            return Err(ExpectedInitialSlash)
+        }
+    }
+    let (path, remaining) = try!(parse_path(
+        [], input.slice_from(1), UrlParserContext, RelativeScheme(0), parser));
+    let (query, fragment) = try!(parse_query_and_fragment(remaining, parser));
+    Ok((path, query, fragment))
 }
 
 
