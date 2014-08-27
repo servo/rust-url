@@ -133,10 +133,23 @@ pub fn serialize<'a, I: Iterator<(&'a str, &'a str)>>(
     for (name, value) in pairs {
         if output.len() > 0 {
             output.push_str("&");
-            byte_serialize(name, &mut output, encoding_override);
-            output.push_str("=");
-            byte_serialize(value, &mut output, encoding_override);
         }
+        byte_serialize(name, &mut output, encoding_override);
+        output.push_str("=");
+        byte_serialize(value, &mut output, encoding_override);
     }
     output
+}
+
+
+#[test]
+fn test_form_urlencoded() {
+    let pairs = [
+        ("foo".to_string(), "é&".to_string()),
+        ("bar".to_string(), "".to_string()),
+        ("foo".to_string(), "#".to_string())
+    ];
+    let encoded = serialize_owned(pairs.as_slice());
+    assert_eq!(encoded.as_slice(), "foo=%C3%A9%26&bar=&foo=%23");
+    assert_eq!(parse_str(encoded.as_slice()), Vec::from_slice(pairs.as_slice()));
 }
