@@ -8,12 +8,15 @@
 
 use std::ascii::OwnedStrAsciiExt;
 use std::cmp;
+use std::fmt;
 use std::fmt::{Formatter, FormatError, Show};
+use std::io::IoResult;
 use parser::{
     ParseResult,
     InvalidIpv6Address, EmptyHost, NonAsciiDomainsNotSupportedYet, InvalidDomainCharacter,
 };
 use percent_encoding::{from_hex, percent_decode};
+use write::{write_host, TextWriter};
 
 
 /// The host name of an URL.
@@ -80,27 +83,6 @@ impl Host {
                 Err(InvalidDomainCharacter)
             } else {
                 Ok(Domain(domain.into_string().into_ascii_lower()))
-            }
-        }
-    }
-
-    /// Serialize the host as a string.
-    ///
-    /// A domain a returned as-is, an IPv6 address between [] square brackets.
-    pub fn serialize(&self) -> String {
-        self.to_string()
-    }
-}
-
-
-impl Show for Host {
-    fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
-        match *self {
-            Domain(ref domain) => domain.fmt(formatter),
-            Ipv6(ref address) => {
-                try!(formatter.write(b"["));
-                try!(address.fmt(formatter));
-                formatter.write(b"]")
             }
         }
     }
@@ -234,30 +216,29 @@ impl Ipv6Address {
 }
 
 
-impl Show for Ipv6Address {
-    fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
-        let (compress_start, compress_end) = longest_zero_sequence(&self.pieces);
-        let mut i = 0;
-        while i < 8 {
-            if i == compress_start {
-                try!(formatter.write(b":"));
-                if i == 0 {
-                    try!(formatter.write(b":"));
-                }
-                if compress_end < 8 {
-                    i = compress_end;
-                } else {
-                    break;
-                }
+pub fn write_ipv6_address<W: TextWriter>(writer: &mut W, address: &Ipv6Address) -> IoResult<()> {
+    let (compress_start, compress_end) = longest_zero_sequence(&address.pieces);
+    let mut i = 0;
+    while i < 8 {
+        if i == compress_start {
+            try!(writer.write_str(":"));
+            if i == 0 {
+                try!(writer.write_str(":"));
             }
-            try!(write!(formatter, "{:x}", self.pieces[i as uint]));
-            if i < 7 {
-                try!(formatter.write(b":"));
+            if compress_end < 8 {
+                i = compress_end;
+            } else {
+                break;
             }
-            i += 1;
         }
-        Ok(())
+        // FIXME: Avoid allocating here. (Requires Unicode-based formatting.)
+        try!(writer.write_str(format!("{:x}", address.pieces[i as uint]).as_slice()));
+        if i < 7 {
+            try!(writer.write_str(":"));
+        }
+        i += 1;
     }
+    Ok(())
 }
 
 
@@ -288,4 +269,17 @@ fn longest_zero_sequence(pieces: &[u16, ..8]) -> (int, int) {
     }
     finish_sequence!(8);
     (longest, longest + longest_length)
+}
+
+
+impl Show for Host {
+    fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
+        write_host(formatter, self).map_err(|_| fmt::WriteError)
+    }
+}
+
+impl Show for Ipv6Address {
+    fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
+        write_ipv6_address(formatter, self).map_err(|_| fmt::WriteError)
+    }
 }

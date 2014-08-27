@@ -111,7 +111,7 @@ use url::{Url, UrlParser};
 
 let this_document = Url::parse("http://servo.github.io/rust-url/url/index.html").unwrap();
 let css_url = UrlParser::new().base_url(&this_document).parse("../main.css").unwrap();
-assert!(css_url.serialize() == "http://servo.github.io/rust-url/main.css".to_string());
+assert!(css_url.to_string() == "http://servo.github.io/rust-url/main.css".to_string());
 ```
 
 */
@@ -124,6 +124,7 @@ extern crate encoding;
 #[cfg(test)]
 extern crate serialize;
 
+use std::fmt;
 use std::fmt::{Formatter, FormatError, Show};
 use std::hash;
 use std::path;
@@ -148,15 +149,13 @@ pub use percent_encoding::{
     PASSWORD_ENCODE_SET, USERNAME_ENCODE_SET, FORM_URLENCODED_ENCODE_SET, EncodeSet,
 };
 
-use format::{PathFormatter, UserInfoFormatter, UrlNoFragmentFormatter};
-
 mod host;
 mod parser;
 mod urlutils;
 pub mod percent_encoding;
 pub mod form_urlencoded;
 pub mod punycode;
-pub mod format;
+pub mod write;
 
 #[cfg(test)]
 mod tests;
@@ -249,7 +248,7 @@ pub struct RelativeSchemeData {
 
 impl<S: hash::Writer> hash::Hash<S> for Url {
     fn hash(&self, state: &mut S) {
-        self.serialize().hash(state)
+        self.to_string().hash(state)
     }
 }
 
@@ -507,16 +506,6 @@ impl Url {
         }
     }
 
-    /// Return the serialization of this URL as a string.
-    pub fn serialize(&self) -> String {
-        self.to_string()
-    }
-
-    /// Return the serialization of this URL, without the fragment identifier, as a string
-    pub fn serialize_no_fragment(&self) -> String {
-        UrlNoFragmentFormatter{ url: self }.to_string()
-    }
-
     /// If the URL is *non-relative*, return the string scheme data.
     #[inline]
     pub fn non_relative_scheme_data<'a>(&'a self) -> Option<&'a str> {
@@ -598,14 +587,6 @@ impl Url {
             scheme_data.lossy_percent_decode_password())
     }
 
-    /// Serialize the URL's username and password, if any.
-    ///
-    /// Format: "<username>:<password>@"
-    #[inline]
-    pub fn serialize_userinfo<'a>(&'a mut self) -> Option<String> {
-        self.relative_scheme_data().map(|scheme_data| scheme_data.serialize_userinfo())
-    }
-
     /// If the URL is in a *relative scheme*, return its structured host.
     #[inline]
     pub fn host<'a>(&'a self) -> Option<&'a Host> {
@@ -630,14 +611,6 @@ impl Url {
     #[inline]
     pub fn domain_mut<'a>(&'a mut self) -> Option<&'a mut String> {
         self.relative_scheme_data_mut().and_then(|scheme_data| scheme_data.domain_mut())
-    }
-
-    /// If the URL is in a *relative scheme*, serialize its host as a string.
-    ///
-    /// A domain a returned as-is, an IPv6 address between [] square brackets.
-    #[inline]
-    pub fn serialize_host(&self) -> Option<String> {
-        self.relative_scheme_data().map(|scheme_data| scheme_data.host.serialize())
     }
 
     /// If the URL is in a *relative scheme* and has a port number, return it.
@@ -671,15 +644,6 @@ impl Url {
         self.relative_scheme_data_mut().map(|scheme_data| &mut scheme_data.path)
     }
 
-    /// If the URL is in a *relative scheme*, serialize its path as a string.
-    ///
-    /// The returned string starts with a "/" slash, and components are separated by slashes.
-    /// A trailing slash represents an empty last component.
-    #[inline]
-    pub fn serialize_path(&self) -> Option<String> {
-        self.relative_scheme_data().map(|scheme_data| scheme_data.serialize_path())
-    }
-
     /// Parse the URL’s query string, if any, as `application/x-www-form-urlencoded`
     /// and return a vector of (key, value) pairs.
     #[inline]
@@ -710,31 +674,6 @@ impl Url {
     #[inline]
     pub fn lossy_percent_decode_fragment(&self) -> Option<String> {
         self.fragment.as_ref().map(|value| lossy_utf8_percent_decode(value.as_bytes()))
-    }
-}
-
-
-impl Show for Url {
-    fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
-        try!(UrlNoFragmentFormatter{ url: self }.fmt(formatter));
-        match self.fragment {
-            None => (),
-            Some(ref fragment) => {
-                try!(formatter.write(b"#"));
-                try!(formatter.write(fragment.as_bytes()));
-            }
-        }
-        Ok(())
-    }
-}
-
-
-impl Show for SchemeData {
-    fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
-        match *self {
-            RelativeSchemeData(ref scheme_data) => scheme_data.fmt(formatter),
-            NonRelativeSchemeData(ref scheme_data) => scheme_data.fmt(formatter),
-        }
     }
 }
 
@@ -811,57 +750,9 @@ impl RelativeSchemeData {
     pub fn port_or_default(&self) -> Option<u16> {
         self.port.or(self.default_port)
     }
-
-    /// Serialize the path as a string.
-    ///
-    /// The returned string starts with a "/" slash, and components are separated by slashes.
-    /// A trailing slash represents an empty last component.
-    pub fn serialize_path(&self) -> String {
-        PathFormatter {
-            path: self.path.as_slice()
-        }.to_string()
-    }
-
-    /// Serialize the userinfo as a string.
-    ///
-    /// Format: "<username>:<password>@".
-    pub fn serialize_userinfo(&self) -> String {
-        UserInfoFormatter {
-            username: self.username.as_slice(),
-            password: self.password.as_ref().map(|s| s.as_slice())
-        }.to_string()
-    }
 }
 
 
-impl Show for RelativeSchemeData {
-    fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
-        // Write the scheme-trailing double slashes.
-        try!(formatter.write(b"//"));
-
-        // Write the user info.
-        try!(UserInfoFormatter {
-            username: self.username.as_slice(),
-            password: self.password.as_ref().map(|s| s.as_slice())
-        }.fmt(formatter));
-
-        // Write the host.
-        try!(self.host.fmt(formatter));
-
-        // Write the port.
-        match self.port {
-            Some(port) => {
-                try!(write!(formatter, ":{}", port));
-            },
-            None => {}
-        }
-
-        // Write the path.
-        PathFormatter {
-            path: self.path.as_slice()
-        }.fmt(formatter)
-    }
-}
 
 
 trait ToUrlPath {
@@ -951,5 +842,24 @@ impl FromUrlPath for path::windows::Path {
                 Ok(path)
             }
         }
+    }
+}
+
+
+impl Show for Url {
+    fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
+        write::write_url(formatter, self).map_err(|_| fmt::WriteError)
+    }
+}
+
+impl Show for SchemeData {
+    fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
+        write::write_scheme_data(formatter, self).map_err(|_| fmt::WriteError)
+    }
+}
+
+impl Show for RelativeSchemeData {
+    fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
+        write::write_relative_scheme_data(formatter, self).map_err(|_| fmt::WriteError)
     }
 }

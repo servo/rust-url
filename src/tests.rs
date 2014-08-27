@@ -74,8 +74,7 @@ fn url_parsing() {
             }) => {
                 assert_eq!(username, expected_username);
                 assert_eq!(password, expected_password);
-                let host = host.serialize();
-                assert_eq!(host, expected_host)
+                assert_eq!(host.to_string(), expected_host)
                 assert_eq!(port, expected_port);
                 assert_eq!(Some("/".to_string().append(path.connect("/").as_slice())),
                            expected_path);
