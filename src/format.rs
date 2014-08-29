@@ -16,7 +16,7 @@ use std::fmt::{Show, Formatter, FormatError};
 use super::Url;
 
 /// Formatter and serializer for URL path data.
-pub struct PathFormatter<'a, T> {
+pub struct PathFormatter<'a, T:'a> {
     /// The path as a slice of string-like objects (String or &str).
     pub path: &'a [T]
 }
