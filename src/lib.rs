@@ -120,8 +120,6 @@ assert!(css_url.serialize() == "http://servo.github.io/rust-url/main.css".to_str
 #![feature(macro_rules, default_type_params)]
 
 extern crate encoding;
-
-#[cfg(test)]
 extern crate serialize;
 
 use std::fmt::{Formatter, FormatError, Show};
@@ -163,7 +161,7 @@ mod tests;
 
 
 /// The parsed representation of an absolute URL.
-#[deriving(PartialEq, Eq, Clone)]
+#[deriving(PartialEq, Eq, Clone, Encodable)]
 pub struct Url {
     /// The scheme (a.k.a. protocol) of the URL, in ASCII lower case.
     pub scheme: String,
@@ -194,7 +192,7 @@ pub struct Url {
 }
 
 /// The components of the URL whose representation depends on where the scheme is *relative*.
-#[deriving(PartialEq, Eq, Clone)]
+#[deriving(PartialEq, Eq, Clone, Encodable)]
 pub enum SchemeData {
     /// Components for URLs in a *relative* scheme such as HTTP.
     RelativeSchemeData(RelativeSchemeData),
@@ -208,7 +206,7 @@ pub enum SchemeData {
 }
 
 /// Components for URLs in a *relative* scheme such as HTTP.
-#[deriving(PartialEq, Eq, Clone)]
+#[deriving(PartialEq, Eq, Clone, Encodable)]
 pub struct RelativeSchemeData {
     /// The username of the URL, as a possibly empty, pecent-encoded string.
     ///
