@@ -120,8 +120,6 @@ assert!(css_url.serialize() == "http://servo.github.io/rust-url/main.css".to_str
 #![feature(macro_rules, default_type_params)]
 
 extern crate encoding;
-
-#[cfg(test)]
 extern crate serialize;
 
 use std::fmt::{Formatter, FormatError, Show};
@@ -750,6 +748,22 @@ impl Url {
     #[inline]
     pub fn lossy_percent_decode_fragment(&self) -> Option<String> {
         self.fragment.as_ref().map(|value| lossy_utf8_percent_decode(value.as_bytes()))
+    }
+}
+
+
+impl<E, S: serialize::Encoder<E>> serialize::Encodable<S, E> for Url {
+    fn encode(&self, encoder: &mut S) -> Result<(), E> {
+        encoder.emit_str(self.to_string().as_slice())
+    }
+}
+
+
+impl<E, D: serialize::Decoder<E>> serialize::Decodable<D, E> for Url {
+    fn decode(decoder: &mut D) -> Result<Url, E> {
+        Url::parse(try!(decoder.read_str()).as_slice()).map_err(|error| {
+            decoder.error(format!("URL parsing error: {}", error).as_slice())
+        })
     }
 }
 
