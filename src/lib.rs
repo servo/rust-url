@@ -251,6 +251,18 @@ impl<S: hash::Writer> hash::Hash<S> for Url {
     }
 }
 
+impl Ord for Url {
+    fn cmp(&self, other: &Url) -> Ordering {
+        self.serialize().cmp(&other.serialize())
+    }
+}
+
+impl PartialOrd for Url {
+    fn partial_cmp(&self, other: &Url) -> Option<Ordering> {
+        self.serialize().partial_cmp(&other.serialize())
+    }
+}
+
 
 /// A set of optional parameters for URL parsing.
 pub struct UrlParser<'a> {
