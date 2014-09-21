@@ -16,6 +16,7 @@ use encoding;
 use super::{
     UrlParser, Url, RelativeSchemeData, NonRelativeSchemeData, Host, Domain,
     SchemeType, FileLikeRelativeScheme, RelativeScheme, NonRelativeScheme,
+    UrlRelativeSchemeData,
 };
 use percent_encoding::{
     utf8_percent_encode_to, percent_encode,
@@ -127,7 +128,7 @@ pub fn parse_url(input: &str, parser: &UrlParser) -> ParseResult<Url> {
                     parse_relative_url(remaining, scheme, scheme_type, base, query, parser)
                 },
                 // FIXME: Should not have to use a made-up base URL.
-                _ => parse_relative_url(remaining, scheme, scheme_type, &RelativeSchemeData {
+                _ => parse_relative_url(remaining, scheme, scheme_type, &UrlRelativeSchemeData {
                     username: String::new(), password: None, host: Domain(String::new()),
                     port: None, default_port: None, path: Vec::new()
                 }, &None, parser)
@@ -187,7 +188,7 @@ fn parse_absolute_url<'a>(scheme: String, scheme_type: SchemeType,
     let (host, port, default_port, remaining) = try!(parse_host(remaining, scheme_type, parser));
     let (path, remaining) = try!(parse_path_start(
         remaining, UrlParserContext, scheme_type, parser));
-    let scheme_data = RelativeSchemeData(RelativeSchemeData {
+    let scheme_data = RelativeSchemeData(UrlRelativeSchemeData {
         username: username, password: password,
         host: host, port: port, default_port: default_port,
         path: path });
@@ -197,7 +198,7 @@ fn parse_absolute_url<'a>(scheme: String, scheme_type: SchemeType,
 
 
 fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeType,
-                          base: &RelativeSchemeData, base_query: &Option<String>,
+                          base: &UrlRelativeSchemeData, base_query: &Option<String>,
                           parser: &UrlParser)
                           -> ParseResult<Url> {
     if input.is_empty() {
@@ -226,7 +227,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeTyp
                     };
                     let (path, remaining) = try!(parse_path_start(
                         remaining, UrlParserContext, scheme_type, parser));
-                    let scheme_data = RelativeSchemeData(RelativeSchemeData {
+                    let scheme_data = RelativeSchemeData(UrlRelativeSchemeData {
                         username: String::new(), password: None,
                         host: host, port: None, default_port: None, path: path
                     });
@@ -241,12 +242,12 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeTyp
                 let (path, remaining) = try!(parse_path(
                     [], input.slice_from(1), UrlParserContext, scheme_type, parser));
                 let scheme_data = RelativeSchemeData(if scheme_type == FileLikeRelativeScheme {
-                    RelativeSchemeData {
+                    UrlRelativeSchemeData {
                         username: String::new(), password: None, host:
                         Domain(String::new()), port: None, default_port: None, path: path
                     }
                 } else {
-                    RelativeSchemeData {
+                    UrlRelativeSchemeData {
                         username: base.username.clone(),
                         password: base.password.clone(),
                         host: base.host.clone(),
@@ -282,7 +283,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeTyp
                 // Windows drive letter quirk
                 let (path, remaining) = try!(parse_path(
                     [], input, UrlParserContext, scheme_type, parser));
-                 (RelativeSchemeData(RelativeSchemeData {
+                 (RelativeSchemeData(UrlRelativeSchemeData {
                     username: String::new(), password: None,
                     host: Domain(String::new()),
                     port: None,
@@ -294,7 +295,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeTyp
                 // Relative path state
                 let (path, remaining) = try!(parse_path(
                     base_path, input, UrlParserContext, scheme_type, parser));
-                (RelativeSchemeData(RelativeSchemeData {
+                (RelativeSchemeData(UrlRelativeSchemeData {
                     username: base.username.clone(),
                     password: base.password.clone(),
                     host: base.host.clone(),

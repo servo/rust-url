@@ -11,6 +11,7 @@
 //! only to help implement the JavaScript URLUtils API: http://url.spec.whatwg.org/#urlutils
 
 use super::{Url, UrlParser, RelativeSchemeData, NonRelativeSchemeData, FileLikeRelativeScheme};
+use super::UrlRelativeSchemeData;
 use parser::{
     ParseResult, InvalidScheme,
     CannotSetFileScheme, CannotSetJavascriptScheme, CannotSetNonRelativeScheme,
@@ -53,7 +54,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
     /// `URLUtils.username` setter
     fn set_username(&mut self, input: &str) -> ParseResult<()> {
         match self.url.scheme_data {
-            RelativeSchemeData(RelativeSchemeData { ref mut username, .. }) => {
+            RelativeSchemeData(UrlRelativeSchemeData { ref mut username, .. }) => {
                 username.truncate(0);
                 utf8_percent_encode_to(input, USERNAME_ENCODE_SET, username);
                 Ok(())
@@ -65,7 +66,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
     /// `URLUtils.password` setter
     fn set_password(&mut self, input: &str) -> ParseResult<()> {
         match self.url.scheme_data {
-            RelativeSchemeData(RelativeSchemeData { ref mut password, .. }) => {
+            RelativeSchemeData(UrlRelativeSchemeData { ref mut password, .. }) => {
                 let mut new_password = String::new();
                 utf8_percent_encode_to(input, PASSWORD_ENCODE_SET, &mut new_password);
                 *password = Some(new_password);
@@ -78,7 +79,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
     /// `URLUtils.host` setter
     fn set_host_and_port(&mut self, input: &str) -> ParseResult<()> {
         match self.url.scheme_data {
-            RelativeSchemeData(RelativeSchemeData {
+            RelativeSchemeData(UrlRelativeSchemeData {
                 ref mut host, ref mut port, ref mut default_port, ..
             }) => {
                 let scheme_type = self.parser.get_scheme_type(self.url.scheme.as_slice());
@@ -96,7 +97,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
     /// `URLUtils.hostname` setter
     fn set_host(&mut self, input: &str) -> ParseResult<()> {
         match self.url.scheme_data {
-            RelativeSchemeData(RelativeSchemeData { ref mut host, .. }) => {
+            RelativeSchemeData(UrlRelativeSchemeData { ref mut host, .. }) => {
                 let (new_host, _) = try!(::parser::parse_hostname(input, self.parser));
                 *host = new_host;
                 Ok(())
@@ -108,7 +109,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
     /// `URLUtils.port` setter
     fn set_port(&mut self, input: &str) -> ParseResult<()> {
         match self.url.scheme_data {
-            RelativeSchemeData(RelativeSchemeData { ref mut port, ref mut default_port, .. }) => {
+            RelativeSchemeData(UrlRelativeSchemeData { ref mut port, ref mut default_port, .. }) => {
                 let scheme_type = self.parser.get_scheme_type(self.url.scheme.as_slice());
                 if scheme_type == FileLikeRelativeScheme {
                     return Err(CannotSetFileScheme("port"));
@@ -126,7 +127,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
     /// `URLUtils.pathname` setter
     fn set_path(&mut self, input: &str) -> ParseResult<()> {
         match self.url.scheme_data {
-            RelativeSchemeData(RelativeSchemeData { ref mut path, .. }) => {
+            RelativeSchemeData(UrlRelativeSchemeData { ref mut path, .. }) => {
                 let scheme_type = self.parser.get_scheme_type(self.url.scheme.as_slice());
                 let (new_path, _) = try!(::parser::parse_path_start(
                     input, ::parser::SetterContext, scheme_type, self.parser));
