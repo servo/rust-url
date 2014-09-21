@@ -84,7 +84,7 @@ pub fn parse_bytes(input: &[u8], encoding_override: Option<EncodingRef>,
             encoding::DecodeReplace).unwrap()
     }
 
-    Some(pairs.move_iter().map(
+    Some(pairs.into_iter().map(
         |(name, value)| (decode(name, encoding_override), decode(value, encoding_override))
     ).collect())
 }

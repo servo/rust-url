@@ -195,7 +195,7 @@ pub struct Url {
 #[deriving(PartialEq, Eq, Clone)]
 pub enum SchemeData {
     /// Components for URLs in a *relative* scheme such as HTTP.
-    RelativeSchemeData(RelativeSchemeData),
+    RelativeSchemeData(UrlRelativeSchemeData),
 
     /// No further structure is assumed for *non-relative* schemes such as `data` and `mailto`.
     ///
@@ -207,7 +207,7 @@ pub enum SchemeData {
 
 /// Components for URLs in a *relative* scheme such as HTTP.
 #[deriving(PartialEq, Eq, Clone)]
-pub struct RelativeSchemeData {
+pub struct UrlRelativeSchemeData {
     /// The username of the URL, as a possibly empty, pecent-encoded string.
     ///
     /// Percent encoded strings are within the ASCII range.
@@ -504,7 +504,7 @@ impl Url {
     fn from_path_common(path: Vec<String>) -> Url {
         Url {
             scheme: "file".to_string(),
-            scheme_data: RelativeSchemeData(RelativeSchemeData {
+            scheme_data: RelativeSchemeData(UrlRelativeSchemeData {
                 username: "".to_string(),
                 password: None,
                 port: None,
@@ -575,7 +575,7 @@ impl Url {
 
     /// If the URL is in a *relative scheme*, return the structured scheme data.
     #[inline]
-    pub fn relative_scheme_data<'a>(&'a self) -> Option<&'a RelativeSchemeData> {
+    pub fn relative_scheme_data<'a>(&'a self) -> Option<&'a UrlRelativeSchemeData> {
         match self.scheme_data {
             RelativeSchemeData(ref scheme_data) => Some(scheme_data),
             NonRelativeSchemeData(..) => None,
@@ -585,7 +585,7 @@ impl Url {
     /// If the URL is in a *relative scheme*,
     /// return a mutable reference to the structured scheme data.
     #[inline]
-    pub fn relative_scheme_data_mut<'a>(&'a mut self) -> Option<&'a mut RelativeSchemeData> {
+    pub fn relative_scheme_data_mut<'a>(&'a mut self) -> Option<&'a mut UrlRelativeSchemeData> {
         match self.scheme_data {
             RelativeSchemeData(ref mut scheme_data) => Some(scheme_data),
             NonRelativeSchemeData(..) => None,
@@ -793,7 +793,7 @@ impl Show for SchemeData {
 }
 
 
-impl RelativeSchemeData {
+impl UrlRelativeSchemeData {
     /// Percent-decode the URL’s username.
     ///
     /// This is “lossy”: invalid UTF-8 percent-encoded byte sequences
@@ -888,7 +888,7 @@ impl RelativeSchemeData {
 }
 
 
-impl Show for RelativeSchemeData {
+impl Show for UrlRelativeSchemeData {
     fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
         // Write the scheme-trailing double slashes.
         try!(formatter.write(b"//"));

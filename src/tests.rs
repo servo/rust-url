@@ -11,11 +11,12 @@ use std::char;
 use std::u32;
 use std::path;
 use super::{UrlParser, Url, RelativeSchemeData, NonRelativeSchemeData, Domain};
+use super::UrlRelativeSchemeData;
 
 
 #[test]
 fn url_parsing() {
-    for test in parse_test_data(include_str!("urltestdata.txt")).move_iter() {
+    for test in parse_test_data(include_str!("urltestdata.txt")).into_iter() {
         let Test {
             input: input,
             base: base,
@@ -69,7 +70,7 @@ fn url_parsing() {
 
         assert_eq!(Some(scheme), expected_scheme);
         match scheme_data {
-            RelativeSchemeData(RelativeSchemeData {
+            RelativeSchemeData(UrlRelativeSchemeData {
                 username, password, host, port, default_port: _, path,
             }) => {
                 assert_eq!(username, expected_username);
@@ -141,7 +142,7 @@ fn parse_test_data(input: &str) -> Vec<Test> {
             fragment: None,
             expected_failure: expected_failure,
         };
-        for piece in pieces.move_iter() {
+        for piece in pieces.into_iter() {
             if piece == "" || piece.starts_with("#") {
                 continue
             }
