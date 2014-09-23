@@ -918,7 +918,7 @@ impl Show for UrlRelativeSchemeData {
 }
 
 
-trait ToUrlPath {
+pub trait ToUrlPath {
     fn to_url_path(&self) -> Result<Vec<String>, ()>;
 }
 
@@ -953,7 +953,7 @@ impl ToUrlPath for path::windows::Path {
 }
 
 
-trait FromUrlPath {
+pub trait FromUrlPath {
     fn from_url_path(path: &[String]) -> Result<Self, ()>;
 }
 
