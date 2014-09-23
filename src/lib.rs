@@ -117,7 +117,7 @@ assert!(css_url.serialize() == "http://servo.github.io/rust-url/main.css".to_str
 */
 
 
-#![feature(macro_rules, default_type_params)]
+#![feature(macro_rules, default_type_params, visible_private_types)]
 
 extern crate encoding;
 extern crate serialize;
