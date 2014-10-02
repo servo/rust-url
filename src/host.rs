@@ -186,7 +186,7 @@ impl Ipv6Address {
                 let mut value = 0u16;
                 while i < len {
                     let digit = match input[i] {
-                        c @ b'0' .. b'9' => c - b'0',
+                        c @ b'0' ... b'9' => c - b'0',
                         _ => break
                     };
                     value = value * 10 + digit as u16;
