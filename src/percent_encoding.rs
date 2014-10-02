@@ -140,9 +140,9 @@ pub fn lossy_utf8_percent_decode(input: &[u8]) -> String {
 #[inline]
 pub fn from_hex(byte: u8) -> Option<u8> {
     match byte {
-        b'0' .. b'9' => Some(byte - b'0'),  // 0..9
-        b'A' .. b'F' => Some(byte + 10 - b'A'),  // A..F
-        b'a' .. b'f' => Some(byte + 10 - b'a'),  // a..f
+        b'0' ... b'9' => Some(byte - b'0'),  // 0...9
+        b'A' ... b'F' => Some(byte + 10 - b'A'),  // A...F
+        b'a' ... b'f' => Some(byte + 10 - b'a'),  // a...f
         _ => None
     }
 }
