@@ -78,8 +78,7 @@ fn url_parsing() {
                 let host = host.serialize();
                 assert_eq!(host, expected_host)
                 assert_eq!(port, expected_port);
-                assert_eq!(Some("/".to_string().append(path.connect("/").as_slice())),
-                           expected_path);
+                assert_eq!(Some(format!("/{}", path.connect("/"))), expected_path);
             },
             NonRelativeSchemeData(scheme_data) => {
                 assert_eq!(Some(scheme_data), expected_path);
@@ -90,7 +89,7 @@ fn url_parsing() {
             },
         }
         fn opt_prepend(prefix: &str, opt_s: Option<String>) -> Option<String> {
-            opt_s.map(|s| prefix.to_string().append(s.as_slice()))
+            opt_s.map(|s| format!("{}{}", prefix, s))
         }
         assert_eq!(opt_prepend("?", query), expected_query);
         assert_eq!(opt_prepend("#", fragment), expected_fragment);
@@ -171,7 +170,7 @@ fn unescape(input: &str) -> String {
     loop {
         match chars.next() {
             None => return output,
-            Some(c) => output.push_char(
+            Some(c) => output.push(
                 if c == '\\' {
                     match chars.next().unwrap() {
                         '\\' => '\\',
@@ -182,10 +181,10 @@ fn unescape(input: &str) -> String {
                         'f' => '\x0C',
                         'u' => {
                             let mut hex = String::new();
-                            hex.push_char(chars.next().unwrap());
-                            hex.push_char(chars.next().unwrap());
-                            hex.push_char(chars.next().unwrap());
-                            hex.push_char(chars.next().unwrap());
+                            hex.push(chars.next().unwrap());
+                            hex.push(chars.next().unwrap());
+                            hex.push(chars.next().unwrap());
+                            hex.push(chars.next().unwrap());
                             u32::parse_bytes(hex.as_bytes(), 16)
                                 .and_then(char::from_u32).unwrap()
                         }
