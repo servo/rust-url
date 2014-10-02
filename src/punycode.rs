@@ -209,7 +209,7 @@ fn value_to_digit(value: u32, output: &mut String) {
         26 ... 35 => value - 26 + 0x30,  // 0..9
         _ => fail!()
     };
-    unsafe { output.push_byte(code_point as u8) }
+    unsafe { output.as_mut_vec().push(code_point as u8) }
 }
 
 

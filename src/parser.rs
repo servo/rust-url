@@ -413,7 +413,7 @@ pub fn parse_hostname<'a>(input: &'a str, parser: &UrlParser)
                     ']' => inside_square_brackets = false,
                     _ => (),
                 }
-                host_input.push_char(c)
+                host_input.push(c)
             }
         }
     }
@@ -463,7 +463,7 @@ fn parse_file_host<'a>(input: &'a str, parser: &UrlParser) -> ParseResult<(Host,
                 break
             },
             '\t' | '\n' | '\r' => try!(parser.parse_error(InvalidCharacter)),
-            _ => host_input.push_char(c)
+            _ => host_input.push(c)
         }
     }
     let host = if host_input.is_empty() {
@@ -638,7 +638,7 @@ pub fn parse_query<'a>(input: &'a str, context: Context, parser: &UrlParser)
             '\t' | '\n' | '\r' => try!(parser.parse_error(InvalidCharacter)),
             _ => {
                 try!(check_url_code_point(input, i, c, parser));
-                query.push_char(c);
+                query.push(c);
             }
         }
     }
