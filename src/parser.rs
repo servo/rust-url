@@ -162,7 +162,7 @@ pub fn parse_scheme<'a>(input: &'a str, context: Context) -> Option<(String, &'a
     }
     for (i, c) in input.char_indices() {
         match c {
-            'a'..'z' | 'A'..'Z' | '0'..'9' | '+' | '-' | '.' => (),
+            'a'...'z' | 'A'...'Z' | '0'...'9' | '+' | '-' | '.' => (),
             ':' => return Some((
                 input.slice_to(i).to_ascii_lower(),
                 input.slice_from(i + 1),
@@ -429,7 +429,7 @@ pub fn parse_port<'a>(input: &'a str, scheme_type: SchemeType, parser: &UrlParse
     let mut end = input.len();
     for (i, c) in input.char_indices() {
         match c {
-            '0'..'9' => {
+            '0'...'9' => {
                 port = port * 10 + (c as u32 - '0' as u32);
                 if port > ::std::u16::MAX as u32 {
                     return Err(InvalidPort)
@@ -674,7 +674,7 @@ pub fn parse_fragment<'a>(input: &'a str, parser: &UrlParser) -> ParseResult<Str
 #[inline]
 pub fn starts_with_ascii_alpha(string: &str) -> bool {
     match string.char_at(0) {
-        'a'..'z' | 'A'..'Z' => true,
+        'a'...'z' | 'A'...'Z' => true,
         _ => false,
     }
 }
@@ -682,7 +682,7 @@ pub fn starts_with_ascii_alpha(string: &str) -> bool {
 #[inline]
 fn is_ascii_hex_digit(byte: u8) -> bool {
     match byte {
-        b'a'..b'f' | b'A'..b'F' | b'0'..b'9' => true,
+        b'a'...b'f' | b'A'...b'F' | b'0'...b'9' => true,
         _ => false,
     }
 }
@@ -697,20 +697,20 @@ fn starts_with_2_hex(input: &str) -> bool {
 #[inline]
 fn is_url_code_point(c: char) -> bool {
     match c {
-        'a'..'z' |
-        'A'..'Z' |
-        '0'..'9' |
+        'a'...'z' |
+        'A'...'Z' |
+        '0'...'9' |
         '!' | '$' | '&' | '\'' | '(' | ')' | '*' | '+' | ',' | '-' |
         '.' | '/' | ':' | ';' | '=' | '?' | '@' | '_' | '~' |
-        '\u00A0'..'\uD7FF' | '\uE000'..'\uFDCF' | '\uFDF0'..'\uFFFD' |
-        '\U00010000'..'\U0001FFFD' | '\U00020000'..'\U0002FFFD' |
-        '\U00030000'..'\U0003FFFD' | '\U00040000'..'\U0004FFFD' |
-        '\U00050000'..'\U0005FFFD' | '\U00060000'..'\U0006FFFD' |
-        '\U00070000'..'\U0007FFFD' | '\U00080000'..'\U0008FFFD' |
-        '\U00090000'..'\U0009FFFD' | '\U000A0000'..'\U000AFFFD' |
-        '\U000B0000'..'\U000BFFFD' | '\U000C0000'..'\U000CFFFD' |
-        '\U000D0000'..'\U000DFFFD' | '\U000E1000'..'\U000EFFFD' |
-        '\U000F0000'..'\U000FFFFD' | '\U00100000'..'\U0010FFFD' => true,
+        '\u00A0'...'\uD7FF' | '\uE000'...'\uFDCF' | '\uFDF0'...'\uFFFD' |
+        '\U00010000'...'\U0001FFFD' | '\U00020000'...'\U0002FFFD' |
+        '\U00030000'...'\U0003FFFD' | '\U00040000'...'\U0004FFFD' |
+        '\U00050000'...'\U0005FFFD' | '\U00060000'...'\U0006FFFD' |
+        '\U00070000'...'\U0007FFFD' | '\U00080000'...'\U0008FFFD' |
+        '\U00090000'...'\U0009FFFD' | '\U000A0000'...'\U000AFFFD' |
+        '\U000B0000'...'\U000BFFFD' | '\U000C0000'...'\U000CFFFD' |
+        '\U000D0000'...'\U000DFFFD' | '\U000E1000'...'\U000EFFFD' |
+        '\U000F0000'...'\U000FFFFD' | '\U00100000'...'\U0010FFFD' => true,
         _ => false
     }
 }

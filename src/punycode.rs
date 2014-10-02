@@ -81,9 +81,9 @@ pub fn decode(input: &str) -> Option<Vec<char>> {
         // which gets added to i.
         loop {
             let digit = match byte {
-                byte @ 0x30 .. 0x39 => byte - 0x30 + 26,  // 0..9
-                byte @ 0x41 .. 0x5A => byte - 0x41,  // A..Z
-                byte @ 0x61 .. 0x7A => byte - 0x61,  // a..z
+                byte @ 0x30 ... 0x39 => byte - 0x30 + 26,  // 0...9
+                byte @ 0x41 ... 0x5A => byte - 0x41,  // A...Z
+                byte @ 0x61 ... 0x7A => byte - 0x61,  // a...z
                 _ => return None
             } as u32;
             if digit > (u32::MAX - i) / weight {
@@ -205,8 +205,8 @@ pub fn encode(input: &[char]) -> Option<String> {
 #[inline]
 fn value_to_digit(value: u32, output: &mut String) {
     let code_point = match value {
-        0 .. 25 => value + 0x61,  // a..z
-        26 .. 35 => value - 26 + 0x30,  // 0..9
+        0 ... 25 => value + 0x61,  // a...z
+        26 ... 35 => value - 26 + 0x30,  // 0...9
         _ => fail!()
     };
     unsafe { output.push_byte(code_point as u8) }
