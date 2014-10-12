@@ -727,7 +727,7 @@ impl Url {
         self.relative_scheme_data().map( |scheme_data| 
                                           PathWithQueryFormatter {
                                               path: scheme_data.path.as_slice(),
-                                              query: &self.query
+                                              query: self.query.as_ref().map(|s| s.as_slice())
                                           }.to_string()
                                           )
     }

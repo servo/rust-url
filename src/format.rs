@@ -37,7 +37,7 @@ impl<'a, T: Str + Show> Show for PathFormatter<'a, T> {
 
 pub struct PathWithQueryFormatter<'a, T:'a> {
     pub path: &'a [T],
-    pub query: &'a Option<String>,
+    pub query: Option<&'a str>,
 }
 
 impl<'a, T: Str + Show> Show for PathWithQueryFormatter<'a, T> {
@@ -45,7 +45,7 @@ impl<'a, T: Str + Show> Show for PathWithQueryFormatter<'a, T> {
         try!(PathFormatter {
             path: self.path.as_slice()
         }.fmt(formatter));
-        match *self.query {
+        match self.query {
             None => (),
             Some(ref query) => {
                 try!(formatter.write(b"?"));
@@ -157,7 +157,7 @@ mod tests {
         for &(ref path, ref query, result) in data.iter() {
             assert_eq!(PathWithQueryFormatter {
                 path: path.as_slice(),
-                query: query
+                query: query.as_ref().map(|s| s.as_slice())
             }.to_string(), result.to_string());
         }
     }
