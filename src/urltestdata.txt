@@ -20,7 +20,7 @@ http://f:b/c
 http://f:\s/c
 http://f:\n/c  s:http h:f p:/c
 http://f:fifty-two/c
-XFAIL http://f:99999/c  s:http h:f port:99999 p:/c
+XFAIL http://f:999999/c  s:http h:f port:999999 p:/c
 http://f:\s21\s/\sb\s?\sd\s#\se\s
   s:http h:example.org p:/foo/bar
 \s\s\t  s:http h:example.org p:/foo/bar
