@@ -7,7 +7,7 @@
 // except according to those terms.
 
 
-use std::ascii::StrAsciiExt;
+use std::ascii::AsciiExt;
 use std::fmt::{Formatter, FormatError, Show};
 use std::str::CharRange;
 
