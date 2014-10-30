@@ -65,7 +65,7 @@ assert!(issue_list_url.query == Some("labels=E-easy&state=open".to_string()));
 assert!(issue_list_url.fragment == None);
 match issue_list_url.scheme_data {
     RelativeSchemeData(..) => {},  // Expected
-    NonRelativeSchemeData(..) => fail!(),
+    NonRelativeSchemeData(..) => panic!(),
 }
 ```
 
