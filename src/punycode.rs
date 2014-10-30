@@ -207,7 +207,7 @@ fn value_to_digit(value: u32, output: &mut String) {
     let code_point = match value {
         0 ... 25 => value + 0x61,  // a..z
         26 ... 35 => value - 26 + 0x30,  // 0..9
-        _ => fail!()
+        _ => panic!()
     };
     unsafe { output.as_mut_vec().push(code_point as u8) }
 }
@@ -220,7 +220,7 @@ mod tests {
 
     fn one_test(description: &str, decoded: &str, encoded: &str) {
         match decode(encoded) {
-            None => fail!("Decoding {} failed.", encoded),
+            None => panic!("Decoding {} failed.", encoded),
             Some(result) => {
                 let result = String::from_chars(result.as_slice());
                 assert!(result.as_slice() == decoded,
@@ -230,7 +230,7 @@ mod tests {
         }
 
         match encode_str(decoded) {
-            None => fail!("Encoding {} failed.", decoded),
+            None => panic!("Encoding {} failed.", decoded),
             Some(result) => {
                 assert!(result.as_slice() == encoded,
                         format!("Incorrect encoding of {}:\n   {}\n!= {}\n{}",
@@ -243,7 +243,7 @@ mod tests {
         match map.find(&key.to_string()) {
             Some(&String(ref s)) => s.as_slice(),
             None => "",
-            _ => fail!(),
+            _ => panic!(),
         }
     }
 
@@ -258,10 +258,10 @@ mod tests {
                         get_string(o, "decoded"),
                         get_string(o, "encoded")
                     ),
-                    _ => fail!(),
+                    _ => panic!(),
                 }
             },
-            other => fail!("{}", other)
+            other => panic!("{}", other)
         }
     }
 }

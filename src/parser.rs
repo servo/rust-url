@@ -619,7 +619,7 @@ fn parse_query_and_fragment(input: &str, parser: &UrlParser)
             };
             Ok((Some(query), fragment))
         },
-        _ => fail!("Programming error. parse_query_and_fragment() should not \
+        _ => panic!("Programming error. parse_query_and_fragment() should not \
                     have been called with input \"{}\"", input)
     }
 }
