@@ -32,12 +32,12 @@ fn url_parsing() {
         } = test;
         let base = match Url::parse(base.as_slice()) {
             Ok(base) => base,
-            Err(message) => fail!("Error parsing base {}: {}", base, message)
+            Err(message) => panic!("Error parsing base {}: {}", base, message)
         };
         let url = UrlParser::new().base_url(&base).parse(input.as_slice());
         if expected_scheme.is_none() {
             if url.is_ok() && !expected_failure {
-                fail!("Expected a parse error for URL {}", input);
+                panic!("Expected a parse error for URL {}", input);
             }
             continue
         }
@@ -47,7 +47,7 @@ fn url_parsing() {
                 if expected_failure {
                     continue
                 } else {
-                    fail!("Error parsing URL {}: {}", input, message)
+                    panic!("Error parsing URL {}: {}", input, message)
                 }
             }
         };
@@ -61,7 +61,7 @@ fn url_parsing() {
                         if expected_failure {
                             continue
                         } else {
-                            fail!("{} != {}", a, b)
+                            panic!("{} != {}", a, b)
                         }
                     }
                 }
@@ -159,7 +159,7 @@ fn parse_test_data(input: &str) -> Vec<Test> {
                 "p" => test.path = Some(value),
                 "q" => test.query = Some(value),
                 "f" => test.fragment = Some(value),
-                _ => fail!("Invalid token")
+                _ => panic!("Invalid token")
             }
         }
         tests.push(test)
@@ -191,7 +191,7 @@ fn unescape(input: &str) -> String {
                             u32::parse_bytes(hex.as_bytes(), 16)
                                 .and_then(char::from_u32).unwrap()
                         }
-                        _ => fail!("Invalid test data input"),
+                        _ => panic!("Invalid test data input"),
                     }
                 } else {
                     c
