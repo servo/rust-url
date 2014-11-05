@@ -176,6 +176,7 @@ fn unescape(input: &str) -> String {
             Some(c) => output.push(
                 if c == '\\' {
                     match chars.next().unwrap() {
+                        '#' => '#',
                         '\\' => '\\',
                         'n' => '\n',
                         'r' => '\r',
