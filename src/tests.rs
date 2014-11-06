@@ -8,7 +8,7 @@
 
 
 use std::char;
-use std::u32;
+use std::num::from_str_radix;
 use std::path;
 use super::{UrlParser, Url, RelativeSchemeData, NonRelativeSchemeData, Domain};
 use super::UrlRelativeSchemeData;
@@ -18,8 +18,8 @@ use super::UrlRelativeSchemeData;
 fn url_parsing() {
     for test in parse_test_data(include_str!("urltestdata.txt")).into_iter() {
         let Test {
-            input: input,
-            base: base,
+            input,
+            base,
             scheme: expected_scheme,
             username: expected_username,
             password: expected_password,
@@ -28,7 +28,7 @@ fn url_parsing() {
             path: expected_path,
             query: expected_query,
             fragment: expected_fragment,
-            expected_failure: expected_failure,
+            expected_failure,
         } = test;
         let base = match Url::parse(base.as_slice()) {
             Ok(base) => base,
@@ -185,7 +185,7 @@ fn unescape(input: &str) -> String {
                             hex.push(chars.next().unwrap());
                             hex.push(chars.next().unwrap());
                             hex.push(chars.next().unwrap());
-                            u32::parse_bytes(hex.as_bytes(), 16)
+                            from_str_radix(hex.as_slice(), 16)
                                 .and_then(char::from_u32).unwrap()
                         }
                         _ => panic!("Invalid test data input"),
@@ -213,14 +213,14 @@ fn file_paths() {
     assert_eq!(url.path(), Some(["foo".to_string(), "bar".to_string()].as_slice()));
     assert!(url.to_file_path() == Ok(path::posix::Path::new("/foo/bar")));
 
-    *url.path_mut().unwrap().get_mut(1) = "ba\0r".to_string();
+    url.path_mut().unwrap()[1] = "ba\0r".to_string();
     assert!(url.to_file_path::<path::posix::Path>() == Err(()));
 
-    *url.path_mut().unwrap().get_mut(1) = "ba%00r".to_string();
+    url.path_mut().unwrap()[1] = "ba%00r".to_string();
     assert!(url.to_file_path::<path::posix::Path>() == Err(()));
 
     // Invalid UTF-8
-    *url.path_mut().unwrap().get_mut(1) = "ba%80r".to_string();
+    url.path_mut().unwrap()[1] = "ba%80r".to_string();
     assert!(url.to_file_path() == Ok(path::posix::Path::new(
         /* note: byte string, invalid UTF-8 */ b"/foo/ba\x80r")));
 
@@ -230,14 +230,14 @@ fn file_paths() {
     assert!(url.to_file_path::<path::windows::Path>()
             == Ok(path::windows::Path::new(r"C:\foo\bar")));
 
-    *url.path_mut().unwrap().get_mut(2) = "ba\0r".to_string();
+    url.path_mut().unwrap()[2] = "ba\0r".to_string();
     assert!(url.to_file_path::<path::windows::Path>() == Err(()));
 
-    *url.path_mut().unwrap().get_mut(2) = "ba%00r".to_string();
+    url.path_mut().unwrap()[2] = "ba%00r".to_string();
     assert!(url.to_file_path::<path::windows::Path>() == Err(()));
 
     // Invalid UTF-8
-    *url.path_mut().unwrap().get_mut(2) = "ba%80r".to_string();
+    url.path_mut().unwrap()[2] = "ba%80r".to_string();
     assert!(url.to_file_path::<path::windows::Path>() == Err(()));
 }
 

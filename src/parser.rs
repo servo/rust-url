@@ -567,7 +567,7 @@ fn parse_path<'a>(base_path: &[String], input: &'a str, context: Context,
                    && path_part.as_slice().char_at(1) == '|' {
                     // Windows drive letter quirk
                     unsafe {
-                        *path_part.as_mut_vec().get_mut(1) = b':'
+                        path_part.as_mut_vec()[1] = b':'
                     }
                 }
                 path.push(path_part)
