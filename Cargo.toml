@@ -4,6 +4,5 @@ name = "url"
 version = "0.1.0"
 authors = [ "Simon Sapin <simon.sapin@exyr.org>" ]
 
-[dependencies.encoding]
-
-git = "https://github.com/lifthrasiir/rust-encoding"
+[dependencies]
+encoding = "0.2"
