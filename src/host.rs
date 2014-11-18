@@ -6,15 +6,10 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-pub use Host::{Domain,Ipv6};
-
 use std::ascii::OwnedAsciiExt;
 use std::cmp;
 use std::fmt::{mod, Formatter, Show};
-use parser::{
-    ParseResult,
-    InvalidIpv6Address, EmptyHost, NonAsciiDomainsNotSupportedYet, InvalidDomainCharacter,
-};
+use parser::{ParseResult, ParseError};
 use percent_encoding::{from_hex, percent_decode};
 
 
@@ -63,25 +58,25 @@ impl Host {
     /// FIXME: Add IDNA support for non-ASCII domains.
     pub fn parse(input: &str) -> ParseResult<Host> {
         if input.len() == 0 {
-            Err(EmptyHost)
+            Err(ParseError::EmptyHost)
         } else if input.starts_with("[") {
             if input.ends_with("]") {
-                Ipv6Address::parse(input.slice(1, input.len() - 1)).map(Ipv6)
+                Ipv6Address::parse(input.slice(1, input.len() - 1)).map(Host::Ipv6)
             } else {
-                Err(InvalidIpv6Address)
+                Err(ParseError::InvalidIpv6Address)
             }
         } else {
             let decoded = percent_decode(input.as_bytes());
             let domain = String::from_utf8_lossy(decoded.as_slice());
             // TODO: Remove this check and use IDNA "domain to ASCII"
             if !domain.as_slice().is_ascii() {
-                Err(NonAsciiDomainsNotSupportedYet)
+                Err(ParseError::NonAsciiDomainsNotSupportedYet)
             } else if domain.as_slice().find([
                 '\0', '\t', '\n', '\r', ' ', '#', '%', '/', ':', '?', '@', '[', '\\', ']'
             ].as_slice()).is_some() {
-                Err(InvalidDomainCharacter)
+                Err(ParseError::InvalidDomainCharacter)
             } else {
-                Ok(Domain(domain.into_string().into_ascii_lower()))
+                Ok(Host::Domain(domain.into_string().into_ascii_lower()))
             }
         }
     }
@@ -98,8 +93,8 @@ impl Host {
 impl Show for Host {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match *self {
-            Domain(ref domain) => domain.fmt(formatter),
-            Ipv6(ref address) => {
+            Host::Domain(ref domain) => domain.fmt(formatter),
+            Host::Ipv6(ref address) => {
                 try!(formatter.write(b"["));
                 try!(address.fmt(formatter));
                 formatter.write(b"]")
@@ -121,7 +116,7 @@ impl Ipv6Address {
         let mut i = 0u;
         if input[0] == b':' {
             if input[1] != b':' {
-                return Err(InvalidIpv6Address)
+                return Err(ParseError::InvalidIpv6Address)
             }
             i = 2;
             piece_pointer = 1;
@@ -130,11 +125,11 @@ impl Ipv6Address {
 
         while i < len {
             if piece_pointer == 8 {
-                return Err(InvalidIpv6Address)
+                return Err(ParseError::InvalidIpv6Address)
             }
             if input[i] == b':' {
                 if compress_pointer.is_some() {
-                    return Err(InvalidIpv6Address)
+                    return Err(ParseError::InvalidIpv6Address)
                 }
                 i += 1;
                 piece_pointer += 1;
@@ -157,7 +152,7 @@ impl Ipv6Address {
                 match input[i] {
                     b'.' => {
                         if i == start {
-                            return Err(InvalidIpv6Address)
+                            return Err(ParseError::InvalidIpv6Address)
                         }
                         i = start;
                         is_ip_v4 = true;
@@ -165,10 +160,10 @@ impl Ipv6Address {
                     b':' => {
                         i += 1;
                         if i == len {
-                            return Err(InvalidIpv6Address)
+                            return Err(ParseError::InvalidIpv6Address)
                         }
                     },
-                    _ => return Err(InvalidIpv6Address)
+                    _ => return Err(ParseError::InvalidIpv6Address)
                 }
             }
             if is_ip_v4 {
@@ -180,7 +175,7 @@ impl Ipv6Address {
 
         if is_ip_v4 {
             if piece_pointer > 6 {
-                return Err(InvalidIpv6Address)
+                return Err(ParseError::InvalidIpv6Address)
             }
             let mut dots_seen = 0u;
             while i < len {
@@ -193,11 +188,11 @@ impl Ipv6Address {
                     };
                     value = value * 10 + digit as u16;
                     if value == 0 || value > 255 {
-                        return Err(InvalidIpv6Address)
+                        return Err(ParseError::InvalidIpv6Address)
                     }
                 }
                 if dots_seen < 3 && !(i < len && input[i] == b'.') {
-                    return Err(InvalidIpv6Address)
+                    return Err(ParseError::InvalidIpv6Address)
                 }
                 pieces[piece_pointer] = pieces[piece_pointer] * 0x100 + value;
                 if dots_seen == 0 || dots_seen == 2 {
@@ -205,7 +200,7 @@ impl Ipv6Address {
                 }
                 i += 1;
                 if dots_seen == 3 && i < len {
-                    return Err(InvalidIpv6Address)
+                    return Err(ParseError::InvalidIpv6Address)
                 }
                 dots_seen += 1;
             }
@@ -223,7 +218,7 @@ impl Ipv6Address {
                 }
             }
             _ => if piece_pointer != 8 {
-                return Err(InvalidIpv6Address)
+                return Err(ParseError::InvalidIpv6Address)
             }
         }
         Ok(Ipv6Address { pieces: pieces })

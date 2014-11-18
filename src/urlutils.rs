@@ -10,9 +10,8 @@
 //! These methods are not meant for use in Rust code,
 //! only to help implement the JavaScript URLUtils API: http://url.spec.whatwg.org/#urlutils
 
-use super::{Url, UrlParser, RelativeSchemeData, NonRelativeSchemeData, FileLikeRelativeScheme};
-use super::UrlRelativeSchemeData;
-use parser::{ParseError, ParseResult};
+use super::{Url, UrlParser, SchemeType, SchemeData, RelativeSchemeData};
+use parser::{ParseError, ParseResult, Context};
 use percent_encoding::{utf8_percent_encode_to, USERNAME_ENCODE_SET, PASSWORD_ENCODE_SET};
 
 
@@ -39,7 +38,7 @@ trait UrlUtils {
 impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
     /// `URLUtils.protocol` setter
     fn set_scheme(&mut self, input: &str) -> ParseResult<()> {
-        match ::parser::parse_scheme(input.as_slice(), ::parser::SetterContext) {
+        match ::parser::parse_scheme(input.as_slice(), Context::Setter) {
             Some((scheme, _)) => {
                 self.url.scheme = scheme;
                 Ok(())
@@ -51,32 +50,32 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
     /// `URLUtils.username` setter
     fn set_username(&mut self, input: &str) -> ParseResult<()> {
         match self.url.scheme_data {
-            RelativeSchemeData(UrlRelativeSchemeData { ref mut username, .. }) => {
+            SchemeData::Relative(RelativeSchemeData { ref mut username, .. }) => {
                 username.truncate(0);
                 utf8_percent_encode_to(input, USERNAME_ENCODE_SET, username);
                 Ok(())
             },
-            NonRelativeSchemeData(_) => Err(ParseError::CannotSetUsernameWithNonRelativeScheme)
+            SchemeData::NonRelative(_) => Err(ParseError::CannotSetUsernameWithNonRelativeScheme)
         }
     }
 
     /// `URLUtils.password` setter
     fn set_password(&mut self, input: &str) -> ParseResult<()> {
         match self.url.scheme_data {
-            RelativeSchemeData(UrlRelativeSchemeData { ref mut password, .. }) => {
+            SchemeData::Relative(RelativeSchemeData { ref mut password, .. }) => {
                 let mut new_password = String::new();
                 utf8_percent_encode_to(input, PASSWORD_ENCODE_SET, &mut new_password);
                 *password = Some(new_password);
                 Ok(())
             },
-            NonRelativeSchemeData(_) => Err(ParseError::CannotSetPasswordWithNonRelativeScheme)
+            SchemeData::NonRelative(_) => Err(ParseError::CannotSetPasswordWithNonRelativeScheme)
         }
     }
 
     /// `URLUtils.host` setter
     fn set_host_and_port(&mut self, input: &str) -> ParseResult<()> {
         match self.url.scheme_data {
-            RelativeSchemeData(UrlRelativeSchemeData {
+            SchemeData::Relative(RelativeSchemeData {
                 ref mut host, ref mut port, ref mut default_port, ..
             }) => {
                 let scheme_type = self.parser.get_scheme_type(self.url.scheme.as_slice());
@@ -87,28 +86,28 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
                 *default_port = new_default_port;
                 Ok(())
             },
-            NonRelativeSchemeData(_) => Err(ParseError::CannotSetHostPortWithNonRelativeScheme)
+            SchemeData::NonRelative(_) => Err(ParseError::CannotSetHostPortWithNonRelativeScheme)
         }
     }
 
     /// `URLUtils.hostname` setter
     fn set_host(&mut self, input: &str) -> ParseResult<()> {
         match self.url.scheme_data {
-            RelativeSchemeData(UrlRelativeSchemeData { ref mut host, .. }) => {
+            SchemeData::Relative(RelativeSchemeData { ref mut host, .. }) => {
                 let (new_host, _) = try!(::parser::parse_hostname(input, self.parser));
                 *host = new_host;
                 Ok(())
             },
-            NonRelativeSchemeData(_) => Err(ParseError::CannotSetHostWithNonRelativeScheme)
+            SchemeData::NonRelative(_) => Err(ParseError::CannotSetHostWithNonRelativeScheme)
         }
     }
 
     /// `URLUtils.port` setter
     fn set_port(&mut self, input: &str) -> ParseResult<()> {
         match self.url.scheme_data {
-            RelativeSchemeData(UrlRelativeSchemeData { ref mut port, ref mut default_port, .. }) => {
+            SchemeData::Relative(RelativeSchemeData { ref mut port, ref mut default_port, .. }) => {
                 let scheme_type = self.parser.get_scheme_type(self.url.scheme.as_slice());
-                if scheme_type == FileLikeRelativeScheme {
+                if scheme_type == SchemeType::FileLike {
                     return Err(ParseError::CannotSetPortWithFileLikeScheme);
                 }
                 let (new_port, new_default_port, _) = try!(::parser::parse_port(
@@ -117,21 +116,21 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
                 *default_port = new_default_port;
                 Ok(())
             },
-            NonRelativeSchemeData(_) => Err(ParseError::CannotSetPortWithNonRelativeScheme)
+            SchemeData::NonRelative(_) => Err(ParseError::CannotSetPortWithNonRelativeScheme)
         }
     }
 
     /// `URLUtils.pathname` setter
     fn set_path(&mut self, input: &str) -> ParseResult<()> {
         match self.url.scheme_data {
-            RelativeSchemeData(UrlRelativeSchemeData { ref mut path, .. }) => {
+            SchemeData::Relative(RelativeSchemeData { ref mut path, .. }) => {
                 let scheme_type = self.parser.get_scheme_type(self.url.scheme.as_slice());
                 let (new_path, _) = try!(::parser::parse_path_start(
-                    input, ::parser::SetterContext, scheme_type, self.parser));
+                    input, Context::Setter, scheme_type, self.parser));
                 *path = new_path;
                 Ok(())
             },
-            NonRelativeSchemeData(_) => Err(ParseError::CannotSetPathWithNonRelativeScheme)
+            SchemeData::NonRelative(_) => Err(ParseError::CannotSetPathWithNonRelativeScheme)
         }
     }
 
@@ -142,7 +141,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
         } else {
             let input = if input.starts_with("?") { input.slice_from(1) } else { input };
             let (new_query, _) = try!(::parser::parse_query(
-                input, ::parser::SetterContext, self.parser));
+                input, Context::Setter, self.parser));
             Some(new_query)
         };
         Ok(())

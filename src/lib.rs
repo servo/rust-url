@@ -40,15 +40,15 @@ explicitly to rustc.
 First, URL parsing may fail for various reasons and therefore returns a `Result`.
 
 ```
-use url::{Url, InvalidIpv6Address};
+use url::{Url, ParseError};
 
-assert!(Url::parse("http://[:::1]") == Err(InvalidIpv6Address))
+assert!(Url::parse("http://[:::1]") == Err(ParseError::InvalidIpv6Address))
 ```
 
 Let’s parse a valid URL and look at its components.
 
 ```
-use url::{Url, RelativeSchemeData, NonRelativeSchemeData};
+use url::{Url, SchemeData};
 
 let issue_list_url = Url::parse(
     "https://github.com/rust-lang/rust/issues?labels=E-easy&state=open"
@@ -64,8 +64,8 @@ assert!(issue_list_url.path() == Some(["rust-lang".to_string(),
 assert!(issue_list_url.query == Some("labels=E-easy&state=open".to_string()));
 assert!(issue_list_url.fragment == None);
 match issue_list_url.scheme_data {
-    RelativeSchemeData(..) => {},  // Expected
-    NonRelativeSchemeData(..) => panic!(),
+    SchemeData::Relative(..) => {},  // Expected
+    SchemeData::NonRelative(..) => panic!(),
 }
 ```
 
@@ -75,12 +75,12 @@ Every other components has accessors because they only apply to URLs said to be
 “in a relative scheme”. `https` is a relative scheme, but `data` is not:
 
 ```
-use url::{Url, NonRelativeSchemeData};
+use url::{Url, SchemeData};
 
 let data_url = Url::parse("data:text/plain,Hello#").unwrap();
 
 assert!(data_url.scheme == "data".to_string());
-assert!(data_url.scheme_data == NonRelativeSchemeData("text/plain,Hello".to_string()));
+assert!(data_url.scheme_data == SchemeData::NonRelative("text/plain,Hello".to_string()));
 assert!(data_url.non_relative_scheme_data() == Some("text/plain,Hello"));
 assert!(data_url.query == None);
 assert!(data_url.fragment == Some("".to_string()));
@@ -98,9 +98,9 @@ Many contexts allow URL *references* that can be relative to a *base URL*:
 Since parsed URL are absolute, giving a base is required:
 
 ```
-use url::{Url, RelativeUrlWithoutBase};
+use url::{Url, ParseError};
 
-assert!(Url::parse("../main.css") == Err(RelativeUrlWithoutBase))
+assert!(Url::parse("../main.css") == Err(ParseError::RelativeUrlWithoutBase))
 ```
 
 `UrlParser` is a method-chaining API to provide various optional parameters
@@ -128,16 +128,8 @@ use std::path;
 
 use encoding::EncodingRef;
 
-pub use SchemeData::{RelativeSchemeData,NonRelativeSchemeData};
-pub use SchemeType::{NonRelativeScheme,RelativeScheme,FileLikeRelativeScheme};
-pub use host::{Host, Domain, Ipv6, Ipv6Address};
-pub use parser::{
-    ErrorHandler, ParseResult, ParseError,
-    EmptyHost, InvalidScheme, InvalidPort, InvalidIpv6Address, InvalidDomainCharacter,
-    InvalidCharacter, InvalidBackslash, InvalidPercentEncoded, InvalidAtSymbolInUser,
-    ExpectedTwoSlashes, NonUrlCodePoint, RelativeUrlWithScheme, RelativeUrlWithoutBase,
-    RelativeUrlWithNonRelativeBase, NonAsciiDomainsNotSupportedYet,
-};
+pub use host::{Host, Ipv6Address};
+pub use parser::{ErrorHandler, ParseResult, ParseError};
 
 #[deprecated = "Moved to the `percent_encoding` module"]
 pub use percent_encoding::{
@@ -196,19 +188,19 @@ pub struct Url {
 #[deriving(PartialEq, Eq, Clone)]
 pub enum SchemeData {
     /// Components for URLs in a *relative* scheme such as HTTP.
-    RelativeSchemeData(UrlRelativeSchemeData),
+    Relative(RelativeSchemeData),
 
     /// No further structure is assumed for *non-relative* schemes such as `data` and `mailto`.
     ///
     /// This is a single percent-encoded string, whose interpretation depends on the scheme.
     ///
     /// Percent encoded strings are within the ASCII range.
-    NonRelativeSchemeData(String),
+    NonRelative(String),
 }
 
 /// Components for URLs in a *relative* scheme such as HTTP.
 #[deriving(PartialEq, Eq, Clone)]
-pub struct UrlRelativeSchemeData {
+pub struct RelativeSchemeData {
     /// The username of the URL, as a possibly empty, pecent-encoded string.
     ///
     /// Percent encoded strings are within the ASCII range.
@@ -321,14 +313,14 @@ impl<'a> UrlParser<'a> {
     /// ```ignore
     /// fn whatwg_scheme_type_mapper(scheme: &str) -> SchemeType {
     ///     match scheme {
-    ///         "file" => FileLikeRelativeScheme,
-    ///         "ftp" => RelativeScheme(21),
-    ///         "gopher" => RelativeScheme(70),
-    ///         "http" => RelativeScheme(80),
-    ///         "https" => RelativeScheme(443),
-    ///         "ws" => RelativeScheme(80),
-    ///         "wss" => RelativeScheme(443),
-    ///         _ => NonRelativeScheme,
+    ///         "file" => SchemeType::FileLike,
+    ///         "ftp" => SchemeType::Relative(21),
+    ///         "gopher" => SchemeType::Relative(70),
+    ///         "http" => SchemeType::Relative(80),
+    ///         "https" => SchemeType::Relative(443),
+    ///         "ws" => SchemeType::Relative(80),
+    ///         "wss" => SchemeType::Relative(443),
+    ///         _ => NonRelative,
     ///     }
     /// }
     /// ```
@@ -414,7 +406,7 @@ pub enum SchemeType {
     /// (everything other than the scheme, query string, and fragment identifier)
     /// is parsed as a single percent-encoded string of which no structure is assumed.
     /// That string may need to be parsed further, per a scheme-specific format.
-    NonRelativeScheme,
+    NonRelative,
 
     /// Indicate that the scheme is *relative*, and what the default port number is.
     ///
@@ -423,22 +415,22 @@ pub enum SchemeType {
     /// Relative URL references are supported, if a base URL was given.
     /// The string value indicates the default port number as a string of ASCII digits,
     /// or the empty string to indicate no default port number.
-    RelativeScheme(u16),
+    Relative(u16),
 
     /// Indicate a *relative* scheme similar to the *file* scheme.
     ///
     /// For example, you might want to have distinct `git+file` and `hg+file` URL schemes.
     ///
-    /// This is like `RelativeScheme` except the host can be empty, there is no port number,
+    /// This is like `Relative` except the host can be empty, there is no port number,
     /// and path parsing has (platform-independent) quirks to support Windows filenames.
-    FileLikeRelativeScheme,
+    FileLike,
 }
 
 
 impl SchemeType {
     pub fn default_port(&self) -> Option<u16> {
         match self {
-            &RelativeScheme(default_port) => Some(default_port),
+            &SchemeType::Relative(default_port) => Some(default_port),
             _ => None,
         }
     }
@@ -447,14 +439,14 @@ impl SchemeType {
 /// http://url.spec.whatwg.org/#relative-scheme
 pub fn whatwg_scheme_type_mapper(scheme: &str) -> SchemeType {
     match scheme {
-        "file" => FileLikeRelativeScheme,
-        "ftp" => RelativeScheme(21),
-        "gopher" => RelativeScheme(70),
-        "http" => RelativeScheme(80),
-        "https" => RelativeScheme(443),
-        "ws" => RelativeScheme(80),
-        "wss" => RelativeScheme(443),
-        _ => NonRelativeScheme,
+        "file" => SchemeType::FileLike,
+        "ftp" => SchemeType::Relative(21),
+        "gopher" => SchemeType::Relative(70),
+        "http" => SchemeType::Relative(80),
+        "https" => SchemeType::Relative(443),
+        "ws" => SchemeType::Relative(80),
+        "wss" => SchemeType::Relative(443),
+        _ => SchemeType::NonRelative,
     }
 }
 
@@ -505,12 +497,12 @@ impl Url {
     fn from_path_common(path: Vec<String>) -> Url {
         Url {
             scheme: "file".to_string(),
-            scheme_data: RelativeSchemeData(UrlRelativeSchemeData {
+            scheme_data: SchemeData::Relative(RelativeSchemeData {
                 username: "".to_string(),
                 password: None,
                 port: None,
                 default_port: None,
-                host: Domain("".to_string()),
+                host: Host::Domain("".to_string()),
                 path: path,
             }),
             query: None,
@@ -541,8 +533,8 @@ impl Url {
     #[inline]
     pub fn to_file_path<T: FromUrlPath>(&self) -> Result<T, ()> {
         match self.scheme_data {
-            RelativeSchemeData(ref scheme_data) => scheme_data.to_file_path(),
-            NonRelativeSchemeData(..) => Err(()),
+            SchemeData::Relative(ref scheme_data) => scheme_data.to_file_path(),
+            SchemeData::NonRelative(..) => Err(()),
         }
     }
 
@@ -560,8 +552,8 @@ impl Url {
     #[inline]
     pub fn non_relative_scheme_data<'a>(&'a self) -> Option<&'a str> {
         match self.scheme_data {
-            RelativeSchemeData(..) => None,
-            NonRelativeSchemeData(ref scheme_data) => Some(scheme_data.as_slice()),
+            SchemeData::Relative(..) => None,
+            SchemeData::NonRelative(ref scheme_data) => Some(scheme_data.as_slice()),
         }
     }
 
@@ -569,27 +561,27 @@ impl Url {
     #[inline]
     pub fn non_relative_scheme_data_mut<'a>(&'a mut self) -> Option<&'a mut String> {
         match self.scheme_data {
-            RelativeSchemeData(..) => None,
-            NonRelativeSchemeData(ref mut scheme_data) => Some(scheme_data),
+            SchemeData::Relative(..) => None,
+            SchemeData::NonRelative(ref mut scheme_data) => Some(scheme_data),
         }
     }
 
     /// If the URL is in a *relative scheme*, return the structured scheme data.
     #[inline]
-    pub fn relative_scheme_data<'a>(&'a self) -> Option<&'a UrlRelativeSchemeData> {
+    pub fn relative_scheme_data<'a>(&'a self) -> Option<&'a RelativeSchemeData> {
         match self.scheme_data {
-            RelativeSchemeData(ref scheme_data) => Some(scheme_data),
-            NonRelativeSchemeData(..) => None,
+            SchemeData::Relative(ref scheme_data) => Some(scheme_data),
+            SchemeData::NonRelative(..) => None,
         }
     }
 
     /// If the URL is in a *relative scheme*,
     /// return a mutable reference to the structured scheme data.
     #[inline]
-    pub fn relative_scheme_data_mut<'a>(&'a mut self) -> Option<&'a mut UrlRelativeSchemeData> {
+    pub fn relative_scheme_data_mut<'a>(&'a mut self) -> Option<&'a mut RelativeSchemeData> {
         match self.scheme_data {
-            RelativeSchemeData(ref mut scheme_data) => Some(scheme_data),
-            NonRelativeSchemeData(..) => None,
+            SchemeData::Relative(ref mut scheme_data) => Some(scheme_data),
+            SchemeData::NonRelative(..) => None,
         }
     }
 
@@ -787,14 +779,14 @@ impl Show for Url {
 impl Show for SchemeData {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match *self {
-            RelativeSchemeData(ref scheme_data) => scheme_data.fmt(formatter),
-            NonRelativeSchemeData(ref scheme_data) => scheme_data.fmt(formatter),
+            SchemeData::Relative(ref scheme_data) => scheme_data.fmt(formatter),
+            SchemeData::NonRelative(ref scheme_data) => scheme_data.fmt(formatter),
         }
     }
 }
 
 
-impl UrlRelativeSchemeData {
+impl RelativeSchemeData {
     /// Percent-decode the URL’s username.
     ///
     /// This is “lossy”: invalid UTF-8 percent-encoded byte sequences
@@ -846,7 +838,7 @@ impl UrlRelativeSchemeData {
     #[inline]
     pub fn domain<'a>(&'a self) -> Option<&'a str> {
         match self.host {
-            Domain(ref domain) => Some(domain.as_slice()),
+            Host::Domain(ref domain) => Some(domain.as_slice()),
             _ => None,
         }
     }
@@ -855,7 +847,7 @@ impl UrlRelativeSchemeData {
     #[inline]
     pub fn domain_mut<'a>(&'a mut self) -> Option<&'a mut String> {
         match self.host {
-            Domain(ref mut domain) => Some(domain),
+            Host::Domain(ref mut domain) => Some(domain),
             _ => None,
         }
     }
@@ -889,7 +881,7 @@ impl UrlRelativeSchemeData {
 }
 
 
-impl Show for UrlRelativeSchemeData {
+impl Show for RelativeSchemeData {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         // Write the scheme-trailing double slashes.
         try!(formatter.write(b"//"));
