@@ -5,8 +5,16 @@
 // <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
+pub use ParseError::{
+    EmptyHost,InvalidScheme,InvalidPort,InvalidIpv6Address,InvalidDomainCharacter,
+    InvalidCharacter,InvalidBackslash,InvalidPercentEncoded,InvalidAtSymbolInUser,
+    ExpectedTwoSlashes,ExpectedInitialSlash,NonUrlCodePoint,RelativeUrlWithScheme,
+    RelativeUrlWithoutBase,RelativeUrlWithNonRelativeBase,
+    NonAsciiDomainsNotSupportedYet,CannotSetFileScheme,
+    CannotSetJavascriptScheme,CannotSetNonRelativeScheme
+};
 
-
+pub use self::Context::{SetterContext,UrlParserContext};
 use std::ascii::AsciiExt;
 use std::fmt::{Formatter, FormatError, Show};
 use std::str::CharRange;
