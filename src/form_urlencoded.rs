@@ -81,7 +81,7 @@ pub fn parse_bytes(input: &[u8], encoding_override: Option<EncodingRef>,
     fn decode(input: Vec<u8>, encoding_override: EncodingRef) -> String {
         encoding_override.decode(
             percent_decode(input.as_slice()).as_slice(),
-            encoding::DecodeReplace).unwrap()
+            encoding::DecoderTrap::Replace).unwrap()
     }
 
     Some(pairs.into_iter().map(
@@ -115,7 +115,7 @@ pub fn serialize<'a, I: Iterator<(&'a str, &'a str)>>(
         let input = match encoding_override {
             None => input.as_bytes(),  // "Encode" to UTF-8
             Some(encoding) => {
-                keep_alive = encoding.encode(input, encoding::EncodeNcrEscape).unwrap();
+                keep_alive = encoding.encode(input, encoding::EncoderTrap::NcrEscape).unwrap();
                 keep_alive.as_slice()
             }
         };

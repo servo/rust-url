@@ -6,6 +6,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+pub use Host::{Domain,Ipv6};
+
 use std::ascii::OwnedAsciiExt;
 use std::cmp;
 use std::fmt::{Formatter, FormatError, Show};

@@ -128,6 +128,8 @@ use std::path;
 
 use encoding::EncodingRef;
 
+pub use SchemeData::{RelativeSchemeData,NonRelativeSchemeData};
+pub use SchemeType::{NonRelativeScheme,RelativeScheme,FileLikeRelativeScheme};
 pub use host::{Host, Domain, Ipv6, Ipv6Address};
 pub use parser::{
     ErrorHandler, ParseResult, ParseError,

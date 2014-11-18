@@ -5,8 +5,16 @@
 // <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
+pub use ParseError::{
+    EmptyHost,InvalidScheme,InvalidPort,InvalidIpv6Address,InvalidDomainCharacter,
+    InvalidCharacter,InvalidBackslash,InvalidPercentEncoded,InvalidAtSymbolInUser,
+    ExpectedTwoSlashes,ExpectedInitialSlash,NonUrlCodePoint,RelativeUrlWithScheme,
+    RelativeUrlWithoutBase,RelativeUrlWithNonRelativeBase,
+    NonAsciiDomainsNotSupportedYet,CannotSetFileScheme,
+    CannotSetJavascriptScheme,CannotSetNonRelativeScheme
+};
 
-
+pub use self::Context::{SetterContext,UrlParserContext};
 use std::ascii::AsciiExt;
 use std::fmt::{Formatter, FormatError, Show};
 use std::str::CharRange;
@@ -645,7 +653,7 @@ pub fn parse_query<'a>(input: &'a str, context: Context, parser: &UrlParser)
     let encoded;
     let query_bytes = match parser.query_encoding_override {
         Some(encoding) => {
-            encoded = encoding.encode(query.as_slice(), encoding::EncodeReplace).unwrap();
+            encoded = encoding.encode(query.as_slice(), encoding::EncoderTrap::Replace).unwrap();
             encoded.as_slice()
         },
         None => query.as_bytes()  // UTF-8
