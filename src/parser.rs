@@ -15,6 +15,7 @@ pub use ParseError::{
 
 pub use self::Context::{SetterContext,UrlParserContext};
 use std::ascii::AsciiExt;
+use std::error::Error;
 use std::fmt::{mod, Formatter, Show};
 use std::str::CharRange;
 
@@ -41,62 +42,58 @@ macro_rules! is_match(
 pub type ParseResult<T> = Result<T, ParseError>;
 
 
-/// Errors that can occur during parsing.
-#[deriving(PartialEq, Eq, Clone)]
-pub enum ParseError {
-    EmptyHost,
-    InvalidScheme,
-    InvalidPort,
-    InvalidIpv6Address,
-    InvalidDomainCharacter,
-    InvalidCharacter,
-    InvalidBackslash,
-    InvalidPercentEncoded,
-    InvalidAtSymbolInUser,
-    ExpectedTwoSlashes,
-    ExpectedInitialSlash,
-    NonUrlCodePoint,
-    RelativeUrlWithScheme,
-    RelativeUrlWithoutBase,
-    RelativeUrlWithNonRelativeBase,
-    NonAsciiDomainsNotSupportedYet,
-    CannotSetPortWithFileLikeScheme,
-    CannotSetFragmentWithJavascriptScheme,
-    CannotSetUsernameWithNonRelativeScheme,
-    CannotSetPasswordWithNonRelativeScheme,
-    CannotSetHostPortWithNonRelativeScheme,
-    CannotSetHostWithNonRelativeScheme,
-    CannotSetPortWithNonRelativeScheme,
-    CannotSetPathWithNonRelativeScheme,
+macro_rules! simple_enum_error {
+    ($($name: ident => $description: expr,)+) => {
+        /// Errors that can occur during parsing.
+        #[deriving(PartialEq, Eq, Clone)]
+        pub enum ParseError {
+            $(
+                $name,
+            )+
+        }
+
+        impl Error for ParseError {
+            fn description(&self) -> &str {
+                match *self {
+                    $(
+                        ParseError::$name => $description,
+                    )+
+                }
+            }
+        }
+    }
+}
+
+simple_enum_error! {
+    EmptyHost => "empty host",
+    InvalidScheme => "invalid scheme",
+    InvalidPort => "invalid port number",
+    InvalidIpv6Address => "invalid IPv6 address",
+    InvalidDomainCharacter => "invalid domain character",
+    InvalidCharacter => "invalid character",
+    InvalidBackslash => "invalid backslash",
+    InvalidPercentEncoded => "invalid percent-encoded sequence",
+    InvalidAtSymbolInUser => "invalid @-symbol in user",
+    ExpectedTwoSlashes => "expected two slashes (//)",
+    ExpectedInitialSlash => "expected the input to start with a slash",
+    NonUrlCodePoint => "non URL code point",
+    RelativeUrlWithScheme => "relative URL with scheme",
+    RelativeUrlWithoutBase => "relative URL without a base",
+    RelativeUrlWithNonRelativeBase => "relative URL with a non-relative base",
+    NonAsciiDomainsNotSupportedYet => "non-ASCII domains are not supported yet",
+    CannotSetJavascriptFragment => "can not set fragment on javascript: URL",
+    CannotSetPortWithFileLikeScheme => "can not set port with file-like scheme",
+    CannotSetUsernameWithNonRelativeScheme => "can not set username with non-relative scheme",
+    CannotSetPasswordWithNonRelativeScheme => "can not set password with non-relative scheme",
+    CannotSetHostPortWithNonRelativeScheme => "can not set host and port with non-relative scheme",
+    CannotSetHostWithNonRelativeScheme => "can not set host with non-relative scheme",
+    CannotSetPortWithNonRelativeScheme => "can not set port with non-relative scheme",
+    CannotSetPathWithNonRelativeScheme => "can not set path with non-relative scheme",
 }
 
 impl Show for ParseError {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-        match *self {
-            EmptyHost => "empty host",
-            InvalidScheme => "invalid scheme",
-            InvalidPort => "invalid port number",
-            InvalidIpv6Address => "invalid IPv6 address",
-            InvalidDomainCharacter => "invalid domain character",
-            InvalidCharacter => "invalid character",
-            InvalidBackslash => "invalid backslash",
-            InvalidPercentEncoded => "invalid percent-encoded sequence",
-            InvalidAtSymbolInUser => "invalid @-symbol in user",
-            ExpectedTwoSlashes => "expected two slashes (//)",
-            ExpectedInitialSlash => "expected the input to start with a slash",
-            NonUrlCodePoint => "non URL code point",
-            RelativeUrlWithScheme => "relative URL with scheme",
-            RelativeUrlWithoutBase => "relative URL without a base",
-            RelativeUrlWithNonRelativeBase => "relative URL with a non-relative base",
-            NonAsciiDomainsNotSupportedYet => "non-ASCII domains are not supported yet",
-            _ => "Can not set […]"
-//            CannotSetFileScheme(ref part) =>
-//                return write!(fmt, "cannot set {} on file: URLs", part),
-//            CannotSetJavascriptScheme(ref part) =>
-//                return write!(fmt, "cannot set {} on javascript: URLs", part),
-//            CannotSetNonRelativeScheme(ref part) =>
-//                return write!(fmt, "cannot set {} on non-relative URLs", part),
-        }.fmt(fmt)
+        self.description().fmt(fmt)
     }
 }
 

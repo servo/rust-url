@@ -151,7 +151,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
     /// `URLUtils.hash` setter
     fn set_fragment(&mut self, input: &str) -> ParseResult<()> {
         if self.url.scheme.as_slice() == "javascript" {
-            return Err(ParseError::CannotSetFragmentWithJavascriptScheme)
+            return Err(ParseError::CannotSetJavascriptFragment)
         }
         self.url.fragment = if input.is_empty() {
             None
