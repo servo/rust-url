@@ -10,8 +10,7 @@ pub use ParseError::{
     InvalidCharacter,InvalidBackslash,InvalidPercentEncoded,InvalidAtSymbolInUser,
     ExpectedTwoSlashes,ExpectedInitialSlash,NonUrlCodePoint,RelativeUrlWithScheme,
     RelativeUrlWithoutBase,RelativeUrlWithNonRelativeBase,
-    NonAsciiDomainsNotSupportedYet,CannotSetFileScheme,
-    CannotSetJavascriptScheme,CannotSetNonRelativeScheme
+    NonAsciiDomainsNotSupportedYet
 };
 
 pub use self::Context::{SetterContext,UrlParserContext};
@@ -41,6 +40,7 @@ macro_rules! is_match(
 
 pub type ParseResult<T> = Result<T, ParseError>;
 
+
 /// Errors that can occur during parsing.
 #[deriving(PartialEq, Eq, Clone)]
 pub enum ParseError {
@@ -60,9 +60,14 @@ pub enum ParseError {
     RelativeUrlWithoutBase,
     RelativeUrlWithNonRelativeBase,
     NonAsciiDomainsNotSupportedYet,
-    CannotSetFileScheme(&'static str),
-    CannotSetJavascriptScheme(&'static str),
-    CannotSetNonRelativeScheme(&'static str)
+    CannotSetPortWithFileLikeScheme,
+    CannotSetFragmentWithJavascriptScheme,
+    CannotSetUsernameWithNonRelativeScheme,
+    CannotSetPasswordWithNonRelativeScheme,
+    CannotSetHostPortWithNonRelativeScheme,
+    CannotSetHostWithNonRelativeScheme,
+    CannotSetPortWithNonRelativeScheme,
+    CannotSetPathWithNonRelativeScheme,
 }
 
 impl Show for ParseError {
@@ -84,12 +89,13 @@ impl Show for ParseError {
             RelativeUrlWithoutBase => "relative URL without a base",
             RelativeUrlWithNonRelativeBase => "relative URL with a non-relative base",
             NonAsciiDomainsNotSupportedYet => "non-ASCII domains are not supported yet",
-            CannotSetFileScheme(ref part) =>
-                return write!(fmt, "cannot set {} on file: URLs", part),
-            CannotSetJavascriptScheme(ref part) =>
-                return write!(fmt, "cannot set {} on javascript: URLs", part),
-            CannotSetNonRelativeScheme(ref part) =>
-                return write!(fmt, "cannot set {} on non-relative URLs", part),
+            _ => "Can not set […]"
+//            CannotSetFileScheme(ref part) =>
+//                return write!(fmt, "cannot set {} on file: URLs", part),
+//            CannotSetJavascriptScheme(ref part) =>
+//                return write!(fmt, "cannot set {} on javascript: URLs", part),
+//            CannotSetNonRelativeScheme(ref part) =>
+//                return write!(fmt, "cannot set {} on non-relative URLs", part),
         }.fmt(fmt)
     }
 }

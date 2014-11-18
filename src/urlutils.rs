@@ -12,10 +12,7 @@
 
 use super::{Url, UrlParser, RelativeSchemeData, NonRelativeSchemeData, FileLikeRelativeScheme};
 use super::UrlRelativeSchemeData;
-use parser::{
-    ParseResult, InvalidScheme,
-    CannotSetFileScheme, CannotSetJavascriptScheme, CannotSetNonRelativeScheme,
-};
+use parser::{ParseError, ParseResult};
 use percent_encoding::{utf8_percent_encode_to, USERNAME_ENCODE_SET, PASSWORD_ENCODE_SET};
 
 
@@ -47,7 +44,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
                 self.url.scheme = scheme;
                 Ok(())
             },
-            None => Err(InvalidScheme),
+            None => Err(ParseError::InvalidScheme),
         }
     }
 
@@ -59,7 +56,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
                 utf8_percent_encode_to(input, USERNAME_ENCODE_SET, username);
                 Ok(())
             },
-            NonRelativeSchemeData(_) => Err(CannotSetNonRelativeScheme("username"))
+            NonRelativeSchemeData(_) => Err(ParseError::CannotSetUsernameWithNonRelativeScheme)
         }
     }
 
@@ -72,7 +69,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
                 *password = Some(new_password);
                 Ok(())
             },
-            NonRelativeSchemeData(_) => Err(CannotSetNonRelativeScheme("password"))
+            NonRelativeSchemeData(_) => Err(ParseError::CannotSetPasswordWithNonRelativeScheme)
         }
     }
 
@@ -90,7 +87,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
                 *default_port = new_default_port;
                 Ok(())
             },
-            NonRelativeSchemeData(_) => Err(CannotSetNonRelativeScheme("host/port"))
+            NonRelativeSchemeData(_) => Err(ParseError::CannotSetHostPortWithNonRelativeScheme)
         }
     }
 
@@ -102,7 +99,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
                 *host = new_host;
                 Ok(())
             },
-            NonRelativeSchemeData(_) => Err(CannotSetNonRelativeScheme("host"))
+            NonRelativeSchemeData(_) => Err(ParseError::CannotSetHostWithNonRelativeScheme)
         }
     }
 
@@ -112,7 +109,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
             RelativeSchemeData(UrlRelativeSchemeData { ref mut port, ref mut default_port, .. }) => {
                 let scheme_type = self.parser.get_scheme_type(self.url.scheme.as_slice());
                 if scheme_type == FileLikeRelativeScheme {
-                    return Err(CannotSetFileScheme("port"));
+                    return Err(ParseError::CannotSetPortWithFileLikeScheme);
                 }
                 let (new_port, new_default_port, _) = try!(::parser::parse_port(
                     input, scheme_type, self.parser));
@@ -120,7 +117,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
                 *default_port = new_default_port;
                 Ok(())
             },
-            NonRelativeSchemeData(_) => Err(CannotSetNonRelativeScheme("port"))
+            NonRelativeSchemeData(_) => Err(ParseError::CannotSetPortWithNonRelativeScheme)
         }
     }
 
@@ -134,7 +131,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
                 *path = new_path;
                 Ok(())
             },
-            NonRelativeSchemeData(_) => Err(CannotSetNonRelativeScheme("path"))
+            NonRelativeSchemeData(_) => Err(ParseError::CannotSetPathWithNonRelativeScheme)
         }
     }
 
@@ -154,7 +151,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
     /// `URLUtils.hash` setter
     fn set_fragment(&mut self, input: &str) -> ParseResult<()> {
         if self.url.scheme.as_slice() == "javascript" {
-            return Err(CannotSetJavascriptScheme("fragment"))
+            return Err(ParseError::CannotSetFragmentWithJavascriptScheme)
         }
         self.url.fragment = if input.is_empty() {
             None

@@ -137,7 +137,6 @@ pub use parser::{
     InvalidCharacter, InvalidBackslash, InvalidPercentEncoded, InvalidAtSymbolInUser,
     ExpectedTwoSlashes, NonUrlCodePoint, RelativeUrlWithScheme, RelativeUrlWithoutBase,
     RelativeUrlWithNonRelativeBase, NonAsciiDomainsNotSupportedYet,
-    CannotSetFileScheme, CannotSetJavascriptScheme, CannotSetNonRelativeScheme,
 };
 
 #[deprecated = "Moved to the `percent_encoding` module"]
