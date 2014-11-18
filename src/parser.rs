@@ -653,7 +653,7 @@ pub fn parse_query<'a>(input: &'a str, context: Context, parser: &UrlParser)
     let encoded;
     let query_bytes = match parser.query_encoding_override {
         Some(encoding) => {
-            encoded = encoding.encode(query.as_slice(), encoding::EncodeReplace).unwrap();
+            encoded = encoding.encode(query.as_slice(), encoding::EncoderTrap::Replace).unwrap();
             encoded.as_slice()
         },
         None => query.as_bytes()  // UTF-8
