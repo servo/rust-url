@@ -148,7 +148,7 @@ pub use percent_encoding::{
     PASSWORD_ENCODE_SET, USERNAME_ENCODE_SET, FORM_URLENCODED_ENCODE_SET, EncodeSet,
 };
 
-use format::{PathFormatter, UserInfoFormatter, UrlNoFragmentFormatter};
+use format::{PathFormatter, PathWithQueryFormatter, UserInfoFormatter, UrlNoFragmentFormatter};
 
 mod host;
 mod parser;
@@ -720,6 +720,20 @@ impl Url {
         self.relative_scheme_data().map(|scheme_data| scheme_data.serialize_path())
     }
 
+    /// If the URL is in a *relative scheme*, serialize its path and query string as a string.
+    ///
+    /// The returned string starts with a "/" slash, and components are separated by slashes.
+    /// A trailing slash represents an empty last component.
+    #[inline]
+    pub fn serialize_path_with_query(&self) -> Option<String> {
+        self.relative_scheme_data().map( |scheme_data| 
+                                          PathWithQueryFormatter {
+                                              path: scheme_data.path.as_slice(),
+                                              query: self.query.as_ref().map(|s| s.as_slice())
+                                          }.to_string()
+                                          )
+    }
+
     /// Parse the URL’s query string, if any, as `application/x-www-form-urlencoded`
     /// and return a vector of (key, value) pairs.
     #[inline]
@@ -1009,3 +1023,4 @@ impl FromUrlPath for path::windows::Path {
         }
     }
 }
+

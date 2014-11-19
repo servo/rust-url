@@ -35,6 +35,26 @@ impl<'a, T: Str + Show> Show for PathFormatter<'a, T> {
     }
 }
 
+pub struct PathWithQueryFormatter<'a, T:'a> {
+    pub path: &'a [T],
+    pub query: Option<&'a str>,
+}
+
+impl<'a, T: Str + Show> Show for PathWithQueryFormatter<'a, T> {
+    fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
+        try!(PathFormatter {
+            path: self.path.as_slice()
+        }.fmt(formatter));
+        match self.query {
+            None => (),
+            Some(ref query) => {
+                try!(formatter.write(b"?"));
+                try!(formatter.write(query.as_bytes()));
+            }
+        };
+        Ok(())
+    }
+}
 
 /// Formatter and serializer for URL username and password data.
 pub struct UserInfoFormatter<'a> {
@@ -91,7 +111,7 @@ impl<'a> Show for UrlNoFragmentFormatter<'a> {
 #[cfg(test)]
 mod tests {
     use super::super::Url;
-    use super::{PathFormatter, UserInfoFormatter};
+    use super::{PathFormatter, PathWithQueryFormatter, UserInfoFormatter};
 
     #[test]
     fn path_formatting() {
@@ -123,6 +143,21 @@ mod tests {
             assert_eq!(UserInfoFormatter {
                 username: username,
                 password: password
+            }.to_string(), result.to_string());
+        }
+    }
+
+    #[test]
+    fn path_with_query_formatting() {
+        let data = [
+            (vec!["test", "path"], None, "/test/path"),
+            (vec!["test", "path"], Some("a=b".to_string()), "/test/path?a=b"),
+            (vec!["test", "path"], Some("a=b&c=d".to_string()), "/test/path?a=b&c=d"),
+                ];
+        for &(ref path, ref query, result) in data.iter() {
+            assert_eq!(PathWithQueryFormatter {
+                path: path.as_slice(),
+                query: query.as_ref().map(|s| s.as_slice())
             }.to_string(), result.to_string());
         }
     }
