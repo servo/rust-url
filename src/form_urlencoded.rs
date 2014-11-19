@@ -124,7 +124,7 @@ pub fn serialize<'a, I: Iterator<(&'a str, &'a str)>>(
             if byte == b' ' {
                 output.push_str("+")
             } else {
-                percent_encode_to([byte], FORM_URLENCODED_ENCODE_SET, output)
+                percent_encode_to(&[byte], FORM_URLENCODED_ENCODE_SET, output)
             }
         }
     }
