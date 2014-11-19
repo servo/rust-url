@@ -68,28 +68,28 @@ pub enum ParseError {
 impl Show for ParseError {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), FormatError> {
         match *self {
-            EmptyHost => "Empty host",
-            InvalidScheme => "Invalid scheme",
-            InvalidPort => "Invalid port number",
-            InvalidIpv6Address => "Invalid IPv6 address",
-            InvalidDomainCharacter => "Invalid domain character",
-            InvalidCharacter => "Invalid character",
-            InvalidBackslash => "Invalid backslash",
-            InvalidPercentEncoded => "Invalid percent-encoded sequence",
-            InvalidAtSymbolInUser => "Invalid @-symbol in user",
-            ExpectedTwoSlashes => "Expected two slashes (//)",
-            ExpectedInitialSlash => "Expected the input to start with a slash",
-            NonUrlCodePoint => "Non URL code point",
-            RelativeUrlWithScheme => "Relative URL with scheme",
-            RelativeUrlWithoutBase => "Relative URL without a base",
-            RelativeUrlWithNonRelativeBase => "Relative URL with a non-relative base",
-            NonAsciiDomainsNotSupportedYet => "Non Ascii domains are not support yet",
+            EmptyHost => "empty host",
+            InvalidScheme => "invalid scheme",
+            InvalidPort => "invalid port number",
+            InvalidIpv6Address => "invalid IPv6 address",
+            InvalidDomainCharacter => "invalid domain character",
+            InvalidCharacter => "invalid character",
+            InvalidBackslash => "invalid backslash",
+            InvalidPercentEncoded => "invalid percent-encoded sequence",
+            InvalidAtSymbolInUser => "invalid @-symbol in user",
+            ExpectedTwoSlashes => "expected two slashes (//)",
+            ExpectedInitialSlash => "expected the input to start with a slash",
+            NonUrlCodePoint => "non URL code point",
+            RelativeUrlWithScheme => "relative URL with scheme",
+            RelativeUrlWithoutBase => "relative URL without a base",
+            RelativeUrlWithNonRelativeBase => "relative URL with a non-relative base",
+            NonAsciiDomainsNotSupportedYet => "non-ASCII domains are not supported yet",
             CannotSetFileScheme(ref part) =>
-                return write!(fmt, "Cannot set {} on file: URLs", part),
+                return write!(fmt, "cannot set {} on file: URLs", part),
             CannotSetJavascriptScheme(ref part) =>
-                return write!(fmt, "Cannot set {} on javascript: URLs", part),
+                return write!(fmt, "cannot set {} on javascript: URLs", part),
             CannotSetNonRelativeScheme(ref part) =>
-                return write!(fmt, "Cannot set {} on non-relative URLs", part),
+                return write!(fmt, "cannot set {} on non-relative URLs", part),
         }.fmt(fmt)
     }
 }
