@@ -248,7 +248,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeTyp
             } else {
                 // Relative path state
                 let (path, remaining) = try!(parse_path(
-                    [], input.slice_from(1), UrlParserContext, scheme_type, parser));
+                    &[], input.slice_from(1), UrlParserContext, scheme_type, parser));
                 let scheme_data = RelativeSchemeData(if scheme_type == FileLikeRelativeScheme {
                     UrlRelativeSchemeData {
                         username: String::new(), password: None, host:
@@ -290,7 +290,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeTyp
             {
                 // Windows drive letter quirk
                 let (path, remaining) = try!(parse_path(
-                    [], input, UrlParserContext, scheme_type, parser));
+                    &[], input, UrlParserContext, scheme_type, parser));
                  (RelativeSchemeData(UrlRelativeSchemeData {
                     username: String::new(), password: None,
                     host: Domain(String::new()),
@@ -493,7 +493,7 @@ pub fn parse_standalone_path(input: &str, parser: &UrlParser)
         }
     }
     let (path, remaining) = try!(parse_path(
-        [], input.slice_from(1), UrlParserContext, RelativeScheme(0), parser));
+        &[], input.slice_from(1), UrlParserContext, RelativeScheme(0), parser));
     let (query, fragment) = try!(parse_query_and_fragment(remaining, parser));
     Ok((path, query, fragment))
 }
@@ -514,7 +514,7 @@ pub fn parse_path_start<'a>(input: &'a str, context: Context, scheme_type: Schem
             _ => ()
         }
     }
-    parse_path([], input.slice_from(i), context, scheme_type, parser)
+    parse_path(&[], input.slice_from(i), context, scheme_type, parser)
 }
 
 
