@@ -11,8 +11,6 @@ use std::error::Error;
 use std::fmt::{mod, Formatter, Show};
 use std::str::CharRange;
 
-use encoding;
-
 use super::{UrlParser, Url, SchemeData, RelativeSchemeData, Host, SchemeType};
 use percent_encoding::{
     utf8_percent_encode_to, percent_encode,
@@ -645,15 +643,9 @@ pub fn parse_query<'a>(input: &'a str, context: Context, parser: &UrlParser)
             }
         }
     }
-    let encoded;
-    let query_bytes = match parser.query_encoding_override {
-        Some(encoding) => {
-            encoded = encoding.encode(query.as_slice(), encoding::EncoderTrap::Replace).unwrap();
-            encoded.as_slice()
-        },
-        None => query.as_bytes()  // UTF-8
-    };
-    ;
+
+    let mut pair = (query.as_slice(), vec![]);
+    let query_bytes = parser.query_encoding_override.encode(&mut pair);
     Ok((percent_encode(query_bytes.as_slice(), QUERY_ENCODE_SET), remaining))
 }
 

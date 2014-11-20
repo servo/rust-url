@@ -22,9 +22,6 @@ To use it in your project, add this to your `Cargo.toml` file:
 git = "https://github.com/servo/rust-url"
 ```
 
-This will automatically pull in the
-[rust-encoding](https://github.com/lifthrasiir/rust-encoding) dependency.
-
 rust-url is a replacement of the [`url` crate](http://doc.rust-lang.org/url/index.html)
 currently distributed with Rust.
 rust-url’s crate is also named `url`.
@@ -33,6 +30,20 @@ but that means that you can not also use the old `url` in the same crate.
 
 If you’re not using Cargo, you’ll need to pass `--extern url=/path/to/liburl.rlib`
 explicitly to rustc.
+
+Supporting encodings other than UTF-8 in query strings is an optional feature
+that requires [rust-encoding](https://github.com/lifthrasiir/rust-encoding)
+and is off by default.
+You can enable it with
+[Cargo’s *features* mechanism](http://doc.crates.io/manifest.html#the-[features]-section):
+
+```Cargo
+[dependencies.url]
+git = "https://github.com/servo/rust-url"
+features = ["query_encoding"]
+```
+
+… or by passing `--cfg 'feature="query_encoding"'` to rustc.
 
 
 # URL parsing and data structures
@@ -119,14 +130,11 @@ assert!(css_url.serialize() == "http://servo.github.io/rust-url/main.css".to_str
 
 #![feature(macro_rules, default_type_params)]
 
-extern crate encoding;
 extern crate serialize;
 
 use std::fmt::{mod, Formatter, Show};
 use std::hash;
 use std::path;
-
-use encoding::EncodingRef;
 
 pub use host::{Host, Ipv6Address};
 pub use parser::{ErrorHandler, ParseResult, ParseError};
@@ -140,7 +148,9 @@ pub use percent_encoding::{
 };
 
 use format::{PathFormatter, UserInfoFormatter, UrlNoFragmentFormatter};
+use encoding::EncodingOverride;
 
+mod encoding;
 mod host;
 mod parser;
 mod urlutils;
@@ -248,7 +258,7 @@ impl<S: hash::Writer> hash::Hash<S> for Url {
 /// A set of optional parameters for URL parsing.
 pub struct UrlParser<'a> {
     base_url: Option<&'a Url>,
-    query_encoding_override: Option<EncodingRef>,
+    query_encoding_override: EncodingOverride,
     error_handler: ErrorHandler,
     scheme_type_mapper: fn(scheme: &str) -> SchemeType,
 }
@@ -262,7 +272,7 @@ impl<'a> UrlParser<'a> {
         fn silent_handler(_reason: ParseError) -> ParseResult<()> { Ok(()) }
         UrlParser {
             base_url: None,
-            query_encoding_override: None,
+            query_encoding_override: EncodingOverride::utf8(),
             error_handler: silent_handler,
             scheme_type_mapper: whatwg_scheme_type_mapper,
         }
@@ -280,9 +290,13 @@ impl<'a> UrlParser<'a> {
     /// and return the `UrlParser`.
     ///
     /// This legacy quirk is only relevant to HTML.
+    ///
+    /// This method is only available if the `query_encoding` Cargo feature is enabled.
+    #[cfg(feature = "query_encoding")]
     #[inline]
-    pub fn query_encoding_override<'b>(&'b mut self, value: EncodingRef) -> &'b mut UrlParser<'a> {
-        self.query_encoding_override = Some(value);
+    pub fn query_encoding_override<'b>(&'b mut self, value: encoding::EncodingRef)
+                                       -> &'b mut UrlParser<'a> {
+        self.query_encoding_override = EncodingOverride::from_encoding(value);
         self
     }
 
@@ -715,14 +729,14 @@ impl Url {
     /// and return a vector of (key, value) pairs.
     #[inline]
     pub fn query_pairs(&self) -> Option<Vec<(String, String)>> {
-        self.query.as_ref().map(|query| form_urlencoded::parse_str(query.as_slice()))
+        self.query.as_ref().map(|query| form_urlencoded::parse(query.as_bytes()))
     }
 
     /// Serialize an iterator of (key, value) pairs as `application/x-www-form-urlencoded`
     /// and set it as the URL’s query string.
     #[inline]
     pub fn set_query_from_pairs<'a, I: Iterator<(&'a str, &'a str)>>(&mut self, pairs: I) {
-        self.query = Some(form_urlencoded::serialize(pairs, None));
+        self.query = Some(form_urlencoded::serialize(pairs));
     }
 
     /// Percent-decode the URL’s query string, if any.

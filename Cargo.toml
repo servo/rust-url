@@ -4,6 +4,11 @@ name = "url"
 version = "0.1.0"
 authors = [ "Simon Sapin <simon.sapin@exyr.org>" ]
 
+[features]
+
+query_encoding = ["encoding"]
+
 [dependencies.encoding]
 
 git = "https://github.com/lifthrasiir/rust-encoding"
+optional = true
