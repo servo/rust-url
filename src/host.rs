@@ -10,7 +10,7 @@ pub use Host::{Domain,Ipv6};
 
 use std::ascii::OwnedAsciiExt;
 use std::cmp;
-use std::fmt::{Formatter, FormatError, Show};
+use std::fmt::{mod, Formatter, Show};
 use parser::{
     ParseResult,
     InvalidIpv6Address, EmptyHost, NonAsciiDomainsNotSupportedYet, InvalidDomainCharacter,
@@ -96,7 +96,7 @@ impl Host {
 
 
 impl Show for Host {
-    fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match *self {
             Domain(ref domain) => domain.fmt(formatter),
             Ipv6(ref address) => {
@@ -237,7 +237,7 @@ impl Ipv6Address {
 
 
 impl Show for Ipv6Address {
-    fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         let (compress_start, compress_end) = longest_zero_sequence(&self.pieces);
         let mut i = 0;
         while i < 8 {
