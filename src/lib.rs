@@ -116,8 +116,8 @@ assert!(css_url.serialize() == "http://servo.github.io/rust-url/main.css".to_str
 
 */
 
-
 #![feature(macro_rules, default_type_params)]
+#![feature(slicing_syntax)]
 
 extern crate encoding;
 extern crate serialize;
@@ -993,7 +993,7 @@ impl FromUrlPath for path::windows::Path {
             return Err(())
         }
         let mut bytes = prefix.as_bytes().to_vec();
-        for path_part in path.slice_from(1).iter() {
+        for path_part in path[1..].iter() {
             bytes.push(b'\\');
             percent_decode_to(path_part.as_bytes(), &mut bytes);
         }
