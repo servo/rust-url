@@ -10,6 +10,7 @@
 use std::char;
 use std::num::from_str_radix;
 use std::path;
+use std::from_str::FromStr;
 use super::{UrlParser, Url, RelativeSchemeData, NonRelativeSchemeData, Domain};
 use super::UrlRelativeSchemeData;
 
@@ -96,6 +97,15 @@ fn url_parsing() {
 
         assert!(!expected_failure, "Unexpected success for {}", input);
     }
+}
+
+#[test]
+fn url_parsing_from_str() {
+    let valid_url: Option<Url> = FromStr::from_str("http://www.example.com");
+    assert!(valid_url.is_some(), "A valid URL did not parse through from_str");
+
+    let invalid_url: Option<Url> = FromStr::from_str(":foo:example.com");
+    assert!(invalid_url.is_none(), "An inalid URL parsed through from_str");
 }
 
 struct Test {

@@ -391,6 +391,12 @@ pub fn parse_path(input: &str)
     UrlParser::new().parse_path(input)
 }
 
+impl std::from_str::FromStr for Url {
+    fn from_str(string: &str) -> Option<Url> {
+        Url::parse(string).ok()
+    }
+}
+
 
 /// Private convenience methods for use in parser.rs
 impl<'a> UrlParser<'a> {
