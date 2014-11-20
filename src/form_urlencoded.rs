@@ -57,8 +57,7 @@ pub fn parse_bytes(input: &[u8], encoding_override: Option<EncodingRef>,
             let name = replace_plus(name);
             let value = replace_plus(value);
             if use_charset && name.as_slice() == b"_charset_" {
-                // Non-UTF8 here is ok, encoding_from_whatwg_label only matches in the ASCII range.
-                match encoding_from_whatwg_label(unsafe { str::raw::from_utf8(value.as_slice()) }) {
+                match str::from_utf8(value.as_slice()).and_then(encoding_from_whatwg_label) {
                     Some(encoding) => encoding_override = encoding,
                     None => (),
                 }
