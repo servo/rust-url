@@ -12,7 +12,7 @@
 //!
 //! You can use `<formatter>.to_string()`, as the formatters implement `Show`.
 
-use std::fmt::{Show, Formatter, FormatError};
+use std::fmt::{mod, Show, Formatter};
 use super::Url;
 
 /// Formatter and serializer for URL path data.
@@ -22,7 +22,7 @@ pub struct PathFormatter<'a, T:'a> {
 }
 
 impl<'a, T: Str + Show> Show for PathFormatter<'a, T> {
-    fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         if self.path.is_empty() {
             formatter.write(b"/")
         } else {
@@ -48,7 +48,7 @@ pub struct UserInfoFormatter<'a> {
 }
 
 impl<'a> Show for UserInfoFormatter<'a> {
-    fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         if !self.username.is_empty() || self.password.is_some() {
             try!(formatter.write(self.username.as_bytes()));
             match self.password {
@@ -71,7 +71,7 @@ pub struct UrlNoFragmentFormatter<'a> {
 }
 
 impl<'a> Show for UrlNoFragmentFormatter<'a> {
-    fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         try!(formatter.write(self.url.scheme.as_bytes()));
         try!(formatter.write(b":"));
         try!(self.url.scheme_data.fmt(formatter));

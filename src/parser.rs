@@ -16,7 +16,7 @@ pub use ParseError::{
 
 pub use self::Context::{SetterContext,UrlParserContext};
 use std::ascii::AsciiExt;
-use std::fmt::{Formatter, FormatError, Show};
+use std::fmt::{mod, Formatter, Show};
 use std::str::CharRange;
 
 use encoding;
@@ -66,7 +66,7 @@ pub enum ParseError {
 }
 
 impl Show for ParseError {
-    fn fmt(&self, fmt: &mut Formatter) -> Result<(), FormatError> {
+    fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
         match *self {
             EmptyHost => "empty host",
             InvalidScheme => "invalid scheme",

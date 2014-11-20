@@ -122,7 +122,7 @@ assert!(css_url.serialize() == "http://servo.github.io/rust-url/main.css".to_str
 extern crate encoding;
 extern crate serialize;
 
-use std::fmt::{Formatter, FormatError, Show};
+use std::fmt::{mod, Formatter, Show};
 use std::hash;
 use std::path;
 
@@ -771,7 +771,7 @@ impl<E, D: serialize::Decoder<E>> serialize::Decodable<D, E> for Url {
 
 
 impl Show for Url {
-    fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         try!(UrlNoFragmentFormatter{ url: self }.fmt(formatter));
         match self.fragment {
             None => (),
@@ -786,7 +786,7 @@ impl Show for Url {
 
 
 impl Show for SchemeData {
-    fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match *self {
             RelativeSchemeData(ref scheme_data) => scheme_data.fmt(formatter),
             NonRelativeSchemeData(ref scheme_data) => scheme_data.fmt(formatter),
@@ -891,7 +891,7 @@ impl UrlRelativeSchemeData {
 
 
 impl Show for UrlRelativeSchemeData {
-    fn fmt(&self, formatter: &mut Formatter) -> Result<(), FormatError> {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         // Write the scheme-trailing double slashes.
         try!(formatter.write(b"//"));
 
