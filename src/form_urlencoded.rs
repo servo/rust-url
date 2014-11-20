@@ -27,7 +27,7 @@ use percent_encoding::{percent_encode_to, percent_decode, FORM_URLENCODED_ENCODE
 /// into a vector of (name, value) pairs.
 #[inline]
 pub fn parse_str(input: &str) -> Vec<(String, String)> {
-    parse_bytes(input.as_bytes(), None, false, false).unwrap()
+    parse_bytes(input.as_bytes(), None, false).unwrap()
 }
 
 
@@ -39,20 +39,15 @@ pub fn parse_str(input: &str) -> Vec<(String, String)> {
 /// * `encoding_override`: The character encoding each name and values is decoded as
 ///    after percent-decoding. Defaults to UTF-8.
 /// * `use_charset`: The *use _charset_ flag*. If in doubt, set to `false`.
-/// * `isindex`: The *isindex flag*. If in doubt, set to `false`.
 pub fn parse_bytes(input: &[u8], encoding_override: Option<EncodingRef>,
-                   mut use_charset: bool, mut isindex: bool) -> Option<Vec<(String, String)>> {
+                   mut use_charset: bool) -> Option<Vec<(String, String)>> {
     let mut encoding_override = encoding_override.unwrap_or(UTF_8 as EncodingRef);
     let mut pairs = Vec::new();
     for piece in input.split(|&b| b == b'&') {
-        if piece.is_empty() {
-            if isindex {
-                pairs.push((Vec::new(), Vec::new()))
-            }
-        } else {
+        if !piece.is_empty() {
             let (name, value) = match piece.position_elem(&b'=') {
                 Some(position) => (piece.slice_to(position), piece.slice_from(position + 1)),
-                None => if isindex { ([].as_slice(), piece) } else { (piece, [].as_slice()) }
+                None => (piece, [].as_slice())
             };
             let name = replace_plus(name);
             let value = replace_plus(value);
@@ -65,7 +60,6 @@ pub fn parse_bytes(input: &[u8], encoding_override: Option<EncodingRef>,
             }
             pairs.push((name, value));
         }
-        isindex = false;
     }
     if encoding_override.name() != "utf-8" && !input.is_ascii() {
         return None
