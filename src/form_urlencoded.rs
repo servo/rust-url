@@ -123,8 +123,8 @@ fn serialize_internal<'a, I>(mut pairs: I, encoding_override: EncodingOverride) 
     #[inline]
     fn byte_serialize(input: &str, output: &mut String,
                       encoding_override: EncodingOverride) {
-        let mut pair = (input, vec![]);
-        for &byte in encoding_override.encode(&mut pair).iter() {
+        let tmp = &mut vec![];
+        for &byte in encoding_override.encode(input, tmp).iter() {
             if byte == b' ' {
                 output.push_str("+")
             } else {

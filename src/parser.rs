@@ -644,8 +644,8 @@ pub fn parse_query<'a>(input: &'a str, context: Context, parser: &UrlParser)
         }
     }
 
-    let mut pair = (query.as_slice(), vec![]);
-    let query_bytes = parser.query_encoding_override.encode(&mut pair);
+    let tmp = &mut vec![];
+    let query_bytes = parser.query_encoding_override.encode(query.as_slice(), tmp);
     Ok((percent_encode(query_bytes.as_slice(), QUERY_ENCODE_SET), remaining))
 }
 

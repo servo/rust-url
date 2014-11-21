@@ -62,8 +62,14 @@ impl EncodingOverride {
         }
     }
 
-    pub fn encode<'a>(&self, pair: &'a mut (&str, Vec<u8>)) -> &'a [u8] {
-        let &(ref input, ref mut tmp) = pair;
+    // For UTF-8, we want to return the &[u8] bytes of the &str input strings without copying
+    // But for other encodings we have to allocate a new Vec<u8>.
+    // To return &[u8] in that case, the vector has to be kept somewhere
+    // that lives at least as long as the return value.
+    // Therefore, the caller provides a temporary Vec<u8> as scratch space.
+    //
+    // FIXME: Return std::borrow::Cow<'a, Vec<u8>, [u8]> instead.
+    pub fn encode<'a>(&self, input: &'a str, tmp: &'a mut Vec<u8>) -> &'a [u8] {
         match self.encoding {
             Some(encoding) => {
                 *tmp = encoding.encode(input.as_slice(), EncoderTrap::NcrEscape).unwrap();
@@ -96,8 +102,7 @@ impl EncodingOverride {
         String::from_utf8_lossy(input).into_string()
     }
 
-    pub fn encode<'a>(&self, pair: &'a mut (&str, Vec<u8>)) -> &'a [u8] {
-        let &(ref query, _) = pair;
-        query.as_bytes()
+    pub fn encode<'a>(&self, input: &'a str, _: &'a mut Vec<u8>) -> &'a [u8] {
+        input.as_bytes()
     }
 }
