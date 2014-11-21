@@ -67,14 +67,14 @@ simple_enum_error! {
     RelativeUrlWithoutBase => "relative URL without a base",
     RelativeUrlWithNonRelativeBase => "relative URL with a non-relative base",
     NonAsciiDomainsNotSupportedYet => "non-ASCII domains are not supported yet",
-    CannotSetJavascriptFragment => "can not set fragment on javascript: URL",
-    CannotSetPortWithFileLikeScheme => "can not set port with file-like scheme",
-    CannotSetUsernameWithNonRelativeScheme => "can not set username with non-relative scheme",
-    CannotSetPasswordWithNonRelativeScheme => "can not set password with non-relative scheme",
-    CannotSetHostPortWithNonRelativeScheme => "can not set host and port with non-relative scheme",
-    CannotSetHostWithNonRelativeScheme => "can not set host with non-relative scheme",
-    CannotSetPortWithNonRelativeScheme => "can not set port with non-relative scheme",
-    CannotSetPathWithNonRelativeScheme => "can not set path with non-relative scheme",
+    CannotSetJavascriptFragment => "cannot set fragment on javascript: URL",
+    CannotSetPortWithFileLikeScheme => "cannot set port with file-like scheme",
+    CannotSetUsernameWithNonRelativeScheme => "cannot set username with non-relative scheme",
+    CannotSetPasswordWithNonRelativeScheme => "cannot set password with non-relative scheme",
+    CannotSetHostPortWithNonRelativeScheme => "cannot set host and port with non-relative scheme",
+    CannotSetHostWithNonRelativeScheme => "cannot set host with non-relative scheme",
+    CannotSetPortWithNonRelativeScheme => "cannot set port with non-relative scheme",
+    CannotSetPathWithNonRelativeScheme => "cannot set path with non-relative scheme",
 }
 
 impl Show for ParseError {
