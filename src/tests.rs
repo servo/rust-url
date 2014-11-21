@@ -10,8 +10,7 @@
 use std::char;
 use std::num::from_str_radix;
 use std::path;
-use super::{UrlParser, Url, RelativeSchemeData, NonRelativeSchemeData, Domain};
-use super::UrlRelativeSchemeData;
+use super::{UrlParser, Url, SchemeData, RelativeSchemeData, Host};
 
 
 #[test]
@@ -70,7 +69,7 @@ fn url_parsing() {
 
         assert_eq!(Some(scheme), expected_scheme);
         match scheme_data {
-            RelativeSchemeData(UrlRelativeSchemeData {
+            SchemeData::Relative(RelativeSchemeData {
                 username, password, host, port, default_port: _, path,
             }) => {
                 assert_eq!(username, expected_username);
@@ -80,7 +79,7 @@ fn url_parsing() {
                 assert_eq!(port, expected_port);
                 assert_eq!(Some(format!("/{}", path.connect("/"))), expected_path);
             },
-            NonRelativeSchemeData(scheme_data) => {
+            SchemeData::NonRelative(scheme_data) => {
                 assert_eq!(Some(scheme_data), expected_path);
                 assert_eq!(String::new(), expected_username);
                 assert_eq!(None, expected_password);
@@ -209,7 +208,7 @@ fn file_paths() {
     assert_eq!(Url::from_file_path(&path::windows::Path::new(r"\\ucn\")), Err(()));
 
     let mut url = Url::from_file_path(&path::posix::Path::new("/foo/bar")).unwrap();
-    assert_eq!(url.host(), Some(&Domain("".to_string())));
+    assert_eq!(url.host(), Some(&Host::Domain("".to_string())));
     assert_eq!(url.path(), Some(["foo".to_string(), "bar".to_string()].as_slice()));
     assert!(url.to_file_path() == Ok(path::posix::Path::new("/foo/bar")));
 
@@ -225,7 +224,7 @@ fn file_paths() {
         /* note: byte string, invalid UTF-8 */ b"/foo/ba\x80r")));
 
     let mut url = Url::from_file_path(&path::windows::Path::new(r"C:\foo\bar")).unwrap();
-    assert_eq!(url.host(), Some(&Domain("".to_string())));
+    assert_eq!(url.host(), Some(&Host::Domain("".to_string())));
     assert_eq!(url.path(), Some(["C:".to_string(), "foo".to_string(), "bar".to_string()].as_slice()));
     assert!(url.to_file_path::<path::windows::Path>()
             == Ok(path::windows::Path::new(r"C:\foo\bar")));
@@ -252,11 +251,11 @@ fn directory_paths() {
     assert_eq!(Url::from_directory_path(&path::windows::Path::new(r"\\ucn\")), Err(()));
 
     let url = Url::from_directory_path(&path::posix::Path::new("/foo/bar")).unwrap();
-    assert_eq!(url.host(), Some(&Domain("".to_string())));
+    assert_eq!(url.host(), Some(&Host::Domain("".to_string())));
     assert_eq!(url.path(), Some(["foo".to_string(), "bar".to_string(), "".to_string()].as_slice()));
 
     let url = Url::from_directory_path(&path::windows::Path::new(r"C:\foo\bar")).unwrap();
-    assert_eq!(url.host(), Some(&Domain("".to_string())));
+    assert_eq!(url.host(), Some(&Host::Domain("".to_string())));
     assert_eq!(url.path(), Some([
         "C:".to_string(), "foo".to_string(), "bar".to_string(), "".to_string()].as_slice()));
 }

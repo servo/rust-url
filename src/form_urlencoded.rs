@@ -13,52 +13,60 @@
 //! Converts between a string (such as an URL’s query string)
 //! and a sequence of (name, value) pairs.
 
-use std::str;
-
-use encoding;
-use encoding::EncodingRef;
-use encoding::all::UTF_8;
-use encoding::label::encoding_from_whatwg_label;
-
+use encoding::EncodingOverride;
 use percent_encoding::{percent_encode_to, percent_decode, FORM_URLENCODED_ENCODE_SET};
 
 
-/// Convert a string in the `application/x-www-form-urlencoded` format
+/// Convert a byte string in the `application/x-www-form-urlencoded` format
 /// into a vector of (name, value) pairs.
+///
+/// Use `parse(input.as_bytes())` to parse a `&str` string.
 #[inline]
-pub fn parse_str(input: &str) -> Vec<(String, String)> {
-    parse_bytes(input.as_bytes(), None, false, false).unwrap()
+pub fn parse(input: &[u8]) -> Vec<(String, String)> {
+    parse_internal(input, EncodingOverride::utf8(), false).unwrap()
 }
 
 
 /// Convert a byte string in the `application/x-www-form-urlencoded` format
 /// into a vector of (name, value) pairs.
 ///
+/// Use `parse(input.as_bytes())` to parse a `&str` string.
+///
+/// This function is only available if the `query_encoding` Cargo feature is enabled.
+///
 /// Arguments:
 ///
 /// * `encoding_override`: The character encoding each name and values is decoded as
 ///    after percent-decoding. Defaults to UTF-8.
 /// * `use_charset`: The *use _charset_ flag*. If in doubt, set to `false`.
-/// * `isindex`: The *isindex flag*. If in doubt, set to `false`.
-pub fn parse_bytes(input: &[u8], encoding_override: Option<EncodingRef>,
-                   mut use_charset: bool, mut isindex: bool) -> Option<Vec<(String, String)>> {
-    let mut encoding_override = encoding_override.unwrap_or(UTF_8 as EncodingRef);
+#[cfg(feature = "query_encoding")]
+#[inline]
+pub fn parse_with_encoding(input: &[u8], encoding_override: Option<::encoding::EncodingRef>,
+                           use_charset: bool)
+                           -> Option<Vec<(String, String)>> {
+    parse_internal(input, EncodingOverride::from_opt_encoding(encoding_override), use_charset)
+}
+
+
+fn parse_internal(input: &[u8], mut encoding_override: EncodingOverride, mut use_charset: bool)
+                  -> Option<Vec<(String, String)>> {
     let mut pairs = Vec::new();
     for piece in input.split(|&b| b == b'&') {
-        if piece.is_empty() {
-            if isindex {
-                pairs.push((Vec::new(), Vec::new()))
-            }
-        } else {
+        if !piece.is_empty() {
             let (name, value) = match piece.position_elem(&b'=') {
                 Some(position) => (piece.slice_to(position), piece.slice_from(position + 1)),
-                None => if isindex { ([].as_slice(), piece) } else { (piece, [].as_slice()) }
+                None => (piece, [].as_slice())
             };
+
+            #[inline]
+            fn replace_plus(input: &[u8]) -> Vec<u8> {
+                input.iter().map(|&b| if b == b'+' { b' ' } else { b }).collect()
+            }
+
             let name = replace_plus(name);
             let value = replace_plus(value);
             if use_charset && name.as_slice() == b"_charset_" {
-                // Non-UTF8 here is ok, encoding_from_whatwg_label only matches in the ASCII range.
-                match encoding_from_whatwg_label(unsafe { str::raw::from_utf8(value.as_slice()) }) {
+                match EncodingOverride::lookup(value.as_slice()) {
                     Some(encoding) => encoding_override = encoding,
                     None => (),
                 }
@@ -66,27 +74,15 @@ pub fn parse_bytes(input: &[u8], encoding_override: Option<EncodingRef>,
             }
             pairs.push((name, value));
         }
-        isindex = false;
     }
-    if encoding_override.name() != "utf-8" && !input.is_ascii() {
+    if !(encoding_override.is_utf8() || input.is_ascii()) {
         return None
     }
 
-    #[inline]
-    fn replace_plus(input: &[u8]) -> Vec<u8> {
-        input.iter().map(|&b| if b == b'+' { b' ' } else { b }).collect()
-    }
-
-    #[inline]
-    fn decode(input: Vec<u8>, encoding_override: EncodingRef) -> String {
-        encoding_override.decode(
-            percent_decode(input.as_slice()).as_slice(),
-            encoding::DecodeReplace).unwrap()
-    }
-
-    Some(pairs.into_iter().map(
-        |(name, value)| (decode(name, encoding_override), decode(value, encoding_override))
-    ).collect())
+    Some(pairs.into_iter().map(|(name, value)| (
+        encoding_override.decode(percent_decode(name.as_slice()).as_slice()),
+        encoding_override.decode(percent_decode(value.as_slice()).as_slice())
+    )).collect())
 }
 
 
@@ -94,37 +90,45 @@ pub fn parse_bytes(input: &[u8], encoding_override: Option<EncodingRef>,
 /// into a string in the `application/x-www-form-urlencoded` format.
 #[inline]
 pub fn serialize_owned(pairs: &[(String, String)]) -> String {
-    serialize(pairs.iter().map(|&(ref n, ref v)| (n.as_slice(), v.as_slice())), None)
+    serialize(pairs.iter().map(|&(ref n, ref v)| (n.as_slice(), v.as_slice())))
 }
 
 
 /// Convert an iterator of (name, value) pairs
 /// into a string in the `application/x-www-form-urlencoded` format.
+#[inline]
+pub fn serialize<'a, I>(pairs: I) -> String where I: Iterator<(&'a str, &'a str)> {
+    serialize_internal(pairs, EncodingOverride::utf8())
+}
+
+/// Convert an iterator of (name, value) pairs
+/// into a string in the `application/x-www-form-urlencoded` format.
+///
+/// This function is only available if the `query_encoding` Cargo feature is enabled.
 ///
 /// Arguments:
 ///
 /// * `encoding_override`: The character encoding each name and values is encoded as
 ///    before percent-encoding. Defaults to UTF-8.
-pub fn serialize<'a, I: Iterator<(&'a str, &'a str)>>(
-        mut pairs: I, encoding_override: Option<EncodingRef>)
-        -> String {
+#[cfg(feature = "query_encoding")]
+#[inline]
+pub fn serialize_with_encoding<'a, I>(pairs: I, encoding_override: Option<::encoding::EncodingRef>)
+                                      -> String
+                                      where I: Iterator<(&'a str, &'a str)> {
+    serialize_internal(pairs, EncodingOverride::from_opt_encoding(encoding_override))
+}
+
+fn serialize_internal<'a, I>(mut pairs: I, encoding_override: EncodingOverride) -> String
+                             where I: Iterator<(&'a str, &'a str)> {
     #[inline]
     fn byte_serialize(input: &str, output: &mut String,
-                      encoding_override: Option<EncodingRef>) {
-        let keep_alive;
-        let input = match encoding_override {
-            None => input.as_bytes(),  // "Encode" to UTF-8
-            Some(encoding) => {
-                keep_alive = encoding.encode(input, encoding::EncodeNcrEscape).unwrap();
-                keep_alive.as_slice()
-            }
-        };
-
-        for &byte in input.iter() {
+                      encoding_override: EncodingOverride) {
+        let tmp = &mut vec![];
+        for &byte in encoding_override.encode(input, tmp).iter() {
             if byte == b' ' {
                 output.push_str("+")
             } else {
-                percent_encode_to([byte], FORM_URLENCODED_ENCODE_SET, output)
+                percent_encode_to(&[byte], FORM_URLENCODED_ENCODE_SET, output)
             }
         }
     }
@@ -151,5 +155,5 @@ fn test_form_urlencoded() {
     ];
     let encoded = serialize_owned(pairs.as_slice());
     assert_eq!(encoded.as_slice(), "foo=%C3%A9%26&bar=&foo=%23");
-    assert_eq!(parse_str(encoded.as_slice()), pairs.as_slice().to_vec());
+    assert_eq!(parse(encoded.as_bytes()), pairs.as_slice().to_vec());
 }

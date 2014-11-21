@@ -240,7 +240,7 @@ mod tests {
     }
 
     fn get_string<'a>(map: &'a JsonObject, key: &str) -> &'a str {
-        match map.find(&key.to_string()) {
+        match map.get(&key.to_string()) {
             Some(&String(ref s)) => s.as_slice(),
             None => "",
             _ => panic!(),
