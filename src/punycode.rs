@@ -216,7 +216,7 @@ fn value_to_digit(value: u32, output: &mut String) {
 #[cfg(test)]
 mod tests {
     use super::{decode, encode_str};
-    use serialize::json::{from_str, List, JsonObject, Object, String};
+    use serialize::json::{from_str, Array, JsonObject, Object, String};
 
     fn one_test(description: &str, decoded: &str, encoded: &str) {
         match decode(encoded) {
@@ -251,7 +251,7 @@ mod tests {
     fn test_punycode() {
 
         match from_str(include_str!("punycode_tests.json")) {
-            Ok(List(tests)) => for test in tests.iter() {
+            Ok(Array(tests)) => for test in tests.iter() {
                 match test {
                     &Object(ref o) => one_test(
                         get_string(o, "description"),
