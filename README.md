@@ -5,12 +5,6 @@ rust-url
 
 Rust implementation of the [URL Standard](http://url.spec.whatwg.org/).
 
-This is a replacement for Rust’s “old” (as of July 2014) `url` crate.
-See [Rust bug #10707](https://github.com/mozilla/rust/issues/10707).
-
-This builds with [Cargo](https://github.com/rust-lang/cargo),
-pulling in [rust-encoding](https://github.com/lifthrasiir/rust-encoding) as a dependency.
-
 [Documentation](http://servo.github.io/rust-url/url/index.html)
 
 
