@@ -10,18 +10,13 @@
 //! Abstraction that conditionally compiles either to rust-encoding,
 //! or to only support UTF-8.
 
-#[cfg(feature = "query_encoding")]
-extern crate encoding;
+#[cfg(feature = "query_encoding")] extern crate encoding;
 
-#[cfg(feature = "query_encoding")]
-use self::encoding::types::{DecoderTrap, EncoderTrap};
+use std::borrow::Cow;
 
-#[cfg(feature = "query_encoding")]
-use self::encoding::label::encoding_from_whatwg_label;
-
-#[cfg(feature = "query_encoding")]
-pub use self::encoding::types::EncodingRef;
-
+#[cfg(feature = "query_encoding")] use self::encoding::types::{DecoderTrap, EncoderTrap};
+#[cfg(feature = "query_encoding")] use self::encoding::label::encoding_from_whatwg_label;
+#[cfg(feature = "query_encoding")] pub use self::encoding::types::EncodingRef;
 
 #[cfg(feature = "query_encoding")]
 pub struct EncodingOverride {
@@ -62,20 +57,11 @@ impl EncodingOverride {
         }
     }
 
-    // For UTF-8, we want to return the &[u8] bytes of the &str input strings without copying
-    // But for other encodings we have to allocate a new Vec<u8>.
-    // To return &[u8] in that case, the vector has to be kept somewhere
-    // that lives at least as long as the return value.
-    // Therefore, the caller provides a temporary Vec<u8> as scratch space.
-    //
-    // FIXME: Return std::borrow::Cow<'a, Vec<u8>, [u8]> instead.
-    pub fn encode<'a>(&self, input: &'a str, tmp: &'a mut Vec<u8>) -> &'a [u8] {
+    pub fn encode<'a>(&self, input: &'a str) -> Cow<'a, Vec<u8>, [u8]> {
         match self.encoding {
-            Some(encoding) => {
-                *tmp = encoding.encode(input.as_slice(), EncoderTrap::NcrEscape).unwrap();
-                tmp.as_slice()
-            },
-            None => input.as_bytes()  // UTF-8
+            Some(encoding) => Cow::Owned(
+                encoding.encode(input.as_slice(), EncoderTrap::NcrEscape).unwrap()),
+            None => Cow::Borrowed(input.as_bytes()),  // UTF-8
         }
     }
 }
@@ -102,7 +88,7 @@ impl EncodingOverride {
         String::from_utf8_lossy(input).into_string()
     }
 
-    pub fn encode<'a>(&self, input: &'a str, _: &'a mut Vec<u8>) -> &'a [u8] {
-        input.as_bytes()
+    pub fn encode<'a>(&self, input: &'a str) -> Cow<'a, Vec<u8>, [u8]> {
+        Cow::Borrowed(input.as_bytes())
     }
 }
