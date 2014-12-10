@@ -19,6 +19,7 @@ use std::borrow::Cow;
 #[cfg(feature = "query_encoding")] pub use self::encoding::types::EncodingRef;
 
 #[cfg(feature = "query_encoding")]
+#[deriving(Copy)]
 pub struct EncodingOverride {
     /// `None` means UTF-8.
     encoding: Option<EncodingRef>
@@ -68,6 +69,7 @@ impl EncodingOverride {
 
 
 #[cfg(not(feature = "query_encoding"))]
+#[deriving(Copy)]
 pub struct EncodingOverride;
 
 #[cfg(not(feature = "query_encoding"))]
