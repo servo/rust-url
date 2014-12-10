@@ -412,7 +412,7 @@ impl<'a> UrlParser<'a> {
 
 
 /// Determines the behavior of the URL parser for a given scheme.
-#[deriving(PartialEq, Eq)]
+#[deriving(PartialEq, Eq, Copy)]
 pub enum SchemeType {
     /// Indicate that the scheme is *non-relative*.
     ///
