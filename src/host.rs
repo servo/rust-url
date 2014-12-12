@@ -30,22 +30,9 @@ pub enum Host {
 
 
 /// A 128 bit IPv6 address
+#[deriving(Clone, Eq, PartialEq, Copy)]
 pub struct Ipv6Address {
     pub pieces: [u16, ..8]
-}
-
-impl Clone for Ipv6Address {
-    fn clone(&self) -> Ipv6Address {
-        Ipv6Address { pieces: self.pieces }
-    }
-}
-
-impl Eq for Ipv6Address {}
-
-impl PartialEq for Ipv6Address {
-    fn eq(&self, other: &Ipv6Address) -> bool {
-        self.pieces == other.pieces
-    }
 }
 
 

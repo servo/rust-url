@@ -31,7 +31,7 @@ pub type ParseResult<T> = Result<T, ParseError>;
 macro_rules! simple_enum_error {
     ($($name: ident => $description: expr,)+) => {
         /// Errors that can occur during parsing.
-        #[deriving(PartialEq, Eq, Clone)]
+        #[deriving(PartialEq, Eq, Clone, Copy)]
         pub enum ParseError {
             $(
                 $name,
@@ -696,15 +696,15 @@ fn is_url_code_point(c: char) -> bool {
         '0'...'9' |
         '!' | '$' | '&' | '\'' | '(' | ')' | '*' | '+' | ',' | '-' |
         '.' | '/' | ':' | ';' | '=' | '?' | '@' | '_' | '~' |
-        '\u00A0'...'\uD7FF' | '\uE000'...'\uFDCF' | '\uFDF0'...'\uFFFD' |
-        '\U00010000'...'\U0001FFFD' | '\U00020000'...'\U0002FFFD' |
-        '\U00030000'...'\U0003FFFD' | '\U00040000'...'\U0004FFFD' |
-        '\U00050000'...'\U0005FFFD' | '\U00060000'...'\U0006FFFD' |
-        '\U00070000'...'\U0007FFFD' | '\U00080000'...'\U0008FFFD' |
-        '\U00090000'...'\U0009FFFD' | '\U000A0000'...'\U000AFFFD' |
-        '\U000B0000'...'\U000BFFFD' | '\U000C0000'...'\U000CFFFD' |
-        '\U000D0000'...'\U000DFFFD' | '\U000E1000'...'\U000EFFFD' |
-        '\U000F0000'...'\U000FFFFD' | '\U00100000'...'\U0010FFFD' => true,
+        '\u{A0}'...'\u{D7FF}' | '\u{E000}'...'\u{FDCF}' | '\u{FDF0}'...'\u{FFFD}' |
+        '\u{10000}'...'\u{1FFFD}' | '\u{20000}'...'\u{2FFFD}' |
+        '\u{30000}'...'\u{3FFFD}' | '\u{40000}'...'\u{4FFFD}' |
+        '\u{50000}'...'\u{5FFFD}' | '\u{60000}'...'\u{6FFFD}' |
+        '\u{70000}'...'\u{7FFFD}' | '\u{80000}'...'\u{8FFFD}' |
+        '\u{90000}'...'\u{9FFFD}' | '\u{A0000}'...'\u{AFFFD}' |
+        '\u{B0000}'...'\u{BFFFD}' | '\u{C0000}'...'\u{CFFFD}' |
+        '\u{D0000}'...'\u{DFFFD}' | '\u{E1000}'...'\u{EFFFD}' |
+        '\u{F0000}'...'\u{FFFFD}' | '\u{100000}'...'\u{10FFFD}' => true,
         _ => false
     }
 }
