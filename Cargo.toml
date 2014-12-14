@@ -4,11 +4,18 @@ name = "url"
 version = "0.2.3"
 authors = [ "Simon Sapin <simon.sapin@exyr.org>" ]
 
+description = "URL parser for Rust"
+documentation = "http://servo.github.io/rust-url/url/index.html"
+repository = "https://github.com/servo/rust-url"
+readme = "README.md"
+keywords = ["url", "parser"]
+license = "MIT/Apache-2.0"
+
 [features]
 
 query_encoding = ["encoding"]
 
 [dependencies.encoding]
 
-git = "https://github.com/lifthrasiir/rust-encoding"
+version = "0.2"
 optional = true
