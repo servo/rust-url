@@ -1,18 +1,5 @@
 language: rust
-
-script:
-  - cargo test --features query_encoding
-  - cargo test
-
-after_success: |
-  [ $TRAVIS_BRANCH = master ] &&
-  [ $TRAVIS_PULL_REQUEST = false ] &&
-  cargo doc --features query_encoding &&
-  echo '<meta http-equiv=refresh content=0;url=url/index.html>' > target/doc/index.html &&
-  cp github.png target/doc/ &&
-  sudo pip install ghp-import &&
-  ghp-import -n target/doc &&
-  git push -qf https://${TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages
-
+script: make test
+after_success: make upload-doc
 env:
   - secure: Q5eFkWSv20gCxMXrF1BPBSY67qAi9XYKsGHbOc6c1hOf933AX9Wr2CqL8mBhgAZfe4TWEnazjMNHmVIs75W+DPRkxVjImDmPLlQSDNuQFKBGATL5rnx7UzgT7t6CZhG+aPr50VVuC/3IL1+Ok85DjT/LnOKaao3r+Wd+HMFVViM=
