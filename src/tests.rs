@@ -76,7 +76,10 @@ fn url_parsing() {
                 assert_eq!(password, expected_password);
                 let host = host.serialize();
                 assert_eq!(host, expected_host)
-                assert_eq!(port, expected_port);
+                match port {
+                  None => assert_eq!(None, expected_port),
+                  Some(port) => assert_eq!(Some(port.to_string()), expected_port)
+                }
                 assert_eq!(Some(format!("/{}", path.connect("/"))), expected_path);
             },
             SchemeData::NonRelative(scheme_data) => {
@@ -104,7 +107,7 @@ struct Test {
     username: String,
     password: Option<String>,
     host: String,
-    port: Option<u16>,
+    port: Option<String>,
     path: Option<String>,
     query: Option<String>,
     fragment: Option<String>,
@@ -172,6 +175,7 @@ fn unescape(input: &str) -> String {
             Some(c) => output.push(
                 if c == '\\' {
                     match chars.next().unwrap() {
+                        '#' => '#',
                         '\\' => '\\',
                         'n' => '\n',
                         'r' => '\r',
