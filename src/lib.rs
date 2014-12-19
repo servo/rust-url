@@ -979,7 +979,7 @@ impl FromUrlPath for path::posix::Path {
             None => Err(()),  // Path contains a NUL byte
             Some(path) => {
                 debug_assert!(path.is_absolute(),
-                              "to_file_path() failed to produce an absolute Path")
+                              "to_file_path() failed to produce an absolute Path");
                 Ok(path)
             }
         }
@@ -1006,9 +1006,9 @@ impl FromUrlPath for path::windows::Path {
             None => Err(()),  // Path contains a NUL byte or invalid UTF-8
             Some(path) => {
                 debug_assert!(path.is_absolute(),
-                              "to_file_path() failed to produce an absolute Path")
+                              "to_file_path() failed to produce an absolute Path");
                 debug_assert!(path::windows::prefix(&path) == Some(path::windows::DiskPrefix),
-                              "to_file_path() failed to produce a Path with a disk prefix")
+                              "to_file_path() failed to produce a Path with a disk prefix");
                 Ok(path)
             }
         }
