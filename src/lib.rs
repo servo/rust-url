@@ -22,15 +22,6 @@ To use it in your project, add this to your `Cargo.toml` file:
 git = "https://github.com/servo/rust-url"
 ```
 
-rust-url is a replacement of the [`url` crate](http://doc.rust-lang.org/url/index.html)
-currently distributed with Rust.
-rust-url’s crate is also named `url`.
-Cargo will automatically resolve the name conflict,
-but that means that you can not also use the old `url` in the same crate.
-
-If you’re not using Cargo, you’ll need to pass `--extern url=/path/to/liburl.rlib`
-explicitly to rustc.
-
 Supporting encodings other than UTF-8 in query strings is an optional feature
 that requires [rust-encoding](https://github.com/lifthrasiir/rust-encoding)
 and is off by default.
