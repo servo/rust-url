@@ -936,7 +936,7 @@ impl ToUrlPath for path::windows::Path {
         if !self.is_absolute() {
             return Err(())
         }
-        if path::windows::prefix(self) != Some(path::windows::DiskPrefix) {
+        if path::windows::prefix(self) != Some(path::windows::PathPrefix::DiskPrefix) {
             // FIXME: do something with UNC and other prefixes?
             return Err(())
         }
@@ -998,7 +998,7 @@ impl FromUrlPath for path::windows::Path {
             Some(path) => {
                 debug_assert!(path.is_absolute(),
                               "to_file_path() failed to produce an absolute Path");
-                debug_assert!(path::windows::prefix(&path) == Some(path::windows::DiskPrefix),
+                debug_assert!(path::windows::prefix(&path) == Some(path::windows::PathPrefix::DiskPrefix),
                               "to_file_path() failed to produce a Path with a disk prefix");
                 Ok(path)
             }
