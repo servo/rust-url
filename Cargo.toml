@@ -19,3 +19,6 @@ query_encoding = ["encoding"]
 
 version = "0.2"
 optional = true
+
+[dependencies]
+rustc-serialize = "0.1"

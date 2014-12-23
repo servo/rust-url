@@ -54,7 +54,7 @@ impl EncodingOverride {
     pub fn decode(&self, input: &[u8]) -> String {
         match self.encoding {
             Some(encoding) => encoding.decode(input, DecoderTrap::Replace).unwrap(),
-            None => String::from_utf8_lossy(input).into_string(),
+            None => String::from_utf8_lossy(input).to_string(),
         }
     }
 
@@ -87,7 +87,7 @@ impl EncodingOverride {
     }
 
     pub fn decode(&self, input: &[u8]) -> String {
-        String::from_utf8_lossy(input).into_string()
+        String::from_utf8_lossy(input).into_owned()
     }
 
     pub fn encode<'a>(&self, input: &'a str) -> Cow<'a, Vec<u8>, [u8]> {

@@ -151,7 +151,7 @@ fn parse_test_data(input: &str) -> Vec<Test> {
                 "u" => test.username = value,
                 "pass" => test.password = Some(value),
                 "h" => test.host = value,
-                "port" => test.port = Some(from_str(value.as_slice()).unwrap()),
+                "port" => test.port = Some(value.parse().unwrap()),
                 "p" => test.path = Some(value),
                 "q" => test.query = Some(value),
                 "f" => test.fragment = Some(value),

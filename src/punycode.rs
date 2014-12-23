@@ -215,7 +215,7 @@ fn value_to_digit(value: u32, output: &mut String) {
 #[cfg(test)]
 mod tests {
     use super::{decode, encode_str};
-    use serialize::json::{from_str, Json, Object};
+    use rustc_serialize::json::{from_str, Json, Object};
 
     fn one_test(description: &str, decoded: &str, encoded: &str) {
         match decode(encoded) {
