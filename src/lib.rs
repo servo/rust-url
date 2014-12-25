@@ -121,7 +121,7 @@ assert!(css_url.serialize() == "http://servo.github.io/rust-url/main.css".to_str
 
 #![feature(macro_rules, default_type_params)]
 
-extern crate serialize;
+extern crate "rustc-serialize" as rustc_serialize;
 
 use std::fmt::{mod, Formatter, Show};
 use std::hash;
@@ -750,14 +750,14 @@ impl Url {
 }
 
 
-impl<E, S: serialize::Encoder<E>> serialize::Encodable<S, E> for Url {
+impl<E, S: rustc_serialize::Encoder<E>> rustc_serialize::Encodable<S, E> for Url {
     fn encode(&self, encoder: &mut S) -> Result<(), E> {
         encoder.emit_str(self.to_string().as_slice())
     }
 }
 
 
-impl<E, D: serialize::Decoder<E>> serialize::Decodable<D, E> for Url {
+impl<E, D: rustc_serialize::Decoder<E>> rustc_serialize::Decodable<D, E> for Url {
     fn decode(decoder: &mut D) -> Result<Url, E> {
         Url::parse(try!(decoder.read_str()).as_slice()).map_err(|error| {
             decoder.error(format!("URL parsing error: {}", error).as_slice())

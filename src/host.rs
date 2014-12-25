@@ -63,7 +63,7 @@ impl Host {
             ].as_slice()).is_some() {
                 Err(ParseError::InvalidDomainCharacter)
             } else {
-                Ok(Host::Domain(domain.into_string().into_ascii_lower()))
+                Ok(Host::Domain(domain.to_string().into_ascii_lower()))
             }
         }
     }
