@@ -43,6 +43,7 @@ impl EncodingOverride {
 
     pub fn lookup(label: &[u8]) -> Option<EncodingOverride> {
         ::std::str::from_utf8(label.as_slice())
+        .ok()
         .and_then(encoding_from_whatwg_label)
         .map(EncodingOverride::from_encoding)
     }
