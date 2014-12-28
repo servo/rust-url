@@ -13,6 +13,7 @@
 //! Converts between a string (such as an URL’s query string)
 //! and a sequence of (name, value) pairs.
 
+use std::ascii::AsciiExt;
 use encoding::EncodingOverride;
 use percent_encoding::{percent_encode_to, percent_decode, FORM_URLENCODED_ENCODE_SET};
 

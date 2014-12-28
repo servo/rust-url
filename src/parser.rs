@@ -161,7 +161,7 @@ pub fn parse_scheme<'a>(input: &'a str, context: Context) -> Option<(String, &'a
         match c {
             'a'...'z' | 'A'...'Z' | '0'...'9' | '+' | '-' | '.' => (),
             ':' => return Some((
-                input.slice_to(i).to_ascii_lower(),
+                input.slice_to(i).to_ascii_lowercase(),
                 input.slice_from(i + 1),
             )),
             _ => return None,
@@ -169,7 +169,7 @@ pub fn parse_scheme<'a>(input: &'a str, context: Context) -> Option<(String, &'a
     }
     // EOF before ':'
     match context {
-        Context::Setter => Some((input.to_ascii_lower(), "")),
+        Context::Setter => Some((input.to_ascii_lowercase(), "")),
         Context::UrlParser => None
     }
 }
