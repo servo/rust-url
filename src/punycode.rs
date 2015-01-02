@@ -216,7 +216,7 @@ fn value_to_digit(value: u32, output: &mut String) {
 #[cfg(test)]
 mod tests {
     use super::{decode, encode_str};
-    use rustc_serialize::json::{from_str, Json, Object};
+    use rustc_serialize::json::{Json, Object};
 
     fn one_test(description: &str, decoded: &str, encoded: &str) {
         match decode(encoded) {
@@ -250,7 +250,7 @@ mod tests {
     #[test]
     fn test_punycode() {
 
-        match from_str(include_str!("punycode_tests.json")) {
+        match Json::from_str(include_str!("punycode_tests.json")) {
             Ok(Json::Array(tests)) => for test in tests.iter() {
                 match test {
                     &Json::Object(ref o) => one_test(
