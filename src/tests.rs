@@ -122,13 +122,13 @@ fn parse_test_data(input: &str) -> Vec<Test> {
         if expected_failure {
             pieces.remove(0);
         }
-        let input = unescape(pieces.remove(0).unwrap());
+        let input = unescape(pieces.remove(0));
         let mut test = Test {
             input: input,
             base: if pieces.is_empty() || pieces[0] == "" {
                 tests.last().unwrap().base.clone()
             } else {
-                unescape(pieces.remove(0).unwrap())
+                unescape(pieces.remove(0))
             },
             scheme: None,
             username: String::new(),

@@ -46,7 +46,7 @@ fn adapt(mut delta: u32, num_points: u32, first_time: bool) -> u32 {
 /// This is a convenience wrapper around `decode`.
 #[inline]
 pub fn decode_to_string(input: &str) -> Option<String> {
-    decode(input).map(|chars| String::from_chars(chars.as_slice()))
+    decode(input).map(|chars| chars.into_iter().collect())
 }
 
 
@@ -222,7 +222,7 @@ mod tests {
         match decode(encoded) {
             None => panic!("Decoding {} failed.", encoded),
             Some(result) => {
-                let result = String::from_chars(result.as_slice());
+                let result = result.into_iter().collect::<String>();
                 assert!(result.as_slice() == decoded,
                         format!("Incorrect decoding of {}:\n   {}\n!= {}\n{}",
                                 encoded, result.as_slice(), decoded, description))
