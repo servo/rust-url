@@ -21,4 +21,4 @@ version = "0.2"
 optional = true
 
 [dependencies]
-rustc-serialize = "0.1"
+rustc-serialize = "0.2"

@@ -32,7 +32,7 @@ pub enum Host {
 /// A 128 bit IPv6 address
 #[deriving(Clone, Eq, PartialEq, Copy)]
 pub struct Ipv6Address {
-    pub pieces: [u16, ..8]
+    pub pieces: [u16; 8]
 }
 
 
@@ -245,7 +245,7 @@ impl Show for Ipv6Address {
 }
 
 
-fn longest_zero_sequence(pieces: &[u16, ..8]) -> (int, int) {
+fn longest_zero_sequence(pieces: &[u16; 8]) -> (int, int) {
     let mut longest = -1;
     let mut longest_length = -1;
     let mut start = -1;

@@ -29,7 +29,7 @@ mod encode_sets;
 /// explaining the use case.
 #[deriving(Copy)]
 pub struct EncodeSet {
-    map: &'static [&'static str, ..256],
+    map: &'static [&'static str; 256],
 }
 
 /// This encode set is used for fragment identifier and non-relative scheme data.
