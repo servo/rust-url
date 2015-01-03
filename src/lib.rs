@@ -119,11 +119,11 @@ assert!(css_url.serialize() == "http://servo.github.io/rust-url/main.css".to_str
 */
 
 
-#![feature(macro_rules, default_type_params)]
+#![feature(macro_rules, default_type_params, old_orphan_check)]
 
 extern crate "rustc-serialize" as rustc_serialize;
 
-use std::fmt::{mod, Formatter, Show};
+use std::fmt::{self, Formatter, Show};
 use std::hash;
 use std::path;
 
@@ -155,7 +155,7 @@ mod tests;
 
 
 /// The parsed representation of an absolute URL.
-#[deriving(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone)]
 pub struct Url {
     /// The scheme (a.k.a. protocol) of the URL, in ASCII lower case.
     pub scheme: String,
@@ -186,7 +186,7 @@ pub struct Url {
 }
 
 /// The components of the URL whose representation depends on where the scheme is *relative*.
-#[deriving(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone)]
 pub enum SchemeData {
     /// Components for URLs in a *relative* scheme such as HTTP.
     Relative(RelativeSchemeData),
@@ -200,7 +200,7 @@ pub enum SchemeData {
 }
 
 /// Components for URLs in a *relative* scheme such as HTTP.
-#[deriving(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone)]
 pub struct RelativeSchemeData {
     /// The username of the URL, as a possibly empty, pecent-encoded string.
     ///
@@ -403,7 +403,7 @@ impl<'a> UrlParser<'a> {
 
 
 /// Determines the behavior of the URL parser for a given scheme.
-#[deriving(PartialEq, Eq, Copy)]
+#[derive(PartialEq, Eq, Copy)]
 pub enum SchemeType {
     /// Indicate that the scheme is *non-relative*.
     ///
@@ -772,8 +772,8 @@ impl Show for Url {
         match self.fragment {
             None => (),
             Some(ref fragment) => {
-                try!(formatter.write(b"#"));
-                try!(formatter.write(fragment.as_bytes()));
+                try!(formatter.write_str("#"));
+                try!(formatter.write_str(fragment.as_slice()));
             }
         }
         Ok(())
@@ -889,7 +889,7 @@ impl RelativeSchemeData {
 impl Show for RelativeSchemeData {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         // Write the scheme-trailing double slashes.
-        try!(formatter.write(b"//"));
+        try!(formatter.write_str("//"));
 
         // Write the user info.
         try!(UserInfoFormatter {

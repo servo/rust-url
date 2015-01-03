@@ -8,7 +8,7 @@
 
 use std::ascii::AsciiExt;
 use std::error::Error;
-use std::fmt::{mod, Formatter, Show};
+use std::fmt::{self, Formatter, Show};
 use std::str::CharRange;
 
 use super::{UrlParser, Url, SchemeData, RelativeSchemeData, Host, SchemeType};
@@ -31,7 +31,7 @@ pub type ParseResult<T> = Result<T, ParseError>;
 macro_rules! simple_enum_error {
     ($($name: ident => $description: expr,)+) => {
         /// Errors that can occur during parsing.
-        #[deriving(PartialEq, Eq, Clone, Copy)]
+        #[derive(PartialEq, Eq, Clone, Copy)]
         pub enum ParseError {
             $(
                 $name,
@@ -92,7 +92,7 @@ impl Show for ParseError {
 pub type ErrorHandler = fn(reason: ParseError) -> ParseResult<()>;
 
 
-#[deriving(PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 pub enum Context {
     UrlParser,
     Setter,

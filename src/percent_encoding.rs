@@ -27,7 +27,7 @@ mod encode_sets;
 /// If you need a different encode set,
 /// please [file a bug](https://github.com/servo/rust-url/issues)
 /// explaining the use case.
-#[deriving(Copy)]
+#[derive(Copy)]
 pub struct EncodeSet {
     map: &'static [&'static str; 256],
 }

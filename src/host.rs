@@ -8,13 +8,13 @@
 
 use std::ascii::{AsciiExt, OwnedAsciiExt};
 use std::cmp;
-use std::fmt::{mod, Formatter, Show};
+use std::fmt::{self, Formatter, Show};
 use parser::{ParseResult, ParseError};
 use percent_encoding::{from_hex, percent_decode};
 
 
 /// The host name of an URL.
-#[deriving(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone)]
 pub enum Host {
     /// A (DNS) domain name or an IPv4 address.
     ///
@@ -30,7 +30,7 @@ pub enum Host {
 
 
 /// A 128 bit IPv6 address
-#[deriving(Clone, Eq, PartialEq, Copy)]
+#[derive(Clone, Eq, PartialEq, Copy)]
 pub struct Ipv6Address {
     pub pieces: [u16; 8]
 }
@@ -82,9 +82,9 @@ impl Show for Host {
         match *self {
             Host::Domain(ref domain) => domain.fmt(formatter),
             Host::Ipv6(ref address) => {
-                try!(formatter.write(b"["));
+                try!(formatter.write_str("["));
                 try!(address.fmt(formatter));
-                formatter.write(b"]")
+                formatter.write_str("]")
             }
         }
     }
@@ -224,9 +224,9 @@ impl Show for Ipv6Address {
         let mut i = 0;
         while i < 8 {
             if i == compress_start {
-                try!(formatter.write(b":"));
+                try!(formatter.write_str(":"));
                 if i == 0 {
-                    try!(formatter.write(b":"));
+                    try!(formatter.write_str(":"));
                 }
                 if compress_end < 8 {
                     i = compress_end;
@@ -236,7 +236,7 @@ impl Show for Ipv6Address {
             }
             try!(write!(formatter, "{:x}", self.pieces[i as uint]));
             if i < 7 {
-                try!(formatter.write(b":"));
+                try!(formatter.write_str(":"));
             }
             i += 1;
         }
