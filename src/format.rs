@@ -12,7 +12,7 @@
 //!
 //! You can use `<formatter>.to_string()`, as the formatters implement `Show`.
 
-use std::fmt::{mod, Show, Formatter};
+use std::fmt::{self, Show, Formatter};
 use super::Url;
 
 /// Formatter and serializer for URL path data.
@@ -24,7 +24,7 @@ pub struct PathFormatter<'a, T:'a> {
 impl<'a, T: Str + Show> Show for PathFormatter<'a, T> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         if self.path.is_empty() {
-            formatter.write(b"/")
+            formatter.write_str("/")
         } else {
             for path_part in self.path.iter() {
                 try!("/".fmt(formatter));
@@ -50,15 +50,15 @@ pub struct UserInfoFormatter<'a> {
 impl<'a> Show for UserInfoFormatter<'a> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         if !self.username.is_empty() || self.password.is_some() {
-            try!(formatter.write(self.username.as_bytes()));
+            try!(formatter.write_str(self.username));
             match self.password {
                 None => (),
                 Some(password) => {
-                    try!(formatter.write(b":"));
-                    try!(formatter.write(password.as_bytes()));
+                    try!(formatter.write_str(":"));
+                    try!(formatter.write_str(password));
                 }
             }
-            try!(formatter.write(b"@"));
+            try!(formatter.write_str("@"));
         }
         Ok(())
     }
@@ -72,14 +72,14 @@ pub struct UrlNoFragmentFormatter<'a> {
 
 impl<'a> Show for UrlNoFragmentFormatter<'a> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        try!(formatter.write(self.url.scheme.as_bytes()));
-        try!(formatter.write(b":"));
+        try!(formatter.write_str(self.url.scheme.as_slice()));
+        try!(formatter.write_str(":"));
         try!(self.url.scheme_data.fmt(formatter));
         match self.url.query {
             None => (),
             Some(ref query) => {
-                try!(formatter.write(b"?"));
-                try!(formatter.write(query.as_bytes()));
+                try!(formatter.write_str("?"));
+                try!(formatter.write_str(query.as_slice()));
             }
         }
         Ok(())
