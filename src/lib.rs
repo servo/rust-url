@@ -119,7 +119,7 @@ assert!(css_url.serialize() == "http://servo.github.io/rust-url/main.css".to_str
 */
 
 
-#![feature(macro_rules, default_type_params, old_orphan_check)]
+#![feature(macro_rules, default_type_params, old_orphan_check, associated_types)]
 
 extern crate "rustc-serialize" as rustc_serialize;
 
@@ -726,7 +726,7 @@ impl Url {
     /// Serialize an iterator of (key, value) pairs as `application/x-www-form-urlencoded`
     /// and set it as the URL’s query string.
     #[inline]
-    pub fn set_query_from_pairs<'a, I: Iterator<(&'a str, &'a str)>>(&mut self, pairs: I) {
+    pub fn set_query_from_pairs<'a, I: Iterator<Item = (&'a str, &'a str)>>(&mut self, pairs: I) {
         self.query = Some(form_urlencoded::serialize(pairs));
     }
 

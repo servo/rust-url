@@ -735,7 +735,9 @@ pub struct CharRanges<'a> {
     position: uint,
 }
 
-impl<'a> Iterator<(uint, char, uint)> for CharRanges<'a> {
+impl<'a> Iterator for CharRanges<'a> {
+    type Item = (uint, char, uint);
+
     #[inline]
     fn next(&mut self) -> Option<(uint, char, uint)> {
         if self.position == self.slice.len() {

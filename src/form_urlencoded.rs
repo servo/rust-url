@@ -98,7 +98,7 @@ pub fn serialize_owned(pairs: &[(String, String)]) -> String {
 /// Convert an iterator of (name, value) pairs
 /// into a string in the `application/x-www-form-urlencoded` format.
 #[inline]
-pub fn serialize<'a, I>(pairs: I) -> String where I: Iterator<(&'a str, &'a str)> {
+pub fn serialize<'a, I>(pairs: I) -> String where I: Iterator<Item = (&'a str, &'a str)> {
     serialize_internal(pairs, EncodingOverride::utf8())
 }
 
@@ -115,12 +115,12 @@ pub fn serialize<'a, I>(pairs: I) -> String where I: Iterator<(&'a str, &'a str)
 #[inline]
 pub fn serialize_with_encoding<'a, I>(pairs: I, encoding_override: Option<::encoding::EncodingRef>)
                                       -> String
-                                      where I: Iterator<(&'a str, &'a str)> {
+                                      where I: Iterator<Item = (&'a str, &'a str)> {
     serialize_internal(pairs, EncodingOverride::from_opt_encoding(encoding_override))
 }
 
 fn serialize_internal<'a, I>(mut pairs: I, encoding_override: EncodingOverride) -> String
-                             where I: Iterator<(&'a str, &'a str)> {
+                             where I: Iterator<Item = (&'a str, &'a str)> {
     #[inline]
     fn byte_serialize(input: &str, output: &mut String,
                       encoding_override: EncodingOverride) {
