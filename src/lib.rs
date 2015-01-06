@@ -750,15 +750,15 @@ impl Url {
 }
 
 
-impl<E, S: rustc_serialize::Encoder<E>> rustc_serialize::Encodable<S, E> for Url {
-    fn encode(&self, encoder: &mut S) -> Result<(), E> {
+impl rustc_serialize::Encodable for Url {
+    fn encode<S: rustc_serialize::Encoder>(&self, encoder: &mut S) -> Result<(), S::Error> {
         encoder.emit_str(self.to_string().as_slice())
     }
 }
 
 
-impl<E, D: rustc_serialize::Decoder<E>> rustc_serialize::Decodable<D, E> for Url {
-    fn decode(decoder: &mut D) -> Result<Url, E> {
+impl rustc_serialize::Decodable for Url {
+    fn decode<D: rustc_serialize::Decoder>(decoder: &mut D) -> Result<Url, D::Error> {
         Url::parse(try!(decoder.read_str()).as_slice()).map_err(|error| {
             decoder.error(format!("URL parsing error: {}", error).as_slice())
         })
