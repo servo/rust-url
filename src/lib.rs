@@ -119,8 +119,6 @@ assert!(css_url.serialize() == "http://servo.github.io/rust-url/main.css".to_str
 */
 
 
-#![feature(macro_rules, default_type_params, old_orphan_check, associated_types)]
-
 extern crate "rustc-serialize" as rustc_serialize;
 
 use std::fmt::{self, Formatter, Show};
