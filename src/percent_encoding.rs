@@ -62,7 +62,7 @@ pub static FORM_URLENCODED_ENCODE_SET: EncodeSet = EncodeSet {
 #[inline]
 pub fn percent_encode_to(input: &[u8], encode_set: EncodeSet, output: &mut String) {
     for &byte in input.iter() {
-        output.push_str(encode_set.map[byte as uint])
+        output.push_str(encode_set.map[byte as usize])
     }
 }
 
@@ -100,7 +100,7 @@ pub fn utf8_percent_encode(input: &str, encode_set: EncodeSet) -> String {
 
 /// Percent-decode the given bytes, and push the result to `output`.
 pub fn percent_decode_to(input: &[u8], output: &mut Vec<u8>) {
-    let mut i = 0u;
+    let mut i = 0;
     while i < input.len() {
         let c = input[i];
         if c == b'%' && i + 2 < input.len() {

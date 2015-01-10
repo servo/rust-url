@@ -98,16 +98,16 @@ impl Ipv6Address {
         let len = input.len();
         let mut is_ip_v4 = false;
         let mut pieces = [0, 0, 0, 0, 0, 0, 0, 0];
-        let mut piece_pointer = 0u;
+        let mut piece_pointer = 0;
         let mut compress_pointer = None;
-        let mut i = 0u;
+        let mut i = 0;
         if input[0] == b':' {
             if input[1] != b':' {
                 return Err(ParseError::InvalidIpv6Address)
             }
             i = 2;
             piece_pointer = 1;
-            compress_pointer = Some(1u);
+            compress_pointer = Some(1);
         }
 
         while i < len {
@@ -164,7 +164,7 @@ impl Ipv6Address {
             if piece_pointer > 6 {
                 return Err(ParseError::InvalidIpv6Address)
             }
-            let mut dots_seen = 0u;
+            let mut dots_seen = 0;
             while i < len {
                 // FIXME: https://github.com/whatwg/url/commit/1c22aa119c354e0020117e02571cec53f7c01064
                 let mut value = 0u16;
@@ -234,7 +234,7 @@ impl fmt::String for Ipv6Address {
                     break;
                 }
             }
-            try!(write!(formatter, "{:x}", self.pieces[i as uint]));
+            try!(write!(formatter, "{:x}", self.pieces[i as usize]));
             if i < 7 {
                 try!(formatter.write_str(":"));
             }
@@ -245,7 +245,7 @@ impl fmt::String for Ipv6Address {
 }
 
 
-fn longest_zero_sequence(pieces: &[u16; 8]) -> (int, int) {
+fn longest_zero_sequence(pieces: &[u16; 8]) -> (isize, isize) {
     let mut longest = -1;
     let mut longest_length = -1;
     let mut start = -1;
@@ -261,7 +261,7 @@ fn longest_zero_sequence(pieces: &[u16; 8]) -> (int, int) {
         };
     );
     for i in range(0, 8) {
-        if pieces[i as uint] == 0 {
+        if pieces[i as usize] == 0 {
             if start < 0 {
                 start = i;
             }

@@ -118,6 +118,7 @@ assert!(css_url.serialize() == "http://servo.github.io/rust-url/main.css".to_str
 
 */
 
+#![allow(unstable)]
 
 extern crate "rustc-serialize" as rustc_serialize;
 
@@ -981,13 +982,13 @@ impl FromUrlPath for path::windows::Path {
         if path.is_empty() {
             return Err(())
         }
-        let prefix = path[0].as_slice();
+        let prefix = &path[0][];
         if prefix.len() != 2 || !parser::starts_with_ascii_alpha(prefix)
-                || prefix.char_at(1) != ':' {
+                || prefix.as_bytes()[1] != b':' {
             return Err(())
         }
         let mut bytes = prefix.as_bytes().to_vec();
-        for path_part in path.slice_from(1).iter() {
+        for path_part in path[1..].iter() {
             bytes.push(b'\\');
             percent_decode_to(path_part.as_bytes(), &mut bytes);
         }

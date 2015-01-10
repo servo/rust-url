@@ -737,14 +737,14 @@ impl<'a> StrCharRanges<'a> for &'a str {
 
 pub struct CharRanges<'a> {
     slice: &'a str,
-    position: uint,
+    position: usize,
 }
 
 impl<'a> Iterator for CharRanges<'a> {
-    type Item = (uint, char, uint);
+    type Item = (usize, char, usize);
 
     #[inline]
-    fn next(&mut self) -> Option<(uint, char, uint)> {
+    fn next(&mut self) -> Option<(usize, char, usize)> {
         if self.position == self.slice.len() {
             None
         } else {
@@ -757,7 +757,7 @@ impl<'a> Iterator for CharRanges<'a> {
 }
 
 #[inline]
-fn check_url_code_point(input: &str, i: uint, c: char, parser: &UrlParser)
+fn check_url_code_point(input: &str, i: usize, c: char, parser: &UrlParser)
                         -> ParseResult<()> {
     if c == '%' {
         if !starts_with_2_hex(input.slice_from(i + 1)) {

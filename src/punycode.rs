@@ -119,7 +119,7 @@ pub fn decode(input: &str) -> Option<Vec<char>> {
             Some(c) => c,
             None => return None
         };
-        output.insert(i as uint, c);
+        output.insert(i as usize, c);
         i += 1;
     }
     Some(output)
