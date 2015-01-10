@@ -10,9 +10,9 @@
 //!
 //! These formatters can be used to coerce various URL parts into strings.
 //!
-//! You can use `<formatter>.to_string()`, as the formatters implement `Show`.
+//! You can use `<formatter>.to_string()`, as the formatters implement `fmt::String`.
 
-use std::fmt::{self, Show, Formatter};
+use std::fmt::{self, Formatter};
 use super::Url;
 
 /// Formatter and serializer for URL path data.
@@ -21,7 +21,7 @@ pub struct PathFormatter<'a, T:'a> {
     pub path: &'a [T]
 }
 
-impl<'a, T: Str + Show> Show for PathFormatter<'a, T> {
+impl<'a, T: Str + fmt::String> fmt::String for PathFormatter<'a, T> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         if self.path.is_empty() {
             formatter.write_str("/")
@@ -47,7 +47,7 @@ pub struct UserInfoFormatter<'a> {
     pub password: Option<&'a str>
 }
 
-impl<'a> Show for UserInfoFormatter<'a> {
+impl<'a> fmt::String for UserInfoFormatter<'a> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         if !self.username.is_empty() || self.password.is_some() {
             try!(formatter.write_str(self.username));
@@ -70,7 +70,7 @@ pub struct UrlNoFragmentFormatter<'a> {
     pub url: &'a Url
 }
 
-impl<'a> Show for UrlNoFragmentFormatter<'a> {
+impl<'a> fmt::String for UrlNoFragmentFormatter<'a> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         try!(formatter.write_str(self.url.scheme.as_slice()));
         try!(formatter.write_str(":"));

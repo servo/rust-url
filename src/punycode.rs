@@ -261,7 +261,7 @@ mod tests {
                     _ => panic!(),
                 }
             },
-            other => panic!("{}", other)
+            other => panic!("{:?}", other)
         }
     }
 }

@@ -121,7 +121,7 @@ assert!(css_url.serialize() == "http://servo.github.io/rust-url/main.css".to_str
 
 extern crate "rustc-serialize" as rustc_serialize;
 
-use std::fmt::{self, Formatter, Show};
+use std::fmt::{self, Formatter};
 use std::hash;
 use std::path;
 
@@ -153,7 +153,7 @@ mod tests;
 
 
 /// The parsed representation of an absolute URL.
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Show)]
 pub struct Url {
     /// The scheme (a.k.a. protocol) of the URL, in ASCII lower case.
     pub scheme: String,
@@ -184,7 +184,7 @@ pub struct Url {
 }
 
 /// The components of the URL whose representation depends on where the scheme is *relative*.
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Show)]
 pub enum SchemeData {
     /// Components for URLs in a *relative* scheme such as HTTP.
     Relative(RelativeSchemeData),
@@ -198,7 +198,7 @@ pub enum SchemeData {
 }
 
 /// Components for URLs in a *relative* scheme such as HTTP.
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Show)]
 pub struct RelativeSchemeData {
     /// The username of the URL, as a possibly empty, pecent-encoded string.
     ///
@@ -237,8 +237,8 @@ pub struct RelativeSchemeData {
     pub path: Vec<String>,
 }
 
-impl<S: hash::Writer> hash::Hash<S> for Url {
-    fn hash(&self, state: &mut S) {
+impl<H: hash::Hasher + hash::Writer> hash::Hash<H> for Url {
+    fn hash(&self, state: &mut H) {
         self.serialize().hash(state)
     }
 }
@@ -401,7 +401,7 @@ impl<'a> UrlParser<'a> {
 
 
 /// Determines the behavior of the URL parser for a given scheme.
-#[derive(PartialEq, Eq, Copy)]
+#[derive(PartialEq, Eq, Copy, Show)]
 pub enum SchemeType {
     /// Indicate that the scheme is *non-relative*.
     ///
@@ -764,7 +764,7 @@ impl rustc_serialize::Decodable for Url {
 }
 
 
-impl Show for Url {
+impl fmt::String for Url {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         try!(UrlNoFragmentFormatter{ url: self }.fmt(formatter));
         match self.fragment {
@@ -779,7 +779,7 @@ impl Show for Url {
 }
 
 
-impl Show for SchemeData {
+impl fmt::String for SchemeData {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match *self {
             SchemeData::Relative(ref scheme_data) => scheme_data.fmt(formatter),
@@ -884,7 +884,7 @@ impl RelativeSchemeData {
 }
 
 
-impl Show for RelativeSchemeData {
+impl fmt::String for RelativeSchemeData {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         // Write the scheme-trailing double slashes.
         try!(formatter.write_str("//"));

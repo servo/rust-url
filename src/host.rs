@@ -8,13 +8,13 @@
 
 use std::ascii::{AsciiExt, OwnedAsciiExt};
 use std::cmp;
-use std::fmt::{self, Formatter, Show};
+use std::fmt::{self, Formatter};
 use parser::{ParseResult, ParseError};
 use percent_encoding::{from_hex, percent_decode};
 
 
 /// The host name of an URL.
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Show)]
 pub enum Host {
     /// A (DNS) domain name or an IPv4 address.
     ///
@@ -30,7 +30,7 @@ pub enum Host {
 
 
 /// A 128 bit IPv6 address
-#[derive(Clone, Eq, PartialEq, Copy)]
+#[derive(Clone, Eq, PartialEq, Copy, Show)]
 pub struct Ipv6Address {
     pub pieces: [u16; 8]
 }
@@ -77,7 +77,7 @@ impl Host {
 }
 
 
-impl Show for Host {
+impl fmt::String for Host {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match *self {
             Host::Domain(ref domain) => domain.fmt(formatter),
@@ -218,7 +218,7 @@ impl Ipv6Address {
 }
 
 
-impl Show for Ipv6Address {
+impl fmt::String for Ipv6Address {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         let (compress_start, compress_end) = longest_zero_sequence(&self.pieces);
         let mut i = 0;

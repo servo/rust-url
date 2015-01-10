@@ -60,7 +60,7 @@ fn url_parsing() {
                         if expected_failure {
                             continue
                         } else {
-                            panic!("{} != {}", a, b)
+                            panic!("{:?} != {:?}", a, b)
                         }
                     }
                 }

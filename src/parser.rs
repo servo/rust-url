@@ -8,7 +8,7 @@
 
 use std::ascii::AsciiExt;
 use std::error::Error;
-use std::fmt::{self, Formatter, Show};
+use std::fmt::{self, Formatter};
 use std::str::CharRange;
 
 use super::{UrlParser, Url, SchemeData, RelativeSchemeData, Host, SchemeType};
@@ -18,9 +18,14 @@ use percent_encoding::{
 };
 
 
+/// Work around "error: unexpected token: `an interpolated tt`", whatever that means.
+macro_rules! _tt_as_expr_hack(
+    ($value:expr) => ($value)
+);
+
 macro_rules! is_match(
-    ($value:expr, $($pattern:pat)|+) => (
-        match $value { $($pattern)|+ => true, _ => false }
+    ($value:expr, $($pattern:tt)+) => (
+        _tt_as_expr_hack!( match $value { $($pattern)+ => true, _ => false })
     );
 );
 
@@ -31,7 +36,7 @@ pub type ParseResult<T> = Result<T, ParseError>;
 macro_rules! simple_enum_error {
     ($($name: ident => $description: expr,)+) => {
         /// Errors that can occur during parsing.
-        #[derive(PartialEq, Eq, Clone, Copy)]
+        #[derive(PartialEq, Eq, Clone, Copy, Show)]
         pub enum ParseError {
             $(
                 $name,
@@ -77,7 +82,7 @@ simple_enum_error! {
     CannotSetPathWithNonRelativeScheme => "cannot set path with non-relative scheme",
 }
 
-impl Show for ParseError {
+impl fmt::String for ParseError {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
         self.description().fmt(fmt)
     }
