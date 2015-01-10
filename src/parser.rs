@@ -18,18 +18,6 @@ use percent_encoding::{
 };
 
 
-/// Work around "error: unexpected token: `an interpolated tt`", whatever that means.
-macro_rules! _tt_as_expr_hack(
-    ($value:expr) => ($value)
-);
-
-macro_rules! is_match(
-    ($value:expr, $($pattern:tt)+) => (
-        _tt_as_expr_hack!( match $value { $($pattern)+ => true, _ => false })
-    );
-);
-
-
 pub type ParseResult<T> = Result<T, ParseError>;
 
 
@@ -210,7 +198,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeTyp
     match input.char_at(0) {
         '/' | '\\' => {
             // Relative slash state
-            if input.len() > 1 && is_match!(input.char_at(1), '/' | '\\') {
+            if input.len() > 1 && matches!(input.char_at(1), '/' | '\\') {
                 if input.char_at(1) == '\\' {
                     try!(parser.parse_error(ParseError::InvalidBackslash))
                 }
@@ -219,9 +207,9 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeTyp
                     let remaining = input.slice_from(2);
                     let (host, remaining) = if remaining.len() >= 2
                        && starts_with_ascii_alpha(remaining)
-                       && is_match!(remaining.char_at(1), ':' | '|')
+                       && matches!(remaining.char_at(1), ':' | '|')
                        && (remaining.len() == 2
-                           || is_match!(remaining.char_at(2),
+                           || matches!(remaining.char_at(2),
                                          '/' | '\\' | '?' | '#'))
                     {
                         // Windows drive letter quirk
@@ -280,9 +268,9 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeTyp
             let (scheme_data, remaining) = if scheme_type == SchemeType::FileLike
                && input.len() >= 2
                && starts_with_ascii_alpha(input)
-               && is_match!(input.char_at(1), ':' | '|')
+               && matches!(input.char_at(1), ':' | '|')
                && (input.len() == 2
-                   || is_match!(input.char_at(2), '/' | '\\' | '?' | '#'))
+                   || matches!(input.char_at(2), '/' | '\\' | '?' | '#'))
             {
                 // Windows drive letter quirk
                 let (path, remaining) = try!(parse_path(
@@ -317,7 +305,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeTyp
 
 
 fn skip_slashes<'a>(input: &'a str, parser: &UrlParser) -> ParseResult<&'a str> {
-    let first_non_slash = input.find(|&:c| !is_match!(c, '/' | '\\')).unwrap_or(input.len());
+    let first_non_slash = input.find(|&:c| !matches!(c, '/' | '\\')).unwrap_or(input.len());
     if input.slice_to(first_non_slash) != "//" {
         try!(parser.parse_error(ParseError::ExpectedTwoSlashes));
     }
@@ -672,18 +660,12 @@ pub fn parse_fragment<'a>(input: &'a str, parser: &UrlParser) -> ParseResult<Str
 
 #[inline]
 pub fn starts_with_ascii_alpha(string: &str) -> bool {
-    match string.char_at(0) {
-        'a'...'z' | 'A'...'Z' => true,
-        _ => false,
-    }
+    matches!(string.as_bytes()[0], b'a'...b'z' | b'A'...b'Z')
 }
 
 #[inline]
 fn is_ascii_hex_digit(byte: u8) -> bool {
-    match byte {
-        b'a'...b'f' | b'A'...b'F' | b'0'...b'9' => true,
-        _ => false,
-    }
+    matches!(byte, b'a'...b'f' | b'A'...b'F' | b'0'...b'9')
 }
 
 #[inline]
@@ -695,7 +677,7 @@ fn starts_with_2_hex(input: &str) -> bool {
 
 #[inline]
 fn is_url_code_point(c: char) -> bool {
-    match c {
+    matches!(c,
         'a'...'z' |
         'A'...'Z' |
         '0'...'9' |
@@ -709,9 +691,7 @@ fn is_url_code_point(c: char) -> bool {
         '\u{90000}'...'\u{9FFFD}' | '\u{A0000}'...'\u{AFFFD}' |
         '\u{B0000}'...'\u{BFFFD}' | '\u{C0000}'...'\u{CFFFD}' |
         '\u{D0000}'...'\u{DFFFD}' | '\u{E1000}'...'\u{EFFFD}' |
-        '\u{F0000}'...'\u{FFFFD}' | '\u{100000}'...'\u{10FFFD}' => true,
-        _ => false
-    }
+        '\u{F0000}'...'\u{FFFFD}' | '\u{100000}'...'\u{10FFFD}')
 }
 
 // Non URL code points:

@@ -122,6 +122,9 @@ assert!(css_url.serialize() == "http://servo.github.io/rust-url/main.css".to_str
 
 extern crate "rustc-serialize" as rustc_serialize;
 
+#[macro_use]
+extern crate matches;
+
 use std::fmt::{self, Formatter};
 use std::hash;
 use std::path;
