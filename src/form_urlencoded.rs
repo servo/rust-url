@@ -1,4 +1,4 @@
-// Copyright 2013-2014 Simon Sapin.
+// Copyright 2013-2015 Simon Sapin.
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -67,9 +67,8 @@ fn parse_internal(input: &[u8], mut encoding_override: EncodingOverride, mut use
             let name = replace_plus(name);
             let value = replace_plus(value);
             if use_charset && name.as_slice() == b"_charset_" {
-                match EncodingOverride::lookup(value.as_slice()) {
-                    Some(encoding) => encoding_override = encoding,
-                    None => (),
+                if let Some(encoding) = EncodingOverride::lookup(value.as_slice()) {
+                    encoding_override = encoding;
                 }
                 use_charset = false;
             }

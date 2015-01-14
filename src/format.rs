@@ -1,4 +1,4 @@
-// Copyright 2013-2014 Simon Sapin.
+// Copyright 2013-2015 Simon Sapin.
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -51,12 +51,9 @@ impl<'a> fmt::String for UserInfoFormatter<'a> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         if !self.username.is_empty() || self.password.is_some() {
             try!(formatter.write_str(self.username));
-            match self.password {
-                None => (),
-                Some(password) => {
-                    try!(formatter.write_str(":"));
-                    try!(formatter.write_str(password));
-                }
+            if let Some(password) = self.password {
+                try!(formatter.write_str(":"));
+                try!(formatter.write_str(password));
             }
             try!(formatter.write_str("@"));
         }
@@ -75,12 +72,9 @@ impl<'a> fmt::String for UrlNoFragmentFormatter<'a> {
         try!(formatter.write_str(self.url.scheme.as_slice()));
         try!(formatter.write_str(":"));
         try!(self.url.scheme_data.fmt(formatter));
-        match self.url.query {
-            None => (),
-            Some(ref query) => {
-                try!(formatter.write_str("?"));
-                try!(formatter.write_str(query.as_slice()));
-            }
+        if let Some(ref query) = self.url.query {
+            try!(formatter.write_str("?"));
+            try!(formatter.write_str(query.as_slice()));
         }
         Ok(())
     }

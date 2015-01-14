@@ -1,4 +1,4 @@
-// Copyright 2013-2014 Simon Sapin.
+// Copyright 2013-2015 Simon Sapin.
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -771,12 +771,9 @@ impl rustc_serialize::Decodable for Url {
 impl fmt::String for Url {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         try!(UrlNoFragmentFormatter{ url: self }.fmt(formatter));
-        match self.fragment {
-            None => (),
-            Some(ref fragment) => {
-                try!(formatter.write_str("#"));
-                try!(formatter.write_str(fragment.as_slice()));
-            }
+        if let Some(ref fragment) = self.fragment {
+            try!(formatter.write_str("#"));
+            try!(formatter.write_str(fragment.as_slice()));
         }
         Ok(())
     }
