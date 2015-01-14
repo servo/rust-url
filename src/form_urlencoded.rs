@@ -67,9 +67,8 @@ fn parse_internal(input: &[u8], mut encoding_override: EncodingOverride, mut use
             let name = replace_plus(name);
             let value = replace_plus(value);
             if use_charset && name.as_slice() == b"_charset_" {
-                match EncodingOverride::lookup(value.as_slice()) {
-                    Some(encoding) => encoding_override = encoding,
-                    None => (),
+                if let Some(encoding) = EncodingOverride::lookup(value.as_slice()) {
+                    encoding_override = encoding;
                 }
                 use_charset = false;
             }
