@@ -14,7 +14,7 @@ use percent_encoding::{from_hex, percent_decode};
 
 
 /// The host name of an URL.
-#[derive(PartialEq, Eq, Clone, Show)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub enum Host {
     /// A (DNS) domain name or an IPv4 address.
     ///
@@ -30,7 +30,7 @@ pub enum Host {
 
 
 /// A 128 bit IPv6 address
-#[derive(Clone, Eq, PartialEq, Copy, Show)]
+#[derive(Clone, Eq, PartialEq, Copy, Debug)]
 pub struct Ipv6Address {
     pub pieces: [u16; 8]
 }
@@ -48,7 +48,7 @@ impl Host {
             Err(ParseError::EmptyHost)
         } else if input.starts_with("[") {
             if input.ends_with("]") {
-                Ipv6Address::parse(input.slice(1, input.len() - 1)).map(Host::Ipv6)
+                Ipv6Address::parse(&input[1..input.len() - 1]).map(Host::Ipv6)
             } else {
                 Err(ParseError::InvalidIpv6Address)
             }
@@ -77,7 +77,7 @@ impl Host {
 }
 
 
-impl fmt::String for Host {
+impl fmt::Display for Host {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match *self {
             Host::Domain(ref domain) => domain.fmt(formatter),
@@ -218,7 +218,7 @@ impl Ipv6Address {
 }
 
 
-impl fmt::String for Ipv6Address {
+impl fmt::Display for Ipv6Address {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         let (compress_start, compress_end) = longest_zero_sequence(&self.pieces);
         let mut i = 0;

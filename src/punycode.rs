@@ -61,8 +61,8 @@ pub fn decode(input: &str) -> Option<Vec<char>> {
     let (mut output, input) = match input.rfind(DELIMITER) {
         None => (Vec::new(), input),
         Some(position) => (
-            input.slice_to(position).chars().collect(),
-            if position > 0 { input.slice_from(position + 1) } else { input }
+            input[..position].chars().collect(),
+            if position > 0 { &input[position + 1..] } else { input }
         )
     };
     let mut code_point = INITIAL_N;

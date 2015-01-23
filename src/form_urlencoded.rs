@@ -55,7 +55,7 @@ fn parse_internal(input: &[u8], mut encoding_override: EncodingOverride, mut use
     for piece in input.split(|&b| b == b'&') {
         if !piece.is_empty() {
             let (name, value) = match piece.position_elem(&b'=') {
-                Some(position) => (piece.slice_to(position), piece.slice_from(position + 1)),
+                Some(position) => (&piece[..position], &piece[position + 1..]),
                 None => (piece, [].as_slice())
             };
 

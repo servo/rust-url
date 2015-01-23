@@ -139,7 +139,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
         self.url.query = if input.is_empty() {
             None
         } else {
-            let input = if input.starts_with("?") { input.slice_from(1) } else { input };
+            let input = if input.starts_with("?") { &input[1..] } else { input };
             let (new_query, _) = try!(::parser::parse_query(
                 input, Context::Setter, self.parser));
             Some(new_query)
@@ -155,7 +155,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
         self.url.fragment = if input.is_empty() {
             None
         } else {
-            let input = if input.starts_with("#") { input.slice_from(1) } else { input };
+            let input = if input.starts_with("#") { &input[1..] } else { input };
             Some(try!(::parser::parse_fragment(input, self.parser)))
         };
         Ok(())
