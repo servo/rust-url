@@ -145,8 +145,8 @@ fn parse_test_data(input: &str) -> Vec<Test> {
                 continue
             }
             let colon = piece.find(':').unwrap();
-            let value = unescape(piece.slice_from(colon + 1));
-            match piece.slice_to(colon) {
+            let value = unescape(&piece[colon + 1..]);
+            match &piece[..colon] {
                 "s" => test.scheme = Some(value),
                 "u" => test.username = value,
                 "pass" => test.password = Some(value),

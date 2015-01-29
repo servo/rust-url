@@ -118,7 +118,8 @@ assert!(css_url.serialize() == "http://servo.github.io/rust-url/main.css".to_str
 
 */
 
-#![allow(unstable)]
+
+#![feature(core, std_misc, collections, path, hash)]
 
 extern crate "rustc-serialize" as rustc_serialize;
 
