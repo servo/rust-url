@@ -207,7 +207,7 @@ fn file_paths() {
     assert_eq!(Url::from_file_path(&path::windows::Path::new(r"\drive-relative")), Err(()));
     assert_eq!(Url::from_file_path(&path::windows::Path::new(r"\\ucn\")), Err(()));
 
-    let mut url = Url::from_file_path(&path::posix::Path::new("/foo/bar")).unwrap();
+    let mut url = Url::from_file_path(&path::posix::Path::new("/foo/bar")).ok().unwrap();
     assert_eq!(url.host(), Some(&Host::Domain("".to_string())));
     assert_eq!(url.path(), Some(["foo".to_string(), "bar".to_string()].as_slice()));
     assert!(url.to_file_path() == Ok(path::posix::Path::new("/foo/bar")));
@@ -223,7 +223,7 @@ fn file_paths() {
     assert!(url.to_file_path() == Ok(path::posix::Path::new(
         /* note: byte string, invalid UTF-8 */ b"/foo/ba\x80r")));
 
-    let mut url = Url::from_file_path(&path::windows::Path::new(r"C:\foo\bar")).unwrap();
+    let mut url = Url::from_file_path(&path::windows::Path::new(r"C:\foo\bar")).ok().unwrap();
     assert_eq!(url.host(), Some(&Host::Domain("".to_string())));
     assert_eq!(url.path(), Some(["C:".to_string(), "foo".to_string(), "bar".to_string()].as_slice()));
     assert!(url.to_file_path::<path::windows::Path>()
@@ -250,11 +250,11 @@ fn directory_paths() {
     assert_eq!(Url::from_directory_path(&path::windows::Path::new(r"\drive-relative")), Err(()));
     assert_eq!(Url::from_directory_path(&path::windows::Path::new(r"\\ucn\")), Err(()));
 
-    let url = Url::from_directory_path(&path::posix::Path::new("/foo/bar")).unwrap();
+    let url = Url::from_directory_path(&path::posix::Path::new("/foo/bar")).ok().unwrap();
     assert_eq!(url.host(), Some(&Host::Domain("".to_string())));
     assert_eq!(url.path(), Some(["foo".to_string(), "bar".to_string(), "".to_string()].as_slice()));
 
-    let url = Url::from_directory_path(&path::windows::Path::new(r"C:\foo\bar")).unwrap();
+    let url = Url::from_directory_path(&path::windows::Path::new(r"C:\foo\bar")).ok().unwrap();
     assert_eq!(url.host(), Some(&Host::Domain("".to_string())));
     assert_eq!(url.path(), Some([
         "C:".to_string(), "foo".to_string(), "bar".to_string(), "".to_string()].as_slice()));
