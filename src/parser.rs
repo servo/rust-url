@@ -515,7 +515,7 @@ fn parse_path<'a>(base_path: &[String], input: &'a str, context: Context,
         let mut path_part = String::new();
         let mut ends_with_slash = false;
         end = input.len();
-        for (i, c, next_i) in iter {
+        while let Some((i, c, next_i)) = iter.next() {
             match c {
                 '/' => {
                     ends_with_slash = true;

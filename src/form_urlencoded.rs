@@ -118,7 +118,7 @@ pub fn serialize_with_encoding<'a, I>(pairs: I, encoding_override: Option<::enco
     serialize_internal(pairs, EncodingOverride::from_opt_encoding(encoding_override))
 }
 
-fn serialize_internal<'a, I>(mut pairs: I, encoding_override: EncodingOverride) -> String
+fn serialize_internal<'a, I>(pairs: I, encoding_override: EncodingOverride) -> String
                              where I: Iterator<Item = (&'a str, &'a str)> {
     #[inline]
     fn byte_serialize(input: &str, output: &mut String,

@@ -184,7 +184,7 @@ fn unescape(input: &str) -> String {
                             hex.push(chars.next().unwrap());
                             hex.push(chars.next().unwrap());
                             hex.push(chars.next().unwrap());
-                            from_str_radix(hex.as_slice(), 16)
+                            from_str_radix(hex.as_slice(), 16).ok()
                                 .and_then(char::from_u32).unwrap()
                         }
                         _ => panic!("Invalid test data input"),
