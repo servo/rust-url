@@ -128,7 +128,7 @@ extern crate matches;
 
 use std::fmt::{self, Formatter};
 use std::hash;
-use std::path;
+use std::old_path as path;
 
 pub use host::{Host, Ipv6Address};
 pub use parser::{ErrorHandler, ParseResult, ParseError};
