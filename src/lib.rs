@@ -128,7 +128,7 @@ extern crate matches;
 
 use std::fmt::{self, Formatter};
 use std::hash;
-use std::path;
+use std::old_path;
 
 pub use host::{Host, Ipv6Address};
 pub use parser::{ErrorHandler, ParseResult, ParseError};
@@ -468,7 +468,7 @@ impl Url {
         UrlParser::new().parse(input)
     }
 
-    /// Convert a file name as `std::path::Path` into an URL in the `file` scheme.
+    /// Convert a file name as `std::old_path::Path` into an URL in the `file` scheme.
     ///
     /// This returns `Err` if the given path is not absolute
     /// or, with a Windows path, if the prefix is not a disk prefix (e.g. `C:`).
@@ -477,7 +477,7 @@ impl Url {
         Ok(Url::from_path_common(path))
     }
 
-    /// Convert a directory name as `std::path::Path` into an URL in the `file` scheme.
+    /// Convert a directory name as `std::old_path::Path` into an URL in the `file` scheme.
     ///
     /// This returns `Err` if the given path is not absolute
     /// or, with a Windows path, if the prefix is not a disk prefix (e.g. `C:`).
@@ -519,19 +519,19 @@ impl Url {
     }
 
     /// Assuming the URL is in the `file` scheme or similar,
-    /// convert its path to an absolute `std::path::Path`.
+    /// convert its path to an absolute `std::old_path::Path`.
     ///
     /// **Note:** This does not actually check the URL’s `scheme`,
     /// and may give nonsensical results for other schemes.
     /// It is the user’s responsibility to check the URL’s scheme before calling this.
     ///
-    /// The return type (when `Ok()`) is generic and can be either `std::path::posix::Path`
-    /// or `std::path::windows::Path`.
-    /// (Use `std::path::Path` to pick one of them depending on the local system.)
+    /// The return type (when `Ok()`) is generic and can be either `std::old_path::posix::Path`
+    /// or `std::old_path::windows::Path`.
+    /// (Use `std::old_path::Path` to pick one of them depending on the local system.)
     /// If the compiler can not infer the desired type from context, you may have to specifiy it:
     ///
     /// ```ignore
-    /// let path = url.to_file_path::<std::path::posix::Path>();
+    /// let path = url.to_file_path::<std::old_path::posix::Path>();
     /// ```
     ///
     /// Returns `Err` if the host is neither empty nor `"localhost"`,
@@ -811,19 +811,19 @@ impl RelativeSchemeData {
     }
 
     /// Assuming the URL is in the `file` scheme or similar,
-    /// convert its path to an absolute `std::path::Path`.
+    /// convert its path to an absolute `std::old_path::Path`.
     ///
     /// **Note:** This does not actually check the URL’s `scheme`,
     /// and may give nonsensical results for other schemes.
     /// It is the user’s responsibility to check the URL’s scheme before calling this.
     ///
-    /// The return type (when `Ok()`) is generic and can be either `std::path::posix::Path`
-    /// or `std::path::windows::Path`.
-    /// (Use `std::path::Path` to pick one of them depending on the local system.)
+    /// The return type (when `Ok()`) is generic and can be either `std::old_path::posix::Path`
+    /// or `std::old_path::windows::Path`.
+    /// (Use `std::old_path::Path` to pick one of them depending on the local system.)
     /// If the compiler can not infer the desired type from context, you may have to specifiy it:
     ///
     /// ```ignore
-    /// let path = url.to_file_path::<std::path::posix::Path>();
+    /// let path = url.to_file_path::<std::old_path::posix::Path>();
     /// ```
     ///
     /// Returns `Err` if the host is neither empty nor `"localhost"`,
@@ -921,7 +921,7 @@ pub trait ToUrlPath {
 }
 
 
-impl ToUrlPath for path::posix::Path {
+impl ToUrlPath for old_path::posix::Path {
     fn to_url_path(&self) -> Result<Vec<String>, ()> {
         if !self.is_absolute() {
             return Err(())
@@ -931,12 +931,12 @@ impl ToUrlPath for path::posix::Path {
 }
 
 
-impl ToUrlPath for path::windows::Path {
+impl ToUrlPath for old_path::windows::Path {
     fn to_url_path(&self) -> Result<Vec<String>, ()> {
         if !self.is_absolute() {
             return Err(())
         }
-        if path::windows::prefix(self) != Some(path::windows::PathPrefix::DiskPrefix) {
+        if old_path::windows::prefix(self) != Some(old_path::windows::PathPrefix::DiskPrefix) {
             // FIXME: do something with UNC and other prefixes?
             return Err(())
         }
@@ -956,17 +956,17 @@ pub trait FromUrlPath {
 }
 
 
-impl FromUrlPath for path::posix::Path {
-    fn from_url_path(path: &[String]) -> Result<path::posix::Path, ()> {
+impl FromUrlPath for old_path::posix::Path {
+    fn from_url_path(path: &[String]) -> Result<old_path::posix::Path, ()> {
         if path.is_empty() {
-            return Ok(path::posix::Path::new("/"))
+            return Ok(old_path::posix::Path::new("/"))
         }
         let mut bytes = Vec::new();
         for path_part in path.iter() {
             bytes.push(b'/');
             percent_decode_to(path_part.as_bytes(), &mut bytes);
         }
-        match path::posix::Path::new_opt(bytes) {
+        match old_path::posix::Path::new_opt(bytes) {
             None => Err(()),  // Path contains a NUL byte
             Some(path) => {
                 debug_assert!(path.is_absolute(),
@@ -978,8 +978,8 @@ impl FromUrlPath for path::posix::Path {
 }
 
 
-impl FromUrlPath for path::windows::Path {
-    fn from_url_path(path: &[String]) -> Result<path::windows::Path, ()> {
+impl FromUrlPath for old_path::windows::Path {
+    fn from_url_path(path: &[String]) -> Result<old_path::windows::Path, ()> {
         if path.is_empty() {
             return Err(())
         }
@@ -993,12 +993,12 @@ impl FromUrlPath for path::windows::Path {
             bytes.push(b'\\');
             percent_decode_to(path_part.as_bytes(), &mut bytes);
         }
-        match path::windows::Path::new_opt(bytes) {
+        match old_path::windows::Path::new_opt(bytes) {
             None => Err(()),  // Path contains a NUL byte or invalid UTF-8
             Some(path) => {
                 debug_assert!(path.is_absolute(),
                               "to_file_path() failed to produce an absolute Path");
-                debug_assert!(path::windows::prefix(&path) == Some(path::windows::PathPrefix::DiskPrefix),
+                debug_assert!(old_path::windows::prefix(&path) == Some(old_path::windows::PathPrefix::DiskPrefix),
                               "to_file_path() failed to produce a Path with a disk prefix");
                 Ok(path)
             }
