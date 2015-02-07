@@ -131,7 +131,7 @@ pub fn decode(input: &str) -> Option<Vec<char>> {
 /// This is a convenience wrapper around `encode`.
 #[inline]
 pub fn encode_str(input: &str) -> Option<String> {
-    encode(input.chars().collect::<Vec<char>>().as_slice())
+    encode(&input.chars().collect::<Vec<char>>())
 }
 
 
@@ -223,25 +223,25 @@ mod tests {
             None => panic!("Decoding {} failed.", encoded),
             Some(result) => {
                 let result = result.into_iter().collect::<String>();
-                assert!(result.as_slice() == decoded,
+                assert!(result == decoded,
                         format!("Incorrect decoding of {}:\n   {}\n!= {}\n{}",
-                                encoded, result.as_slice(), decoded, description))
+                                encoded, result, decoded, description))
             }
         }
 
         match encode_str(decoded) {
             None => panic!("Encoding {} failed.", decoded),
             Some(result) => {
-                assert!(result.as_slice() == encoded,
+                assert!(result == encoded,
                         format!("Incorrect encoding of {}:\n   {}\n!= {}\n{}",
-                                decoded, result.as_slice(), encoded, description))
+                                decoded, result, encoded, description))
             }
         }
     }
 
     fn get_string<'a>(map: &'a Object, key: &str) -> &'a str {
         match map.get(&key.to_string()) {
-            Some(&Json::String(ref s)) => s.as_slice(),
+            Some(&Json::String(ref s)) => s,
             None => "",
             _ => panic!(),
         }

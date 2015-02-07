@@ -93,21 +93,21 @@ pub enum Context {
 
 
 pub fn parse_url(input: &str, parser: &UrlParser) -> ParseResult<Url> {
-    let input = input.trim_matches([' ', '\t', '\n', '\r', '\x0C'].as_slice());
+    let input = input.trim_matches(&[' ', '\t', '\n', '\r', '\x0C'][]);
     let (scheme, remaining) = match parse_scheme(input, Context::UrlParser) {
         Some((scheme, remaining)) => (scheme, remaining),
         // No-scheme state
         None => return match parser.base_url {
             Some(&Url { ref scheme, scheme_data: SchemeData::Relative(ref base),
                         ref query, .. }) => {
-                let scheme_type = parser.get_scheme_type(scheme.as_slice());
+                let scheme_type = parser.get_scheme_type(&scheme);
                 parse_relative_url(input, scheme.clone(), scheme_type, base, query, parser)
             },
             Some(_) => Err(ParseError::RelativeUrlWithNonRelativeBase),
             None => Err(ParseError::RelativeUrlWithoutBase),
         },
     };
-    let scheme_type = parser.get_scheme_type(scheme.as_slice());
+    let scheme_type = parser.get_scheme_type(&scheme);
     match scheme_type {
         SchemeType::FileLike => {
             // Relative state?
@@ -411,7 +411,7 @@ pub fn parse_hostname<'a>(input: &'a str, parser: &UrlParser)
             }
         }
     }
-    let host = try!(Host::parse(host_input.as_slice()));
+    let host = try!(Host::parse(&host_input));
     Ok((host, &input[end..]))
 }
 
@@ -463,7 +463,7 @@ fn parse_file_host<'a>(input: &'a str, parser: &UrlParser) -> ParseResult<(Host,
     let host = if host_input.is_empty() {
         Host::Domain(String::new())
     } else {
-        try!(Host::parse(host_input.as_slice()))
+        try!(Host::parse(&host_input))
     };
     Ok((host, &input[end..]))
 }
@@ -540,7 +540,7 @@ fn parse_path<'a>(base_path: &[String], input: &'a str, context: Context,
                 }
             }
         }
-        match path_part.as_slice() {
+        match &*path_part {
             ".." | ".%2e" | ".%2E" | "%2e." | "%2E." |
             "%2e%2e" | "%2E%2e" | "%2e%2E" | "%2E%2E" => {
                 path.pop();
@@ -557,8 +557,8 @@ fn parse_path<'a>(base_path: &[String], input: &'a str, context: Context,
                 if scheme_type == SchemeType::FileLike
                    && path.is_empty()
                    && path_part.len() == 2
-                   && starts_with_ascii_alpha(path_part.as_slice())
-                   && path_part.as_slice().char_at(1) == '|' {
+                   && starts_with_ascii_alpha(&path_part)
+                   && path_part.char_at(1) == '|' {
                     // Windows drive letter quirk
                     unsafe {
                         path_part.as_mut_vec()[1] = b':'
@@ -637,8 +637,8 @@ pub fn parse_query<'a>(input: &'a str, context: Context, parser: &UrlParser)
         }
     }
 
-    let query_bytes = parser.query_encoding_override.encode(query.as_slice());
-    Ok((percent_encode(query_bytes.as_slice(), QUERY_ENCODE_SET), remaining))
+    let query_bytes = parser.query_encoding_override.encode(&query);
+    Ok((percent_encode(&query_bytes, QUERY_ENCODE_SET), remaining))
 }
 
 

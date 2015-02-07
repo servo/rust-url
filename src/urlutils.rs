@@ -38,7 +38,7 @@ trait UrlUtils {
 impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
     /// `URLUtils.protocol` setter
     fn set_scheme(&mut self, input: &str) -> ParseResult<()> {
-        match ::parser::parse_scheme(input.as_slice(), Context::Setter) {
+        match ::parser::parse_scheme(input, Context::Setter) {
             Some((scheme, _)) => {
                 self.url.scheme = scheme;
                 Ok(())
@@ -78,7 +78,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
             SchemeData::Relative(RelativeSchemeData {
                 ref mut host, ref mut port, ref mut default_port, ..
             }) => {
-                let scheme_type = self.parser.get_scheme_type(self.url.scheme.as_slice());
+                let scheme_type = self.parser.get_scheme_type(&self.url.scheme);
                 let (new_host, new_port, new_default_port, _) = try!(::parser::parse_host(
                     input, scheme_type, self.parser));
                 *host = new_host;
@@ -106,7 +106,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
     fn set_port(&mut self, input: &str) -> ParseResult<()> {
         match self.url.scheme_data {
             SchemeData::Relative(RelativeSchemeData { ref mut port, ref mut default_port, .. }) => {
-                let scheme_type = self.parser.get_scheme_type(self.url.scheme.as_slice());
+                let scheme_type = self.parser.get_scheme_type(&self.url.scheme);
                 if scheme_type == SchemeType::FileLike {
                     return Err(ParseError::CannotSetPortWithFileLikeScheme);
                 }
@@ -124,7 +124,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
     fn set_path(&mut self, input: &str) -> ParseResult<()> {
         match self.url.scheme_data {
             SchemeData::Relative(RelativeSchemeData { ref mut path, .. }) => {
-                let scheme_type = self.parser.get_scheme_type(self.url.scheme.as_slice());
+                let scheme_type = self.parser.get_scheme_type(&self.url.scheme);
                 let (new_path, _) = try!(::parser::parse_path_start(
                     input, Context::Setter, scheme_type, self.parser));
                 *path = new_path;
@@ -149,7 +149,7 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
 
     /// `URLUtils.hash` setter
     fn set_fragment(&mut self, input: &str) -> ParseResult<()> {
-        if self.url.scheme.as_slice() == "javascript" {
+        if self.url.scheme == "javascript" {
             return Err(ParseError::CannotSetJavascriptFragment)
         }
         self.url.fragment = if input.is_empty() {

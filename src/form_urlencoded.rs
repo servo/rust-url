@@ -56,7 +56,7 @@ fn parse_internal(input: &[u8], mut encoding_override: EncodingOverride, mut use
         if !piece.is_empty() {
             let (name, value) = match piece.position_elem(&b'=') {
                 Some(position) => (&piece[..position], &piece[position + 1..]),
-                None => (piece, [].as_slice())
+                None => (piece, &[][])
             };
 
             #[inline]
@@ -66,8 +66,8 @@ fn parse_internal(input: &[u8], mut encoding_override: EncodingOverride, mut use
 
             let name = replace_plus(name);
             let value = replace_plus(value);
-            if use_charset && name.as_slice() == b"_charset_" {
-                if let Some(encoding) = EncodingOverride::lookup(value.as_slice()) {
+            if use_charset && name == b"_charset_" {
+                if let Some(encoding) = EncodingOverride::lookup(&value) {
                     encoding_override = encoding;
                 }
                 use_charset = false;
@@ -80,8 +80,8 @@ fn parse_internal(input: &[u8], mut encoding_override: EncodingOverride, mut use
     }
 
     Some(pairs.into_iter().map(|(name, value)| (
-        encoding_override.decode(percent_decode(name.as_slice()).as_slice()),
-        encoding_override.decode(percent_decode(value.as_slice()).as_slice())
+        encoding_override.decode(&percent_decode(&name)),
+        encoding_override.decode(&percent_decode(&value))
     )).collect())
 }
 
@@ -90,7 +90,7 @@ fn parse_internal(input: &[u8], mut encoding_override: EncodingOverride, mut use
 /// into a string in the `application/x-www-form-urlencoded` format.
 #[inline]
 pub fn serialize_owned(pairs: &[(String, String)]) -> String {
-    serialize(pairs.iter().map(|&(ref n, ref v)| (n.as_slice(), v.as_slice())))
+    serialize(pairs.iter().map(|&(ref n, ref v)| (&**n, &**v)))
 }
 
 
@@ -147,12 +147,12 @@ fn serialize_internal<'a, I>(pairs: I, encoding_override: EncodingOverride) -> S
 
 #[test]
 fn test_form_urlencoded() {
-    let pairs = [
+    let pairs = &[
         ("foo".to_string(), "é&".to_string()),
         ("bar".to_string(), "".to_string()),
         ("foo".to_string(), "#".to_string())
     ];
-    let encoded = serialize_owned(pairs.as_slice());
-    assert_eq!(encoded.as_slice(), "foo=%C3%A9%26&bar=&foo=%23");
-    assert_eq!(parse(encoded.as_bytes()), pairs.as_slice().to_vec());
+    let encoded = serialize_owned(pairs);
+    assert_eq!(encoded, "foo=%C3%A9%26&bar=&foo=%23");
+    assert_eq!(parse(encoded.as_bytes()), pairs.to_vec());
 }

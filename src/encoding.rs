@@ -42,7 +42,7 @@ impl EncodingOverride {
     }
 
     pub fn lookup(label: &[u8]) -> Option<EncodingOverride> {
-        ::std::str::from_utf8(label.as_slice())
+        ::std::str::from_utf8(label)
         .ok()
         .and_then(encoding_from_whatwg_label)
         .map(EncodingOverride::from_encoding)
@@ -62,7 +62,7 @@ impl EncodingOverride {
     pub fn encode<'a>(&self, input: &'a str) -> Cow<'a, Vec<u8>, [u8]> {
         match self.encoding {
             Some(encoding) => Cow::Owned(
-                encoding.encode(input.as_slice(), EncoderTrap::NcrEscape).unwrap()),
+                encoding.encode(input, EncoderTrap::NcrEscape).unwrap()),
             None => Cow::Borrowed(input.as_bytes()),  // UTF-8
         }
     }

@@ -54,13 +54,13 @@ impl Host {
             }
         } else {
             let decoded = percent_decode(input.as_bytes());
-            let domain = String::from_utf8_lossy(decoded.as_slice());
+            let domain = String::from_utf8_lossy(&decoded);
             // TODO: Remove this check and use IDNA "domain to ASCII"
-            if !domain.as_slice().is_ascii() {
+            if !domain.is_ascii() {
                 Err(ParseError::NonAsciiDomainsNotSupportedYet)
-            } else if domain.as_slice().find([
+            } else if domain.find(&[
                 '\0', '\t', '\n', '\r', ' ', '#', '%', '/', ':', '?', '@', '[', '\\', ']'
-            ].as_slice()).is_some() {
+            ][]).is_some() {
                 Err(ParseError::InvalidDomainCharacter)
             } else {
                 Ok(Host::Domain(domain.to_string().into_ascii_lowercase()))

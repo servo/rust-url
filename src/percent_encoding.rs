@@ -135,7 +135,7 @@ pub fn percent_decode(input: &[u8]) -> Vec<u8> {
 /// will be replaced � U+FFFD, the replacement character.
 #[inline]
 pub fn lossy_utf8_percent_decode(input: &[u8]) -> String {
-    String::from_utf8_lossy(percent_decode(input).as_slice()).to_string()
+    String::from_utf8_lossy(&percent_decode(input)).to_string()
 }
 
 #[inline]

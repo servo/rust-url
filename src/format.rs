@@ -43,7 +43,7 @@ pub struct UserInfoFormatter<'a> {
 
     /// URL password as an optional string slice.
     ///
-    /// You can convert an `Option<String>` with `.as_ref().map(|s| s.as_slice())`.
+    /// You can convert an `Option<String>` with `.as_ref().map(|s| s)`.
     pub password: Option<&'a str>
 }
 
@@ -69,12 +69,12 @@ pub struct UrlNoFragmentFormatter<'a> {
 
 impl<'a> fmt::Display for UrlNoFragmentFormatter<'a> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        try!(formatter.write_str(self.url.scheme.as_slice()));
+        try!(formatter.write_str(&self.url.scheme));
         try!(formatter.write_str(":"));
         try!(self.url.scheme_data.fmt(formatter));
         if let Some(ref query) = self.url.query {
             try!(formatter.write_str("?"));
-            try!(formatter.write_str(query.as_slice()));
+            try!(formatter.write_str(query));
         }
         Ok(())
     }
@@ -97,7 +97,7 @@ mod tests {
         ];
         for &(ref path, result) in data.iter() {
             assert_eq!(PathFormatter {
-                path: path.as_slice()
+                path: path
             }.to_string(), result.to_string());
         }
     }

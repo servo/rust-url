@@ -60,9 +60,9 @@ let issue_list_url = Url::parse(
 assert!(issue_list_url.scheme == "https".to_string());
 assert!(issue_list_url.domain() == Some("github.com"));
 assert!(issue_list_url.port() == None);
-assert!(issue_list_url.path() == Some(["rust-lang".to_string(),
+assert!(issue_list_url.path() == Some(&["rust-lang".to_string(),
                                         "rust".to_string(),
-                                        "issues".to_string()].as_slice()));
+                                        "issues".to_string()][]));
 assert!(issue_list_url.query == Some("labels=E-easy&state=open".to_string()));
 assert!(issue_list_url.fragment == None);
 match issue_list_url.scheme_data {
@@ -561,7 +561,7 @@ impl Url {
     pub fn non_relative_scheme_data<'a>(&'a self) -> Option<&'a str> {
         match self.scheme_data {
             SchemeData::Relative(..) => None,
-            SchemeData::NonRelative(ref scheme_data) => Some(scheme_data.as_slice()),
+            SchemeData::NonRelative(ref scheme_data) => Some(scheme_data),
         }
     }
 
@@ -596,7 +596,7 @@ impl Url {
     /// If the URL is in a *relative scheme*, return its username.
     #[inline]
     pub fn username<'a>(&'a self) -> Option<&'a str> {
-        self.relative_scheme_data().map(|scheme_data| scheme_data.username.as_slice())
+        self.relative_scheme_data().map(|scheme_data| &*scheme_data.username)
     }
 
     /// If the URL is in a *relative scheme*, return a mutable reference to its username.
@@ -618,7 +618,7 @@ impl Url {
     #[inline]
     pub fn password<'a>(&'a self) -> Option<&'a str> {
         self.relative_scheme_data().and_then(|scheme_data|
-            scheme_data.password.as_ref().map(|password| password.as_slice()))
+            scheme_data.password.as_ref().map(|password| &**password))
     }
 
     /// If the URL is in a *relative scheme*, return a mutable reference to its password, if any.
@@ -701,7 +701,7 @@ impl Url {
     /// If the URL is in a *relative scheme*, return its path components.
     #[inline]
     pub fn path<'a>(&'a self) -> Option<&'a [String]> {
-        self.relative_scheme_data().map(|scheme_data| scheme_data.path.as_slice())
+        self.relative_scheme_data().map(|scheme_data| &*scheme_data.path)
     }
 
     /// If the URL is in a *relative scheme*, return a mutable reference to its path components.
@@ -755,15 +755,15 @@ impl Url {
 
 impl rustc_serialize::Encodable for Url {
     fn encode<S: rustc_serialize::Encoder>(&self, encoder: &mut S) -> Result<(), S::Error> {
-        encoder.emit_str(self.to_string().as_slice())
+        encoder.emit_str(&self.to_string())
     }
 }
 
 
 impl rustc_serialize::Decodable for Url {
     fn decode<D: rustc_serialize::Decoder>(decoder: &mut D) -> Result<Url, D::Error> {
-        Url::parse(try!(decoder.read_str()).as_slice()).map_err(|error| {
-            decoder.error(format!("URL parsing error: {}", error).as_slice())
+        Url::parse(&*try!(decoder.read_str())).map_err(|error| {
+            decoder.error(&format!("URL parsing error: {}", error))
         })
     }
 }
@@ -774,7 +774,7 @@ impl fmt::Display for Url {
         try!(UrlNoFragmentFormatter{ url: self }.fmt(formatter));
         if let Some(ref fragment) = self.fragment {
             try!(formatter.write_str("#"));
-            try!(formatter.write_str(fragment.as_slice()));
+            try!(formatter.write_str(fragment));
         }
         Ok(())
     }
@@ -834,7 +834,7 @@ impl RelativeSchemeData {
     pub fn to_file_path<T: FromUrlPath>(&self) -> Result<T, ()> {
         // FIXME: Figure out what to do w.r.t host.
         match self.domain() {
-            Some("") | Some("localhost") => FromUrlPath::from_url_path(self.path.as_slice()),
+            Some("") | Some("localhost") => FromUrlPath::from_url_path(&self.path),
             _ => Err(())
         }
     }
@@ -843,7 +843,7 @@ impl RelativeSchemeData {
     #[inline]
     pub fn domain<'a>(&'a self) -> Option<&'a str> {
         match self.host {
-            Host::Domain(ref domain) => Some(domain.as_slice()),
+            Host::Domain(ref domain) => Some(domain),
             _ => None,
         }
     }
@@ -870,7 +870,7 @@ impl RelativeSchemeData {
     /// A trailing slash represents an empty last component.
     pub fn serialize_path(&self) -> String {
         PathFormatter {
-            path: self.path.as_slice()
+            path: &self.path
         }.to_string()
     }
 
@@ -879,8 +879,8 @@ impl RelativeSchemeData {
     /// Format: "<username>:<password>@".
     pub fn serialize_userinfo(&self) -> String {
         UserInfoFormatter {
-            username: self.username.as_slice(),
-            password: self.password.as_ref().map(|s| s.as_slice())
+            username: &self.username,
+            password: self.password.as_ref().map(|s| &**s)
         }.to_string()
     }
 }
@@ -893,8 +893,8 @@ impl fmt::Display for RelativeSchemeData {
 
         // Write the user info.
         try!(UserInfoFormatter {
-            username: self.username.as_slice(),
-            password: self.password.as_ref().map(|s| s.as_slice())
+            username: &self.username,
+            password: self.password.as_ref().map(|s| &**s)
         }.fmt(formatter));
 
         // Write the host.
@@ -910,7 +910,7 @@ impl fmt::Display for RelativeSchemeData {
 
         // Write the path.
         PathFormatter {
-            path: self.path.as_slice()
+            path: &self.path
         }.fmt(formatter)
     }
 }
