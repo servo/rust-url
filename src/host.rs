@@ -260,7 +260,7 @@ fn longest_zero_sequence(pieces: &[u16; 8]) -> (isize, isize) {
             }
         };
     );
-    for i in range(0, 8) {
+    for i in 0..8 {
         if pieces[i as usize] == 0 {
             if start < 0 {
                 start = i;
