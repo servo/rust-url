@@ -9,7 +9,7 @@
 
 use std::char;
 use std::num::from_str_radix;
-use std::path;
+use std::old_path as path;
 use super::{UrlParser, Url, SchemeData, RelativeSchemeData, Host};
 
 
