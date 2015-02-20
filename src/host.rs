@@ -60,7 +60,7 @@ impl Host {
                 Err(ParseError::NonAsciiDomainsNotSupportedYet)
             } else if domain.find(&[
                 '\0', '\t', '\n', '\r', ' ', '#', '%', '/', ':', '?', '@', '[', '\\', ']'
-            ][]).is_some() {
+            ][..]).is_some() {
                 Err(ParseError::InvalidDomainCharacter)
             } else {
                 Ok(Host::Domain(domain.to_string().into_ascii_lowercase()))

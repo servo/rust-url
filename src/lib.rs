@@ -119,7 +119,7 @@ assert!(css_url.serialize() == "http://servo.github.io/rust-url/main.css".to_str
 */
 
 
-#![feature(core, std_misc, collections, path, hash)]
+#![feature(core, std_misc, collections, old_path)]
 
 extern crate "rustc-serialize" as rustc_serialize;
 
@@ -242,8 +242,8 @@ pub struct RelativeSchemeData {
     pub path: Vec<String>,
 }
 
-impl<H: hash::Hasher + hash::Writer> hash::Hash<H> for Url {
-    fn hash(&self, state: &mut H) {
+impl hash::Hash for Url {
+    fn hash<H: hash::Hasher>(&self, state: &mut H) {
         self.serialize().hash(state)
     }
 }
@@ -983,7 +983,7 @@ impl FromUrlPath for path::windows::Path {
         if path.is_empty() {
             return Err(())
         }
-        let prefix = &path[0][];
+        let prefix = &*path[0];
         if prefix.len() != 2 || !parser::starts_with_ascii_alpha(prefix)
                 || prefix.as_bytes()[1] != b':' {
             return Err(())

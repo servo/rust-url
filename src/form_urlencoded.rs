@@ -56,7 +56,7 @@ fn parse_internal(input: &[u8], mut encoding_override: EncodingOverride, mut use
         if !piece.is_empty() {
             let (name, value) = match piece.position_elem(&b'=') {
                 Some(position) => (&piece[..position], &piece[position + 1..]),
-                None => (piece, &[][])
+                None => (piece, &[][..])
             };
 
             #[inline]
