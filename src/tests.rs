@@ -259,3 +259,89 @@ fn directory_paths() {
     assert_eq!(url.path(), Some(&[
         "C:".to_string(), "foo".to_string(), "bar".to_string(), "".to_string()][..]));
 }
+
+#[test]
+fn new_file_paths() {
+    use std::path::{Path, PathBuf};
+    if cfg!(unix) {
+        assert_eq!(Url::from_file_path(Path::new("relative")), Err(()));
+        assert_eq!(Url::from_file_path(Path::new("../relative")), Err(()));
+    } else {
+        assert_eq!(Url::from_file_path(Path::new("relative")), Err(()));
+        assert_eq!(Url::from_file_path(Path::new(r"..\relative")), Err(()));
+        assert_eq!(Url::from_file_path(Path::new(r"\drive-relative")), Err(()));
+        assert_eq!(Url::from_file_path(Path::new(r"\\ucn\")), Err(()));
+    }
+
+    if cfg!(unix) {
+        let mut url = Url::from_file_path(Path::new("/foo/bar")).unwrap();
+        assert_eq!(url.host(), Some(&Host::Domain("".to_string())));
+        assert_eq!(url.path(), Some(&["foo".to_string(), "bar".to_string()][..]));
+        assert!(url.to_file_path() == Ok(PathBuf::new("/foo/bar")));
+
+        url.path_mut().unwrap()[1] = "ba\0r".to_string();
+        url.to_file_path::<PathBuf>().is_ok();
+
+        url.path_mut().unwrap()[1] = "ba%00r".to_string();
+        url.to_file_path::<PathBuf>().is_ok();
+    }
+}
+
+#[test]
+#[cfg(unix)]
+fn new_path_bad_utf8() {
+    use std::ffi::OsStr;
+    use std::os::unix::prelude::*;
+    use std::path::{Path, PathBuf};
+
+    let url = Url::from_file_path(Path::new("/foo/ba%80r")).unwrap();
+    let os_str = <OsStr as OsStrExt>::from_bytes(b"/foo/ba\x80r");
+    assert_eq!(url.to_file_path(), Ok(PathBuf::new(&os_str)));
+}
+
+#[test]
+#[cfg(windows)]
+fn new_path_windows_fun() {
+    use std::path::{Path, PathBuf};
+    let mut url = Url::from_file_path(Path::new(r"C:\foo\bar")).unwrap();
+    assert_eq!(url.host(), Some(&Host::Domain("".to_string())));
+    assert_eq!(url.path(), Some(&["C:".to_string(), "foo".to_string(), "bar".to_string()][..]));
+    assert_eq!(url.to_file_path::<PathBuf>(),
+               Ok(PathBuf::new(r"C:\foo\bar")));
+
+    url.path_mut().unwrap()[2] = "ba\0r".to_string();
+    assert!(url.to_file_path::<PathBuf>().is_ok());
+
+    url.path_mut().unwrap()[2] = "ba%00r".to_string();
+    assert!(url.to_file_path::<PathBuf>().is_ok());
+
+    // Invalid UTF-8
+    url.path_mut().unwrap()[2] = "ba%80r".to_string();
+    assert!(url.to_file_path::<PathBuf>().is_err());
+}
+
+
+#[test]
+fn new_directory_paths() {
+    use std::path::Path;
+
+    if cfg!(unix) {
+        assert_eq!(Url::from_directory_path(Path::new("relative")), Err(()));
+        assert_eq!(Url::from_directory_path(Path::new("../relative")), Err(()));
+
+        let url = Url::from_directory_path(Path::new("/foo/bar")).unwrap();
+        assert_eq!(url.host(), Some(&Host::Domain("".to_string())));
+        assert_eq!(url.path(), Some(&["foo".to_string(), "bar".to_string(),
+                                      "".to_string()][..]));
+    } else {
+        assert_eq!(Url::from_directory_path(Path::new("relative")), Err(()));
+        assert_eq!(Url::from_directory_path(Path::new(r"..\relative")), Err(()));
+        assert_eq!(Url::from_directory_path(Path::new(r"\drive-relative")), Err(()));
+        assert_eq!(Url::from_directory_path(Path::new(r"\\ucn\")), Err(()));
+
+        let url = Url::from_directory_path(Path::new(r"C:\foo\bar")).unwrap();
+        assert_eq!(url.host(), Some(&Host::Domain("".to_string())));
+        assert_eq!(url.path(), Some(&["C:".to_string(), "foo".to_string(),
+                                      "bar".to_string(), "".to_string()][..]));
+    }
+}
