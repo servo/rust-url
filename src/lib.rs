@@ -147,7 +147,7 @@ use encoding::EncodingOverride;
 mod encoding;
 mod host;
 mod parser;
-mod urlutils;
+pub mod urlutils;
 pub mod percent_encoding;
 pub mod form_urlencoded;
 pub mod punycode;
@@ -434,12 +434,19 @@ pub enum SchemeType {
     FileLike,
 }
 
-
 impl SchemeType {
     pub fn default_port(&self) -> Option<u16> {
         match self {
             &SchemeType::Relative(default_port) => Some(default_port),
             _ => None,
+        }
+    }
+    pub fn same_as(&self, other: SchemeType) -> bool {
+        match (self, other) {
+            (&SchemeType::NonRelative, SchemeType::NonRelative) => true,
+            (&SchemeType::Relative(_), SchemeType::Relative(_)) => true,
+            (&SchemeType::FileLike,    SchemeType::FileLike) => true,
+            _ => false
         }
     }
 }

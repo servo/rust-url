@@ -16,14 +16,13 @@ use percent_encoding::{utf8_percent_encode_to, USERNAME_ENCODE_SET, PASSWORD_ENC
 
 
 #[allow(dead_code)]
-struct UrlUtilsWrapper<'a> {
-    url: &'a mut Url,
-    parser: &'a UrlParser<'a>,
+pub struct UrlUtilsWrapper<'a> {
+    pub url: &'a mut Url,
+    pub parser: &'a UrlParser<'a>,
 }
 
-
 #[doc(hidden)]
-trait UrlUtils {
+pub trait UrlUtils {
     fn set_scheme(&mut self, input: &str) -> ParseResult<()>;
     fn set_username(&mut self, input: &str) -> ParseResult<()>;
     fn set_password(&mut self, input: &str) -> ParseResult<()>;
@@ -40,6 +39,9 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
     fn set_scheme(&mut self, input: &str) -> ParseResult<()> {
         match ::parser::parse_scheme(input, Context::Setter) {
             Some((scheme, _)) => {
+                if self.parser.get_scheme_type(&self.url.scheme).same_as(self.parser.get_scheme_type(&scheme)) {
+                    return Err(ParseError::InvalidScheme);
+                }
                 self.url.scheme = scheme;
                 Ok(())
             },
