@@ -305,7 +305,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeTyp
 
 
 fn skip_slashes<'a>(input: &'a str, parser: &UrlParser) -> ParseResult<&'a str> {
-    let first_non_slash = input.find(|&:c| !matches!(c, '/' | '\\')).unwrap_or(input.len());
+    let first_non_slash = input.find(|c| !matches!(c, '/' | '\\')).unwrap_or(input.len());
     if &input[..first_non_slash] != "//" {
         try!(parser.parse_error(ParseError::ExpectedTwoSlashes));
     }
