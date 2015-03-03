@@ -55,6 +55,8 @@ pub static FORM_URLENCODED_ENCODE_SET: EncodeSet = EncodeSet {
     map: &encode_sets::FORM_URLENCODED,
 };
 
+/// This encode set should be used in producing an OAuth Authorization Header
+pub static OAUTH_ENCODE_SET: EncodeSet = EncodeSet { map: &encode_sets::OAUTH };
 
 /// Percent-encode the given bytes, and push the result to `output`.
 ///
