@@ -54,7 +54,7 @@ fn parse_internal(input: &[u8], mut encoding_override: EncodingOverride, mut use
     let mut pairs = Vec::new();
     for piece in input.split(|&b| b == b'&') {
         if !piece.is_empty() {
-            let (name, value) = match piece.position_elem(&b'=') {
+            let (name, value) = match piece.iter().position(|b| *b == b'=') {
                 Some(position) => (&piece[..position], &piece[position + 1..]),
                 None => (piece, &[][..])
             };
