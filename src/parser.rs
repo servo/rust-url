@@ -9,7 +9,6 @@
 use std::ascii::AsciiExt;
 use std::error::Error;
 use std::fmt::{self, Formatter};
-use std::str::CharRange;
 
 use super::{UrlParser, Url, SchemeData, RelativeSchemeData, Host, SchemeType};
 use percent_encoding::{
@@ -191,15 +190,13 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeTyp
                           base: &RelativeSchemeData, base_query: &Option<String>,
                           parser: &UrlParser)
                           -> ParseResult<Url> {
-    if input.is_empty() {
-        return Ok(Url { scheme: scheme, scheme_data: SchemeData::Relative(base.clone()),
-                        query: base_query.clone(), fragment: None })
-    }
-    match input.char_at(0) {
-        '/' | '\\' => {
+    let mut chars = input.chars();
+    match chars.next() {
+        Some('/') | Some('\\') => {
+            let ch = chars.next();
             // Relative slash state
-            if input.len() > 1 && matches!(input.char_at(1), '/' | '\\') {
-                if input.char_at(1) == '\\' {
+            if matches!(ch, Some('/') | Some('\\')) {
+                if ch == Some('\\') {
                     try!(parser.parse_error(ParseError::InvalidBackslash))
                 }
                 if scheme_type == SchemeType::FileLike {
@@ -207,10 +204,10 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeTyp
                     let remaining = &input[2..];
                     let (host, remaining) = if remaining.len() >= 2
                        && starts_with_ascii_alpha(remaining)
-                       && matches!(remaining.char_at(1), ':' | '|')
+                       && matches!(remaining.as_bytes()[1], b':' | b'|')
                        && (remaining.len() == 2
-                           || matches!(remaining.char_at(2),
-                                         '/' | '\\' | '?' | '#'))
+                           || matches!(remaining.as_bytes()[2],
+                                         b'/' | b'\\' | b'?' | b'#'))
                     {
                         // Windows drive letter quirk
                         (Host::Domain(String::new()), remaining)
@@ -254,23 +251,27 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeTyp
                          query: query, fragment: fragment })
             }
         },
-        '?' => {
+        Some('?') => {
             let (query, fragment) = try!(parse_query_and_fragment(input, parser));
             Ok(Url { scheme: scheme, scheme_data: SchemeData::Relative(base.clone()),
                      query: query, fragment: fragment })
         },
-        '#' => {
+        Some('#') => {
             let fragment = Some(try!(parse_fragment(&input[1..], parser)));
             Ok(Url { scheme: scheme, scheme_data: SchemeData::Relative(base.clone()),
                      query: base_query.clone(), fragment: fragment })
+        }
+        None => {
+            Ok(Url { scheme: scheme, scheme_data: SchemeData::Relative(base.clone()),
+                     query: base_query.clone(), fragment: None })
         }
         _ => {
             let (scheme_data, remaining) = if scheme_type == SchemeType::FileLike
                && input.len() >= 2
                && starts_with_ascii_alpha(input)
-               && matches!(input.char_at(1), ':' | '|')
+               && matches!(input.as_bytes()[1], b':' | b'|')
                && (input.len() == 2
-                   || matches!(input.char_at(2), '/' | '\\' | '?' | '#'))
+                   || matches!(input.as_bytes()[2], b'/' | b'\\' | b'?' | b'#'))
             {
                 // Windows drive letter quirk
                 let (path, remaining) = try!(parse_path(
@@ -490,15 +491,13 @@ pub fn parse_path_start<'a>(input: &'a str, context: Context, scheme_type: Schem
                             -> ParseResult<(Vec<String>, &'a str)> {
     let mut i = 0;
     // Relative path start state
-    if !input.is_empty() {
-        match input.char_at(0) {
-            '/' => i = 1,
-            '\\' => {
-                try!(parser.parse_error(ParseError::InvalidBackslash));
-                i = 1;
-            },
-            _ => ()
-        }
+    match input.chars().next() {
+        Some('/') => i = 1,
+        Some('\\') => {
+            try!(parser.parse_error(ParseError::InvalidBackslash));
+            i = 1;
+        },
+        _ => ()
     }
     parse_path(&[], &input[i..], context, scheme_type, parser)
 }
@@ -558,7 +557,7 @@ fn parse_path<'a>(base_path: &[String], input: &'a str, context: Context,
                    && path.is_empty()
                    && path_part.len() == 2
                    && starts_with_ascii_alpha(&path_part)
-                   && path_part.char_at(1) == '|' {
+                   && path_part.as_bytes()[1] == b'|' {
                     // Windows drive letter quirk
                     unsafe {
                         path_part.as_mut_vec()[1] = b':'
@@ -599,12 +598,9 @@ fn parse_scheme_data<'a>(input: &'a str, parser: &UrlParser)
 
 fn parse_query_and_fragment(input: &str, parser: &UrlParser)
                             -> ParseResult<(Option<String>, Option<String>)> {
-    if input.is_empty() {
-        return Ok((None, None))
-    }
-    match input.char_at(0) {
-        '#' => Ok((None, Some(try!(parse_fragment(&input[1..], parser))))),
-        '?' => {
+    match input.chars().next() {
+        Some('#') => Ok((None, Some(try!(parse_fragment(&input[1..], parser))))),
+        Some('?') => {
             let (query, remaining) = try!(parse_query(
                 &input[1..], Context::UrlParser, parser));
             let fragment = match remaining {
@@ -613,6 +609,7 @@ fn parse_query_and_fragment(input: &str, parser: &UrlParser)
             };
             Ok((Some(query), fragment))
         },
+        None => Ok((None, None)),
         _ => panic!("Programming error. parse_query_and_fragment() should not \
                     have been called with input \"{}\"", input)
     }
@@ -725,13 +722,13 @@ impl<'a> Iterator for CharRanges<'a> {
 
     #[inline]
     fn next(&mut self) -> Option<(usize, char, usize)> {
-        if self.position == self.slice.len() {
-            None
-        } else {
-            let position = self.position;
-            let CharRange { ch, next } = self.slice.char_range_at(position);
-            self.position = next;
-            Some((position, ch, next))
+        match self.slice[self.position..].chars().next() {
+            Some(ch) => {
+                let position = self.position;
+                self.position = position + ch.len_utf8();
+                Some((position, ch, position + ch.len_utf8()))
+            }
+            None => None,
         }
     }
 }
