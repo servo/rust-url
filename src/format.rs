@@ -21,7 +21,7 @@ pub struct PathFormatter<'a, T:'a> {
     pub path: &'a [T]
 }
 
-impl<'a, T: Str + fmt::Display> fmt::Display for PathFormatter<'a, T> {
+impl<'a, T: fmt::Display> fmt::Display for PathFormatter<'a, T> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         if self.path.is_empty() {
             formatter.write_str("/")
