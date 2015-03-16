@@ -119,7 +119,7 @@ assert!(css_url.serialize() == "http://servo.github.io/rust-url/main.css".to_str
 */
 
 
-#![feature(core, std_misc, old_path, path, os)]
+#![feature(core, std_misc)]
 
 extern crate "rustc-serialize" as rustc_serialize;
 
@@ -128,8 +128,7 @@ extern crate matches;
 
 use std::fmt::{self, Formatter};
 use std::hash;
-use std::old_path as path;
-use std::path as new_path;
+use std::path::{Path, PathBuf};
 
 pub use host::{Host, Ipv6Address};
 pub use parser::{ErrorHandler, ParseResult, ParseError};
@@ -480,8 +479,8 @@ impl Url {
     ///
     /// This returns `Err` if the given path is not absolute
     /// or, with a Windows path, if the prefix is not a disk prefix (e.g. `C:`).
-    pub fn from_file_path<T: ToUrlPath + ?Sized>(path: &T) -> Result<Url, ()> {
-        let path = try!(path.to_url_path());
+    pub fn from_file_path(path: &Path) -> Result<Url, ()> {
+        let path = try!(path_to_file_url_path(path));
         Ok(Url::from_path_common(path))
     }
 
@@ -502,8 +501,8 @@ impl Url {
     ///   as the base URL is `file:///var/index.html`, which might not be what was intended.
     ///
     /// (Note that `Path::new` removes any trailing slash.)
-    pub fn from_directory_path<T: ToUrlPath + ?Sized>(path: &T) -> Result<Url, ()> {
-        let mut path = try!(path.to_url_path());
+    pub fn from_directory_path(path: &Path) -> Result<Url, ()> {
+        let mut path = try!(path_to_file_url_path(path));
         // Add an empty path component (i.e. a trailing slash in serialization)
         // so that the entire path is used as a base URL.
         path.push("".to_string());
@@ -547,7 +546,7 @@ impl Url {
     /// (That is, if the percent-decoded path contains a NUL byte or,
     /// for a Windows path, is not UTF-8.)
     #[inline]
-    pub fn to_file_path<T: FromUrlPath>(&self) -> Result<T, ()> {
+    pub fn to_file_path(&self) -> Result<PathBuf, ()> {
         match self.scheme_data {
             SchemeData::Relative(ref scheme_data) => scheme_data.to_file_path(),
             SchemeData::NonRelative(..) => Err(()),
@@ -839,12 +838,12 @@ impl RelativeSchemeData {
     /// (That is, if the percent-decoded path contains a NUL byte or,
     /// for a Windows path, is not UTF-8.)
     #[inline]
-    pub fn to_file_path<T: FromUrlPath>(&self) -> Result<T, ()> {
+    pub fn to_file_path(&self) -> Result<PathBuf, ()> {
         // FIXME: Figure out what to do w.r.t host.
-        match self.domain() {
-            Some("") | Some("localhost") => FromUrlPath::from_url_path(&self.path),
-            _ => Err(())
+        if !matches!(self.domain(), Some("") | Some("localhost")) {
+            return Err(())
         }
+        file_url_path_to_pathbuf(&self.path)
     }
 
     /// If the host is a domain, return the domain as a string.
@@ -924,189 +923,91 @@ impl fmt::Display for RelativeSchemeData {
 }
 
 
-pub trait ToUrlPath {
-    fn to_url_path(&self) -> Result<Vec<String>, ()>;
+#[cfg(unix)]
+fn path_to_file_url_path(path: &Path) -> Result<Vec<String>, ()> {
+    use std::os::unix::OsStrExt;
+    if !path.is_absolute() {
+        return Err(())
+    }
+    // skip the root component
+    Ok(path.components().skip(1).map(|c| {
+        percent_encode(c.as_os_str().as_bytes(), DEFAULT_ENCODE_SET)
+    }).collect())
 }
 
-
-impl ToUrlPath for new_path::Path {
-    #[cfg(unix)]
-    fn to_url_path(&self) -> Result<Vec<String>, ()> {
-        use std::os::unix::prelude::*;
-        if !self.is_absolute() {
-            return Err(())
-        }
-        // skip the root component
-        Ok(self.components().skip(1).map(|c| {
-            percent_encode(c.as_os_str().as_bytes(), DEFAULT_ENCODE_SET)
-        }).collect())
+#[cfg(windows)]
+fn path_to_file_url_path(path: &Path) -> Result<Vec<String>, ()> {
+    if !path.is_absolute() {
+        return Err(())
     }
+    let mut components = path.components();
+    let disk = match components.next() {
+        Some(new_path::Component::Prefix {
+            parsed: new_path::Prefix::Disk(byte), ..
+        }) => byte,
 
-    #[cfg(windows)]
-    fn to_url_path(&self) -> Result<Vec<String>, ()> {
-        if !self.is_absolute() {
-            return Err(())
-        }
-        let mut components = self.components();
-        let disk = match components.next() {
-            Some(new_path::Component::Prefix {
-                parsed: new_path::Prefix::Disk(byte), ..
-            }) => byte,
+        // FIXME: do something with UNC and other prefixes?
+        _ => return Err(())
+    };
 
-            // FIXME: do something with UNC and other prefixes?
-            _ => return Err(())
+    // Start with the prefix, e.g. "C:"
+    let mut path = vec![format!("{}:", disk as char)];
+
+    for component in components {
+        if component == new_path::Component::RootDir { continue }
+        // FIXME: somehow work with non-unicode?
+        let part = match component.as_os_str().to_str() {
+            Some(s) => s,
+            None => return Err(()),
         };
-
-        // Start with the prefix, e.g. "C:"
-        let mut path = vec![format!("{}:", disk as char)];
-
-        for component in components {
-            if component == new_path::Component::RootDir { continue }
-            // FIXME: somehow work with non-unicode?
-            let part = match component.as_os_str().to_str() {
-                Some(s) => s,
-                None => return Err(()),
-            };
-            path.push(percent_encode(part.as_bytes(), DEFAULT_ENCODE_SET));
-        }
-        Ok(path)
+        path.push(percent_encode(part.as_bytes(), DEFAULT_ENCODE_SET));
     }
+    Ok(path)
 }
 
+#[cfg(unix)]
+fn file_url_path_to_pathbuf(path: &[String]) -> Result<PathBuf, ()> {
+    use std::ffi::OsStr;
+    use std::os::unix::OsStrExt;
+    use std::path::PathBuf;
 
-impl ToUrlPath for path::posix::Path {
-    fn to_url_path(&self) -> Result<Vec<String>, ()> {
-        if !self.is_absolute() {
-            return Err(())
-        }
-        Ok(self.components().map(|c| percent_encode(c, DEFAULT_ENCODE_SET)).collect())
+    if path.is_empty() {
+        return Ok(PathBuf::new("/"))
     }
+    let mut bytes = Vec::new();
+    for path_part in path.iter() {
+        bytes.push(b'/');
+        percent_decode_to(path_part.as_bytes(), &mut bytes);
+    }
+    let os_str = <OsStr as OsStrExt>::from_bytes(&bytes);
+    let path = PathBuf::new(&os_str);
+    debug_assert!(path.is_absolute(),
+                  "to_file_path() failed to produce an absolute Path");
+    Ok(path)
 }
 
-
-impl ToUrlPath for path::windows::Path {
-    fn to_url_path(&self) -> Result<Vec<String>, ()> {
-        if !self.is_absolute() {
-            return Err(())
-        }
-        if path::windows::prefix(self) != Some(path::windows::PathPrefix::DiskPrefix) {
-            // FIXME: do something with UNC and other prefixes?
-            return Err(())
-        }
-        // Start with the prefix, e.g. "C:"
-        let mut path = vec![self.as_str().unwrap()[..2].to_string()];
-        // self.components() does not include the prefix
-        for component in self.components() {
-            path.push(percent_encode(component, DEFAULT_ENCODE_SET));
-        }
-        Ok(path)
+#[cfg(windows)]
+fn file_url_path_to_pathbuf(path: &[String]) -> Result<PathBuf, ()> {
+    if path.is_empty() {
+        return Err(())
     }
-}
-
-
-pub trait FromUrlPath {
-    fn from_url_path(path: &[String]) -> Result<Self, ()>;
-}
-
-
-impl FromUrlPath for new_path::PathBuf {
-    #[cfg(unix)]
-    fn from_url_path(path: &[String]) -> Result<new_path::PathBuf, ()> {
-        use std::ffi::OsStr;
-        use std::os::unix::prelude::*;
-        use std::path::PathBuf;
-
-        if path.is_empty() {
-            return Ok(PathBuf::new("/"))
-        }
-        let mut bytes = Vec::new();
-        for path_part in path.iter() {
-            bytes.push(b'/');
-            percent_decode_to(path_part.as_bytes(), &mut bytes);
-        }
-        let os_str = <OsStr as OsStrExt>::from_bytes(&bytes);
-        let path = PathBuf::new(&os_str);
-        debug_assert!(path.is_absolute(),
-                      "to_file_path() failed to produce an absolute Path");
-        Ok(path)
+    let prefix = &*path[0];
+    if prefix.len() != 2 || !parser::starts_with_ascii_alpha(prefix)
+            || prefix.as_bytes()[1] != b':' {
+        return Err(())
     }
+    let mut string = prefix.to_string();
+    for path_part in path[1..].iter() {
+        string.push('\\');
 
-    #[cfg(windows)]
-    fn from_url_path(path: &[String]) -> Result<new_path::PathBuf, ()> {
-        use std::path::PathBuf;
-
-        if path.is_empty() {
-            return Err(())
-        }
-        let prefix = &*path[0];
-        if prefix.len() != 2 || !parser::starts_with_ascii_alpha(prefix)
-                || prefix.as_bytes()[1] != b':' {
-            return Err(())
-        }
-        let mut string = prefix.to_string();
-        for path_part in path[1..].iter() {
-            string.push('\\');
-
-            // Currently non-unicode windows paths cannot be represented
-            match String::from_utf8(percent_decode(path_part.as_bytes())) {
-                Ok(s) => string.push_str(&s),
-                Err(..) => return Err(()),
-            }
-        }
-        let path = PathBuf::new(&string);
-        debug_assert!(path.is_absolute(),
-                      "to_file_path() failed to produce an absolute Path");
-        Ok(path)
-    }
-}
-
-
-impl FromUrlPath for path::posix::Path {
-    fn from_url_path(path: &[String]) -> Result<path::posix::Path, ()> {
-        if path.is_empty() {
-            return Ok(path::posix::Path::new("/"))
-        }
-        let mut bytes = Vec::new();
-        for path_part in path.iter() {
-            bytes.push(b'/');
-            percent_decode_to(path_part.as_bytes(), &mut bytes);
-        }
-        match path::posix::Path::new_opt(bytes) {
-            None => Err(()),  // Path contains a NUL byte
-            Some(path) => {
-                debug_assert!(path.is_absolute(),
-                              "to_file_path() failed to produce an absolute Path");
-                Ok(path)
-            }
+        // Currently non-unicode windows paths cannot be represented
+        match String::from_utf8(percent_decode(path_part.as_bytes())) {
+            Ok(s) => string.push_str(&s),
+            Err(..) => return Err(()),
         }
     }
-}
-
-
-impl FromUrlPath for path::windows::Path {
-    fn from_url_path(path: &[String]) -> Result<path::windows::Path, ()> {
-        if path.is_empty() {
-            return Err(())
-        }
-        let prefix = &*path[0];
-        if prefix.len() != 2 || !parser::starts_with_ascii_alpha(prefix)
-                || prefix.as_bytes()[1] != b':' {
-            return Err(())
-        }
-        let mut bytes = prefix.as_bytes().to_vec();
-        for path_part in path[1..].iter() {
-            bytes.push(b'\\');
-            percent_decode_to(path_part.as_bytes(), &mut bytes);
-        }
-        match path::windows::Path::new_opt(bytes) {
-            None => Err(()),  // Path contains a NUL byte or invalid UTF-8
-            Some(path) => {
-                debug_assert!(path.is_absolute(),
-                              "to_file_path() failed to produce an absolute Path");
-                debug_assert!(path::windows::prefix(&path) == Some(path::windows::PathPrefix::DiskPrefix),
-                              "to_file_path() failed to produce a Path with a disk prefix");
-                Ok(path)
-            }
-        }
-    }
+    let path = PathBuf::new(&string);
+    debug_assert!(path.is_absolute(),
+                  "to_file_path() failed to produce an absolute Path");
+    Ok(path)
 }

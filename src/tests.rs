@@ -9,7 +9,6 @@
 
 use std::char;
 use std::num::from_str_radix;
-use std::old_path as path;
 use super::{UrlParser, Url, SchemeData, RelativeSchemeData, Host};
 
 
@@ -199,68 +198,6 @@ fn unescape(input: &str) -> String {
 
 
 #[test]
-fn file_paths() {
-    assert_eq!(Url::from_file_path(&path::posix::Path::new("relative")), Err(()));
-    assert_eq!(Url::from_file_path(&path::posix::Path::new("../relative")), Err(()));
-    assert_eq!(Url::from_file_path(&path::windows::Path::new("relative")), Err(()));
-    assert_eq!(Url::from_file_path(&path::windows::Path::new(r"..\relative")), Err(()));
-    assert_eq!(Url::from_file_path(&path::windows::Path::new(r"\drive-relative")), Err(()));
-    assert_eq!(Url::from_file_path(&path::windows::Path::new(r"\\ucn\")), Err(()));
-
-    let mut url = Url::from_file_path(&path::posix::Path::new("/foo/bar")).unwrap();
-    assert_eq!(url.host(), Some(&Host::Domain("".to_string())));
-    assert_eq!(url.path(), Some(&["foo".to_string(), "bar".to_string()][..]));
-    assert!(url.to_file_path() == Ok(path::posix::Path::new("/foo/bar")));
-
-    url.path_mut().unwrap()[1] = "ba\0r".to_string();
-    assert!(url.to_file_path::<path::posix::Path>() == Err(()));
-
-    url.path_mut().unwrap()[1] = "ba%00r".to_string();
-    assert!(url.to_file_path::<path::posix::Path>() == Err(()));
-
-    // Invalid UTF-8
-    url.path_mut().unwrap()[1] = "ba%80r".to_string();
-    assert!(url.to_file_path() == Ok(path::posix::Path::new(
-        /* note: byte string, invalid UTF-8 */ b"/foo/ba\x80r")));
-
-    let mut url = Url::from_file_path(&path::windows::Path::new(r"C:\foo\bar")).unwrap();
-    assert_eq!(url.host(), Some(&Host::Domain("".to_string())));
-    assert_eq!(url.path(), Some(&["C:".to_string(), "foo".to_string(), "bar".to_string()][..]));
-    assert!(url.to_file_path::<path::windows::Path>()
-            == Ok(path::windows::Path::new(r"C:\foo\bar")));
-
-    url.path_mut().unwrap()[2] = "ba\0r".to_string();
-    assert!(url.to_file_path::<path::windows::Path>() == Err(()));
-
-    url.path_mut().unwrap()[2] = "ba%00r".to_string();
-    assert!(url.to_file_path::<path::windows::Path>() == Err(()));
-
-    // Invalid UTF-8
-    url.path_mut().unwrap()[2] = "ba%80r".to_string();
-    assert!(url.to_file_path::<path::windows::Path>() == Err(()));
-}
-
-
-#[test]
-fn directory_paths() {
-    assert_eq!(Url::from_directory_path(&path::posix::Path::new("relative")), Err(()));
-    assert_eq!(Url::from_directory_path(&path::posix::Path::new("../relative")), Err(()));
-    assert_eq!(Url::from_directory_path(&path::windows::Path::new("relative")), Err(()));
-    assert_eq!(Url::from_directory_path(&path::windows::Path::new(r"..\relative")), Err(()));
-    assert_eq!(Url::from_directory_path(&path::windows::Path::new(r"\drive-relative")), Err(()));
-    assert_eq!(Url::from_directory_path(&path::windows::Path::new(r"\\ucn\")), Err(()));
-
-    let url = Url::from_directory_path(&path::posix::Path::new("/foo/bar")).unwrap();
-    assert_eq!(url.host(), Some(&Host::Domain("".to_string())));
-    assert_eq!(url.path(), Some(&["foo".to_string(), "bar".to_string(), "".to_string()][..]));
-
-    let url = Url::from_directory_path(&path::windows::Path::new(r"C:\foo\bar")).unwrap();
-    assert_eq!(url.host(), Some(&Host::Domain("".to_string())));
-    assert_eq!(url.path(), Some(&[
-        "C:".to_string(), "foo".to_string(), "bar".to_string(), "".to_string()][..]));
-}
-
-#[test]
 fn new_file_paths() {
     use std::path::{Path, PathBuf};
     if cfg!(unix) {
@@ -280,10 +217,10 @@ fn new_file_paths() {
         assert!(url.to_file_path() == Ok(PathBuf::new("/foo/bar")));
 
         url.path_mut().unwrap()[1] = "ba\0r".to_string();
-        url.to_file_path::<PathBuf>().is_ok();
+        url.to_file_path().is_ok();
 
         url.path_mut().unwrap()[1] = "ba%00r".to_string();
-        url.to_file_path::<PathBuf>().is_ok();
+        url.to_file_path().is_ok();
     }
 }
 
@@ -306,18 +243,18 @@ fn new_path_windows_fun() {
     let mut url = Url::from_file_path(Path::new(r"C:\foo\bar")).unwrap();
     assert_eq!(url.host(), Some(&Host::Domain("".to_string())));
     assert_eq!(url.path(), Some(&["C:".to_string(), "foo".to_string(), "bar".to_string()][..]));
-    assert_eq!(url.to_file_path::<PathBuf>(),
+    assert_eq!(url.to_file_path(),
                Ok(PathBuf::new(r"C:\foo\bar")));
 
     url.path_mut().unwrap()[2] = "ba\0r".to_string();
-    assert!(url.to_file_path::<PathBuf>().is_ok());
+    assert!(url.to_file_path().is_ok());
 
     url.path_mut().unwrap()[2] = "ba%00r".to_string();
-    assert!(url.to_file_path::<PathBuf>().is_ok());
+    assert!(url.to_file_path().is_ok());
 
     // Invalid UTF-8
     url.path_mut().unwrap()[2] = "ba%80r".to_string();
-    assert!(url.to_file_path::<PathBuf>().is_err());
+    assert!(url.to_file_path().is_err());
 }
 
 
