@@ -128,7 +128,7 @@ extern crate matches;
 
 use std::fmt::{self, Formatter};
 use std::hash;
-use std::path::{Path, PathBuf};
+use std::path::{Path, PathBuf, AsPath};
 
 pub use host::{Host, Ipv6Address};
 pub use parser::{ErrorHandler, ParseResult, ParseError};
@@ -479,8 +479,8 @@ impl Url {
     ///
     /// This returns `Err` if the given path is not absolute
     /// or, with a Windows path, if the prefix is not a disk prefix (e.g. `C:`).
-    pub fn from_file_path(path: &Path) -> Result<Url, ()> {
-        let path = try!(path_to_file_url_path(path));
+    pub fn from_file_path<P: AsPath + ?Sized>(path: &P) -> Result<Url, ()> {
+        let path = try!(path_to_file_url_path(path.as_path()));
         Ok(Url::from_path_common(path))
     }
 
@@ -501,8 +501,8 @@ impl Url {
     ///   as the base URL is `file:///var/index.html`, which might not be what was intended.
     ///
     /// (Note that `Path::new` removes any trailing slash.)
-    pub fn from_directory_path(path: &Path) -> Result<Url, ()> {
-        let mut path = try!(path_to_file_url_path(path));
+    pub fn from_directory_path<P: AsPath + ?Sized>(path: &P) -> Result<Url, ()> {
+        let mut path = try!(path_to_file_url_path(path.as_path()));
         // Add an empty path component (i.e. a trailing slash in serialization)
         // so that the entire path is used as a base URL.
         path.push("".to_string());
