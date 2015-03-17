@@ -937,14 +937,16 @@ fn path_to_file_url_path(path: &Path) -> Result<Vec<String>, ()> {
 
 #[cfg(windows)]
 fn path_to_file_url_path(path: &Path) -> Result<Vec<String>, ()> {
+    use std::path::{Prefix, Component};
     if !path.is_absolute() {
         return Err(())
     }
     let mut components = path.components();
     let disk = match components.next() {
-        Some(new_path::Component::Prefix {
-            parsed: new_path::Prefix::Disk(byte), ..
-        }) => byte,
+        Some(Component::Prefix(ref p)) => match p.kind() {
+            Prefix::Disk(byte) => byte,
+            _ => return Err(()),
+        },
 
         // FIXME: do something with UNC and other prefixes?
         _ => return Err(())
@@ -954,7 +956,7 @@ fn path_to_file_url_path(path: &Path) -> Result<Vec<String>, ()> {
     let mut path = vec![format!("{}:", disk as char)];
 
     for component in components {
-        if component == new_path::Component::RootDir { continue }
+        if component == Component::RootDir { continue }
         // FIXME: somehow work with non-unicode?
         let part = match component.as_os_str().to_str() {
             Some(s) => s,
