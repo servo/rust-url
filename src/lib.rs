@@ -925,7 +925,7 @@ impl fmt::Display for RelativeSchemeData {
 
 #[cfg(unix)]
 fn path_to_file_url_path(path: &Path) -> Result<Vec<String>, ()> {
-    use std::os::unix::OsStrExt;
+    use std::os::unix::prelude::OsStrExt;
     if !path.is_absolute() {
         return Err(())
     }
@@ -970,7 +970,7 @@ fn path_to_file_url_path(path: &Path) -> Result<Vec<String>, ()> {
 #[cfg(unix)]
 fn file_url_path_to_pathbuf(path: &[String]) -> Result<PathBuf, ()> {
     use std::ffi::OsStr;
-    use std::os::unix::OsStrExt;
+    use std::os::unix::prelude::OsStrExt;
     use std::path::PathBuf;
 
     if path.is_empty() {
