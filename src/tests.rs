@@ -8,7 +8,6 @@
 
 
 use std::char;
-use std::num::from_str_radix;
 use super::{UrlParser, Url, SchemeData, RelativeSchemeData, Host};
 
 
@@ -178,13 +177,11 @@ fn unescape(input: &str) -> String {
                         't' => '\t',
                         'f' => '\x0C',
                         'u' => {
-                            let mut hex = String::new();
-                            hex.push(chars.next().unwrap());
-                            hex.push(chars.next().unwrap());
-                            hex.push(chars.next().unwrap());
-                            hex.push(chars.next().unwrap());
-                            from_str_radix(&hex, 16).ok()
-                                .and_then(char::from_u32).unwrap()
+                            char::from_u32((((
+                                chars.next().unwrap().to_digit(16).unwrap()) * 16 +
+                                chars.next().unwrap().to_digit(16).unwrap()) * 16 +
+                                chars.next().unwrap().to_digit(16).unwrap()) * 16 +
+                                chars.next().unwrap().to_digit(16).unwrap()).unwrap()
                         }
                         _ => panic!("Invalid test data input"),
                     }
