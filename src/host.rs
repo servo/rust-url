@@ -6,7 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use std::ascii::{AsciiExt, OwnedAsciiExt};
+use std::ascii::AsciiExt;
 use std::cmp;
 use std::fmt::{self, Formatter};
 use parser::{ParseResult, ParseError};
@@ -63,7 +63,7 @@ impl Host {
             ][..]).is_some() {
                 Err(ParseError::InvalidDomainCharacter)
             } else {
-                Ok(Host::Domain(domain.to_string().into_ascii_lowercase()))
+                Ok(Host::Domain(domain.to_ascii_lowercase()))
             }
         }
     }
