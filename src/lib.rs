@@ -62,7 +62,7 @@ assert!(issue_list_url.domain() == Some("github.com"));
 assert!(issue_list_url.port() == None);
 assert!(issue_list_url.path() == Some(&["rust-lang".to_string(),
                                         "rust".to_string(),
-                                        "issues".to_string()][]));
+                                        "issues".to_string()][..]));
 assert!(issue_list_url.query == Some("labels=E-easy&state=open".to_string()));
 assert!(issue_list_url.fragment == None);
 match issue_list_url.scheme_data {
