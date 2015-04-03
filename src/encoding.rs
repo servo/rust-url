@@ -70,7 +70,7 @@ impl EncodingOverride {
 
 
 #[cfg(not(feature = "query_encoding"))]
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 pub struct EncodingOverride;
 
 #[cfg(not(feature = "query_encoding"))]
