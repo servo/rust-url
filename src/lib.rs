@@ -118,9 +118,6 @@ assert!(css_url.serialize() == "http://servo.github.io/rust-url/main.css".to_str
 
 */
 
-
-#![feature(convert)]
-
 extern crate rustc_serialize;
 
 #[macro_use]
@@ -406,7 +403,7 @@ impl<'a> UrlParser<'a> {
 
 
 /// Determines the behavior of the URL parser for a given scheme.
-#[derive(PartialEq, Eq, Copy, Debug)]
+#[derive(PartialEq, Eq, Copy, Debug, Clone)]
 pub enum SchemeType {
     /// Indicate that the scheme is *non-relative*.
     ///
