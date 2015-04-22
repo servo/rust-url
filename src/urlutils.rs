@@ -65,6 +65,10 @@ impl<'a> UrlUtils for UrlUtilsWrapper<'a> {
     fn set_password(&mut self, input: &str) -> ParseResult<()> {
         match self.url.scheme_data {
             SchemeData::Relative(RelativeSchemeData { ref mut password, .. }) => {
+                if input.len() == 0 {
+                    *password = None;
+                    return Ok(());
+                }
                 let mut new_password = String::new();
                 utf8_percent_encode_to(input, PASSWORD_ENCODE_SET, &mut new_password);
                 *password = Some(new_password);
