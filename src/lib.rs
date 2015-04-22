@@ -130,7 +130,6 @@ use std::path::{Path, PathBuf};
 pub use host::{Host, Ipv6Address};
 pub use parser::{ErrorHandler, ParseResult, ParseError};
 
-#[deprecated = "Moved to the `percent_encoding` module"]
 pub use percent_encoding::{
     percent_decode, percent_decode_to, percent_encode, percent_encode_to,
     utf8_percent_encode, utf8_percent_encode_to, lossy_utf8_percent_decode,
