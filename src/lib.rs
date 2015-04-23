@@ -131,7 +131,7 @@ pub use host::{Host, Ipv6Address};
 pub use parser::{ErrorHandler, ParseResult, ParseError};
 
 use percent_encoding::{
-    percent_decode_to, percent_encode, lossy_utf8_percent_decode, DEFAULT_ENCODE_SET,
+    percent_decode, percent_decode_to, percent_encode, lossy_utf8_percent_decode, DEFAULT_ENCODE_SET,
 };
 
 use format::{PathFormatter, UserInfoFormatter, UrlNoFragmentFormatter};
