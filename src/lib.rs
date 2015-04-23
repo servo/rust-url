@@ -130,9 +130,7 @@ use std::path::{Path, PathBuf};
 pub use host::{Host, Ipv6Address};
 pub use parser::{ErrorHandler, ParseResult, ParseError};
 
-use percent_encoding::{
-    percent_decode, percent_decode_to, percent_encode, lossy_utf8_percent_decode, DEFAULT_ENCODE_SET,
-};
+use percent_encoding::{percent_encode, lossy_utf8_percent_decode, DEFAULT_ENCODE_SET};
 
 use format::{PathFormatter, UserInfoFormatter, UrlNoFragmentFormatter};
 use encoding::EncodingOverride;
@@ -966,6 +964,8 @@ fn file_url_path_to_pathbuf(path: &[String]) -> Result<PathBuf, ()> {
     use std::os::unix::prelude::OsStrExt;
     use std::path::PathBuf;
 
+    use percent_encoding::percent_decode_to;
+
     if path.is_empty() {
         return Ok(PathBuf::from("/"))
     }
@@ -983,6 +983,8 @@ fn file_url_path_to_pathbuf(path: &[String]) -> Result<PathBuf, ()> {
 
 #[cfg(windows)]
 fn file_url_path_to_pathbuf(path: &[String]) -> Result<PathBuf, ()> {
+    use percent_encoding::percent_decode;
+
     if path.is_empty() {
         return Err(())
     }
