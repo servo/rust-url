@@ -160,7 +160,7 @@ pub struct Url {
     /// The query string of the URL.
     ///
     /// `None` if the `?` delimiter character was not part of the parsed input,
-    /// otherwise a possibly empty, pecent-encoded string.
+    /// otherwise a possibly empty, percent-encoded string.
     ///
     /// Percent encoded strings are within the ASCII range.
     ///
@@ -171,7 +171,7 @@ pub struct Url {
     /// The fragment identifier of the URL.
     ///
     /// `None` if the `#` delimiter character was not part of the parsed input,
-    /// otherwise a possibly empty, pecent-encoded string.
+    /// otherwise a possibly empty, percent-encoded string.
     ///
     /// Percent encoded strings are within the ASCII range.
     ///
@@ -196,7 +196,7 @@ pub enum SchemeData {
 /// Components for URLs in a *relative* scheme such as HTTP.
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct RelativeSchemeData {
-    /// The username of the URL, as a possibly empty, pecent-encoded string.
+    /// The username of the URL, as a possibly empty, percent-encoded string.
     ///
     /// Percent encoded strings are within the ASCII range.
     ///
@@ -206,7 +206,7 @@ pub struct RelativeSchemeData {
     /// The password of the URL.
     ///
     /// `None` if the `:` delimiter character was not part of the parsed input,
-    /// otherwise a possibly empty, pecent-encoded string.
+    /// otherwise a possibly empty, percent-encoded string.
     ///
     /// Percent encoded strings are within the ASCII range.
     ///
@@ -224,7 +224,7 @@ pub struct RelativeSchemeData {
     /// `None` for file-like schemes.
     pub default_port: Option<u16>,
 
-    /// The path of the URL, as vector of pecent-encoded strings.
+    /// The path of the URL, as vector of percent-encoded strings.
     ///
     /// Percent encoded strings are within the ASCII range.
     ///
