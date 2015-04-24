@@ -526,7 +526,7 @@ impl Url {
     /// The return type (when `Ok()`) is generic and can be either `std::path::posix::Path`
     /// or `std::path::windows::Path`.
     /// (Use `std::path::Path` to pick one of them depending on the local system.)
-    /// If the compiler can not infer the desired type from context, you may have to specifiy it:
+    /// If the compiler can not infer the desired type from context, you may have to specify it:
     ///
     /// ```ignore
     /// let path = url.to_file_path::<std::path::posix::Path>();
