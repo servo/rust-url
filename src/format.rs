@@ -26,7 +26,7 @@ impl<'a, T: fmt::Display> fmt::Display for PathFormatter<'a, T> {
         if self.path.is_empty() {
             formatter.write_str("/")
         } else {
-            for path_part in self.path.iter() {
+            for path_part in self.path {
                 try!("/".fmt(formatter));
                 try!(path_part.fmt(formatter));
             }
@@ -95,7 +95,7 @@ mod tests {
             (vec!["test", "path"], "/test/path"),
             (vec!["test", "path", ""], "/test/path/")
         ];
-        for &(ref path, result) in data.iter() {
+        for &(ref path, result) in &data {
             assert_eq!(PathFormatter {
                 path: path
             }.to_string(), result.to_string());
@@ -113,7 +113,7 @@ mod tests {
             ("username", Some(""), "username:@"),
             ("username", Some("password"), "username:password@")
         ];
-        for &(username, password, result) in data.iter() {
+        for &(username, password, result) in &data {
             assert_eq!(UserInfoFormatter {
                 username: username,
                 password: password
@@ -133,7 +133,7 @@ mod tests {
             ("http://slashquery.com/path/?q=something", "http://slashquery.com/path/?q=something"),
             ("http://noslashquery.com/path?q=something", "http://noslashquery.com/path?q=something")
         ];
-        for &(input, result) in data.iter() {
+        for &(input, result) in &data {
             let url = Url::parse(input).unwrap();
             assert_eq!(url.to_string(), result.to_string());
         }

@@ -165,7 +165,7 @@ pub fn encode(input: &[char]) -> Option<String> {
         // Increase delta to advance the decoder’s <code_point,i> state to <min_code_point,0>
         delta += (min_code_point - code_point) * (processed + 1);
         code_point = min_code_point;
-        for &c in input.iter() {
+        for &c in input {
             let c = c as u32;
             if c < code_point {
                 delta += 1;
@@ -251,7 +251,7 @@ mod tests {
     fn test_punycode() {
 
         match Json::from_str(include_str!("punycode_tests.json")) {
-            Ok(Json::Array(tests)) => for test in tests.iter() {
+            Ok(Json::Array(tests)) => for test in &tests {
                 match test {
                     &Json::Object(ref o) => one_test(
                         get_string(o, "description"),
