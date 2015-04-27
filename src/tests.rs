@@ -13,7 +13,7 @@ use super::{UrlParser, Url, SchemeData, RelativeSchemeData, Host};
 
 #[test]
 fn url_parsing() {
-    for test in parse_test_data(include_str!("urltestdata.txt")).into_iter() {
+    for test in parse_test_data(include_str!("urltestdata.txt")) {
         let Test {
             input,
             base,
@@ -138,7 +138,7 @@ fn parse_test_data(input: &str) -> Vec<Test> {
             fragment: None,
             expected_failure: expected_failure,
         };
-        for piece in pieces.into_iter() {
+        for piece in pieces {
             if piece == "" || piece.starts_with("#") {
                 continue
             }

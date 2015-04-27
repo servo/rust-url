@@ -61,7 +61,7 @@ pub static FORM_URLENCODED_ENCODE_SET: EncodeSet = EncodeSet {
 /// The pushed strings are within the ASCII range.
 #[inline]
 pub fn percent_encode_to(input: &[u8], encode_set: EncodeSet, output: &mut String) {
-    for &byte in input.iter() {
+    for &byte in input {
         output.push_str(encode_set.map[byte as usize])
     }
 }
@@ -104,13 +104,10 @@ pub fn percent_decode_to(input: &[u8], output: &mut Vec<u8>) {
     while i < input.len() {
         let c = input[i];
         if c == b'%' && i + 2 < input.len() {
-            match (from_hex(input[i + 1]), from_hex(input[i + 2])) {
-                (Some(h), Some(l)) => {
-                    output.push(h * 0x10 + l);
-                    i += 3;
-                    continue
-                },
-                _ => (),
+            if let (Some(h), Some(l)) = (from_hex(input[i + 1]), from_hex(input[i + 2])) {
+                output.push(h * 0x10 + l);
+                i += 3;
+                continue
             }
         }
 

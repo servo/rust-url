@@ -616,7 +616,7 @@ impl Url {
     #[inline]
     pub fn password<'a>(&'a self) -> Option<&'a str> {
         self.relative_scheme_data().and_then(|scheme_data|
-            scheme_data.password.as_ref().map(|password| &**password))
+            scheme_data.password.as_ref().map(|password| password as &str))
     }
 
     /// If the URL is in a *relative scheme*, return a mutable reference to its password, if any.
@@ -878,7 +878,7 @@ impl RelativeSchemeData {
     pub fn serialize_userinfo(&self) -> String {
         UserInfoFormatter {
             username: &self.username,
-            password: self.password.as_ref().map(|s| &**s)
+            password: self.password.as_ref().map(|s| s as &str)
         }.to_string()
     }
 }
@@ -892,7 +892,7 @@ impl fmt::Display for RelativeSchemeData {
         // Write the user info.
         try!(UserInfoFormatter {
             username: &self.username,
-            password: self.password.as_ref().map(|s| &**s)
+            password: self.password.as_ref().map(|s| s as &str)
         }.fmt(formatter));
 
         // Write the host.
@@ -970,7 +970,7 @@ fn file_url_path_to_pathbuf(path: &[String]) -> Result<PathBuf, ()> {
         return Ok(PathBuf::from("/"))
     }
     let mut bytes = Vec::new();
-    for path_part in path.iter() {
+    for path_part in path {
         bytes.push(b'/');
         percent_decode_to(path_part.as_bytes(), &mut bytes);
     }
@@ -994,7 +994,7 @@ fn file_url_path_to_pathbuf(path: &[String]) -> Result<PathBuf, ()> {
         return Err(())
     }
     let mut string = prefix.to_string();
-    for path_part in path[1..].iter() {
+    for path_part in path[1..] {
         string.push('\\');
 
         // Currently non-unicode windows paths cannot be represented
