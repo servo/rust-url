@@ -57,7 +57,7 @@ pub fn decode_to_string(input: &str) -> Option<String> {
 /// 63 encoded bytes, the DNS limit on domain name labels.
 pub fn decode(input: &str) -> Option<Vec<char>> {
     // Handle "basic" (ASCII) code points.
-    // They are encoded as-is befor the last delimiter, if any.
+    // They are encoded as-is before the last delimiter, if any.
     let (mut output, input) = match input.rfind(DELIMITER) {
         None => (Vec::new(), input),
         Some(position) => (
