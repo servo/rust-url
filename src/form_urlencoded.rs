@@ -90,7 +90,7 @@ fn parse_internal(input: &[u8], mut encoding_override: EncodingOverride, mut use
 /// Convert an iterator of (name, value) pairs
 /// into a string in the `application/x-www-form-urlencoded` format.
 #[inline]
-pub fn serialize<'a, I, K, V>(pairs: I) -> String
+pub fn serialize<I, K, V>(pairs: I) -> String
 where I: IntoIterator, I::Item: Borrow<(K, V)>, K: AsRef<str>, V: AsRef<str> {
     serialize_internal(pairs, EncodingOverride::utf8())
 }
@@ -106,14 +106,14 @@ where I: IntoIterator, I::Item: Borrow<(K, V)>, K: AsRef<str>, V: AsRef<str> {
 ///    before percent-encoding. Defaults to UTF-8.
 #[cfg(feature = "query_encoding")]
 #[inline]
-pub fn serialize_with_encoding<'a, I, K, V>(pairs: I,
-                                            encoding_override: Option<::encoding::EncodingRef>)
-                                            -> String
+pub fn serialize_with_encoding<I, K, V>(pairs: I,
+                                        encoding_override: Option<::encoding::EncodingRef>)
+                                        -> String
 where I: IntoIterator, I::Item: Borrow<(K, V)>, K: AsRef<str>, V: AsRef<str> {
     serialize_internal(pairs, EncodingOverride::from_opt_encoding(encoding_override))
 }
 
-fn serialize_internal<'a, I, K, V>(pairs: I, encoding_override: EncodingOverride) -> String
+fn serialize_internal<I, K, V>(pairs: I, encoding_override: EncodingOverride) -> String
 where I: IntoIterator, I::Item: Borrow<(K, V)>, K: AsRef<str>, V: AsRef<str> {
     #[inline]
     fn byte_serialize(input: &str, output: &mut String,
