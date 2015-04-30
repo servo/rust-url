@@ -13,6 +13,7 @@
 //! Converts between a string (such as an URL’s query string)
 //! and a sequence of (name, value) pairs.
 
+use std::borrow::Borrow;
 use std::ascii::AsciiExt;
 use encoding::EncodingOverride;
 use percent_encoding::{percent_encode_to, percent_decode, FORM_URLENCODED_ENCODE_SET};
@@ -97,7 +98,9 @@ pub fn serialize_owned(pairs: &[(String, String)]) -> String {
 /// Convert an iterator of (name, value) pairs
 /// into a string in the `application/x-www-form-urlencoded` format.
 #[inline]
-pub fn serialize<'a, I>(pairs: I) -> String where I: Iterator<Item = (&'a str, &'a str)> {
+pub fn serialize<'a, I, T>(pairs: I) -> String 
+                        where T: Borrow<(&'a str, &'a str)>,
+                              I: Iterator<Item = T> {
     serialize_internal(pairs, EncodingOverride::utf8())
 }
 
@@ -112,14 +115,16 @@ pub fn serialize<'a, I>(pairs: I) -> String where I: Iterator<Item = (&'a str, &
 ///    before percent-encoding. Defaults to UTF-8.
 #[cfg(feature = "query_encoding")]
 #[inline]
-pub fn serialize_with_encoding<'a, I>(pairs: I, encoding_override: Option<::encoding::EncodingRef>)
+pub fn serialize_with_encoding<'a, I, T>(pairs: I, encoding_override: Option<::encoding::EncodingRef>)
                                       -> String
-                                      where I: Iterator<Item = (&'a str, &'a str)> {
+                                      where T: Borrow<(&'a str, &'a str)>,
+                                            I: Iterator<Item = T> {
     serialize_internal(pairs, EncodingOverride::from_opt_encoding(encoding_override))
 }
 
-fn serialize_internal<'a, I>(pairs: I, encoding_override: EncodingOverride) -> String
-                             where I: Iterator<Item = (&'a str, &'a str)> {
+fn serialize_internal<'a, I, T>(pairs: I, encoding_override: EncodingOverride) -> String
+                             where  T: Borrow<(&'a str, &'a str)>,
+                                    I: Iterator<Item = T> {
     #[inline]
     fn byte_serialize(input: &str, output: &mut String,
                       encoding_override: EncodingOverride) {
@@ -133,7 +138,8 @@ fn serialize_internal<'a, I>(pairs: I, encoding_override: EncodingOverride) -> S
     }
 
     let mut output = String::new();
-    for (name, value) in pairs {
+    for pair in pairs {
+        let &(name, value) = pair.borrow();
         if output.len() > 0 {
             output.push_str("&");
         }
@@ -145,14 +151,34 @@ fn serialize_internal<'a, I>(pairs: I, encoding_override: EncodingOverride) -> S
 }
 
 
-#[test]
-fn test_form_urlencoded() {
-    let pairs = &[
-        ("foo".to_string(), "é&".to_string()),
-        ("bar".to_string(), "".to_string()),
-        ("foo".to_string(), "#".to_string())
-    ];
-    let encoded = serialize_owned(pairs);
-    assert_eq!(encoded, "foo=%C3%A9%26&bar=&foo=%23");
-    assert_eq!(parse(encoded.as_bytes()), pairs.to_vec());
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_form_urlencoded() {
+        let pairs = &[
+            ("foo".to_string(), "é&".to_string()),
+            ("bar".to_string(), "".to_string()),
+            ("foo".to_string(), "#".to_string())
+        ];
+        let encoded = serialize_owned(pairs);
+        assert_eq!(encoded, "foo=%C3%A9%26&bar=&foo=%23");
+        assert_eq!(parse(encoded.as_bytes()), pairs.to_vec());
+    }
+
+    #[test]
+    fn test_form_serialize() {
+        let pairs = [("foo", "é&"),
+                     ("bar", ""),
+                     ("foo", "#")];
+
+        let want = "foo=%C3%A9%26&bar=&foo=%23";
+        // Works with referenced tuples
+        assert_eq!(serialize(pairs.iter()), want);
+        // Works with owned tuples
+        assert_eq!(serialize(pairs.iter().map(|p| (p.0, p.1))), want);
+
+    }
 }
