@@ -87,20 +87,11 @@ fn parse_internal(input: &[u8], mut encoding_override: EncodingOverride, mut use
 }
 
 
-/// Convert a slice of owned (name, value) pairs
-/// into a string in the `application/x-www-form-urlencoded` format.
-#[inline]
-pub fn serialize_owned(pairs: &[(String, String)]) -> String {
-    serialize(pairs.iter().map(|&(ref n, ref v)| (&**n, &**v)))
-}
-
-
 /// Convert an iterator of (name, value) pairs
 /// into a string in the `application/x-www-form-urlencoded` format.
 #[inline]
-pub fn serialize<'a, I, T>(pairs: I) -> String 
-                        where T: Borrow<(&'a str, &'a str)>,
-                              I: Iterator<Item = T> {
+pub fn serialize<'a, I, K, V>(pairs: I) -> String
+where I: IntoIterator, I::Item: Borrow<(K, V)>, K: AsRef<str>, V: AsRef<str> {
     serialize_internal(pairs, EncodingOverride::utf8())
 }
 
@@ -115,16 +106,15 @@ pub fn serialize<'a, I, T>(pairs: I) -> String
 ///    before percent-encoding. Defaults to UTF-8.
 #[cfg(feature = "query_encoding")]
 #[inline]
-pub fn serialize_with_encoding<'a, I, T>(pairs: I, encoding_override: Option<::encoding::EncodingRef>)
-                                      -> String
-                                      where T: Borrow<(&'a str, &'a str)>,
-                                            I: Iterator<Item = T> {
+pub fn serialize_with_encoding<'a, I, K, V>(pairs: I,
+                                            encoding_override: Option<::encoding::EncodingRef>)
+                                            -> String
+where I: IntoIterator, I::Item: Borrow<(K, V)>, K: AsRef<str>, V: AsRef<str> {
     serialize_internal(pairs, EncodingOverride::from_opt_encoding(encoding_override))
 }
 
-fn serialize_internal<'a, I, T>(pairs: I, encoding_override: EncodingOverride) -> String
-                             where  T: Borrow<(&'a str, &'a str)>,
-                                    I: Iterator<Item = T> {
+fn serialize_internal<'a, I, K, V>(pairs: I, encoding_override: EncodingOverride) -> String
+where I: IntoIterator, I::Item: Borrow<(K, V)>, K: AsRef<str>, V: AsRef<str> {
     #[inline]
     fn byte_serialize(input: &str, output: &mut String,
                       encoding_override: EncodingOverride) {
@@ -139,13 +129,13 @@ fn serialize_internal<'a, I, T>(pairs: I, encoding_override: EncodingOverride) -
 
     let mut output = String::new();
     for pair in pairs {
-        let &(name, value) = pair.borrow();
+        let &(ref name, ref value) = pair.borrow();
         if output.len() > 0 {
             output.push_str("&");
         }
-        byte_serialize(name, &mut output, encoding_override);
+        byte_serialize(name.as_ref(), &mut output, encoding_override);
         output.push_str("=");
-        byte_serialize(value, &mut output, encoding_override);
+        byte_serialize(value.as_ref(), &mut output, encoding_override);
     }
     output
 }
@@ -163,7 +153,7 @@ mod tests {
             ("bar".to_string(), "".to_string()),
             ("foo".to_string(), "#".to_string())
         ];
-        let encoded = serialize_owned(pairs);
+        let encoded = serialize(pairs);
         assert_eq!(encoded, "foo=%C3%A9%26&bar=&foo=%23");
         assert_eq!(parse(encoded.as_bytes()), pairs.to_vec());
     }
