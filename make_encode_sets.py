@@ -28,10 +28,10 @@ for name, encoded in [
     ('USERINFO', r''' "#<>`?@'''),
     ('PASSWORD', r''' "#<>`?@\/'''),
     ('USERNAME', r''' "#<>`?@\/:'''),
-    ('FORM_URLENCODED', r''' !"#$%&\'()+,/:;<=>?@[\]^`{|}'''),
+    ('FORM_URLENCODED', r''' !"#$%&\'()+,/:;<=>?@[\]^`{|}~'''),
 ]:
     print(
-        "pub static %s: [&'static str, ..256] = [\n%s\n];\n\n"
+        "pub static %s: [&'static str; 256] = [\n%s\n];\n\n"
         % (name, '\n'.join(
             '   ' + ' '.join(
                 '"%s%s",' % ("\\" if chr(b) in '\\"' else "", chr(b))
