@@ -994,7 +994,7 @@ fn file_url_path_to_pathbuf(path: &[String]) -> Result<PathBuf, ()> {
         return Err(())
     }
     let mut string = prefix.to_string();
-    for path_part in path.iter().skip(1) {
+    for path_part in &path[1..] {
         string.push('\\');
 
         // Currently non-unicode windows paths cannot be represented
