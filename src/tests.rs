@@ -234,24 +234,25 @@ fn new_path_bad_utf8() {
 }
 
 #[test]
-#[cfg(windows)]
 fn new_path_windows_fun() {
-    use std::path::{Path, PathBuf};
-    let mut url = Url::from_file_path(Path::new(r"C:\foo\bar")).unwrap();
-    assert_eq!(url.host(), Some(&Host::Domain("".to_string())));
-    assert_eq!(url.path(), Some(&["C:".to_string(), "foo".to_string(), "bar".to_string()][..]));
-    assert_eq!(url.to_file_path(),
-               Ok(PathBuf::from(r"C:\foo\bar")));
+    if cfg!(windows) {
+        use std::path::{Path, PathBuf};
+        let mut url = Url::from_file_path(Path::new(r"C:\foo\bar")).unwrap();
+        assert_eq!(url.host(), Some(&Host::Domain("".to_string())));
+        assert_eq!(url.path(), Some(&["C:".to_string(), "foo".to_string(), "bar".to_string()][..]));
+        assert_eq!(url.to_file_path(),
+                   Ok(PathBuf::from(r"C:\foo\bar")));
 
-    url.path_mut().unwrap()[2] = "ba\0r".to_string();
-    assert!(url.to_file_path().is_ok());
+        url.path_mut().unwrap()[2] = "ba\0r".to_string();
+        assert!(url.to_file_path().is_ok());
 
-    url.path_mut().unwrap()[2] = "ba%00r".to_string();
-    assert!(url.to_file_path().is_ok());
+        url.path_mut().unwrap()[2] = "ba%00r".to_string();
+        assert!(url.to_file_path().is_ok());
 
-    // Invalid UTF-8
-    url.path_mut().unwrap()[2] = "ba%80r".to_string();
-    assert!(url.to_file_path().is_err());
+        // Invalid UTF-8
+        url.path_mut().unwrap()[2] = "ba%80r".to_string();
+        assert!(url.to_file_path().is_err());
+    }
 }
 
 

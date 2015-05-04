@@ -928,6 +928,12 @@ fn path_to_file_url_path(path: &Path) -> Result<Vec<String>, ()> {
 
 #[cfg(windows)]
 fn path_to_file_url_path(path: &Path) -> Result<Vec<String>, ()> {
+    path_to_file_url_path_windows(path)
+}
+
+// Build this unconditionally to alleviate https://github.com/servo/rust-url/issues/102
+#[cfg_attr(not(windows), allow(dead_code))]
+fn path_to_file_url_path_windows(path: &Path) -> Result<Vec<String>, ()> {
     use std::path::{Prefix, Component};
     if !path.is_absolute() {
         return Err(())
@@ -983,6 +989,12 @@ fn file_url_path_to_pathbuf(path: &[String]) -> Result<PathBuf, ()> {
 
 #[cfg(windows)]
 fn file_url_path_to_pathbuf(path: &[String]) -> Result<PathBuf, ()> {
+    file_url_path_to_pathbuf_windows(path)
+}
+
+// Build this unconditionally to alleviate https://github.com/servo/rust-url/issues/102
+#[cfg_attr(not(windows), allow(dead_code))]
+fn file_url_path_to_pathbuf_windows(path: &[String]) -> Result<PathBuf, ()> {
     use percent_encoding::percent_decode;
 
     if path.is_empty() {
