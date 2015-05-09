@@ -125,6 +125,7 @@ extern crate matches;
 
 use std::fmt::{self, Formatter};
 use std::hash;
+use std::str;
 use std::path::{Path, PathBuf};
 
 pub use host::{Host, Ipv6Address};
@@ -239,6 +240,13 @@ impl hash::Hash for Url {
     }
 }
 
+impl str::FromStr for Url {
+    type Err = ParseError;
+
+    fn from_str(url: &str) -> ParseResult<Url> {
+        Url::parse(url)
+    }
+}
 
 /// A set of optional parameters for URL parsing.
 pub struct UrlParser<'a> {

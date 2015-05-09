@@ -280,3 +280,8 @@ fn new_directory_paths() {
                                       "bar".to_string(), "".to_string()][..]));
     }
 }
+
+#[test]
+fn from_str() {
+    assert!("http://testing.com/this".parse::<Url>().is_ok());
+}
