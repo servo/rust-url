@@ -267,6 +267,10 @@ http://Goo%20\sgoo%7C|.com
 # This should fail
 http://GOO\u00a0\u3000goo.com
 
+# This should fail
+http://[]
+http://[:]
+
 # Other types of space (no-break, zero-width, zero-width-no-break) are
 # name-prepped away to nothing.
 XFAIL http://GOO\u200b\u2060\ufeffgoo.com  s:http p:/ h:googoo.com

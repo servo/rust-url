@@ -101,6 +101,11 @@ impl Ipv6Address {
         let mut piece_pointer = 0;
         let mut compress_pointer = None;
         let mut i = 0;
+
+        if len < 2 {
+            return Err(ParseError::InvalidIpv6Address)
+        }
+
         if input[0] == b':' {
             if input[1] != b':' {
                 return Err(ParseError::InvalidIpv6Address)
