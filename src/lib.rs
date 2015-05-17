@@ -569,17 +569,17 @@ impl Url {
 
     // Return the origin of this URL (https://url.spec.whatwg.org/#origin)
     pub fn origin(&self) -> Origin {
-        match self.scheme {
+        match &*self.scheme {
             "blob" => {
-                let result = self.parse(self.scheme_data);
+                let result = Url::parse(self.non_relative_scheme_data().unwrap());
                 match result {
-                    Ok(url) => url.origin(),
+                    Ok(ref url) => url.origin(),
                     // FIXME: Generate a globally unique identifier
                     Err(_)  => Origin::UID(0)
                 }
             },
             "ftp" | "gopher" | "http" | "https" | "ws" | "wss" => {
-                Origin::Tuple(self.scheme, self.host, self.port)
+                Origin::Tuple(self.scheme.clone(), self.host().unwrap().clone(), self.port().unwrap())
             },
             // TODO: Figure out what to do if the scheme is a file
             "file" => Origin::UID(0),
