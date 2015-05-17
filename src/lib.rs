@@ -180,6 +180,16 @@ pub struct Url {
     pub fragment: Option<String>,
 }
 
+/// The origin of the URL
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub enum Origin {
+    /// A globally unique identifier
+    UID(usize),
+
+    /// Consists of the URL's scheme, host and port
+    Tuple(String, Host, u16)
+}
+
 /// The components of the URL whose representation depends on where the scheme is *relative*.
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum SchemeData {
@@ -555,6 +565,27 @@ impl Url {
     /// Return the serialization of this URL as a string.
     pub fn serialize(&self) -> String {
         self.to_string()
+    }
+
+    // Return the origin of this URL (https://url.spec.whatwg.org/#origin)
+    pub fn origin(&self) -> Origin {
+        match self.scheme {
+            "blob" => {
+                let result = self.parse(self.scheme_data);
+                match result {
+                    Ok(url) => url.origin(),
+                    // FIXME: Generate a globally unique identifier
+                    Err(_)  => Origin::UID(0)
+                }
+            },
+            "ftp" | "gopher" | "http" | "https" | "ws" | "wss" => {
+                Origin::Tuple(self.scheme, self.host, self.port)
+            },
+            // TODO: Figure out what to do if the scheme is a file
+            "file" => Origin::UID(0),
+            // FIXME: Generate a globally unique identifier
+            _ => Origin::UID(0)
+        }
     }
 
     /// Return the serialization of this URL, without the fragment identifier, as a string
