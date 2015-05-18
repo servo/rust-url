@@ -581,7 +581,8 @@ impl Url {
                 }
             },
             "ftp" | "gopher" | "http" | "https" | "ws" | "wss" => {
-                Origin::Tuple(self.scheme.clone(), self.host().unwrap().clone(), self.port().unwrap())
+                Origin::Tuple(self.scheme.clone(), self.host().unwrap().clone(),
+                    self.port_or_default().unwrap())
             },
             // TODO: Figure out what to do if the scheme is a file
             "file" => Origin::UID(Uuid::new_v4().to_string()),
