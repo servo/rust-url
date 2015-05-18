@@ -119,6 +119,7 @@ assert!(css_url.serialize() == "http://servo.github.io/rust-url/main.css".to_str
 */
 
 extern crate rustc_serialize;
+extern crate uuid;
 
 #[macro_use]
 extern crate matches;
@@ -135,6 +136,8 @@ use percent_encoding::{percent_encode, lossy_utf8_percent_decode, DEFAULT_ENCODE
 
 use format::{PathFormatter, UserInfoFormatter, UrlNoFragmentFormatter};
 use encoding::EncodingOverride;
+
+use uuid::Uuid;
 
 mod encoding;
 mod host;
@@ -184,7 +187,7 @@ pub struct Url {
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum Origin {
     /// A globally unique identifier
-    UID(usize),
+    UID(String),
 
     /// Consists of the URL's scheme, host and port
     Tuple(String, Host, u16)
@@ -574,17 +577,15 @@ impl Url {
                 let result = Url::parse(self.non_relative_scheme_data().unwrap());
                 match result {
                     Ok(ref url) => url.origin(),
-                    // FIXME: Generate a globally unique identifier
-                    Err(_)  => Origin::UID(0)
+                    Err(_)  => Origin::UID(Uuid::new_v4().to_string())
                 }
             },
             "ftp" | "gopher" | "http" | "https" | "ws" | "wss" => {
                 Origin::Tuple(self.scheme.clone(), self.host().unwrap().clone(), self.port().unwrap())
             },
             // TODO: Figure out what to do if the scheme is a file
-            "file" => Origin::UID(0),
-            // FIXME: Generate a globally unique identifier
-            _ => Origin::UID(0)
+            "file" => Origin::UID(Uuid::new_v4().to_string()),
+            _ => Origin::UID(Uuid::new_v4().to_string())
         }
     }
 
