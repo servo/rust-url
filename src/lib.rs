@@ -183,11 +183,15 @@ pub struct Url {
     pub fragment: Option<String>,
 }
 
+/// Opaque identifier for URLs that have file or other schemes
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub struct OpaqueOrigin(Uuid);
+
 /// The origin of the URL
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum Origin {
     /// A globally unique identifier
-    UID(String),
+    UID(OpaqueOrigin),
 
     /// Consists of the URL's scheme, host and port
     Tuple(String, Host, u16)
@@ -577,7 +581,7 @@ impl Url {
                 let result = Url::parse(self.non_relative_scheme_data().unwrap());
                 match result {
                     Ok(ref url) => url.origin(),
-                    Err(_)  => Origin::UID(Uuid::new_v4().to_string())
+                    Err(_)  => Origin::UID(OpaqueOrigin(Uuid::new_v4()))
                 }
             },
             "ftp" | "gopher" | "http" | "https" | "ws" | "wss" => {
@@ -585,8 +589,8 @@ impl Url {
                     self.port_or_default().unwrap())
             },
             // TODO: Figure out what to do if the scheme is a file
-            "file" => Origin::UID(Uuid::new_v4().to_string()),
-            _ => Origin::UID(Uuid::new_v4().to_string())
+            "file" => Origin::UID(OpaqueOrigin(Uuid::new_v4())),
+            _ => Origin::UID(OpaqueOrigin(Uuid::new_v4()))
         }
     }
 
