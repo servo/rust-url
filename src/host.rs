@@ -14,7 +14,7 @@ use percent_encoding::{from_hex, percent_decode};
 
 
 /// The host name of an URL.
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug, Hash)]
 pub enum Host {
     /// A (DNS) domain name or an IPv4 address.
     ///
@@ -30,7 +30,7 @@ pub enum Host {
 
 
 /// A 128 bit IPv6 address
-#[derive(Clone, Eq, PartialEq, Copy, Debug)]
+#[derive(Clone, Eq, PartialEq, Copy, Debug, Hash)]
 pub struct Ipv6Address {
     pub pieces: [u16; 8]
 }
