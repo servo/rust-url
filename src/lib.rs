@@ -149,7 +149,7 @@ mod tests;
 
 
 /// The parsed representation of an absolute URL.
-#[derive(PartialEq, Eq, Clone, Debug, Hash)]
+#[derive(PartialEq, Eq, Clone, Debug, Hash, PartialOrd, Ord)]
 pub struct Url {
     /// The scheme (a.k.a. protocol) of the URL, in ASCII lower case.
     pub scheme: String,
@@ -180,7 +180,7 @@ pub struct Url {
 }
 
 /// The components of the URL whose representation depends on where the scheme is *relative*.
-#[derive(PartialEq, Eq, Clone, Debug, Hash)]
+#[derive(PartialEq, Eq, Clone, Debug, Hash, PartialOrd, Ord)]
 pub enum SchemeData {
     /// Components for URLs in a *relative* scheme such as HTTP.
     Relative(RelativeSchemeData),
@@ -194,7 +194,7 @@ pub enum SchemeData {
 }
 
 /// Components for URLs in a *relative* scheme such as HTTP.
-#[derive(PartialEq, Eq, Clone, Debug, Hash)]
+#[derive(PartialEq, Eq, Clone, Debug, Hash, PartialOrd, Ord)]
 pub struct RelativeSchemeData {
     /// The username of the URL, as a possibly empty, percent-encoded string.
     ///
@@ -399,7 +399,7 @@ impl<'a> UrlParser<'a> {
 
 
 /// Determines the behavior of the URL parser for a given scheme.
-#[derive(PartialEq, Eq, Copy, Debug, Clone, Hash)]
+#[derive(PartialEq, Eq, Copy, Debug, Clone, Hash, PartialOrd, Ord)]
 pub enum SchemeType {
     /// Indicate that the scheme is *non-relative*.
     ///
