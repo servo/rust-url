@@ -13,7 +13,7 @@ use std::fmt::{self, Formatter};
 use super::{UrlParser, Url, SchemeData, RelativeSchemeData, Host, SchemeType};
 use percent_encoding::{
     utf8_percent_encode_to, percent_encode,
-    SIMPLE_ENCODE_SET, DEFAULT_ENCODE_SET, USERINFO_ENCODE_SET, QUERY_ENCODE_SET
+    SIMPLE_ENCODE_SET, DEFAULT_ENCODE_SET, USERINFO_ENCODE_SET, QUERY_ENCODE_SET, FORM_URLENCODED_ENCODE_SET
 };
 
 
@@ -530,6 +530,10 @@ fn parse_path<'a>(base_path: &[String], input: &'a str, context: Context,
                 '?' | '#' if context == Context::UrlParser => {
                     end = i;
                     break
+                },
+                '{' | '}' => {
+                    utf8_percent_encode_to(&input[i..next_i],
+                                        FORM_URLENCODED_ENCODE_SET, &mut path_part);
                 },
                 '\t' | '\n' | '\r' => try!(parser.parse_error(ParseError::InvalidCharacter)),
                 _ => {
