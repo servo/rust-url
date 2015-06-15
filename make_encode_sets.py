@@ -24,10 +24,10 @@ print('''\
 for name, encoded in [
     ('SIMPLE',   ''),
     ('QUERY',    r''' "#<>`'''),
-    ('DEFAULT',  r''' "#<>`?'''),
-    ('USERINFO', r''' "#<>`?@'''),
-    ('PASSWORD', r''' "#<>`?@\/'''),
-    ('USERNAME', r''' "#<>`?@\/:'''),
+    ('DEFAULT',  r''' "#<>`?{}'''),
+    ('USERINFO', r''' "#<>`?{}@'''),
+    ('PASSWORD', r''' "#<>`?{}@\/'''),
+    ('USERNAME', r''' "#<>`?{}@\/:'''),
     ('FORM_URLENCODED', r''' !"#$%&\'()+,/:;<=>?@[\]^`{|}~'''),
 ]:
     print(
