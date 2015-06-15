@@ -23,7 +23,7 @@ print('''\
 ''')
 for name, encoded in [
     ('SIMPLE',   ''),
-    ('QUERY',    r''' "#<>`'''),
+    ('QUERY',    r''' "#<>'''),
     ('DEFAULT',  r''' "#<>`?{}'''),
     ('USERINFO', r''' "#<>`?{}@'''),
     ('PASSWORD', r''' "#<>`?{}@\/'''),
