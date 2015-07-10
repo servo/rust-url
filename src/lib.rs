@@ -123,9 +123,15 @@ extern crate rustc_serialize;
 #[macro_use]
 extern crate matches;
 
+#[cfg(feature="serde_serialization")]
+extern crate serde;
+
 use std::fmt::{self, Formatter};
 use std::str;
 use std::path::{Path, PathBuf};
+
+#[cfg(feature="serde_serialization")]
+use std::str::FromStr;
 
 pub use host::{Host, Ipv6Address};
 pub use parser::{ErrorHandler, ParseResult, ParseError};
@@ -768,6 +774,26 @@ impl rustc_serialize::Decodable for Url {
     }
 }
 
+/// Serializes this URL into a `serde` stream.
+///
+/// This implementation is only available if the `serde_serialization` Cargo feature is enabled.
+#[cfg(feature="serde_serialization")]
+impl serde::Serialize for Url {
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: serde::Serializer {
+        format!("{}", self).serialize(serializer)
+    }
+}
+
+/// Deserializes this URL from a `serde` stream.
+///
+/// This implementation is only available if the `serde_serialization` Cargo feature is enabled.
+#[cfg(feature="serde_serialization")]
+impl serde::Deserialize for Url {
+    fn deserialize<D>(deserializer: &mut D) -> Result<Url, D::Error> where D: serde::Deserializer {
+        let string_representation: String = try!(serde::Deserialize::deserialize(deserializer));
+        Ok(FromStr::from_str(&string_representation[..]).unwrap())
+    }
+}
 
 impl fmt::Display for Url {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
