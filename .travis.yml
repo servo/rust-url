@@ -4,6 +4,6 @@ rust:
   - beta
   - stable
 script: make test
-after_success: [ $TRAVIS_RUST_VERSION == master ] && make upload-doc
+after_success: "[ $TRAVIS_RUST_VERSION == master ] && make upload-doc"
 env:
   - secure: Q5eFkWSv20gCxMXrF1BPBSY67qAi9XYKsGHbOc6c1hOf933AX9Wr2CqL8mBhgAZfe4TWEnazjMNHmVIs75W+DPRkxVjImDmPLlQSDNuQFKBGATL5rnx7UzgT7t6CZhG+aPr50VVuC/3IL1+Ok85DjT/LnOKaao3r+Wd+HMFVViM=
