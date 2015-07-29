@@ -57,7 +57,6 @@ impl Host {
         } else {
             let decoded = percent_decode(input.as_bytes());
             let domain = String::from_utf8_lossy(&decoded);
-            // TODO: Remove this check and use IDNA "domain to ASCII"
 
             let mut domain = match idna::domain_to_ascii(&domain) {
                 Ok(s) => s,
