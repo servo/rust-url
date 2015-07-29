@@ -11,6 +11,8 @@ use std::cmp;
 use std::fmt::{self, Formatter};
 use parser::{ParseResult, ParseError};
 use percent_encoding::{from_hex, percent_decode};
+use idna;
+use punycode;
 
 
 /// The host name of an URL.
@@ -56,9 +58,20 @@ impl Host {
             let decoded = percent_decode(input.as_bytes());
             let domain = String::from_utf8_lossy(&decoded);
             // TODO: Remove this check and use IDNA "domain to ASCII"
+
+            let mut domain = match idna::domain_to_ascii(&domain) {
+                Ok(s) => s,
+                Err(_) => return Err(ParseError::InvalidDomainCharacter)
+            };
+
             if !domain.is_ascii() {
-                Err(ParseError::NonAsciiDomainsNotSupportedYet)
-            } else if domain.find(&[
+                domain = match punycode::encode_str(&domain) {
+                    Some(dom) => "xn--".to_string() + &dom,
+                    None => return Err(ParseError::InvalidDomainCharacter)
+                };
+            }
+
+            if domain.find(&[
                 '\0', '\t', '\n', '\r', ' ', '#', '%', '/', ':', '?', '@', '[', '\\', ']'
             ][..]).is_some() {
                 Err(ParseError::InvalidDomainCharacter)

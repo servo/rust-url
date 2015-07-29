@@ -285,3 +285,8 @@ fn new_directory_paths() {
 fn from_str() {
     assert!("http://testing.com/this".parse::<Url>().is_ok());
 }
+
+#[test]
+fn test_idna() {
+    assert!("http://goșu.ro".parse::<Url>().is_ok());
+}

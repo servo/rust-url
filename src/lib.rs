@@ -129,6 +129,7 @@ extern crate serde;
 use std::fmt::{self, Formatter};
 use std::str;
 use std::path::{Path, PathBuf};
+pub use std::char;
 
 #[cfg(feature="serde_serialization")]
 use std::str::FromStr;
@@ -149,6 +150,8 @@ pub mod percent_encoding;
 pub mod form_urlencoded;
 pub mod punycode;
 pub mod format;
+pub mod idna;
+pub mod idna_mapping;
 
 #[cfg(test)]
 mod tests;
