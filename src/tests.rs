@@ -75,7 +75,7 @@ fn url_parsing() {
                 let host = host.serialize();
                 assert_eq!(host, expected_host);
                 assert_eq!(port, expected_port);
-                assert_eq!(Some(format!("/{}", path.join("/"))), expected_path);
+                assert_eq!(Some(format!("/{}", path.connect("/"))), expected_path);
             },
             SchemeData::NonRelative(scheme_data) => {
                 assert_eq!(Some(scheme_data), expected_path);
