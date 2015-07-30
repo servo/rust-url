@@ -75,7 +75,7 @@ fn url_parsing() {
                 let host = host.serialize();
                 assert_eq!(host, expected_host);
                 assert_eq!(port, expected_port);
-                assert_eq!(Some(format!("/{}", path.connect("/"))), expected_path);
+                assert_eq!(Some(format!("/{}", str_join(&path, "/"))), expected_path);
             },
             SchemeData::NonRelative(scheme_data) => {
                 assert_eq!(Some(scheme_data), expected_path);
@@ -93,6 +93,12 @@ fn url_parsing() {
 
         assert!(!expected_failure, "Unexpected success for {}", input);
     }
+}
+
+// FIMXE: Remove this when &[&str]::join (the new name) lands in the stable channel.
+#[allow(deprecated)]
+fn str_join<T: ::std::borrow::Borrow<str>>(pieces: &[T], separator: &str) -> String {
+    pieces.connect(separator)
 }
 
 struct Test {
