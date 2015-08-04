@@ -4,7 +4,7 @@ name = "url"
 version = "0.2.36"
 authors = [ "Simon Sapin <simon.sapin@exyr.org>" ]
 
-description = "URL parser for Rust"
+description = "URL library for Rust, based on the WHATWG URL Standard"
 documentation = "http://servo.github.io/rust-url/url/index.html"
 repository = "https://github.com/servo/rust-url"
 readme = "README.md"
