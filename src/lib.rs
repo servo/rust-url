@@ -126,12 +126,18 @@ extern crate matches;
 #[cfg(feature="serde_serialization")]
 extern crate serde;
 
+#[cfg(feature="heap_size")]
+extern crate heapsize;
+
 use std::fmt::{self, Formatter};
 use std::str;
 use std::path::{Path, PathBuf};
 
 #[cfg(feature="serde_serialization")]
 use std::str::FromStr;
+
+#[cfg(feature="heap_size")]
+use heapsize::HeapSizeOf;
 
 pub use host::{Host, Ipv6Address};
 pub use parser::{ErrorHandler, ParseResult, ParseError};
@@ -1048,3 +1054,53 @@ fn file_url_path_to_pathbuf_windows(path: &[String]) -> Result<PathBuf, ()> {
                   "to_file_path() failed to produce an absolute Path");
     Ok(path)
 }
+
+#[cfg(feature="heap_size")]
+impl HeapSizeOf for Url {
+    fn heap_size_of_children(&self) -> usize {
+        // Using a struct pattern without `..` rather than `foo.bar` field access
+        // makes sure this will be updated if a field is added.
+        let &url::Url { ref scheme, ref scheme_data, ref query, ref fragment } = self;
+        scheme.heap_size_of_children() +
+        scheme_data.heap_size_of_children() +
+        query.heap_size_of_children() +
+        fragment.heap_size_of_children()
+    }
+}
+
+#[cfg(feature="heap_size")]
+impl HeapSizeOf for SchemeData {
+    fn heap_size_of_children(&self) -> usize {
+        match self {
+            &url::SchemeData::Relative(ref data) => data.heap_size_of_children(),
+            &url::SchemeData::NonRelative(ref str) => str.heap_size_of_children()
+        }
+    }
+}
+
+#[cfg(feature="heap_size")]
+impl HeapSizeOf for RelativeSchemeData {
+    fn heap_size_of_children(&self) -> usize {
+        // Using a struct pattern without `..` rather than `foo.bar` field access
+        // makes sure this will be updated if a field is added.
+        let &url::RelativeSchemeData { ref username, ref password, ref host,
+                                       ref port, ref default_port, ref path } = self;
+        username.heap_size_of_children() +
+        password.heap_size_of_children() +
+        host.heap_size_of_children() +
+        port.heap_size_of_children() +
+        default_port.heap_size_of_children() +
+        path.heap_size_of_children()
+    }
+}
+
+#[cfg(feature="heap_size")]
+impl HeapSizeOf for Host {
+    fn heap_size_of_children(&self) -> usize {
+        match self {
+            &url::Host::Domain(ref str) => str.heap_size_of_children(),
+            &url::Host::Ipv6(_) => 0
+        }
+    }
+}
+

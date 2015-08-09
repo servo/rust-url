@@ -14,6 +14,11 @@ license = "MIT/Apache-2.0"
 [features]
 query_encoding = ["encoding"]
 serde_serialization = ["serde"]
+heap_size = ["heapsize"]
+
+[dependencies.heapsize]
+git = "https://github.com/servo/heapsize.git"
+optional = true
 
 [dependencies.encoding]
 version = "0.2"
