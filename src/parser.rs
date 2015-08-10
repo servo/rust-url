@@ -7,6 +7,7 @@
 // except according to those terms.
 
 use std::ascii::AsciiExt;
+use std::cmp::max;
 use std::error::Error;
 use std::fmt::{self, Formatter};
 
@@ -284,7 +285,7 @@ fn parse_relative_url<'a>(input: &'a str, scheme: String, scheme_type: SchemeTyp
                     path: path
                 }), remaining)
             } else {
-                let base_path = &base.path[..base.path.len() - 1];
+                let base_path = &base.path[..max(base.path.len(), 1) - 1];
                 // Relative path state
                 let (path, remaining) = try!(parse_path(
                     base_path, input, Context::UrlParser, scheme_type, parser));
