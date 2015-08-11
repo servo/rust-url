@@ -17,11 +17,11 @@ serde_serialization = ["serde"]
 heap_size = ["heapsize", "heapsize_plugin"]
 
 [dependencies.heapsize]
-git = "https://github.com/servo/heapsize.git"
+version = "0.1.1"
 optional = true
 
 [dependencies.heapsize_plugin]
-git = "https://github.com/servo/heapsize.git"
+version = "0.0.1"
 optional = true
 
 [dependencies.encoding]
