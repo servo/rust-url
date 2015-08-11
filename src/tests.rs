@@ -291,3 +291,13 @@ fn new_directory_paths() {
 fn from_str() {
     assert!("http://testing.com/this".parse::<Url>().is_ok());
 }
+
+#[test]
+fn issue_124() {
+    let url: Url = "file:a".parse().unwrap();
+    assert_eq!(url.path().unwrap(), ["a"]);
+    let url: Url = "file:...".parse().unwrap();
+    assert_eq!(url.path().unwrap(), ["..."]);
+    let url: Url = "file:..".parse().unwrap();
+    assert_eq!(url.path().unwrap(), [""]);
+}
