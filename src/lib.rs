@@ -118,6 +118,9 @@ assert!(css_url.serialize() == "http://servo.github.io/rust-url/main.css".to_str
 
 */
 
+#![cfg_attr(feature="heap_size", feature(plugin, custom_derive))]
+#![cfg_attr(feature="heap_size", plugin(heapsize_plugin))]
+
 extern crate rustc_serialize;
 
 #[macro_use]
@@ -125,6 +128,9 @@ extern crate matches;
 
 #[cfg(feature="serde_serialization")]
 extern crate serde;
+
+#[cfg(feature="heap_size")]
+#[macro_use] extern crate heapsize;
 
 use std::fmt::{self, Formatter};
 use std::str;
@@ -156,6 +162,7 @@ mod tests;
 
 /// The parsed representation of an absolute URL.
 #[derive(PartialEq, Eq, Clone, Debug, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature="heap_size", derive(HeapSizeOf))]
 pub struct Url {
     /// The scheme (a.k.a. protocol) of the URL, in ASCII lower case.
     pub scheme: String,
@@ -187,6 +194,7 @@ pub struct Url {
 
 /// The components of the URL whose representation depends on where the scheme is *relative*.
 #[derive(PartialEq, Eq, Clone, Debug, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature="heap_size", derive(HeapSizeOf))]
 pub enum SchemeData {
     /// Components for URLs in a *relative* scheme such as HTTP.
     Relative(RelativeSchemeData),
@@ -201,6 +209,7 @@ pub enum SchemeData {
 
 /// Components for URLs in a *relative* scheme such as HTTP.
 #[derive(PartialEq, Eq, Clone, Debug, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature="heap_size", derive(HeapSizeOf))]
 pub struct RelativeSchemeData {
     /// The username of the URL, as a possibly empty, percent-encoded string.
     ///
@@ -1048,3 +1057,4 @@ fn file_url_path_to_pathbuf_windows(path: &[String]) -> Result<PathBuf, ()> {
                   "to_file_path() failed to produce an absolute Path");
     Ok(path)
 }
+

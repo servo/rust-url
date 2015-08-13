@@ -15,6 +15,7 @@ use percent_encoding::{from_hex, percent_decode};
 
 /// The host name of an URL.
 #[derive(PartialEq, Eq, Clone, Debug, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature="heap_size", derive(HeapSizeOf))]
 pub enum Host {
     /// A (DNS) domain name or an IPv4 address.
     ///
@@ -34,6 +35,8 @@ pub enum Host {
 pub struct Ipv6Address {
     pub pieces: [u16; 8]
 }
+#[cfg(feature="heap_size")]
+known_heap_size!(0, Ipv6Address);
 
 
 impl Host {

@@ -2,6 +2,7 @@ test:
 	cargo test --features query_encoding
 	cargo test --features serde_serialization
 	cargo test
+	[ x$$TRAVIS_RUST_VERSION != xnightly ] || cargo test --features heap_size
 
 doc:
 	cargo doc --features "query_encoding serde_serialization"
