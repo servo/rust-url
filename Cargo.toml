@@ -21,7 +21,7 @@ version = "0.1.1"
 optional = true
 
 [dependencies.heapsize_plugin]
-version = "0.0.1"
+version = "0.1.0"
 optional = true
 
 [dependencies.encoding]
