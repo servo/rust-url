@@ -135,6 +135,7 @@ extern crate serde;
 use std::fmt::{self, Formatter};
 use std::str;
 use std::path::{Path, PathBuf};
+use std::borrow::Borrow;
 
 #[cfg(feature="serde_serialization")]
 use std::str::FromStr;
@@ -744,7 +745,8 @@ impl Url {
     /// Serialize an iterator of (key, value) pairs as `application/x-www-form-urlencoded`
     /// and set it as the URL’s query string.
     #[inline]
-    pub fn set_query_from_pairs<'a, I: Iterator<Item = (&'a str, &'a str)>>(&mut self, pairs: I) {
+    pub fn set_query_from_pairs<I, K, V>(&mut self, pairs: I)
+    where I: IntoIterator, I::Item: Borrow<(K, V)>, K: AsRef<str>, V: AsRef<str> {
         self.query = Some(form_urlencoded::serialize(pairs));
     }
 
