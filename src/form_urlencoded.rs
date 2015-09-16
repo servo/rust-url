@@ -23,6 +23,9 @@ use percent_encoding::{percent_encode_to, percent_decode, FORM_URLENCODED_ENCODE
 /// into a vector of (name, value) pairs.
 ///
 /// Use `parse(input.as_bytes())` to parse a `&str` string.
+///
+/// The names and values are URL-decoded. For instance, `%23first=%25try%25` will be
+/// converted to `[("#first", "%try%")]`.
 #[inline]
 pub fn parse(input: &[u8]) -> Vec<(String, String)> {
     parse_internal(input, EncodingOverride::utf8(), false).unwrap()
