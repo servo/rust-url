@@ -393,6 +393,9 @@ impl<'a> UrlParser<'a> {
 /// assert_eq!(query, Some("q=42".to_string()));
 /// assert_eq!(fragment, None);
 /// ```
+///
+/// The query string returned by `url::parse_path` can be decoded with
+/// `url::form_urlencoded::parse`.
 #[inline]
 pub fn parse_path(input: &str)
                   -> ParseResult<(Vec<String>, Option<String>, Option<String>)> {
