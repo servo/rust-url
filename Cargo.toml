@@ -33,5 +33,6 @@ version = "*"
 optional = true
 
 [dependencies]
+uuid = "0.1.17"
 rustc-serialize = "0.3"
 matches = "0.1"

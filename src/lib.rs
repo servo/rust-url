@@ -122,6 +122,7 @@ assert!(css_url.serialize() == "http://servo.github.io/rust-url/main.css".to_str
 #![cfg_attr(feature="heap_size", plugin(heapsize_plugin))]
 
 extern crate rustc_serialize;
+extern crate uuid;
 
 #[macro_use]
 extern crate matches;
@@ -147,6 +148,8 @@ use percent_encoding::{percent_encode, lossy_utf8_percent_decode, DEFAULT_ENCODE
 
 use format::{PathFormatter, UserInfoFormatter, UrlNoFragmentFormatter};
 use encoding::EncodingOverride;
+
+use uuid::Uuid;
 
 mod encoding;
 mod host;
@@ -191,6 +194,20 @@ pub struct Url {
     ///
     /// See also the `lossy_percent_decode_fragment` method.
     pub fragment: Option<String>,
+}
+
+/// Opaque identifier for URLs that have file or other schemes
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub struct OpaqueOrigin(Uuid);
+
+/// The origin of the URL
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub enum Origin {
+    /// A globally unique identifier
+    UID(OpaqueOrigin),
+
+    /// Consists of the URL's scheme, host and port
+    Tuple(String, Host, u16)
 }
 
 /// The components of the URL whose representation depends on where the scheme is *relative*.
@@ -568,6 +585,26 @@ impl Url {
     /// Return the serialization of this URL as a string.
     pub fn serialize(&self) -> String {
         self.to_string()
+    }
+
+    // Return the origin of this URL (https://url.spec.whatwg.org/#origin)
+    pub fn origin(&self) -> Origin {
+        match &*self.scheme {
+            "blob" => {
+                let result = Url::parse(self.non_relative_scheme_data().unwrap());
+                match result {
+                    Ok(ref url) => url.origin(),
+                    Err(_)  => Origin::UID(OpaqueOrigin(Uuid::new_v4()))
+                }
+            },
+            "ftp" | "gopher" | "http" | "https" | "ws" | "wss" => {
+                Origin::Tuple(self.scheme.clone(), self.host().unwrap().clone(),
+                    self.port_or_default().unwrap())
+            },
+            // TODO: Figure out what to do if the scheme is a file
+            "file" => Origin::UID(OpaqueOrigin(Uuid::new_v4())),
+            _ => Origin::UID(OpaqueOrigin(Uuid::new_v4()))
+        }
     }
 
     /// Return the serialization of this URL, without the fragment identifier, as a string
