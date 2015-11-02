@@ -226,7 +226,7 @@ pub enum SchemeData {
 }
 
 /// Components for URLs in a *relative* scheme such as HTTP.
-#[derive(PartialEq, Eq, Clone, Debug, Hash, PartialOrd, Ord)]
+#[derive(Clone, Debug, Hash, PartialOrd, Ord)]
 #[cfg_attr(feature="heap_size", derive(HeapSizeOf))]
 pub struct RelativeSchemeData {
     /// The username of the URL, as a possibly empty, percent-encoded string.
@@ -266,6 +266,20 @@ pub struct RelativeSchemeData {
     pub path: Vec<String>,
 }
 
+impl PartialEq for RelativeSchemeData {
+    fn eq(&self, other: &RelativeSchemeData) -> bool {
+        (
+            self.username == other.username &&
+            self.password == other.password &&
+            self.host == other.host &&
+            self.port.or(self.default_port) == other.port.or(self.default_port) &&
+            self.default_port == other.default_port &&
+            self.path == other.path
+        )
+    }
+}
+
+impl Eq for RelativeSchemeData {}
 
 impl str::FromStr for Url {
     type Err = ParseError;
