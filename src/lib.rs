@@ -137,6 +137,7 @@ use std::fmt::{self, Formatter};
 use std::str;
 use std::path::{Path, PathBuf};
 use std::borrow::Borrow;
+use std::hash::{Hash, Hasher};
 
 #[cfg(feature="serde_serialization")]
 use std::str::FromStr;
@@ -226,7 +227,7 @@ pub enum SchemeData {
 }
 
 /// Components for URLs in a *relative* scheme such as HTTP.
-#[derive(PartialEq, Eq, Clone, Debug, Hash, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialOrd, Ord)]
 #[cfg_attr(feature="heap_size", derive(HeapSizeOf))]
 pub struct RelativeSchemeData {
     /// The username of the URL, as a possibly empty, percent-encoded string.
@@ -266,6 +267,33 @@ pub struct RelativeSchemeData {
     pub path: Vec<String>,
 }
 
+impl RelativeSchemeData {
+    fn get_identity_key(&self) -> (&String, &Option<String>, &Host, Option<u16>, Option<u16>, &Vec<String>) {
+        (
+            &self.username,
+            &self.password,
+            &self.host,
+            self.port.or(self.default_port),
+            self.default_port,
+            &self.path
+        )
+    }
+}
+
+
+impl PartialEq for RelativeSchemeData {
+    fn eq(&self, other: &RelativeSchemeData) -> bool {
+        self.get_identity_key() == other.get_identity_key()
+    }
+}
+
+impl Eq for RelativeSchemeData {}
+
+impl Hash for RelativeSchemeData {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.get_identity_key().hash(state)
+    }
+}
 
 impl str::FromStr for Url {
     type Err = ParseError;
