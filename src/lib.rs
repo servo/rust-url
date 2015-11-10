@@ -138,6 +138,7 @@ use std::str;
 use std::path::{Path, PathBuf};
 use std::borrow::Borrow;
 use std::hash::{Hash, Hasher};
+use std::cmp::Ordering;
 
 #[cfg(feature="serde_serialization")]
 use std::str::FromStr;
@@ -227,7 +228,7 @@ pub enum SchemeData {
 }
 
 /// Components for URLs in a *relative* scheme such as HTTP.
-#[derive(Clone, Debug, PartialOrd, Ord)]
+#[derive(Clone, Debug)]
 #[cfg_attr(feature="heap_size", derive(HeapSizeOf))]
 pub struct RelativeSchemeData {
     /// The username of the URL, as a possibly empty, percent-encoded string.
@@ -292,6 +293,18 @@ impl Eq for RelativeSchemeData {}
 impl Hash for RelativeSchemeData {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.get_identity_key().hash(state)
+    }
+}
+
+impl PartialOrd for RelativeSchemeData {
+    fn partial_cmp(&self, other: &RelativeSchemeData) -> Option<Ordering> {
+        self.get_identity_key().partial_cmp(&other.get_identity_key())
+    }
+}
+
+impl Ord for RelativeSchemeData {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.get_identity_key().cmp(&other.get_identity_key())
     }
 }
 
