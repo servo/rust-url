@@ -301,3 +301,49 @@ fn issue_124() {
     let url: Url = "file:..".parse().unwrap();
     assert_eq!(url.path().unwrap(), [""]);
 }
+
+#[test]
+fn relative_scheme_data_equality() {
+    use std::hash::{Hash, Hasher, SipHasher};
+
+    fn check_eq(a: &Url, b: &Url) {
+        assert_eq!(a, b);
+
+        let mut h1 = SipHasher::new();
+        a.hash(&mut h1);
+        let mut h2 = SipHasher::new();
+        b.hash(&mut h2);
+        assert_eq!(h1.finish(), h2.finish());
+    }
+
+    fn url(s: &str) -> Url {
+        let rv = s.parse().unwrap();
+        check_eq(&rv, &rv);
+        rv
+    }
+
+    // Doesn't care if default port is given.
+    let a: Url = url("https://example.com/");
+    let b: Url = url("https://example.com:443/");
+    check_eq(&a, &b);
+
+    // Different ports
+    let a: Url = url("http://example.com/");
+    let b: Url = url("http://example.com:8080/");
+    assert!(a != b);
+
+    // Different scheme
+    let a: Url = url("http://example.com/");
+    let b: Url = url("https://example.com/");
+    assert!(a != b);
+
+    // Different host
+    let a: Url = url("http://foo.com/");
+    let b: Url = url("http://bar.com/");
+    assert!(a != b);
+
+    // Missing path, automatically substituted. Semantically the same.
+    let a: Url = url("http://foo.com");
+    let b: Url = url("http://foo.com/");
+    check_eq(&a, &b);
+}
