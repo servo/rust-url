@@ -29,7 +29,7 @@ for name, encoded in [
     ('PASSWORD', r''' "#<>`?{}@\/'''),
     ('USERNAME', r''' "#<>`?{}@\/:'''),
     ('FORM_URLENCODED', r''' !"#$%&\'()+,/:;<=>?@[\]^`{|}~'''),
-    ('VALUE_CHARS', r''' "%'()*,/:;<->?[\]{}'''),
+    ('HTTP_VALUE', r''' "%'()*,/:;<->?[\]{}'''),
 ]:
     print(
         "pub static %s: [&'static str; 256] = [\n%s\n];\n\n"

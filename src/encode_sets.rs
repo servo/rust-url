@@ -260,7 +260,7 @@ pub static FORM_URLENCODED: [&'static str; 256] = [
 ];
 
 
-pub static VALUE_CHARS: [&'static str; 256] = [
+pub static HTTP_VALUE: [&'static str; 256] = [
    "%00", "%01", "%02", "%03", "%04", "%05", "%06", "%07",
    "%08", "%09", "%0A", "%0B", "%0C", "%0D", "%0E", "%0F",
    "%10", "%11", "%12", "%13", "%14", "%15", "%16", "%17",
