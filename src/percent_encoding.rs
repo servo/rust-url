@@ -55,6 +55,9 @@ pub static FORM_URLENCODED_ENCODE_SET: EncodeSet = EncodeSet {
     map: &encode_sets::FORM_URLENCODED,
 };
 
+/// This encode set is used for HTTP header values and is defined at
+/// https://tools.ietf.org/html/rfc5987#section-3.2
+pub static HTTP_VALUE_ENCODE_SET: EncodeSet = EncodeSet { map: &encode_sets::HTTP_VALUE };
 
 /// Percent-encode the given bytes, and push the result to `output`.
 ///
