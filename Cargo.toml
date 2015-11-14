@@ -1,7 +1,7 @@
 [package]
 
 name = "url"
-version = "0.2.37"
+version = "0.3.0"
 authors = [ "Simon Sapin <simon.sapin@exyr.org>" ]
 
 description = "URL library for Rust, based on the WHATWG URL Standard"
@@ -17,7 +17,7 @@ serde_serialization = ["serde"]
 heap_size = ["heapsize", "heapsize_plugin"]
 
 [dependencies.heapsize]
-version = "0.1.1"
+version = "0.1.3"
 optional = true
 
 [dependencies.heapsize_plugin]
