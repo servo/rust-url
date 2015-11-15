@@ -17,7 +17,7 @@ serde_serialization = ["serde"]
 heap_size = ["heapsize", "heapsize_plugin"]
 
 [dependencies.heapsize]
-version = "0.1.1"
+version = "0.1.3"
 optional = true
 
 [dependencies.heapsize_plugin]
