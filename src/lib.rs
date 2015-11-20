@@ -162,10 +162,6 @@ pub mod form_urlencoded;
 pub mod punycode;
 pub mod format;
 
-#[cfg(test)]
-mod tests;
-
-
 /// The parsed representation of an absolute URL.
 #[derive(PartialEq, Eq, Clone, Debug, Hash, PartialOrd, Ord)]
 #[cfg_attr(feature="heap_size", derive(HeapSizeOf))]
