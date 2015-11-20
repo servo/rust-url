@@ -162,7 +162,7 @@ http://www.google.com/foo?bar=baz# about:blank s:http h:www.google.com p:/foo q:
 http://www.google.com/foo?bar=baz#\s\u00BB  s:http h:www.google.com p:/foo q:?bar=baz f:#\s%C2%BB
 http://[www.google.com]/
 http://www.google.com  s:http h:www.google.com p:/
-http://192.0x00A80001  s:http h:192.0x00a80001 p:/
+http://192.0x00A80001  s:http h:192.168.0.1 p:/
 http://www/foo%2Ehtml  s:http h:www p:/foo%2Ehtml
 http://www/foo/%2E/html  s:http h:www p:/foo/html
 http://user:pass@/

@@ -143,7 +143,7 @@ use std::cmp::Ordering;
 #[cfg(feature="serde_serialization")]
 use std::str::FromStr;
 
-pub use host::{Host, Ipv6Address};
+pub use host::Host;
 pub use parser::{ErrorHandler, ParseResult, ParseError};
 
 use percent_encoding::{percent_encode, lossy_utf8_percent_decode, DEFAULT_ENCODE_SET};
@@ -1140,4 +1140,3 @@ fn file_url_path_to_pathbuf_windows(path: &[String]) -> Result<PathBuf, ()> {
                   "to_file_path() failed to produce an absolute Path");
     Ok(path)
 }
-

@@ -9,6 +9,7 @@
 use std::ascii::AsciiExt;
 use std::cmp;
 use std::fmt::{self, Formatter};
+use std::net::{Ipv4Addr, Ipv6Addr};
 use parser::{ParseResult, ParseError};
 use percent_encoding::{from_hex, percent_decode};
 
@@ -17,26 +18,15 @@ use percent_encoding::{from_hex, percent_decode};
 #[derive(PartialEq, Eq, Clone, Debug, Hash, PartialOrd, Ord)]
 #[cfg_attr(feature="heap_size", derive(HeapSizeOf))]
 pub enum Host {
-    /// A (DNS) domain name or an IPv4 address.
-    ///
-    /// FIXME: IPv4 probably should be a separate variant.
-    /// See https://www.w3.org/Bugs/Public/show_bug.cgi?id=26431
+    /// A (DNS) domain name.
     Domain(String),
-
+    /// A IPv4 address, represented by four sequences of up to three ASCII digits.
+    Ipv4(Ipv4Addr),
     /// An IPv6 address, represented inside `[...]` square brackets
     /// so that `:` colon characters in the address are not ambiguous
     /// with the port number delimiter.
-    Ipv6(Ipv6Address),
+    Ipv6(Ipv6Addr),
 }
-
-
-/// A 128 bit IPv6 address
-#[derive(Clone, Eq, PartialEq, Copy, Debug, Hash, PartialOrd, Ord)]
-pub struct Ipv6Address {
-    pub pieces: [u16; 8]
-}
-#[cfg(feature="heap_size")]
-known_heap_size!(0, Ipv6Address);
 
 
 impl Host {
@@ -48,26 +38,28 @@ impl Host {
     /// FIXME: Add IDNA support for non-ASCII domains.
     pub fn parse(input: &str) -> ParseResult<Host> {
         if input.len() == 0 {
-            Err(ParseError::EmptyHost)
-        } else if input.starts_with("[") {
-            if input.ends_with("]") {
-                Ipv6Address::parse(&input[1..input.len() - 1]).map(Host::Ipv6)
-            } else {
-                Err(ParseError::InvalidIpv6Address)
+            return Err(ParseError::EmptyHost)
+        }
+        if input.starts_with("[") {
+            if !input.ends_with("]") {
+                return Err(ParseError::InvalidIpv6Address)
             }
-        } else {
-            let decoded = percent_decode(input.as_bytes());
-            let domain = String::from_utf8_lossy(&decoded);
-            // TODO: Remove this check and use IDNA "domain to ASCII"
-            if !domain.is_ascii() {
-                Err(ParseError::NonAsciiDomainsNotSupportedYet)
-            } else if domain.find(&[
-                '\0', '\t', '\n', '\r', ' ', '#', '%', '/', ':', '?', '@', '[', '\\', ']'
-            ][..]).is_some() {
-                Err(ParseError::InvalidDomainCharacter)
-            } else {
-                Ok(Host::Domain(domain.to_ascii_lowercase()))
-            }
+            return parse_ipv6addr(&input[1..input.len() - 1]).map(Host::Ipv6)
+        }
+        let decoded = percent_decode(input.as_bytes());
+        let domain = String::from_utf8_lossy(&decoded);
+        // TODO: Remove this check and use IDNA "domain to ASCII"
+        if !domain.is_ascii() {
+            return Err(ParseError::NonAsciiDomainsNotSupportedYet)
+        } else if domain.find(&[
+            '\0', '\t', '\n', '\r', ' ', '#', '%', '/', ':', '?', '@', '[', '\\', ']'
+        ][..]).is_some() {
+            return Err(ParseError::InvalidDomainCharacter)
+        }
+        match parse_ipv4addr(&domain[..]) {
+            Ok(Some(ipv4addr)) => Ok(Host::Ipv4(ipv4addr)),
+            Ok(None) => Ok(Host::Domain(domain.to_ascii_lowercase())),
+            Err(e) => Err(e),
         }
     }
 
@@ -81,203 +73,186 @@ impl Host {
 
 
 impl fmt::Display for Host {
-    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
-            Host::Domain(ref domain) => domain.fmt(formatter),
-            Host::Ipv6(ref address) => {
-                try!(formatter.write_str("["));
-                try!(address.fmt(formatter));
-                formatter.write_str("]")
-            }
+            Host::Domain(ref domain) => domain.fmt(f),
+            Host::Ipv4(ref addr) => addr.fmt(f),
+            Host::Ipv6(ref addr) => write!(f, "[{}]", addr),
         }
     }
 }
 
+fn parse_ipv4number(mut input: &str) -> ParseResult<u32> {
+    let mut r = 10;
+    if input.starts_with("0x") || input.starts_with("0X") {
+        input = &input[2..];
+        r = 16;
+    } else if input.len() >= 2 && input.starts_with("0") {
+        input = &input[1..];
+        r = 8;
+    }
+    if input.is_empty() {
+        return Ok(0);
+    }
+    match u32::from_str_radix(&input, r) {
+        Ok(number) => return Ok(number),
+        Err(_) => Err(ParseError::InvalidIpv4Address),
+    }
+}
 
-impl Ipv6Address {
-    /// Parse an IPv6 address, without the [] square brackets.
-    pub fn parse(input: &str) -> ParseResult<Ipv6Address> {
-        let input = input.as_bytes();
-        let len = input.len();
-        let mut is_ip_v4 = false;
-        let mut pieces = [0, 0, 0, 0, 0, 0, 0, 0];
-        let mut piece_pointer = 0;
-        let mut compress_pointer = None;
-        let mut i = 0;
+fn parse_ipv4addr(input: &str) -> ParseResult<Option<Ipv4Addr>> {
+    let mut parts: Vec<&str> = input.split('.').collect();
+    if parts.last() == Some(&"") {
+        parts.pop();
+    }
+    if parts.len() > 4 {
+        return Ok(None);
+    }
+    let mut numbers: Vec<u32> = Vec::new();
+    for part in parts {
+        if part == "" {
+            return Ok(None);
+        }
+        if let Ok(n) = parse_ipv4number(part) {
+            numbers.push(n);
+        } else {
+            return Ok(None);
+        }
+    }
+    let mut ipv4 = numbers.pop().expect("a non-empty list of numbers");
+    if ipv4 >= u32::max_value() >> (8 * numbers.len() as u32)  {
+        return Err(ParseError::InvalidIpv4Address);
+    }
+    if numbers.iter().any(|x| *x > 255) {
+        return Err(ParseError::InvalidIpv4Address);
+    }
+    for (counter, n) in numbers.iter().enumerate() {
+        ipv4 += n << (8 * (3 - counter as u32))
+    }
+    Ok(Some(Ipv4Addr::from(ipv4)))
+}
 
-        if len < 2 {
+
+fn parse_ipv6addr(input: &str) -> ParseResult<Ipv6Addr> {
+    let input = input.as_bytes();
+    let len = input.len();
+    let mut is_ip_v4 = false;
+    let mut pieces = [0, 0, 0, 0, 0, 0, 0, 0];
+    let mut piece_pointer = 0;
+    let mut compress_pointer = None;
+    let mut i = 0;
+
+    if len < 2 {
+        return Err(ParseError::InvalidIpv6Address)
+    }
+
+    if input[0] == b':' {
+        if input[1] != b':' {
             return Err(ParseError::InvalidIpv6Address)
         }
-
-        if input[0] == b':' {
-            if input[1] != b':' {
-                return Err(ParseError::InvalidIpv6Address)
-            }
-            i = 2;
-            piece_pointer = 1;
-            compress_pointer = Some(1);
-        }
-
-        while i < len {
-            if piece_pointer == 8 {
-                return Err(ParseError::InvalidIpv6Address)
-            }
-            if input[i] == b':' {
-                if compress_pointer.is_some() {
-                    return Err(ParseError::InvalidIpv6Address)
-                }
-                i += 1;
-                piece_pointer += 1;
-                compress_pointer = Some(piece_pointer);
-                continue
-            }
-            let start = i;
-            let end = cmp::min(len, start + 4);
-            let mut value = 0u16;
-            while i < end {
-                match from_hex(input[i]) {
-                    Some(digit) => {
-                        value = value * 0x10 + digit as u16;
-                        i += 1;
-                    },
-                    None => break
-                }
-            }
-            if i < len {
-                match input[i] {
-                    b'.' => {
-                        if i == start {
-                            return Err(ParseError::InvalidIpv6Address)
-                        }
-                        i = start;
-                        is_ip_v4 = true;
-                    },
-                    b':' => {
-                        i += 1;
-                        if i == len {
-                            return Err(ParseError::InvalidIpv6Address)
-                        }
-                    },
-                    _ => return Err(ParseError::InvalidIpv6Address)
-                }
-            }
-            if is_ip_v4 {
-                break
-            }
-            pieces[piece_pointer] = value;
-            piece_pointer += 1;
-        }
-
-        if is_ip_v4 {
-            if piece_pointer > 6 {
-                return Err(ParseError::InvalidIpv6Address)
-            }
-            let mut dots_seen = 0;
-            while i < len {
-                // FIXME: https://github.com/whatwg/url/commit/1c22aa119c354e0020117e02571cec53f7c01064
-                let mut value = 0u16;
-                while i < len {
-                    let digit = match input[i] {
-                        c @ b'0' ... b'9' => c - b'0',
-                        _ => break
-                    };
-                    value = value * 10 + digit as u16;
-                    if value == 0 || value > 255 {
-                        return Err(ParseError::InvalidIpv6Address)
-                    }
-                }
-                if dots_seen < 3 && !(i < len && input[i] == b'.') {
-                    return Err(ParseError::InvalidIpv6Address)
-                }
-                pieces[piece_pointer] = pieces[piece_pointer] * 0x100 + value;
-                if dots_seen == 0 || dots_seen == 2 {
-                    piece_pointer += 1;
-                }
-                i += 1;
-                if dots_seen == 3 && i < len {
-                    return Err(ParseError::InvalidIpv6Address)
-                }
-                dots_seen += 1;
-            }
-        }
-
-        match compress_pointer {
-            Some(compress_pointer) => {
-                let mut swaps = piece_pointer - compress_pointer;
-                piece_pointer = 7;
-                while swaps > 0 {
-                    pieces[piece_pointer] = pieces[compress_pointer + swaps - 1];
-                    pieces[compress_pointer + swaps - 1] = 0;
-                    swaps -= 1;
-                    piece_pointer -= 1;
-                }
-            }
-            _ => if piece_pointer != 8 {
-                return Err(ParseError::InvalidIpv6Address)
-            }
-        }
-        Ok(Ipv6Address { pieces: pieces })
+        i = 2;
+        piece_pointer = 1;
+        compress_pointer = Some(1);
     }
 
-    /// Serialize the IPv6 address to a string.
-    pub fn serialize(&self) -> String {
-        self.to_string()
-    }
-}
-
-
-impl fmt::Display for Ipv6Address {
-    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        let (compress_start, compress_end) = longest_zero_sequence(&self.pieces);
-        let mut i = 0;
-        while i < 8 {
-            if i == compress_start {
-                try!(formatter.write_str(":"));
-                if i == 0 {
-                    try!(formatter.write_str(":"));
-                }
-                if compress_end < 8 {
-                    i = compress_end;
-                } else {
-                    break;
-                }
-            }
-            try!(write!(formatter, "{:x}", self.pieces[i as usize]));
-            if i < 7 {
-                try!(formatter.write_str(":"));
+    while i < len {
+        if piece_pointer == 8 {
+            return Err(ParseError::InvalidIpv6Address)
+        }
+        if input[i] == b':' {
+            if compress_pointer.is_some() {
+                return Err(ParseError::InvalidIpv6Address)
             }
             i += 1;
+            piece_pointer += 1;
+            compress_pointer = Some(piece_pointer);
+            continue
         }
-        Ok(())
+        let start = i;
+        let end = cmp::min(len, start + 4);
+        let mut value = 0u16;
+        while i < end {
+            match from_hex(input[i]) {
+                Some(digit) => {
+                    value = value * 0x10 + digit as u16;
+                    i += 1;
+                },
+                None => break
+            }
+        }
+        if i < len {
+            match input[i] {
+                b'.' => {
+                    if i == start {
+                        return Err(ParseError::InvalidIpv6Address)
+                    }
+                    i = start;
+                    is_ip_v4 = true;
+                },
+                b':' => {
+                    i += 1;
+                    if i == len {
+                        return Err(ParseError::InvalidIpv6Address)
+                    }
+                },
+                _ => return Err(ParseError::InvalidIpv6Address)
+            }
+        }
+        if is_ip_v4 {
+            break
+        }
+        pieces[piece_pointer] = value;
+        piece_pointer += 1;
     }
-}
 
-
-fn longest_zero_sequence(pieces: &[u16; 8]) -> (isize, isize) {
-    let mut longest = -1;
-    let mut longest_length = -1;
-    let mut start = -1;
-    macro_rules! finish_sequence(
-        ($end: expr) => {
-            if start >= 0 {
-                let length = $end - start;
-                if length > longest_length {
-                    longest = start;
-                    longest_length = length;
+    if is_ip_v4 {
+        if piece_pointer > 6 {
+            return Err(ParseError::InvalidIpv6Address)
+        }
+        let mut dots_seen = 0;
+        while i < len {
+            // FIXME: https://github.com/whatwg/url/commit/1c22aa119c354e0020117e02571cec53f7c01064
+            let mut value = 0u16;
+            while i < len {
+                let digit = match input[i] {
+                    c @ b'0' ... b'9' => c - b'0',
+                    _ => break
+                };
+                value = value * 10 + digit as u16;
+                if value == 0 || value > 255 {
+                    return Err(ParseError::InvalidIpv6Address)
                 }
             }
-        };
-    );
-    for i in 0..8 {
-        if pieces[i as usize] == 0 {
-            if start < 0 {
-                start = i;
+            if dots_seen < 3 && !(i < len && input[i] == b'.') {
+                return Err(ParseError::InvalidIpv6Address)
             }
-        } else {
-            finish_sequence!(i);
-            start = -1;
+            pieces[piece_pointer] = pieces[piece_pointer] * 0x100 + value;
+            if dots_seen == 0 || dots_seen == 2 {
+                piece_pointer += 1;
+            }
+            i += 1;
+            if dots_seen == 3 && i < len {
+                return Err(ParseError::InvalidIpv6Address)
+            }
+            dots_seen += 1;
         }
     }
-    finish_sequence!(8);
-    (longest, longest + longest_length)
+
+    match compress_pointer {
+        Some(compress_pointer) => {
+            let mut swaps = piece_pointer - compress_pointer;
+            piece_pointer = 7;
+            while swaps > 0 {
+                pieces[piece_pointer] = pieces[compress_pointer + swaps - 1];
+                pieces[compress_pointer + swaps - 1] = 0;
+                swaps -= 1;
+                piece_pointer -= 1;
+            }
+        }
+        _ => if piece_pointer != 8 {
+            return Err(ParseError::InvalidIpv6Address)
+        }
+    }
+    Ok(Ipv6Addr::new(pieces[0], pieces[1], pieces[2], pieces[3],
+                     pieces[4], pieces[5], pieces[6], pieces[7]))
 }
