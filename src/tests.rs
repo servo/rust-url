@@ -8,6 +8,7 @@
 
 
 use std::char;
+use std::net::{Ipv4Addr, Ipv6Addr};
 use super::{UrlParser, Url, SchemeData, RelativeSchemeData, Host};
 
 
@@ -346,4 +347,22 @@ fn relative_scheme_data_equality() {
     let a: Url = url("http://foo.com");
     let b: Url = url("http://foo.com/");
     check_eq(&a, &b);
+}
+
+#[test]
+fn host() {
+    let a = Host::parse("www.mozilla.org").unwrap();
+    let b = Host::parse("1.35.33.49").unwrap();
+    let c = Host::parse("[2001:0db8:85a3:08d3:1319:8a2e:0370:7344]").unwrap();
+    assert_eq!(a, Host::Domain("www.mozilla.org".to_owned()));
+    assert_eq!(b, Host::Ipv4(Ipv4Addr::new(1, 35, 33, 49)));
+    assert_eq!(c, Host::Ipv6(Ipv6Addr::new(0x2001, 0x0db8, 0x85a3, 0x08d3,
+        0x1319, 0x8a2e, 0x0370, 0x7344)));
+    assert_eq!(Host::parse("[::]").unwrap(), Host::Ipv6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0)));
+    assert_eq!(Host::parse("[::1]").unwrap(), Host::Ipv6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)));
+    assert_eq!(Host::parse("0x1.0X23.0x21.061").unwrap(), Host::Ipv4(Ipv4Addr::new(1, 35, 33, 49)));
+    assert_eq!(Host::parse("0x1232131").unwrap(), Host::Ipv4(Ipv4Addr::new(1, 35, 33, 49)));
+    assert!(Host::parse("42.0x1232131").is_err());
+    assert_eq!(Host::parse("111").unwrap(), Host::Ipv4(Ipv4Addr::new(0, 0, 0, 111)));
+    assert_eq!(Host::parse("2..2.3").unwrap(), Host::Domain("2..2.3".to_owned()));
 }
