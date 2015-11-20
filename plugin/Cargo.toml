@@ -1,0 +1,11 @@
+[package]
+name = "url_plugin"
+version = "0.1.0"
+authors = ["Corey Farwell <coreyf@rwell.org>"]
+
+[lib]
+name = "url_plugin"
+plugin = true
+
+[dependencies.url]
+path = "../"
