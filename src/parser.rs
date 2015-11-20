@@ -47,6 +47,7 @@ simple_enum_error! {
     EmptyHost => "empty host",
     InvalidScheme => "invalid scheme",
     InvalidPort => "invalid port number",
+    InvalidIpv4Address => "invalid IPv4 address",
     InvalidIpv6Address => "invalid IPv6 address",
     InvalidDomainCharacter => "invalid domain character",
     InvalidCharacter => "invalid character",
