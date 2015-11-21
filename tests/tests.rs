@@ -366,4 +366,5 @@ fn host() {
     assert!(Host::parse("42.0x1232131").is_err());
     assert_eq!(Host::parse("111").unwrap(), Host::Ipv4(Ipv4Addr::new(0, 0, 0, 111)));
     assert_eq!(Host::parse("2..2.3").unwrap(), Host::Domain("2..2.3".to_owned()));
+    assert!(Host::parse("192.168.0.257").is_err());
 }
