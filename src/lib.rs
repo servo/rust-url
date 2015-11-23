@@ -122,7 +122,6 @@ assert!(css_url.serialize() == "http://servo.github.io/rust-url/main.css".to_str
 #![cfg_attr(feature="heap_size", plugin(heapsize_plugin))]
 
 extern crate rustc_serialize;
-extern crate uuid;
 
 #[macro_use]
 extern crate matches;
@@ -150,8 +149,6 @@ use percent_encoding::{percent_encode, lossy_utf8_percent_decode, DEFAULT_ENCODE
 
 use format::{PathFormatter, UserInfoFormatter, UrlNoFragmentFormatter};
 use encoding::EncodingOverride;
-
-use uuid::Uuid;
 
 mod encoding;
 mod host;
@@ -194,18 +191,26 @@ pub struct Url {
     pub fragment: Option<String>,
 }
 
-/// Opaque identifier for URLs that have file or other schemes
-#[derive(PartialEq, Eq, Clone, Debug)]
-pub struct OpaqueOrigin(Uuid);
-
 /// The origin of the URL
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(Eq, Clone, Debug)]
+#[cfg_attr(feature="heap_size", derive(HeapSizeOf))]
 pub enum Origin {
     /// A globally unique identifier
-    UID(OpaqueOrigin),
-
+    Opaque,
     /// Consists of the URL's scheme, host and port
     Tuple(String, Host, u16)
+}
+
+
+impl PartialEq for Origin {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (&Origin::Opaque, _) | (_, &Origin::Opaque) => false,
+            (&Origin::Tuple(ref scheme1, ref host1, ref port1),
+             &Origin::Tuple(ref scheme2, ref host2, ref port2)) => scheme1 == scheme2
+                && host1 == host2 && port1 == port2,
+        }
+    }
 }
 
 /// The components of the URL whose representation depends on where the scheme is *relative*.
@@ -631,7 +636,7 @@ impl Url {
                 let result = Url::parse(self.non_relative_scheme_data().unwrap());
                 match result {
                     Ok(ref url) => url.origin(),
-                    Err(_)  => Origin::UID(OpaqueOrigin(Uuid::new_v4()))
+                    Err(_)  => Origin::Opaque,
                 }
             },
             "ftp" | "gopher" | "http" | "https" | "ws" | "wss" => {
@@ -639,8 +644,8 @@ impl Url {
                     self.port_or_default().unwrap())
             },
             // TODO: Figure out what to do if the scheme is a file
-            "file" => Origin::UID(OpaqueOrigin(Uuid::new_v4())),
-            _ => Origin::UID(OpaqueOrigin(Uuid::new_v4()))
+            "file" => Origin::Opaque,
+            _ => Origin::Opaque,
         }
     }
 
