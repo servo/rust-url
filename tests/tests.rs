@@ -6,10 +6,11 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+extern crate url;
 
 use std::char;
 use std::net::{Ipv4Addr, Ipv6Addr};
-use super::{UrlParser, Url, SchemeData, RelativeSchemeData, Host};
+use url::{UrlParser, Url, SchemeData, RelativeSchemeData, Host};
 
 
 #[test]
