@@ -198,8 +198,19 @@ pub struct Url {
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct OpaqueOrigin(Uuid);
 
+#[cfg(feature="heap_size")]
+known_heap_size!(0, OpaqueOrigin);
+
+impl OpaqueOrigin {
+    /// Creates a new opaque origin with a random UUID.
+    pub fn new() -> OpaqueOrigin {
+        OpaqueOrigin(Uuid::new_v4())
+    }
+}
+
 /// The origin of the URL
 #[derive(PartialEq, Eq, Clone, Debug)]
+#[cfg_attr(feature="heap_size", derive(HeapSizeOf))]
 pub enum Origin {
     /// A globally unique identifier
     UID(OpaqueOrigin),
@@ -631,7 +642,7 @@ impl Url {
                 let result = Url::parse(self.non_relative_scheme_data().unwrap());
                 match result {
                     Ok(ref url) => url.origin(),
-                    Err(_)  => Origin::UID(OpaqueOrigin(Uuid::new_v4()))
+                    Err(_)  => Origin::UID(OpaqueOrigin::new())
                 }
             },
             "ftp" | "gopher" | "http" | "https" | "ws" | "wss" => {
@@ -639,8 +650,8 @@ impl Url {
                     self.port_or_default().unwrap())
             },
             // TODO: Figure out what to do if the scheme is a file
-            "file" => Origin::UID(OpaqueOrigin(Uuid::new_v4())),
-            _ => Origin::UID(OpaqueOrigin(Uuid::new_v4()))
+            "file" => Origin::UID(OpaqueOrigin::new()),
+            _ => Origin::UID(OpaqueOrigin::new())
         }
     }
 
