@@ -59,6 +59,12 @@ pub static FORM_URLENCODED_ENCODE_SET: EncodeSet = EncodeSet {
 /// https://tools.ietf.org/html/rfc5987#section-3.2
 pub static HTTP_VALUE_ENCODE_SET: EncodeSet = EncodeSet { map: &encode_sets::HTTP_VALUE };
 
+/// This encode set is used for OAuth 1.0 base signatures and is defined at
+/// https://tools.ietf.org/html/rfc5849#section-3.6
+pub static OAUTH_SIGNATURE_ENCODE_SET: EncodeSet = EncodeSet {
+    map: &encode_sets::OAUTH_SIGNATURE,
+};
+
 /// Percent-encode the given bytes, and push the result to `output`.
 ///
 /// The pushed strings are within the ASCII range.
