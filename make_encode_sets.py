@@ -30,7 +30,7 @@ for name, encoded in [
     ('USERNAME', r''' "#<>`?{}@\/:'''),
     ('FORM_URLENCODED', r''' !"#$%&\'()+,/:;<=>?@[\]^`{|}~'''),
     ('HTTP_VALUE', r''' "%'()*,/:;<->?[\]{}'''),
-    ('OAUTH_SIGNATURE', r''' !"#$%&\'*()+,/:;<=>?@[\]^`{|}'''),
+    ('UNRESERVED', r''' !"#$%&\'*()+,/:;<=>?@[\]^`{|}'''),
 ]:
     print(
         "pub static %s: [&'static str; 256] = [\n%s\n];\n\n"

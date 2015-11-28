@@ -60,9 +60,9 @@ pub static FORM_URLENCODED_ENCODE_SET: EncodeSet = EncodeSet {
 pub static HTTP_VALUE_ENCODE_SET: EncodeSet = EncodeSet { map: &encode_sets::HTTP_VALUE };
 
 /// This encode set is used for OAuth 1.0 base signatures and is defined at
-/// https://tools.ietf.org/html/rfc5849#section-3.6
-pub static OAUTH_SIGNATURE_ENCODE_SET: EncodeSet = EncodeSet {
-    map: &encode_sets::OAUTH_SIGNATURE,
+/// https://tools.ietf.org/html/rfc3986#section-2.3
+pub static UNRESERVED_ENCODE_SET: EncodeSet = EncodeSet {
+    map: &encode_sets::UNRESERVED,
 };
 
 /// Percent-encode the given bytes, and push the result to `output`.
