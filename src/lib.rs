@@ -635,7 +635,7 @@ impl Url {
         self.to_string()
     }
 
-    // Return the origin of this URL (https://url.spec.whatwg.org/#origin)
+    /// Return the origin of this URL (https://url.spec.whatwg.org/#origin)
     pub fn origin(&self) -> Origin {
         match &*self.scheme {
             "blob" => {
