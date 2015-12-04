@@ -23,6 +23,8 @@ use std::fmt::Write;
 /// A few sets are defined in this module.
 /// Use the [`define_encode_set!`](../macro.define_encode_set!.html) macro to define different ones.
 pub trait EncodeSet {
+    /// Called with UTF-8 bytes rather than code points.
+    /// Should return false for all non-ASCII bytes.
     fn contains(&self, byte: u8) -> bool;
 }
 
@@ -31,8 +33,7 @@ pub trait EncodeSet {
 /// for use in [`percent_decode()`](percent_encoding/fn.percent_encode.html)
 /// and related functions.
 ///
-/// Parameters are ASCII printable characters to include in the set
-/// in addition to U+0000 to U+001F and above U+007F.
+/// Parameters are characters to include in the set in addition to those of the base set.
 /// See [encode sets specification](http://url.spec.whatwg.org/#simple-encode-set).
 ///
 /// Example
@@ -40,68 +41,77 @@ pub trait EncodeSet {
 ///
 /// ```rust
 /// #[macro_use] extern crate url;
+/// use url::percent_encoding::{utf8_percent_encode, SIMPLE_ENCODE_SET};
 /// define_encode_set! {
 ///     /// This encode set is used in the URL parser for query strings.
-///     pub QUERY_ENCODE_SET = {' ', '"', '#', '<', '>'}
+///     pub QUERY_ENCODE_SET = [SIMPLE_ENCODE_SET] | {' ', '"', '#', '<', '>'}
 /// }
 /// # fn main() {
-/// assert_eq!(url::percent_encoding::percent_encode(b"foo bar", QUERY_ENCODE_SET), "foo%20bar");
+/// assert_eq!(utf8_percent_encode("foo bar", QUERY_ENCODE_SET), "foo%20bar");
 /// # }
 /// ```
 #[macro_export]
 macro_rules! define_encode_set {
-    ($(#[$attr: meta])* pub $name: ident = {$($ch: pat),*}) => {
+    ($(#[$attr: meta])* pub $name: ident = [$base_set: expr] | {$($ch: pat),*}) => {
         $(#[$attr])*
         #[derive(Copy, Clone)]
         #[allow(non_camel_case_types)]
         pub struct $name;
 
         impl $crate::percent_encoding::EncodeSet for $name {
+            #[inline]
             fn contains(&self, byte: u8) -> bool {
                 match byte as char {
                     $(
                         $ch => true,
                     )*
-                    _ => byte < 0x20 || byte > 0x7E
+                    _ => $base_set.contains(byte)
                 }
             }
         }
     }
 }
 
-define_encode_set! {
-    /// This encode set is used for fragment identifier and non-relative scheme data.
-    pub SIMPLE_ENCODE_SET = {}
+/// This encode set is used for fragment identifier and non-relative scheme data.
+#[derive(Copy, Clone)]
+#[allow(non_camel_case_types)]
+pub struct SIMPLE_ENCODE_SET;
+
+impl EncodeSet for SIMPLE_ENCODE_SET {
+    #[inline]
+    fn contains(&self, byte: u8) -> bool {
+        byte < 0x20 || byte > 0x7E
+    }
 }
 
 define_encode_set! {
     /// This encode set is used in the URL parser for query strings.
-    pub QUERY_ENCODE_SET = {' ', '"', '#', '<', '>'}
+    pub QUERY_ENCODE_SET = [SIMPLE_ENCODE_SET] | {' ', '"', '#', '<', '>'}
 }
 
 define_encode_set! {
     /// This encode set is used for path components.
-    pub DEFAULT_ENCODE_SET = {' ', '"', '#', '<', '>', '`', '?', '{', '}'}
+    pub DEFAULT_ENCODE_SET = [QUERY_ENCODE_SET] | {'`', '?', '{', '}'}
 }
 
 define_encode_set! {
     /// This encode set is used in the URL parser for usernames and passwords.
-    pub USERINFO_ENCODE_SET = {' ', '"', '#', '<', '>', '`', '?', '{', '}', '@'}
+    pub USERINFO_ENCODE_SET = [DEFAULT_ENCODE_SET] | {'@'}
 }
 
 define_encode_set! {
     /// This encode set should be used when setting the password field of a parsed URL.
-    pub PASSWORD_ENCODE_SET = {' ', '"', '#', '<', '>', '`', '?', '{', '}', '@', '\\', '/'}
+    pub PASSWORD_ENCODE_SET = [USERINFO_ENCODE_SET] | {'\\', '/'}
 }
 
 define_encode_set! {
     /// This encode set should be used when setting the username field of a parsed URL.
-    pub USERNAME_ENCODE_SET = {' ', '"', '#', '<', '>', '`', '?', '{', '}', '@', '\\', '/', ':'}
+    pub USERNAME_ENCODE_SET = [PASSWORD_ENCODE_SET] | {':'}
 }
 
 define_encode_set! {
     /// This encode set is used in `application/x-www-form-urlencoded` serialization.
-    pub FORM_URLENCODED_ENCODE_SET = {
+    pub FORM_URLENCODED_ENCODE_SET = [SIMPLE_ENCODE_SET] | {
         ' ', '!', '"', '#', '$', '%', '&', '\'', '(', ')', '+', ',', '/', ':', ';',
         '<', '=', '>', '?', '@', '[', '\\', ']', '^', '`', '{', '|', '}', '~'
     }
@@ -110,7 +120,7 @@ define_encode_set! {
 define_encode_set! {
     /// This encode set is used for HTTP header values and is defined at
     /// https://tools.ietf.org/html/rfc5987#section-3.2
-    pub HTTP_VALUE = {
+    pub HTTP_VALUE = [SIMPLE_ENCODE_SET] | {
         ' ', '"', '%', '\'', '(', ')', '*', ',', '/', ':', ';', '<', '-', '>', '?',
         '[', '\\', ']', '{', '}'
     }
