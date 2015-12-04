@@ -94,6 +94,9 @@ fn parse_ipv4number(mut input: &str) -> ParseResult<u32> {
     if input.is_empty() {
         return Ok(0);
     }
+    if input.starts_with("+") {
+        return Err(ParseError::InvalidIpv4Address)
+    }
     match u32::from_str_radix(&input, r) {
         Ok(number) => return Ok(number),
         Err(_) => Err(ParseError::InvalidIpv4Address),
