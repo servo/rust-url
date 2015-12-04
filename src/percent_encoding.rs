@@ -117,15 +117,6 @@ define_encode_set! {
     }
 }
 
-define_encode_set! {
-    /// This encode set is used for HTTP header values and is defined at
-    /// https://tools.ietf.org/html/rfc5987#section-3.2
-    pub HTTP_VALUE = [SIMPLE_ENCODE_SET] | {
-        ' ', '"', '%', '\'', '(', ')', '*', ',', '/', ':', ';', '<', '-', '>', '?',
-        '[', '\\', ']', '{', '}'
-    }
-}
-
 /// Percent-encode the given bytes, and push the result to `output`.
 ///
 /// The pushed strings are within the ASCII range.
