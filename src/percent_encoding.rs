@@ -6,9 +6,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-
-#[path = "encode_sets.rs"]
-mod encode_sets;
+use std::ascii::AsciiExt;
+use std::fmt::Write;
 
 /// Represents a set of characters / bytes that should be percent-encoded.
 ///
@@ -21,51 +20,116 @@ mod encode_sets;
 /// In the query string however, a question mark does not have any special meaning
 /// and does not need to be percent-encoded.
 ///
-/// Since the implementation details of `EncodeSet` are private,
-/// the set of available encode sets is not extensible beyond the ones
-/// provided here.
-/// If you need a different encode set,
-/// please [file a bug](https://github.com/servo/rust-url/issues)
-/// explaining the use case.
-#[derive(Copy, Clone)]
-pub struct EncodeSet {
-    map: &'static [&'static str; 256],
+/// A few sets are defined in this module.
+/// Use the [`define_encode_set!`](../macro.define_encode_set!.html) macro to define different ones.
+pub trait EncodeSet {
+    fn contains(&self, byte: u8) -> bool;
 }
 
-/// This encode set is used for fragment identifier and non-relative scheme data.
-pub static SIMPLE_ENCODE_SET: EncodeSet = EncodeSet { map: &encode_sets::SIMPLE };
+/// Define a new struct
+/// that implements the [`EncodeSet`](percent_encoding/trait.EncodeSet.html) trait,
+/// for use in [`percent_decode()`](percent_encoding/fn.percent_encode.html)
+/// and related functions.
+///
+/// Parameters are ASCII printable characters to include in the set
+/// in addition to U+0000 to U+001F and above U+007F.
+/// See [encode sets specification](http://url.spec.whatwg.org/#simple-encode-set).
+///
+/// Example
+/// =======
+///
+/// ```rust
+/// #[macro_use] extern crate url;
+/// define_encode_set! {
+///     /// This encode set is used in the URL parser for query strings.
+///     pub QUERY_ENCODE_SET = {' ', '"', '#', '<', '>'}
+/// }
+/// # fn main() {
+/// assert_eq!(url::percent_encoding::percent_encode(b"foo bar", QUERY_ENCODE_SET), "foo%20bar");
+/// # }
+/// ```
+#[macro_export]
+macro_rules! define_encode_set {
+    ($(#[$attr: meta])* pub $name: ident = {$($ch: pat),*}) => {
+        $(#[$attr])*
+        #[derive(Copy, Clone)]
+        #[allow(non_camel_case_types)]
+        pub struct $name;
 
-/// This encode set is used in the URL parser for query strings.
-pub static QUERY_ENCODE_SET: EncodeSet = EncodeSet { map: &encode_sets::QUERY };
+        impl $crate::percent_encoding::EncodeSet for $name {
+            fn contains(&self, byte: u8) -> bool {
+                match byte as char {
+                    $(
+                        $ch => true,
+                    )*
+                    _ => byte < 0x20 || byte > 0x7E
+                }
+            }
+        }
+    }
+}
 
-/// This encode set is used for path components.
-pub static DEFAULT_ENCODE_SET: EncodeSet = EncodeSet { map: &encode_sets::DEFAULT };
+define_encode_set! {
+    /// This encode set is used for fragment identifier and non-relative scheme data.
+    pub SIMPLE_ENCODE_SET = {}
+}
 
-/// This encode set is used in the URL parser for usernames and passwords.
-pub static USERINFO_ENCODE_SET: EncodeSet = EncodeSet { map: &encode_sets::USERINFO };
+define_encode_set! {
+    /// This encode set is used in the URL parser for query strings.
+    pub QUERY_ENCODE_SET = {' ', '"', '#', '<', '>'}
+}
 
-/// This encode set should be used when setting the password field of a parsed URL.
-pub static PASSWORD_ENCODE_SET: EncodeSet = EncodeSet { map: &encode_sets::PASSWORD };
+define_encode_set! {
+    /// This encode set is used for path components.
+    pub DEFAULT_ENCODE_SET = {' ', '"', '#', '<', '>', '`', '?', '{', '}'}
+}
 
-/// This encode set should be used when setting the username field of a parsed URL.
-pub static USERNAME_ENCODE_SET: EncodeSet = EncodeSet { map: &encode_sets::USERNAME };
+define_encode_set! {
+    /// This encode set is used in the URL parser for usernames and passwords.
+    pub USERINFO_ENCODE_SET = {' ', '"', '#', '<', '>', '`', '?', '{', '}', '@'}
+}
 
-/// This encode set is used in `application/x-www-form-urlencoded` serialization.
-pub static FORM_URLENCODED_ENCODE_SET: EncodeSet = EncodeSet {
-    map: &encode_sets::FORM_URLENCODED,
-};
+define_encode_set! {
+    /// This encode set should be used when setting the password field of a parsed URL.
+    pub PASSWORD_ENCODE_SET = {' ', '"', '#', '<', '>', '`', '?', '{', '}', '@', '\\', '/'}
+}
 
-/// This encode set is used for HTTP header values and is defined at
-/// https://tools.ietf.org/html/rfc5987#section-3.2
-pub static HTTP_VALUE_ENCODE_SET: EncodeSet = EncodeSet { map: &encode_sets::HTTP_VALUE };
+define_encode_set! {
+    /// This encode set should be used when setting the username field of a parsed URL.
+    pub USERNAME_ENCODE_SET = {' ', '"', '#', '<', '>', '`', '?', '{', '}', '@', '\\', '/', ':'}
+}
+
+define_encode_set! {
+    /// This encode set is used in `application/x-www-form-urlencoded` serialization.
+    pub FORM_URLENCODED_ENCODE_SET = {
+        ' ', '!', '"', '#', '$', '%', '&', '\'', '(', ')', '+', ',', '/', ':', ';',
+        '<', '=', '>', '?', '@', '[', '\\', ']', '^', '`', '{', '|', '}', '~'
+    }
+}
+
+define_encode_set! {
+    /// This encode set is used for HTTP header values and is defined at
+    /// https://tools.ietf.org/html/rfc5987#section-3.2
+    pub HTTP_VALUE = {
+        ' ', '"', '%', '\'', '(', ')', '*', ',', '/', ':', ';', '<', '-', '>', '?',
+        '[', '\\', ']', '{', '}'
+    }
+}
 
 /// Percent-encode the given bytes, and push the result to `output`.
 ///
 /// The pushed strings are within the ASCII range.
 #[inline]
-pub fn percent_encode_to(input: &[u8], encode_set: EncodeSet, output: &mut String) {
+pub fn percent_encode_to<E: EncodeSet>(input: &[u8], encode_set: E, output: &mut String) {
     for &byte in input {
-        output.push_str(encode_set.map[byte as usize])
+        if encode_set.contains(byte) {
+            write!(output, "%{:02X}", byte).unwrap();
+        } else {
+            assert!(byte.is_ascii());
+            unsafe {
+                output.as_mut_vec().push(byte)
+            }
+        }
     }
 }
 
@@ -74,7 +138,7 @@ pub fn percent_encode_to(input: &[u8], encode_set: EncodeSet, output: &mut Strin
 ///
 /// The returned string is within the ASCII range.
 #[inline]
-pub fn percent_encode(input: &[u8], encode_set: EncodeSet) -> String {
+pub fn percent_encode<E: EncodeSet>(input: &[u8], encode_set: E) -> String {
     let mut output = String::new();
     percent_encode_to(input, encode_set, &mut output);
     output
@@ -85,7 +149,7 @@ pub fn percent_encode(input: &[u8], encode_set: EncodeSet) -> String {
 ///
 /// The pushed strings are within the ASCII range.
 #[inline]
-pub fn utf8_percent_encode_to(input: &str, encode_set: EncodeSet, output: &mut String) {
+pub fn utf8_percent_encode_to<E: EncodeSet>(input: &str, encode_set: E, output: &mut String) {
     percent_encode_to(input.as_bytes(), encode_set, output)
 }
 
@@ -94,7 +158,7 @@ pub fn utf8_percent_encode_to(input: &str, encode_set: EncodeSet, output: &mut S
 ///
 /// The returned string is within the ASCII range.
 #[inline]
-pub fn utf8_percent_encode(input: &str, encode_set: EncodeSet) -> String {
+pub fn utf8_percent_encode<E: EncodeSet>(input: &str, encode_set: E) -> String {
     let mut output = String::new();
     utf8_percent_encode_to(input, encode_set, &mut output);
     output
