@@ -24,12 +24,12 @@ fn test_uts46() {
 
         let mut pieces = line.split(';').map(|x| x.trim()).collect::<Vec<&str>>();
 
-        let testType = pieces.remove(0);
+        let test_type = pieces.remove(0);
         let original = pieces.remove(0);
         let source = unescape(original);
-        let toUnicode = pieces.remove(0);
-        let toAscii = pieces.remove(0);
-        let nv8 = pieces.len() > 0;
+        let to_unicode = pieces.remove(0);
+        let to_ascii = pieces.remove(0);
+        let _nv8 = pieces.len() > 0;
 
         if expected_failure {
             continue;
@@ -37,20 +37,20 @@ fn test_uts46() {
 
         let result = idna::uts46_to_ascii(&source, idna::Uts46Flags {
             use_std3_ascii_rules: true,
-            transitional_processing: testType != "N"
+            transitional_processing: test_type != "N"
         });
         let res = result.ok();
 
-        if toAscii.starts_with("[") {
+        if to_ascii.starts_with("[") {
             //assert!(res == None, "Expected error. result: {} | original: {} | source: {}", res.unwrap(), original, source);
             continue;
         }
 
-        let toAscii = if toAscii.len() > 0 {
-            toAscii.to_string()
+        let to_ascii = if to_ascii.len() > 0 {
+            to_ascii.to_string()
         } else {
-            if toUnicode.len() > 0 {
-                toUnicode.to_string()
+            if to_unicode.len() > 0 {
+                to_unicode.to_string()
             } else {
                 source.clone()
             }
@@ -58,7 +58,7 @@ fn test_uts46() {
 
         assert!(res != None, "Couldn't parse {} ", source);
         let output = res.unwrap();
-        assert!(output == toAscii, "result: {} | expected: {} | original: {} | source: {}", output, toAscii, original, source);
+        assert!(output == to_ascii, "result: {} | expected: {} | original: {} | source: {}", output, to_ascii, original, source);
     }
 }
 

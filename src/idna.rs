@@ -2,41 +2,12 @@
 //!
 //! https://url.spec.whatwg.org/#idna
 
-use idna_mapping::*;
+use idna_mapping::{TABLE, Mapping};
 use punycode;
 use std::ascii::AsciiExt;
 use unicode_normalization::UnicodeNormalization;
 
-fn idna_mapped(mapping: &'static [char]) -> Result<String, Error> {
-    let mut ret = "".to_string();
-    for &c in mapping {
-        ret.push(c)
-    }
-    return Ok(ret);
-}
-
-fn idna_deviation(codepoint: char, mapping: &'static [char], transitional: bool) -> Result<String, Error> {
-    if transitional {
-       return idna_mapped(mapping);
-    }
-    return Ok(codepoint.to_string());
-}
-
-fn idna_disallowed_std3_valid(codepoint: char, use_std3_asciirules: bool) -> Result<String, Error> {
-    if use_std3_asciirules {
-        return Err(Error::DissallowedByStd3AsciiRules);
-    }
-    return Ok(codepoint.to_string());
-}
-
-fn idna_disallowed_std3_mapped(mapping: &'static [char], use_std3_asciirules: bool) -> Result<String, Error> {
-    if use_std3_asciirules {
-        return Err(Error::DissallowedMappedInStd3);
-    }
-    return idna_mapped(mapping);
-}
-
-fn map_char(codepoint: char, flags: Uts46Flags) -> Result<String, Error> {
+fn map_char(codepoint: char, flags: Uts46Flags, output: &mut String) -> Result<(), Error> {
     let mut min = 0;
     let mut max = TABLE.len() - 1;
     while max > min {
@@ -51,29 +22,51 @@ fn map_char(codepoint: char, flags: Uts46Flags) -> Result<String, Error> {
         }
     }
 
-    let mapping = TABLE[min].mapping;
-
-    match TABLE[min].status {
-        MappingStatus::valid => Ok(codepoint.to_string()),
-        MappingStatus::ignored => Ok("".to_string()),
-        MappingStatus::mapped => idna_mapped(mapping),
-        MappingStatus::deviation => {
-            idna_deviation(codepoint, mapping, flags.transitional_processing)
+    match TABLE[min].mapping {
+        Mapping::Valid => output.push(codepoint),
+        Mapping::Ignored => {},
+        Mapping::Mapped(mapping) => output.push_str(mapping),
+        Mapping::Deviation(mapping) => {
+            if flags.transitional_processing {
+                output.push_str(mapping)
+            } else {
+                output.push(codepoint)
+            }
         }
-        MappingStatus::disallowed => Err(Error::DissallowedCharacter),
-        MappingStatus::disallowed_STD3_valid => {
-            idna_disallowed_std3_valid(codepoint, flags.use_std3_ascii_rules)
+        Mapping::Disallowed => return Err(Error::DissallowedCharacter),
+        Mapping::DisallowedStd3Valid => {
+            if flags.use_std3_ascii_rules {
+                return Err(Error::DissallowedByStd3AsciiRules);
+            } else {
+                output.push(codepoint)
+            }
         }
-        MappingStatus::disallowed_STD3_mapped => {
-            idna_disallowed_std3_mapped(mapping, flags.use_std3_ascii_rules)
+        Mapping::DisallowedStd3Mapped(mapping) => {
+            if flags.use_std3_ascii_rules {
+                return Err(Error::DissallowedMappedInStd3);
+            } else {
+                output.push_str(mapping)
+            }
         }
     }
+    Ok(())
+}
+
+/// http://www.unicode.org/reports/tr46/#Processing
+fn uts46_processing(domain: &str, flags: Uts46Flags) -> Result<String, Error> {
+    let mut mapped = String::new();
+    for c in domain.chars() {
+        try!(map_char(c, flags, &mut mapped))
+    }
+    Ok(mapped.nfc().collect())
+    // FIXME: steps 3 & 4: Break & Convert/Validate
 }
 
 #[derive(Copy, Clone)]
 pub struct Uts46Flags {
    pub use_std3_ascii_rules: bool,
    pub transitional_processing: bool,
+   // FIXME: verify_dns_length: bool,
 }
 
 pub enum Error {
@@ -85,21 +78,8 @@ pub enum Error {
 
 /// http://www.unicode.org/reports/tr46/#ToASCII
 pub fn uts46_to_ascii(domain: &str, flags: Uts46Flags) -> Result<String, Error> {
-    let mut ret = String::new();
-    for c in domain.chars() {
-        match map_char(c, flags) {
-            Ok(mystr) => ret.push_str(&mystr),
-            Err(x) => return Err(x)
-        }
-    }
-
-    // normalize NFC
-    let ret = ret.nfc().collect::<String>();
-
-    let vec: Vec<&str> = ret.split(".").collect();
     let mut result = String::new();
-
-    for label in vec {
+    for label in try!(uts46_processing(domain, flags)).split(".") {
         if label.is_ascii() {
             if result.len() > 0 {
                 result.push('.');
@@ -118,6 +98,7 @@ pub fn uts46_to_ascii(domain: &str, flags: Uts46Flags) -> Result<String, Error> 
             }
         }
     }
+    // FIXME: step 4: optionally verify dns length
 
     return Ok(result);
 }
@@ -127,5 +108,6 @@ pub fn domain_to_ascii(domain: &str) -> Result<String, Error> {
     uts46_to_ascii(domain, Uts46Flags {
         use_std3_ascii_rules: false,
         transitional_processing: true,
+        //verify_dns_length: false,
     })
 }
