@@ -36,15 +36,15 @@ pub enum MappingStatus {
 }
 
 pub struct Mapping {
-    pub from: u32,
-    pub to: u32,
+    pub from: char,
+    pub to: char,
     pub status: MappingStatus,
-    pub mapping: &'static [u32],
+    pub mapping: &'static [char],
 }
 
 ''')
 
-print("static NONE: [u32;0] = [];")
+print("static NONE: [char;0] = [];")
 
 txt = open("IdnaMappingTable.txt")
 line_no = 0
@@ -58,7 +58,10 @@ for line in txt:
     line_no = line_no + 1
 
 txt = open("IdnaMappingTable.txt")
-print("pub static TABLE: [Mapping; "+str(line_no)+"] = [")
+print("pub static TABLE: &'static [Mapping] = &[")
+
+def char(s):
+    return "'%s'" % unichr(int(s, 16)).replace('\\', '\\\\').replace('\'', '\\\'').encode('utf8')
 
 mappings = []
 
@@ -69,6 +72,8 @@ for line in txt:
     if len(head.strip()) == 0:
         continue
     table_line = head.split(';')
+    if table_line[0].strip() == 'D800..DFFF':
+        continue  # Surrogates don't occur in Rust strings.
     first, sep, last = table_line[0].strip().partition('..')
     if len(last)==0:
         last = first
@@ -78,12 +83,12 @@ for line in txt:
             codes = table_line[2].strip().split(' ')
             newmap = ""
             for code in codes:
-                newmap = newmap + "0x" + code + ", "
+                newmap = newmap + char(code) + ", "
             newmap = "[" + newmap + "]"
             mapping = "MAPPING_%s_%s" % (first, last)
-            static_array = "static %s : [u32; %d] = %s;" % (mapping, len(codes), newmap)
+            static_array = "static %s : [char; %d] = %s;" % (mapping, len(codes), newmap)
             mappings.append(static_array)
-    print "    Mapping{ from: 0x%s, to: 0x%s, status: MappingStatus::%s, mapping: &%s }," % (first, last, table_line[1].strip(), mapping)
+    print "    Mapping{ from: %s, to: %s, status: MappingStatus::%s, mapping: &%s }," % (char(first), char(last), table_line[1].strip(), mapping)
 
 print("];")
 
