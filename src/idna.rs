@@ -2,12 +2,29 @@
 //!
 //! https://url.spec.whatwg.org/#idna
 
-use idna_mapping::{TABLE, Mapping};
+use idna_mapping::TABLE;
 use punycode;
 use std::ascii::AsciiExt;
 use unicode_normalization::UnicodeNormalization;
 
-fn map_char(codepoint: char, flags: Uts46Flags, output: &mut String) -> Result<(), Error> {
+#[derive(Debug)]
+pub enum Mapping {
+    Valid,
+    Ignored,
+    Mapped(&'static str),
+    Deviation(&'static str),
+    Disallowed,
+    DisallowedStd3Valid,
+    DisallowedStd3Mapped(&'static str),
+}
+
+pub struct Range {
+    pub from: char,
+    pub to: char,
+    pub mapping: Mapping,
+}
+
+fn find_char(codepoint: char) -> &'static Mapping {
     let mut min = 0;
     let mut max = TABLE.len() - 1;
     while max > min {
@@ -21,8 +38,11 @@ fn map_char(codepoint: char, flags: Uts46Flags, output: &mut String) -> Result<(
             max = mid;
         }
     }
+    &TABLE[min].mapping
+}
 
-    match TABLE[min].mapping {
+fn map_char(codepoint: char, flags: Uts46Flags, output: &mut String) -> Result<(), Error> {
+    match *find_char(codepoint) {
         Mapping::Valid => output.push(codepoint),
         Mapping::Ignored => {},
         Mapping::Mapped(mapping) => output.push_str(mapping),
@@ -52,14 +72,68 @@ fn map_char(codepoint: char, flags: Uts46Flags, output: &mut String) -> Result<(
     Ok(())
 }
 
+fn is_combining_mark(c: char) -> bool {
+    false  // FIXME General_Category=Mark
+}
+
+/// http://www.unicode.org/reports/tr46/#Validity_Criteria
+fn validate(label: &str, flags: Uts46Flags) -> Result<(), Error> {
+    // Input is from nfc(), so it must be in NFC?
+    // Can not contain '.' since the input is from .split('.')
+    if {
+        let mut chars = label.chars();
+        let _first = chars.next();
+        let _first = chars.next();
+        let third = chars.next();
+        let fourth = chars.next();
+        (third, fourth) == (Some('-'), Some('-'))
+    } || label.starts_with("-")
+        || label.ends_with("-")
+        // FIXME: are these two implied by being output of map_char()?
+        || label.chars().next().map_or(false, is_combining_mark)
+        || label.chars().any(|c| match *find_char(c) {
+            Mapping::Valid => false,
+            Mapping::Deviation(_) => flags.transitional_processing,
+            Mapping::DisallowedStd3Valid => flags.use_std3_ascii_rules,
+            _ => true,
+        })
+        // FIXME: add "The Bidi Rule" http://tools.ietf.org/html/rfc5893#section-2
+    {
+        Err(Error::ValidityCriteria)
+    } else {
+        Ok(())
+    }
+}
+
 /// http://www.unicode.org/reports/tr46/#Processing
 fn uts46_processing(domain: &str, flags: Uts46Flags) -> Result<String, Error> {
     let mut mapped = String::new();
     for c in domain.chars() {
         try!(map_char(c, flags, &mut mapped))
     }
-    Ok(mapped.nfc().collect())
-    // FIXME: steps 3 & 4: Break & Convert/Validate
+    let normalized: String = mapped.nfc().collect();
+    let mut validated = String::new();
+    for label in normalized.split('.') {
+        if validated.len() > 0 {
+            validated.push('.');
+        }
+        if label.starts_with("xn--") {
+            match punycode::decode_to_string(&label["xn--".len()..]) {
+                Some(label) => {
+                    try!(validate(&label, Uts46Flags {
+                        transitional_processing: false,
+                        ..flags
+                    }));
+                    validated.push_str(&label)
+                }
+                None => return Err(Error::PunycodeError),
+            }
+        } else {
+            try!(validate(label, flags));
+            validated.push_str(label)
+        }
+    }
+    Ok(validated)
 }
 
 #[derive(Copy, Clone)]
@@ -70,7 +144,8 @@ pub struct Uts46Flags {
 }
 
 pub enum Error {
-    PunycodeEncodingError,
+    PunycodeError,
+    ValidityCriteria,
     DissallowedByStd3AsciiRules,
     DissallowedMappedInStd3,
     DissallowedCharacter,
@@ -81,21 +156,18 @@ pub enum Error {
 pub fn uts46_to_ascii(domain: &str, flags: Uts46Flags) -> Result<String, Error> {
     let mut result = String::new();
     for label in try!(uts46_processing(domain, flags)).split('.') {
+        if result.len() > 0 {
+            result.push('.');
+        }
         if label.is_ascii() {
-            if result.len() > 0 {
-                result.push('.');
-            }
             result.push_str(label);
         } else {
             match punycode::encode_str(label) {
                 Some(x) => {
-                    if result.len() > 0 {
-                        result.push('.');
-                    }
                     result.push_str("xn--");
                     result.push_str(&x);
                 },
-                None => return Err(Error::PunycodeEncodingError)
+                None => return Err(Error::PunycodeError)
             }
         }
     }
