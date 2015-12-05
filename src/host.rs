@@ -77,10 +77,69 @@ impl fmt::Display for Host {
         match *self {
             Host::Domain(ref domain) => domain.fmt(f),
             Host::Ipv4(ref addr) => addr.fmt(f),
-            Host::Ipv6(ref addr) => write!(f, "[{}]", addr),
+            Host::Ipv6(ref addr) => {
+                try!(f.write_str("["));
+                try!(write_ipv6(addr, f));
+                f.write_str("]")
+            }
         }
     }
 }
+
+fn write_ipv6(addr: &Ipv6Addr, f: &mut Formatter) -> fmt::Result {
+    let segments = addr.segments();
+    let (compress_start, compress_end) = longest_zero_sequence(&segments);
+    let mut i = 0;
+    while i < 8 {
+        if i == compress_start {
+            try!(f.write_str(":"));
+            if i == 0 {
+                try!(f.write_str(":"));
+            }
+            if compress_end < 8 {
+                i = compress_end;
+            } else {
+                break;
+            }
+        }
+        try!(write!(f, "{:x}", segments[i as usize]));
+        if i < 7 {
+            try!(f.write_str(":"));
+        }
+        i += 1;
+    }
+    Ok(())
+}
+
+fn longest_zero_sequence(pieces: &[u16; 8]) -> (isize, isize) {
+    let mut longest = -1;
+    let mut longest_length = -1;
+    let mut start = -1;
+    macro_rules! finish_sequence(
+        ($end: expr) => {
+            if start >= 0 {
+                let length = $end - start;
+                if length > longest_length {
+                    longest = start;
+                    longest_length = length;
+                }
+            }
+        };
+    );
+    for i in 0..8 {
+        if pieces[i as usize] == 0 {
+            if start < 0 {
+                start = i;
+            }
+        } else {
+            finish_sequence!(i);
+            start = -1;
+        }
+    }
+    finish_sequence!(8);
+    (longest, longest + longest_length)
+}
+
 
 fn parse_ipv4number(mut input: &str) -> ParseResult<u32> {
     let mut r = 10;
@@ -123,6 +182,7 @@ fn parse_ipv4addr(input: &str) -> ParseResult<Option<Ipv4Addr>> {
         }
     }
     let mut ipv4 = numbers.pop().expect("a non-empty list of numbers");
+    // Equivalent to: ipv4 >= 256 ** (4 − numbers.len())
     if ipv4 > u32::max_value() >> (8 * numbers.len() as u32)  {
         return Err(ParseError::InvalidIpv4Address);
     }

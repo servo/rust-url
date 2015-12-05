@@ -1,6 +1,6 @@
 extern crate url;
 
-use url::Url;
+use url::{Url, Host};
 use url::format::{PathFormatter, UserInfoFormatter};
 
 #[test]
@@ -16,6 +16,17 @@ fn path_formatting() {
             path: path
         }.to_string(), result.to_string());
     }
+}
+
+#[test]
+fn host() {
+    // libstd’s `Display for Ipv6Addr` serializes 0:0:0:0:0:0:_:_ and 0:0:0:0:0:ffff:_:_
+    // using IPv4-like syntax, as suggested in https://tools.ietf.org/html/rfc5952#section-4
+    // but https://url.spec.whatwg.org/#concept-ipv6-serializer specifies not to.
+
+    // Not [::0.0.0.2] / [::ffff:0.0.0.2]
+    assert_eq!(Host::parse("[0::2]").unwrap().to_string(), "[::2]");
+    assert_eq!(Host::parse("[0::ffff:0:2]").unwrap().to_string(), "[::ffff:0:2]");
 }
 
 #[test]
