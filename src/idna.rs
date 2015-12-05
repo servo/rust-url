@@ -8,39 +8,39 @@ use std::ascii::AsciiExt;
 use std::char;
 use unicode_normalization::UnicodeNormalization;
 
-fn idna_mapped(mapping: &'static [u32]) -> Result<String, &'static str> {
+fn idna_mapped(mapping: &'static [u32]) -> Result<String, Error> {
     let mut ret = "".to_string();
     for c in mapping {
         match char::from_u32(*c) {
             Some(c) => ret.push(c),
-            None => return Err("Disallowed character in mapping")
+            None => return Err(Error::InvalidCharacterInMapping)
         }
     }
     return Ok(ret);
 }
 
-fn idna_deviation(codepoint: char, mapping: &'static [u32], transitional: bool) -> Result<String, &'static str> {
+fn idna_deviation(codepoint: char, mapping: &'static [u32], transitional: bool) -> Result<String, Error> {
     if transitional {
        return idna_mapped(mapping);
     }
     return Ok(codepoint.to_string());
 }
 
-fn idna_disallowed_std3_valid(codepoint: char, use_std3_asciirules: bool) -> Result<String, &'static str> {
+fn idna_disallowed_std3_valid(codepoint: char, use_std3_asciirules: bool) -> Result<String, Error> {
     if use_std3_asciirules {
-        return Err("Dissallowed. Only valid in STD3");
+        return Err(Error::DissallowedByStd3AsciiRules);
     }
     return Ok(codepoint.to_string());
 }
 
-fn idna_disallowed_std3_mapped(mapping: &'static [u32], use_std3_asciirules: bool) -> Result<String, &'static str> {
+fn idna_disallowed_std3_mapped(mapping: &'static [u32], use_std3_asciirules: bool) -> Result<String, Error> {
     if use_std3_asciirules {
-        return Err("Dissallowed. Mapped in STD3");
+        return Err(Error::DissallowedMappedInStd3);
     }
     return idna_mapped(mapping);
 }
 
-fn map_char(codepoint: char, flags: Uts46Flags) -> Result<String, &'static str> {
+fn map_char(codepoint: char, flags: Uts46Flags) -> Result<String, Error> {
     let mut min = 0;
     let mut max = TABLE.len() - 1;
     while max > min {
@@ -64,7 +64,7 @@ fn map_char(codepoint: char, flags: Uts46Flags) -> Result<String, &'static str> 
         MappingStatus::deviation => {
             idna_deviation(codepoint, mapping, flags.transitional_processing)
         }
-        MappingStatus::disallowed => Err("Dissallowed"),
+        MappingStatus::disallowed => Err(Error::DissallowedCharacter),
         MappingStatus::disallowed_STD3_valid => {
             idna_disallowed_std3_valid(codepoint, flags.use_std3_ascii_rules)
         }
@@ -80,8 +80,16 @@ pub struct Uts46Flags {
    pub transitional_processing: bool,
 }
 
+pub enum Error {
+    PunycodeEncodingError,
+    InvalidCharacterInMapping,
+    DissallowedByStd3AsciiRules,
+    DissallowedMappedInStd3,
+    DissallowedCharacter,
+}
+
 /// http://www.unicode.org/reports/tr46/#ToASCII
-pub fn uts46_to_ascii(domain: &str, flags: Uts46Flags) -> Result<String, &'static str> {
+pub fn uts46_to_ascii(domain: &str, flags: Uts46Flags) -> Result<String, Error> {
     let mut ret = String::new();
     for c in domain.chars() {
         match map_char(c, flags) {
@@ -111,7 +119,7 @@ pub fn uts46_to_ascii(domain: &str, flags: Uts46Flags) -> Result<String, &'stati
                     result.push_str("xn--");
                     result.push_str(&x);
                 },
-                None => return Err("punycode::encode_str failed")
+                None => return Err(Error::PunycodeEncodingError)
             }
         }
     }
@@ -120,7 +128,7 @@ pub fn uts46_to_ascii(domain: &str, flags: Uts46Flags) -> Result<String, &'stati
 }
 
 /// https://url.spec.whatwg.org/#concept-domain-to-ascii
-pub fn domain_to_ascii(domain: &str) -> Result<String, &'static str> {
+pub fn domain_to_ascii(domain: &str) -> Result<String, Error> {
     uts46_to_ascii(domain, Uts46Flags {
         use_std3_ascii_rules: false,
         transitional_processing: true,
