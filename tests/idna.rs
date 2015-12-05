@@ -37,7 +37,8 @@ fn test_uts46() {
 
         let result = idna::uts46_to_ascii(&source, idna::Uts46Flags {
             use_std3_ascii_rules: true,
-            transitional_processing: test_type != "N"
+            transitional_processing: test_type != "N",
+            verify_dns_length: true,
         });
         let res = result.ok();
 

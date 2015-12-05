@@ -66,7 +66,7 @@ fn uts46_processing(domain: &str, flags: Uts46Flags) -> Result<String, Error> {
 pub struct Uts46Flags {
    pub use_std3_ascii_rules: bool,
    pub transitional_processing: bool,
-   // FIXME: verify_dns_length: bool,
+   pub verify_dns_length: bool,
 }
 
 pub enum Error {
@@ -74,12 +74,13 @@ pub enum Error {
     DissallowedByStd3AsciiRules,
     DissallowedMappedInStd3,
     DissallowedCharacter,
+    TooLongForDns,
 }
 
 /// http://www.unicode.org/reports/tr46/#ToASCII
 pub fn uts46_to_ascii(domain: &str, flags: Uts46Flags) -> Result<String, Error> {
     let mut result = String::new();
-    for label in try!(uts46_processing(domain, flags)).split(".") {
+    for label in try!(uts46_processing(domain, flags)).split('.') {
         if label.is_ascii() {
             if result.len() > 0 {
                 result.push('.');
@@ -98,9 +99,15 @@ pub fn uts46_to_ascii(domain: &str, flags: Uts46Flags) -> Result<String, Error> 
             }
         }
     }
-    // FIXME: step 4: optionally verify dns length
 
-    return Ok(result);
+    if flags.verify_dns_length {
+        let domain = if result.ends_with(".") { &result[..result.len()-1]  } else { &*result };
+        if domain.len() < 1 || domain.len() > 253 ||
+                domain.split('.').any(|label| label.len() < 1 || label.len() > 63) {
+            return Err(Error::TooLongForDns)
+        }
+    }
+    Ok(result)
 }
 
 /// https://url.spec.whatwg.org/#concept-domain-to-ascii
@@ -108,6 +115,6 @@ pub fn domain_to_ascii(domain: &str) -> Result<String, Error> {
     uts46_to_ascii(domain, Uts46Flags {
         use_std3_ascii_rules: false,
         transitional_processing: true,
-        //verify_dns_length: false,
+        verify_dns_length: false,
     })
 }
