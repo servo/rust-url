@@ -1,8 +1,7 @@
 extern crate url;
 
-use std::ascii::AsciiExt;
 use std::char;
-use url::idna::domain_to_ascii_options;
+use url::idna;
 
 #[test]
 fn test_uts46() {
@@ -36,7 +35,10 @@ fn test_uts46() {
             continue;
         }
 
-        let result = domain_to_ascii_options(&source, true, testType != "N");
+        let result = idna::uts46_to_ascii(&source, idna::Uts46Flags {
+            use_std3_ascii_rules: true,
+            transitional_processing: testType != "N"
+        });
         let res = result.ok();
 
         if toAscii.starts_with("[") {
@@ -56,7 +58,7 @@ fn test_uts46() {
 
         assert!(res != None, "Couldn't parse {} ", source);
         let output = res.unwrap();
-        assert!(output == toAscii.to_ascii_lowercase(), "result: {} | expected: {} | original: {} | source: {}", output, toAscii, original, source);
+        assert!(output == toAscii, "result: {} | expected: {} | original: {} | source: {}", output, toAscii, original, source);
     }
 }
 

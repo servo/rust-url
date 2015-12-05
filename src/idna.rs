@@ -40,7 +40,7 @@ fn idna_disallowed_std3_mapped(mapping: &'static [u32], use_std3_asciirules: boo
     return idna_mapped(mapping);
 }
 
-fn map_char(codepoint: char, use_std3_asciirules: bool, transitional: bool) -> Result<String, &'static str> {
+fn map_char(codepoint: char, flags: Uts46Flags) -> Result<String, &'static str> {
     let mut min = 0;
     let mut max = TABLE.len() - 1;
     while max > min {
@@ -58,20 +58,33 @@ fn map_char(codepoint: char, use_std3_asciirules: bool, transitional: bool) -> R
     let mapping = TABLE[min].mapping;
 
     match TABLE[min].status {
-        MappingStatus::valid => return Ok(codepoint.to_string()),
-        MappingStatus::ignored => return Ok("".to_string()),
-        MappingStatus::mapped => return idna_mapped(mapping),
-        MappingStatus::deviation => return idna_deviation(codepoint, mapping, transitional),
-        MappingStatus::disallowed => return Err("Dissallowed"),
-        MappingStatus::disallowed_STD3_valid => return idna_disallowed_std3_valid(codepoint, use_std3_asciirules),
-        MappingStatus::disallowed_STD3_mapped => return idna_disallowed_std3_mapped(mapping, use_std3_asciirules),
+        MappingStatus::valid => Ok(codepoint.to_string()),
+        MappingStatus::ignored => Ok("".to_string()),
+        MappingStatus::mapped => idna_mapped(mapping),
+        MappingStatus::deviation => {
+            idna_deviation(codepoint, mapping, flags.transitional_processing)
+        }
+        MappingStatus::disallowed => Err("Dissallowed"),
+        MappingStatus::disallowed_STD3_valid => {
+            idna_disallowed_std3_valid(codepoint, flags.use_std3_ascii_rules)
+        }
+        MappingStatus::disallowed_STD3_mapped => {
+            idna_disallowed_std3_mapped(mapping, flags.use_std3_ascii_rules)
+        }
     }
 }
 
-pub fn domain_to_ascii_options(domain: &str, use_std3_asciirules: bool, transitional: bool) -> Result<String, &'static str> {
+#[derive(Copy, Clone)]
+pub struct Uts46Flags {
+   pub use_std3_ascii_rules: bool,
+   pub transitional_processing: bool,
+}
+
+/// http://www.unicode.org/reports/tr46/#ToASCII
+pub fn uts46_to_ascii(domain: &str, flags: Uts46Flags) -> Result<String, &'static str> {
     let mut ret = String::new();
     for c in domain.chars() {
-        match map_char(c, use_std3_asciirules, transitional) {
+        match map_char(c, flags) {
             Ok(mystr) => ret.push_str(&mystr),
             Err(x) => return Err(x)
         }
@@ -108,5 +121,8 @@ pub fn domain_to_ascii_options(domain: &str, use_std3_asciirules: bool, transiti
 
 /// https://url.spec.whatwg.org/#concept-domain-to-ascii
 pub fn domain_to_ascii(domain: &str) -> Result<String, &'static str> {
-    domain_to_ascii_options(domain, true, false)
+    uts46_to_ascii(domain, Uts46Flags {
+        use_std3_ascii_rules: false,
+        transitional_processing: true,
+    })
 }
