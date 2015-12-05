@@ -46,9 +46,7 @@ pub struct Mapping {
 
 print("static NONE: [u32;0] = [];")
 
-from sys import argv
-script, filename = argv
-txt = open(filename)
+txt = open("IdnaMappingTable.txt")
 line_no = 0
 
 for line in txt:
@@ -59,7 +57,7 @@ for line in txt:
         continue
     line_no = line_no + 1
 
-txt = open(filename)
+txt = open("IdnaMappingTable.txt")
 print("pub static TABLE: [Mapping; "+str(line_no)+"] = [")
 
 mappings = []
