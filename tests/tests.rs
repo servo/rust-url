@@ -9,15 +9,28 @@
 extern crate url;
 
 use std::net::{Ipv4Addr, Ipv6Addr};
+use std::path::{Path, PathBuf};
 use url::{Host, Url};
+
+macro_rules! assert_from_file_path {
+    ($path: expr) => { assert_from_file_path!($path, $path) };
+    ($path: expr, $url_path: expr) => {{
+        let url = Url::from_file_path(Path::new($path)).unwrap();
+        assert_eq!(url.host(), None);
+        assert_eq!(url.path(), $url_path);
+        assert_eq!(url.to_file_path(), Ok(PathBuf::from($path)));
+    }};
+}
+
+
 
 #[test]
 fn new_file_paths() {
-    use std::path::{Path, PathBuf};
     if cfg!(unix) {
         assert_eq!(Url::from_file_path(Path::new("relative")), Err(()));
         assert_eq!(Url::from_file_path(Path::new("../relative")), Err(()));
-    } else {
+    }
+    if cfg!(windows) {
         assert_eq!(Url::from_file_path(Path::new("relative")), Err(()));
         assert_eq!(Url::from_file_path(Path::new(r"..\relative")), Err(()));
         assert_eq!(Url::from_file_path(Path::new(r"\drive-relative")), Err(()));
@@ -25,16 +38,9 @@ fn new_file_paths() {
     }
 
     if cfg!(unix) {
-        let mut url = Url::from_file_path(Path::new("/foo/bar")).unwrap();
-        assert_eq!(url.host(), Some(&Host::Domain("".to_string())));
-        assert_eq!(url.path(), Some(&["foo".to_string(), "bar".to_string()][..]));
-        assert!(url.to_file_path() == Ok(PathBuf::from("/foo/bar")));
-
-        url.path_mut().unwrap()[1] = "ba\0r".to_string();
-        url.to_file_path().is_ok();
-
-        url.path_mut().unwrap()[1] = "ba%00r".to_string();
-        url.to_file_path().is_ok();
+        assert_from_file_path!("/foo/bar");
+        assert_from_file_path!("/foo/ba\0r", "/foo/ba%00r");
+        assert_from_file_path!("/foo/ba%00r", "/foo/ba%2500r");
     }
 }
 
@@ -43,9 +49,8 @@ fn new_file_paths() {
 fn new_path_bad_utf8() {
     use std::ffi::OsStr;
     use std::os::unix::prelude::*;
-    use std::path::{Path, PathBuf};
 
-    let url = Url::from_file_path(Path::new("/foo/ba%80r")).unwrap();
+    let url = Url::from_file_path(Path::new(OsStr::from_bytes(b"/foo/ba\x80r"))).unwrap();
     let os_str = OsStr::from_bytes(b"/foo/ba\x80r");
     assert_eq!(url.to_file_path(), Ok(PathBuf::from(os_str)));
 }
@@ -53,22 +58,11 @@ fn new_path_bad_utf8() {
 #[test]
 fn new_path_windows_fun() {
     if cfg!(windows) {
-        use std::path::{Path, PathBuf};
-        let mut url = Url::from_file_path(Path::new(r"C:\foo\bar")).unwrap();
-        assert_eq!(url.host(), Some(&Host::Domain("".to_string())));
-        assert_eq!(url.path(), Some(&["C:".to_string(), "foo".to_string(), "bar".to_string()][..]));
-        assert_eq!(url.to_file_path(),
-                   Ok(PathBuf::from(r"C:\foo\bar")));
-
-        url.path_mut().unwrap()[2] = "ba\0r".to_string();
-        assert!(url.to_file_path().is_ok());
-
-        url.path_mut().unwrap()[2] = "ba%00r".to_string();
-        assert!(url.to_file_path().is_ok());
+        assert_from_file_path!(r"C:\foo\bar", "/C:/foo/bar");
+        assert_from_file_path!("C:\\foo\\ba\0r", "/C:/foo/ba%00r");
 
         // Invalid UTF-8
-        url.path_mut().unwrap()[2] = "ba%80r".to_string();
-        assert!(url.to_file_path().is_err());
+        assert!(Url::parse("file:///C:/foo/ba%80r").unwrap().to_file_path().is_err());
         
         // test windows canonicalized path        
         let path = PathBuf::from(r"\\?\C:\foo\bar");
@@ -79,26 +73,23 @@ fn new_path_windows_fun() {
 
 #[test]
 fn new_directory_paths() {
-    use std::path::Path;
-
     if cfg!(unix) {
         assert_eq!(Url::from_directory_path(Path::new("relative")), Err(()));
         assert_eq!(Url::from_directory_path(Path::new("../relative")), Err(()));
 
         let url = Url::from_directory_path(Path::new("/foo/bar")).unwrap();
-        assert_eq!(url.host(), Some(&Host::Domain("".to_string())));
-        assert_eq!(url.path(), Some(&["foo".to_string(), "bar".to_string(),
-                                      "".to_string()][..]));
-    } else {
+        assert_eq!(url.host(), None);
+        assert_eq!(url.path(), "/foo/bar/");
+    }
+    if cfg!(windows) {
         assert_eq!(Url::from_directory_path(Path::new("relative")), Err(()));
         assert_eq!(Url::from_directory_path(Path::new(r"..\relative")), Err(()));
         assert_eq!(Url::from_directory_path(Path::new(r"\drive-relative")), Err(()));
         assert_eq!(Url::from_directory_path(Path::new(r"\\ucn\")), Err(()));
 
         let url = Url::from_directory_path(Path::new(r"C:\foo\bar")).unwrap();
-        assert_eq!(url.host(), Some(&Host::Domain("".to_string())));
-        assert_eq!(url.path(), Some(&["C:".to_string(), "foo".to_string(),
-                                      "bar".to_string(), "".to_string()][..]));
+        assert_eq!(url.host(), None);
+        assert_eq!(url.path(), "/C:/foo/bar/");
     }
 }
 
@@ -110,15 +101,15 @@ fn from_str() {
 #[test]
 fn issue_124() {
     let url: Url = "file:a".parse().unwrap();
-    assert_eq!(url.path().unwrap(), ["a"]);
+    assert_eq!(url.path(), "/a");
     let url: Url = "file:...".parse().unwrap();
-    assert_eq!(url.path().unwrap(), ["..."]);
+    assert_eq!(url.path(), "/...");
     let url: Url = "file:..".parse().unwrap();
-    assert_eq!(url.path().unwrap(), [""]);
+    assert_eq!(url.path(), "/");
 }
 
 #[test]
-fn relative_scheme_data_equality() {
+fn test_equality() {
     use std::hash::{Hash, Hasher, SipHasher};
 
     fn check_eq(a: &Url, b: &Url) {
@@ -145,7 +136,7 @@ fn relative_scheme_data_equality() {
     // Different ports
     let a: Url = url("http://example.com/");
     let b: Url = url("http://example.com:8080/");
-    assert!(a != b);
+    assert!(a != b, "{:?} != {:?}", a, b);
 
     // Different scheme
     let a: Url = url("http://example.com/");
@@ -165,27 +156,55 @@ fn relative_scheme_data_equality() {
 
 #[test]
 fn host() {
-    let a = Host::parse("www.mozilla.org").unwrap();
-    let b = Host::parse("1.35.33.49").unwrap();
-    let c = Host::parse("[2001:0db8:85a3:08d3:1319:8a2e:0370:7344]").unwrap();
-    let d = Host::parse("1.35.+33.49").unwrap();
-    assert_eq!(a, Host::Domain("www.mozilla.org".to_owned()));
-    assert_eq!(b, Host::Ipv4(Ipv4Addr::new(1, 35, 33, 49)));
-    assert_eq!(c, Host::Ipv6(Ipv6Addr::new(0x2001, 0x0db8, 0x85a3, 0x08d3,
-        0x1319, 0x8a2e, 0x0370, 0x7344)));
-    assert_eq!(d, Host::Domain("1.35.+33.49".to_owned()));
-    assert_eq!(Host::parse("[::]").unwrap(), Host::Ipv6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0)));
-    assert_eq!(Host::parse("[::1]").unwrap(), Host::Ipv6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)));
-    assert_eq!(Host::parse("0x1.0X23.0x21.061").unwrap(), Host::Ipv4(Ipv4Addr::new(1, 35, 33, 49)));
-    assert_eq!(Host::parse("0x1232131").unwrap(), Host::Ipv4(Ipv4Addr::new(1, 35, 33, 49)));
-    assert!(Host::parse("42.0x1232131").is_err());
-    assert_eq!(Host::parse("111").unwrap(), Host::Ipv4(Ipv4Addr::new(0, 0, 0, 111)));
-    assert_eq!(Host::parse("2..2.3").unwrap(), Host::Domain("2..2.3".to_owned()));
-    assert!(Host::parse("192.168.0.257").is_err());
+    fn assert_host(input: &str, host: Host<&str>) {
+        assert_eq!(Url::parse(input).unwrap().host(), Some(host));
+    }
+    assert_host("http://www.mozilla.org", Host::Domain("www.mozilla.org"));
+    assert_host("http://1.35.33.49", Host::Ipv4(Ipv4Addr::new(1, 35, 33, 49)));
+    assert_host("http://[2001:0db8:85a3:08d3:1319:8a2e:0370:7344]", Host::Ipv6(Ipv6Addr::new(
+        0x2001, 0x0db8, 0x85a3, 0x08d3, 0x1319, 0x8a2e, 0x0370, 0x7344)));
+    assert_host("http://1.35.+33.49", Host::Domain("1.35.+33.49"));
+    assert_host("http://[::]", Host::Ipv6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0)));
+    assert_host("http://[::1]", Host::Ipv6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)));
+    assert_host("http://0x1.0X23.0x21.061", Host::Ipv4(Ipv4Addr::new(1, 35, 33, 49)));
+    assert_host("http://0x1232131", Host::Ipv4(Ipv4Addr::new(1, 35, 33, 49)));
+    assert_host("http://111", Host::Ipv4(Ipv4Addr::new(0, 0, 0, 111)));
+    assert_host("http://2..2.3", Host::Domain("2..2.3"));
+    assert!(Url::parse("http://42.0x1232131").is_err());
+    assert!(Url::parse("http://192.168.0.257").is_err());
+}
+
+#[test]
+fn host_serialization() {
+    // libstd’s `Display for Ipv6Addr` serializes 0:0:0:0:0:0:_:_ and 0:0:0:0:0:ffff:_:_
+    // using IPv4-like syntax, as suggested in https://tools.ietf.org/html/rfc5952#section-4
+    // but https://url.spec.whatwg.org/#concept-ipv6-serializer specifies not to.
+
+    // Not [::0.0.0.2] / [::ffff:0.0.0.2]
+    assert_eq!(Url::parse("http://[0::2]").unwrap().host_str(), Some("[::2]"));
+    assert_eq!(Url::parse("http://[0::ffff:0:2]").unwrap().host_str(), Some("[::ffff:0:2]"));
 }
 
 #[test]
 fn test_idna() {
     assert!("http://goșu.ro".parse::<Url>().is_ok());
-    assert_eq!(Url::parse("http://☃.net/").unwrap().domain(), Some("xn--n3h.net"));
+    assert_eq!(Url::parse("http://☃.net/").unwrap().host(), Some(Host::Domain("xn--n3h.net")));
+}
+
+#[test]
+fn test_serialization() {
+    let data = [
+        ("http://example.com/", "http://example.com/"),
+        ("http://addslash.com", "http://addslash.com/"),
+        ("http://@emptyuser.com/", "http://emptyuser.com/"),
+        ("http://:@emptypass.com/", "http://:@emptypass.com/"),
+        ("http://user@user.com/", "http://user@user.com/"),
+        ("http://user:pass@userpass.com/", "http://user:pass@userpass.com/"),
+        ("http://slashquery.com/path/?q=something", "http://slashquery.com/path/?q=something"),
+        ("http://noslashquery.com/path?q=something", "http://noslashquery.com/path?q=something")
+    ];
+    for &(input, result) in &data {
+        let url = Url::parse(input).unwrap();
+        assert_eq!(url.as_str(), result);
+    }
 }

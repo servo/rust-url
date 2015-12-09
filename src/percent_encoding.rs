@@ -95,18 +95,15 @@ define_encode_set! {
 }
 
 define_encode_set! {
-    /// This encode set is used in the URL parser for usernames and passwords.
-    pub USERINFO_ENCODE_SET = [DEFAULT_ENCODE_SET] | {'@'}
+    /// This encode set is used for username and password.
+    pub PATH_SEGMENT_ENCODE_SET = [DEFAULT_ENCODE_SET] | {'%'}
 }
 
 define_encode_set! {
-    /// This encode set should be used when setting the password field of a parsed URL.
-    pub PASSWORD_ENCODE_SET = [USERINFO_ENCODE_SET] | {'\\', '/'}
-}
-
-define_encode_set! {
-    /// This encode set should be used when setting the username field of a parsed URL.
-    pub USERNAME_ENCODE_SET = [PASSWORD_ENCODE_SET] | {':'}
+    /// This encode set is used for username and password.
+    pub USERINFO_ENCODE_SET = [DEFAULT_ENCODE_SET] | {
+        '/', ':', ';', '=', '@', '[', '\\', ']', '^', '|'
+    }
 }
 
 define_encode_set! {

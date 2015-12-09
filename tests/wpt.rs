@@ -12,97 +12,63 @@ extern crate test;
 extern crate url;
 
 use std::char;
-use url::{RelativeSchemeData, SchemeData, Url};
+use url::Url;
 
 
 fn run_one(entry: Entry) {
-    // FIXME: Don’t re-indent to make merging the 1.0 branch easier.
-    {
-        let Entry {
-            input,
-            base,
-            scheme: expected_scheme,
-            username: expected_username,
-            password: expected_password,
-            host: expected_host,
-            port: expected_port,
-            path: expected_path,
-            query: expected_query,
-            fragment: expected_fragment,
-            expected_failure,
-        } = entry;
-        let base = match Url::parse(&base) {
-            Ok(base) => base,
-            Err(message) => panic!("Error parsing base {}: {}", base, message)
-        };
-        let url = base.join(&input);
-        if expected_scheme.is_none() {
-            if url.is_ok() && !expected_failure {
-                panic!("Expected a parse error for URL {}", input);
-            }
+    let Entry {
+        input,
+        base,
+        scheme: expected_scheme,
+        username: expected_username,
+        password: expected_password,
+        host: expected_host,
+        port: expected_port,
+        path: expected_path,
+        query: expected_query,
+        fragment: expected_fragment,
+        expected_failure,
+    } = entry;
+    let base = match Url::parse(&base) {
+        Ok(base) => base,
+        Err(message) => panic!("Error parsing base {}: {}", base, message)
+    };
+    let expecting_err = expected_scheme.is_none() ^ expected_failure;
+    let url = match base.join(&input) {
+        Ok(url) => url,
+        Err(reason) => {
+            assert!(expecting_err, "Error parsing URL {}: {}", input, reason);
             return
         }
-        let Url { scheme, scheme_data, query, fragment, .. } = match url {
-            Ok(url) => url,
-            Err(message) => {
-                if expected_failure {
-                    return
-                } else {
-                    panic!("Error parsing URL {}: {}", input, message)
-                }
-            }
-        };
+    };
+    assert!(!expecting_err, "Expected a parse error for URL {}", input);
 
-        macro_rules! assert_eq {
-            ($a: expr, $b: expr) => {
-                {
-                    let a = $a;
-                    let b = $b;
-                    if a != b {
-                        if expected_failure {
-                            return
-                        } else {
-                            panic!("{:?} != {:?}", a, b)
-                        }
+    macro_rules! assert_eq {
+        ($a: expr, $b: expr) => {
+            {
+                let a = $a;
+                let b = $b;
+                if a != b {
+                    if expected_failure {
+                        return
+                    } else {
+                        panic!("{:?} != {:?} for {:?}", a, b, url)
                     }
                 }
             }
         }
-
-        assert_eq!(Some(scheme), expected_scheme);
-        match scheme_data {
-            SchemeData::Relative(RelativeSchemeData {
-                username, password, host, port, default_port: _, path,
-            }) => {
-                assert_eq!(username, expected_username);
-                assert_eq!(password, expected_password);
-                let host = host.serialize();
-                assert_eq!(host, expected_host);
-                assert_eq!(port, expected_port);
-                assert_eq!(Some(format!("/{}", str_join(&path, "/"))), expected_path);
-            },
-            SchemeData::NonRelative(scheme_data) => {
-                assert_eq!(Some(scheme_data), expected_path);
-                assert_eq!(String::new(), expected_username);
-                assert_eq!(None, expected_password);
-                assert_eq!(String::new(), expected_host);
-                assert_eq!(None, expected_port);
-            },
-        }
-        fn opt_prepend(prefix: &str, opt_s: Option<String>) -> Option<String> {
-            opt_s.map(|s| format!("{}{}", prefix, s))
-        }
-        assert_eq!(opt_prepend("?", query), expected_query);
-        assert_eq!(opt_prepend("#", fragment), expected_fragment);
-
-        assert!(!expected_failure, "Unexpected success for {}", input);
     }
-}
 
-// FIMXE: Remove this when &[&str]::join (the new name) lands in the stable channel.
-#[allow(deprecated)]
-fn str_join<T: ::std::borrow::Borrow<str>>(pieces: &[T], separator: &str) -> String {
-    pieces.connect(separator)
+    assert_eq!(Some(url.scheme().to_owned()), expected_scheme);
+    assert_eq!(url.username(), expected_username);
+    assert_eq!(url.password().map(|s| s.to_owned()), expected_password);
+    assert_eq!(url.host_str().unwrap_or("").to_owned(), expected_host);
+    assert_eq!(url.port(), expected_port);
+    assert_eq!(Some(url.path().to_owned()), expected_path);
+    assert_eq!(url.query().map(|s| format!("?{}", s)), expected_query);
+    assert_eq!(url.fragment().map(|s| format!("#{}", s)), expected_fragment);
+
+    assert!(!expected_failure, "Unexpected success for {}", input);
 }
 
 struct Entry {
