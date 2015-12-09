@@ -3,6 +3,7 @@
 //! https://url.spec.whatwg.org/#idna
 
 use self::Mapping::*;
+use parser::ParseError;
 use punycode;
 use std::ascii::AsciiExt;
 use unicode_normalization::UnicodeNormalization;
@@ -255,6 +256,10 @@ pub enum Error {
     DissallowedMappedInStd3,
     DissallowedCharacter,
     TooLongForDns,
+}
+
+impl From<Vec<Error>> for ParseError {
+    fn from(_: Vec<Error>) -> ParseError { ParseError::IdnaError }
 }
 
 /// http://www.unicode.org/reports/tr46/#ToASCII
