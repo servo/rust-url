@@ -37,6 +37,7 @@ impl EncodingOverride {
         }
     }
 
+    #[inline]
     pub fn utf8() -> EncodingOverride {
         EncodingOverride { encoding: None }
     }
@@ -75,6 +76,7 @@ pub struct EncodingOverride;
 
 #[cfg(not(feature = "query_encoding"))]
 impl EncodingOverride {
+    #[inline]
     pub fn utf8() -> EncodingOverride {
         EncodingOverride
     }
