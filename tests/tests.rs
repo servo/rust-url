@@ -10,7 +10,7 @@ extern crate url;
 
 use std::char;
 use std::net::{Ipv4Addr, Ipv6Addr};
-use url::{UrlParser, Url, SchemeData, RelativeSchemeData, Host};
+use url::{Host, RelativeSchemeData, SchemeData, Url};
 
 
 #[test]
@@ -33,7 +33,7 @@ fn url_parsing() {
             Ok(base) => base,
             Err(message) => panic!("Error parsing base {}: {}", base, message)
         };
-        let url = UrlParser::new().base_url(&base).parse(&input);
+        let url = base.join(&input);
         if expected_scheme.is_none() {
             if url.is_ok() && !expected_failure {
                 panic!("Expected a parse error for URL {}", input);
