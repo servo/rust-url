@@ -116,6 +116,14 @@ let css_url = UrlParser::new().base_url(&this_document).parse("../main.css").unw
 assert!(css_url.serialize() == "http://servo.github.io/rust-url/main.css".to_string());
 ```
 
+For convenience, the `join` method on `Url` is also provided to achieve the same result:
+
+```
+use url::Url;
+
+let this_document = Url::parse("http://servo.github.io/rust-url/url/index.html").unwrap();
+let css_url = this_document.join("../main.css").unwrap();
+assert!(&*css_url.serialize() == "http://servo.github.io/rust-url/main.css")
 */
 
 #![cfg_attr(feature="heap_size", feature(plugin, custom_derive))]
@@ -854,6 +862,14 @@ impl Url {
     #[inline]
     pub fn lossy_percent_decode_fragment(&self) -> Option<String> {
         self.fragment.as_ref().map(|value| lossy_utf8_percent_decode(value.as_bytes()))
+    }
+
+    /// Join a path with a base URL.
+    ///
+    /// Corresponds to the basic URL parser where `self` is the given base URL.
+    #[inline]
+    pub fn join(&self, input: &str) -> ParseResult<Url> {
+        UrlParser::new().base_url(self).parse(input)
     }
 }
 
