@@ -35,5 +35,6 @@ optional = true
 [dependencies]
 uuid = "0.1.17"
 rustc-serialize = "0.3"
+unicode-bidi = { git = "https://github.com/servo/unicode-bidi.git", rev = "06dedd1" }
 unicode-normalization = "0.1.1"
 matches = "0.1"

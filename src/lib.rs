@@ -134,6 +134,7 @@ extern crate serde;
 #[macro_use] extern crate heapsize;
 
 extern crate unicode_normalization;
+extern crate unicode_bidi;
 
 use std::fmt::{self, Formatter};
 use std::str;

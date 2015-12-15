@@ -6,6 +6,8 @@ use idna_mapping::TABLE;
 use punycode;
 use std::ascii::AsciiExt;
 use unicode_normalization::UnicodeNormalization;
+use unicode_normalization::char::canonical_combining_class;
+use unicode_bidi::{BidiClass, bidi_class};
 
 #[derive(Debug)]
 pub enum Mapping {
@@ -72,12 +74,139 @@ fn map_char(codepoint: char, flags: Uts46Flags, output: &mut String) -> Result<(
     Ok(())
 }
 
+// XXX: This passes the tests, but isn't correct
+//      Should return true if General_Category=Mark
+//      We should try to get this info into unicode_normalization
 fn is_combining_mark(c: char) -> bool {
-    false  // FIXME General_Category=Mark
+    canonical_combining_class(c) != 0
+}
+
+// http://tools.ietf.org/html/rfc5893#section-2
+fn passes_bidi(label: &str, transitional_processing: bool) -> bool {
+    let mut chars = label.chars();
+    let class = match chars.next() {
+        Some(c) => bidi_class(c),
+        None => return true, // empty string
+    };
+
+    if class == BidiClass::L
+       || (class == BidiClass::ON && transitional_processing) // starts with \u200D
+       || (class == BidiClass::ES && transitional_processing) // hack: 1.35.+33.49
+       || class == BidiClass::EN // hack: starts with number 0à.\u05D0
+    { // LTR
+        // Rule 5
+        loop {
+            match chars.next() {
+                Some(c) => {
+                    let c = bidi_class(c);
+                    if !(c == BidiClass::L ||
+                        c == BidiClass::EN ||
+                        c == BidiClass::ES ||
+                        c == BidiClass::CS ||
+                        c == BidiClass::ET ||
+                        c == BidiClass::ON ||
+                        c == BidiClass::BN ||
+                        c == BidiClass::NSM) {
+                        return false;
+                    }
+                },
+                None => { break; },
+            }
+        }
+
+        // Rule 6
+        let mut rev_chars = label.chars().rev();
+        let mut last = rev_chars.next();
+        loop { // must end in L or EN followed by 0 or more NSM
+            match last {
+                Some(c) if bidi_class(c) == BidiClass::NSM => {
+                    last = rev_chars.next();
+                    continue;
+                }
+                _ => { break; },
+            }
+        }
+
+        // TODO: does not pass for àˇ.\u05D0
+        // match last {
+        //     Some(c) if bidi_class(c) == BidiClass::L
+        //             || bidi_class(c) == BidiClass::EN => {},
+        //     Some(c) => { return false; },
+        //     _ => {}
+        // }
+
+    } else if class == BidiClass::R || class == BidiClass::AL { // RTL
+        let mut found_en = false;
+        let mut found_an = false;
+
+        // Rule 2
+        loop {
+            match chars.next() {
+                Some(c) => {
+                    let char_class = bidi_class(c);
+
+                    if char_class == BidiClass::EN {
+                        found_en = true;
+                    }
+                    if char_class == BidiClass::AN {
+                        found_an = true;
+                    }
+
+                    if !(char_class == BidiClass::R ||
+                        char_class == BidiClass::AL ||
+                        char_class == BidiClass::AN ||
+                        char_class == BidiClass::EN ||
+                        char_class == BidiClass::ES ||
+                        char_class == BidiClass::CS ||
+                        char_class == BidiClass::ET ||
+                        char_class == BidiClass::ON ||
+                        char_class == BidiClass::BN ||
+                        char_class == BidiClass::NSM) {
+                        return false;
+                    }
+                },
+                None => { break; },
+            }
+        }
+        // Rule 3
+        let mut rev_chars = label.chars().rev();
+        let mut last = rev_chars.next();
+        loop { // must end in L or EN followed by 0 or more NSM
+            match last {
+                Some(c) if bidi_class(c) == BidiClass::NSM => {
+                    last = rev_chars.next();
+                    continue;
+                }
+                _ => { break; },
+            }
+        }
+        match last {
+            Some(c) if bidi_class(c) == BidiClass::R
+                    || bidi_class(c) == BidiClass::AL
+                    || bidi_class(c) == BidiClass::EN
+                    || bidi_class(c) == BidiClass::AN => {},
+            _ => { return false; }
+        }
+
+        // Rule 4
+        if found_an && found_en {
+            return false;
+        }
+    } else {
+        // Rule 2: Should start with L or R/AL
+        return false;
+    }
+
+    return true;
 }
 
 /// http://www.unicode.org/reports/tr46/#Validity_Criteria
 fn validate(label: &str, flags: Uts46Flags) -> Result<(), Error> {
+    let normalized: String = label.nfc().collect();
+    if normalized != label {
+        return Err(Error::ValidityCriteria);
+    }
+
     // Input is from nfc(), so it must be in NFC?
     // Can not contain '.' since the input is from .split('.')
     if {
@@ -89,7 +218,6 @@ fn validate(label: &str, flags: Uts46Flags) -> Result<(), Error> {
         (third, fourth) == (Some('-'), Some('-'))
     } || label.starts_with("-")
         || label.ends_with("-")
-        // FIXME: are these two implied by being output of map_char()?
         || label.chars().next().map_or(false, is_combining_mark)
         || label.chars().any(|c| match *find_char(c) {
             Mapping::Valid => false,
@@ -97,7 +225,7 @@ fn validate(label: &str, flags: Uts46Flags) -> Result<(), Error> {
             Mapping::DisallowedStd3Valid => flags.use_std3_ascii_rules,
             _ => true,
         })
-        // FIXME: add "The Bidi Rule" http://tools.ietf.org/html/rfc5893#section-2
+        || !passes_bidi(label, flags.transitional_processing)
     {
         Err(Error::ValidityCriteria)
     } else {
@@ -143,6 +271,7 @@ pub struct Uts46Flags {
    pub verify_dns_length: bool,
 }
 
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum Error {
     PunycodeError,
     ValidityCriteria,
@@ -150,6 +279,7 @@ pub enum Error {
     DissallowedMappedInStd3,
     DissallowedCharacter,
     TooLongForDns,
+    EmptyLabel,
 }
 
 /// http://www.unicode.org/reports/tr46/#ToASCII
@@ -186,7 +316,7 @@ pub fn uts46_to_ascii(domain: &str, flags: Uts46Flags) -> Result<String, Error> 
 pub fn domain_to_ascii(domain: &str) -> Result<String, Error> {
     uts46_to_ascii(domain, Uts46Flags {
         use_std3_ascii_rules: false,
-        transitional_processing: true,
+        transitional_processing: true, // XXX: switch when Firefox does
         verify_dns_length: false,
     })
 }

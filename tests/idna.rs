@@ -29,7 +29,7 @@ fn test_uts46() {
         let source = unescape(original);
         let to_unicode = pieces.remove(0);
         let to_ascii = pieces.remove(0);
-        let _nv8 = pieces.len() > 0;
+        let _nv8 = if pieces.len() > 0 { pieces.remove(0) } else { "" };
 
         if expected_failure {
             continue;
@@ -37,13 +37,18 @@ fn test_uts46() {
 
         let result = idna::uts46_to_ascii(&source, idna::Uts46Flags {
             use_std3_ascii_rules: true,
-            transitional_processing: test_type != "N",
+            transitional_processing: test_type == "T",
             verify_dns_length: true,
         });
-        let res = result.ok();
 
         if to_ascii.starts_with("[") {
-            //assert!(res == None, "Expected error. result: {} | original: {} | source: {}", res.unwrap(), original, source);
+            if to_ascii.starts_with("[C") {
+                // http://unicode.org/reports/tr46/#Deviations
+                // applications that perform IDNA2008 lookup are not required to check for these contexts
+                continue;
+            }
+            let res = result.ok();
+            assert!(res == None, "Expected error. result: {} | original: {} | source: {}", res.unwrap(), original, source);
             continue;
         }
 
@@ -57,8 +62,13 @@ fn test_uts46() {
             }
         };
 
-        assert!(res != None, "Couldn't parse {} ", source);
-        let output = res.unwrap();
+        if _nv8 == "NV8" {
+            // This result isn't valid under IDNA2008. Skip it
+            continue;
+        }
+
+        assert!(result.is_ok(), "Couldn't parse {} | original: {} | error: {:?}", source, original, result.err());
+        let output = result.ok().unwrap();
         assert!(output == to_ascii, "result: {} | expected: {} | original: {} | source: {}", output, to_ascii, original, source);
     }
 }
