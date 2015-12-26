@@ -138,6 +138,24 @@ pub fn lossy_utf8_percent_decode(input: &[u8]) -> String {
     String::from_utf8_lossy(&percent_decode(input)).to_string()
 }
 
+/// Convert the given hex character into its numeric value.
+///
+/// # Examples
+///
+/// ```
+/// use url::percent_encoding::from_hex;
+/// assert_eq!(from_hex('0' as u8), Some(0));
+/// assert_eq!(from_hex('1' as u8), Some(1));
+/// assert_eq!(from_hex('9' as u8), Some(9));
+/// assert_eq!(from_hex('A' as u8), Some(10));
+/// assert_eq!(from_hex('a' as u8), Some(10));
+/// assert_eq!(from_hex('F' as u8), Some(15));
+/// assert_eq!(from_hex('f' as u8), Some(15));
+/// assert_eq!(from_hex('G' as u8), None);
+/// assert_eq!(from_hex('g' as u8), None);
+/// assert_eq!(from_hex('Z' as u8), None);
+/// assert_eq!(from_hex('z' as u8), None);
+/// ```
 #[inline]
 pub fn from_hex(byte: u8) -> Option<u8> {
     match byte {
