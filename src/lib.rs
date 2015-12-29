@@ -521,8 +521,8 @@ pub enum SchemeType {
 
 impl SchemeType {
     pub fn default_port(&self) -> Option<u16> {
-        match self {
-            &SchemeType::Relative(default_port) => Some(default_port),
+        match *self {
+            SchemeType::Relative(default_port) => Some(default_port),
             _ => None,
         }
     }
@@ -590,19 +590,19 @@ impl Url {
         let mut path = try!(path_to_file_url_path(path.as_ref()));
         // Add an empty path component (i.e. a trailing slash in serialization)
         // so that the entire path is used as a base URL.
-        path.push("".to_string());
+        path.push("".to_owned());
         Ok(Url::from_path_common(path))
     }
 
     fn from_path_common(path: Vec<String>) -> Url {
         Url {
-            scheme: "file".to_string(),
+            scheme: "file".to_owned(),
             scheme_data: SchemeData::Relative(RelativeSchemeData {
-                username: "".to_string(),
+                username: "".to_owned(),
                 password: None,
                 port: None,
                 default_port: None,
-                host: Host::Domain("".to_string()),
+                host: Host::Domain("".to_owned()),
                 path: path,
             }),
             query: None,
@@ -670,7 +670,7 @@ impl Url {
 
     /// If the URL is *non-relative*, return the string scheme data.
     #[inline]
-    pub fn non_relative_scheme_data<'a>(&'a self) -> Option<&'a str> {
+    pub fn non_relative_scheme_data(&self) -> Option<&str> {
         match self.scheme_data {
             SchemeData::Relative(..) => None,
             SchemeData::NonRelative(ref scheme_data) => Some(scheme_data),
@@ -679,7 +679,7 @@ impl Url {
 
     /// If the URL is *non-relative*, return a mutable reference to the string scheme data.
     #[inline]
-    pub fn non_relative_scheme_data_mut<'a>(&'a mut self) -> Option<&'a mut String> {
+    pub fn non_relative_scheme_data_mut(&mut self) -> Option<&mut String> {
         match self.scheme_data {
             SchemeData::Relative(..) => None,
             SchemeData::NonRelative(ref mut scheme_data) => Some(scheme_data),
@@ -688,7 +688,7 @@ impl Url {
 
     /// If the URL is in a *relative scheme*, return the structured scheme data.
     #[inline]
-    pub fn relative_scheme_data<'a>(&'a self) -> Option<&'a RelativeSchemeData> {
+    pub fn relative_scheme_data(&self) -> Option<&RelativeSchemeData> {
         match self.scheme_data {
             SchemeData::Relative(ref scheme_data) => Some(scheme_data),
             SchemeData::NonRelative(..) => None,
@@ -698,7 +698,7 @@ impl Url {
     /// If the URL is in a *relative scheme*,
     /// return a mutable reference to the structured scheme data.
     #[inline]
-    pub fn relative_scheme_data_mut<'a>(&'a mut self) -> Option<&'a mut RelativeSchemeData> {
+    pub fn relative_scheme_data_mut(&mut self) -> Option<&mut RelativeSchemeData> {
         match self.scheme_data {
             SchemeData::Relative(ref mut scheme_data) => Some(scheme_data),
             SchemeData::NonRelative(..) => None,
@@ -707,13 +707,13 @@ impl Url {
 
     /// If the URL is in a *relative scheme*, return its username.
     #[inline]
-    pub fn username<'a>(&'a self) -> Option<&'a str> {
+    pub fn username(&self) -> Option<&str> {
         self.relative_scheme_data().map(|scheme_data| &*scheme_data.username)
     }
 
     /// If the URL is in a *relative scheme*, return a mutable reference to its username.
     #[inline]
-    pub fn username_mut<'a>(&'a mut self) -> Option<&'a mut String> {
+    pub fn username_mut(&mut self) -> Option<&mut String> {
         self.relative_scheme_data_mut().map(|scheme_data| &mut scheme_data.username)
     }
 
@@ -728,14 +728,14 @@ impl Url {
 
     /// If the URL is in a *relative scheme*, return its password, if any.
     #[inline]
-    pub fn password<'a>(&'a self) -> Option<&'a str> {
+    pub fn password(&self) -> Option<&str> {
         self.relative_scheme_data().and_then(|scheme_data|
             scheme_data.password.as_ref().map(|password| password as &str))
     }
 
     /// If the URL is in a *relative scheme*, return a mutable reference to its password, if any.
     #[inline]
-    pub fn password_mut<'a>(&'a mut self) -> Option<&'a mut String> {
+    pub fn password_mut(&mut self) -> Option<&mut String> {
         self.relative_scheme_data_mut().and_then(|scheme_data| scheme_data.password.as_mut())
     }
 
@@ -753,33 +753,33 @@ impl Url {
     ///
     /// Format: "<username>:<password>@"
     #[inline]
-    pub fn serialize_userinfo<'a>(&'a mut self) -> Option<String> {
+    pub fn serialize_userinfo(&mut self) -> Option<String> {
         self.relative_scheme_data().map(|scheme_data| scheme_data.serialize_userinfo())
     }
 
     /// If the URL is in a *relative scheme*, return its structured host.
     #[inline]
-    pub fn host<'a>(&'a self) -> Option<&'a Host> {
+    pub fn host(&self) -> Option<&Host> {
         self.relative_scheme_data().map(|scheme_data| &scheme_data.host)
     }
 
     /// If the URL is in a *relative scheme*, return a mutable reference to its structured host.
     #[inline]
-    pub fn host_mut<'a>(&'a mut self) -> Option<&'a mut Host> {
+    pub fn host_mut(&mut self) -> Option<&mut Host> {
         self.relative_scheme_data_mut().map(|scheme_data| &mut scheme_data.host)
     }
 
     /// If the URL is in a *relative scheme* and its host is a domain,
     /// return the domain as a string.
     #[inline]
-    pub fn domain<'a>(&'a self) -> Option<&'a str> {
+    pub fn domain(&self) -> Option<&str> {
         self.relative_scheme_data().and_then(|scheme_data| scheme_data.domain())
     }
 
     /// If the URL is in a *relative scheme* and its host is a domain,
     /// return a mutable reference to the domain string.
     #[inline]
-    pub fn domain_mut<'a>(&'a mut self) -> Option<&'a mut String> {
+    pub fn domain_mut(&mut self) -> Option<&mut String> {
         self.relative_scheme_data_mut().and_then(|scheme_data| scheme_data.domain_mut())
     }
 
@@ -793,13 +793,13 @@ impl Url {
 
     /// If the URL is in a *relative scheme* and has a port number, return it.
     #[inline]
-    pub fn port<'a>(&'a self) -> Option<u16> {
+    pub fn port(&self) -> Option<u16> {
         self.relative_scheme_data().and_then(|scheme_data| scheme_data.port)
     }
 
     /// If the URL is in a *relative scheme*, return a mutable reference to its port.
     #[inline]
-    pub fn port_mut<'a>(&'a mut self) -> Option<&'a mut Option<u16>> {
+    pub fn port_mut(&mut self) -> Option<&mut Option<u16>> {
         self.relative_scheme_data_mut().map(|scheme_data| &mut scheme_data.port)
     }
 
@@ -812,13 +812,13 @@ impl Url {
 
     /// If the URL is in a *relative scheme*, return its path components.
     #[inline]
-    pub fn path<'a>(&'a self) -> Option<&'a [String]> {
+    pub fn path(&self) -> Option<&[String]> {
         self.relative_scheme_data().map(|scheme_data| &*scheme_data.path)
     }
 
     /// If the URL is in a *relative scheme*, return a mutable reference to its path components.
     #[inline]
-    pub fn path_mut<'a>(&'a mut self) -> Option<&'a mut Vec<String>> {
+    pub fn path_mut(&mut self) -> Option<&mut Vec<String>> {
         self.relative_scheme_data_mut().map(|scheme_data| &mut scheme_data.path)
     }
 
@@ -982,7 +982,7 @@ impl RelativeSchemeData {
 
     /// If the host is a domain, return the domain as a string.
     #[inline]
-    pub fn domain<'a>(&'a self) -> Option<&'a str> {
+    pub fn domain(&self) -> Option<&str> {
         match self.host {
             Host::Domain(ref domain) => Some(domain),
             _ => None,
@@ -991,7 +991,7 @@ impl RelativeSchemeData {
 
     /// If the host is a domain, return a mutable reference to the domain string.
     #[inline]
-    pub fn domain_mut<'a>(&'a mut self) -> Option<&'a mut String> {
+    pub fn domain_mut(&mut self) -> Option<&mut String> {
         match self.host {
             Host::Domain(ref mut domain) => Some(domain),
             _ => None,
@@ -1148,7 +1148,7 @@ fn file_url_path_to_pathbuf_windows(path: &[String]) -> Result<PathBuf, ()> {
             || prefix.as_bytes()[1] != b':' {
         return Err(())
     }
-    let mut string = prefix.to_string();
+    let mut string = prefix.to_owned();
     for path_part in &path[1..] {
         string.push('\\');
 
