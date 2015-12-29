@@ -133,7 +133,7 @@ where I: IntoIterator, I::Item: Borrow<(K, V)>, K: AsRef<str>, V: AsRef<str> {
     let mut output = String::new();
     for pair in pairs {
         let &(ref name, ref value) = pair.borrow();
-        if output.len() > 0 {
+        if !output.is_empty() {
             output.push_str("&");
         }
         byte_serialize(name.as_ref(), &mut output, encoding_override);

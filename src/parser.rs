@@ -147,7 +147,7 @@ pub fn parse_url(input: &str, parser: &UrlParser) -> ParseResult<Url> {
 }
 
 
-pub fn parse_scheme<'a>(input: &'a str, context: Context) -> Option<(String, &'a str)> {
+pub fn parse_scheme(input: &str, context: Context) -> Option<(String, &str)> {
     if input.is_empty() || !starts_with_ascii_alpha(input) {
         return None
     }
@@ -446,7 +446,7 @@ pub fn parse_port<'a>(input: &'a str, scheme_type: SchemeType, parser: &UrlParse
     if !has_any_digit || port == default_port {
         port = None;
     }
-    return Ok((port, default_port, &input[end..]))
+    Ok((port, default_port, &input[end..]))
 }
 
 
