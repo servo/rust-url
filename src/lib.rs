@@ -204,7 +204,7 @@ pub struct Url {
 
 /// Opaque identifier for URLs that have file or other schemes
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub struct OpaqueOrigin(Uuid);
+pub struct OpaqueOrigin(pub Uuid);
 
 #[cfg(feature="heap_size")]
 known_heap_size!(0, OpaqueOrigin);
