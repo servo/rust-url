@@ -99,14 +99,10 @@ fn passes_bidi(label: &str, transitional_processing: bool) -> bool {
             match chars.next() {
                 Some(c) => {
                     let c = bidi_class(c);
-                    if !(c == BidiClass::L ||
-                        c == BidiClass::EN ||
-                        c == BidiClass::ES ||
-                        c == BidiClass::CS ||
-                        c == BidiClass::ET ||
-                        c == BidiClass::ON ||
-                        c == BidiClass::BN ||
-                        c == BidiClass::NSM) {
+                    if !matches!(c, BidiClass::L | BidiClass::EN |
+                                    BidiClass::ES | BidiClass::CS |
+                                    BidiClass::ET | BidiClass::ON |
+                                    BidiClass::BN | BidiClass::NSM) {
                         return false;
                     }
                 },
@@ -152,16 +148,11 @@ fn passes_bidi(label: &str, transitional_processing: bool) -> bool {
                         found_an = true;
                     }
 
-                    if !(char_class == BidiClass::R ||
-                        char_class == BidiClass::AL ||
-                        char_class == BidiClass::AN ||
-                        char_class == BidiClass::EN ||
-                        char_class == BidiClass::ES ||
-                        char_class == BidiClass::CS ||
-                        char_class == BidiClass::ET ||
-                        char_class == BidiClass::ON ||
-                        char_class == BidiClass::BN ||
-                        char_class == BidiClass::NSM) {
+                    if !matches!(char_class, BidiClass::R | BidiClass::AL |
+                                             BidiClass::AN | BidiClass::EN |
+                                             BidiClass::ES | BidiClass::CS |
+                                             BidiClass::ET | BidiClass::ON |
+                                             BidiClass::BN | BidiClass::NSM) {
                         return false;
                     }
                 },
@@ -181,10 +172,8 @@ fn passes_bidi(label: &str, transitional_processing: bool) -> bool {
             }
         }
         match last {
-            Some(c) if bidi_class(c) == BidiClass::R
-                    || bidi_class(c) == BidiClass::AL
-                    || bidi_class(c) == BidiClass::EN
-                    || bidi_class(c) == BidiClass::AN => {},
+            Some(c) if matches!(bidi_class(c), BidiClass::R | BidiClass::AL |
+                                               BidiClass::EN | BidiClass::AN) => {},
             _ => { return false; }
         }
 
@@ -207,12 +196,9 @@ fn validate(label: &str, flags: Uts46Flags) -> Result<(), Error> {
         return Err(Error::ValidityCriteria);
     }
 
-    // Input is from nfc(), so it must be in NFC?
     // Can not contain '.' since the input is from .split('.')
     if {
-        let mut chars = label.chars();
-        let _first = chars.next();
-        let _first = chars.next();
+        let mut chars = label.chars().skip(2);
         let third = chars.next();
         let fourth = chars.next();
         (third, fourth) == (Some('-'), Some('-'))
@@ -279,7 +265,6 @@ pub enum Error {
     DissallowedMappedInStd3,
     DissallowedCharacter,
     TooLongForDns,
-    EmptyLabel,
 }
 
 /// http://www.unicode.org/reports/tr46/#ToASCII
