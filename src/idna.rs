@@ -6,7 +6,7 @@ use idna_mapping::TABLE;
 use punycode;
 use std::ascii::AsciiExt;
 use unicode_normalization::UnicodeNormalization;
-use unicode_normalization::char::canonical_combining_class;
+use unicode_normalization::char::is_combining_mark;
 use unicode_bidi::{BidiClass, bidi_class};
 
 #[derive(Debug)]
@@ -72,13 +72,6 @@ fn map_char(codepoint: char, flags: Uts46Flags, output: &mut String) -> Result<(
         }
     }
     Ok(())
-}
-
-// XXX: This passes the tests, but isn't correct
-//      Should return true if General_Category=Mark
-//      We should try to get this info into unicode_normalization
-fn is_combining_mark(c: char) -> bool {
-    canonical_combining_class(c) != 0
 }
 
 // http://tools.ietf.org/html/rfc5893#section-2

@@ -374,4 +374,5 @@ fn host() {
 #[test]
 fn test_idna() {
     assert!("http://goșu.ro".parse::<Url>().is_ok());
+    assert_eq!(Url::parse("http://☃.net/").unwrap().domain(), Some("xn--n3h.net"));
 }
