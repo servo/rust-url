@@ -191,8 +191,7 @@ fn passes_bidi(label: &str, transitional_processing: bool) -> bool {
 
 /// http://www.unicode.org/reports/tr46/#Validity_Criteria
 fn validate(label: &str, flags: Uts46Flags) -> Result<(), Error> {
-    let normalized: String = label.nfc().collect();
-    if normalized != label {
+    if label.nfc().ne(label.chars()) {
         return Err(Error::ValidityCriteria);
     }
 
