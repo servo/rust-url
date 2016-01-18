@@ -12,6 +12,7 @@ use std::fmt::{self, Formatter};
 use std::net::{Ipv4Addr, Ipv6Addr};
 use parser::{ParseResult, ParseError};
 use percent_encoding::{from_hex, percent_decode};
+use idna;
 
 
 /// The host name of an URL.
@@ -34,8 +35,6 @@ impl Host {
     ///
     /// Returns `Err` for an empty host, an invalid IPv6 address,
     /// or a or invalid non-ASCII domain.
-    ///
-    /// FIXME: Add IDNA support for non-ASCII domains.
     pub fn parse(input: &str) -> ParseResult<Host> {
         if input.len() == 0 {
             return Err(ParseError::EmptyHost)
@@ -48,10 +47,13 @@ impl Host {
         }
         let decoded = percent_decode(input.as_bytes());
         let domain = String::from_utf8_lossy(&decoded);
-        // TODO: Remove this check and use IDNA "domain to ASCII"
-        if !domain.is_ascii() {
-            return Err(ParseError::NonAsciiDomainsNotSupportedYet)
-        } else if domain.find(&[
+
+        let domain = match idna::domain_to_ascii(&domain) {
+            Ok(s) => s,
+            Err(_) => return Err(ParseError::InvalidDomainCharacter)
+        };
+
+        if domain.find(&[
             '\0', '\t', '\n', '\r', ' ', '#', '%', '/', ':', '?', '@', '[', '\\', ']'
         ][..]).is_some() {
             return Err(ParseError::InvalidDomainCharacter)

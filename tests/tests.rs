@@ -370,3 +370,8 @@ fn host() {
     assert_eq!(Host::parse("2..2.3").unwrap(), Host::Domain("2..2.3".to_owned()));
     assert!(Host::parse("192.168.0.257").is_err());
 }
+
+#[test]
+fn test_idna() {
+    assert!("http://goșu.ro".parse::<Url>().is_ok());
+}
