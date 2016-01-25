@@ -415,7 +415,7 @@ impl<'a> UrlParser<'a> {
     ///         "https" => SchemeType::Relative(443),
     ///         "ws" => SchemeType::Relative(80),
     ///         "wss" => SchemeType::Relative(443),
-    ///         _ => NonRelative,
+    ///         _ => SchemeType::NonRelative,
     ///     }
     /// }
     /// ```
