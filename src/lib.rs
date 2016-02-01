@@ -405,7 +405,8 @@ impl<'a> UrlParser<'a> {
     ///
     /// The default scheme type mapper is as follows:
     ///
-    /// ```ignore
+    /// ```
+    /// # use url::SchemeType;
     /// fn whatwg_scheme_type_mapper(scheme: &str) -> SchemeType {
     ///     match scheme {
     ///         "file" => SchemeType::FileLike,
@@ -622,13 +623,10 @@ impl Url {
     /// and may give nonsensical results for other schemes.
     /// It is the user’s responsibility to check the URL’s scheme before calling this.
     ///
-    /// The return type (when `Ok()`) is generic and can be either `std::path::posix::Path`
-    /// or `std::path::windows::Path`.
-    /// (Use `std::path::Path` to pick one of them depending on the local system.)
-    /// If the compiler can not infer the desired type from context, you may have to specify it:
-    ///
-    /// ```ignore
-    /// let path = url.to_file_path::<std::path::posix::Path>();
+    /// ```
+    /// # use url::Url;
+    /// # let url = Url::parse("file:///etc/passwd").unwrap();
+    /// let path = url.to_file_path();
     /// ```
     ///
     /// Returns `Err` if the host is neither empty nor `"localhost"`,
@@ -963,13 +961,10 @@ impl RelativeSchemeData {
     /// and may give nonsensical results for other schemes.
     /// It is the user’s responsibility to check the URL’s scheme before calling this.
     ///
-    /// The return type (when `Ok()`) is generic and can be either `std::path::posix::Path`
-    /// or `std::path::windows::Path`.
-    /// (Use `std::path::Path` to pick one of them depending on the local system.)
-    /// If the compiler can not infer the desired type from context, you may have to specifiy it:
-    ///
-    /// ```ignore
-    /// let path = url.to_file_path::<std::path::posix::Path>();
+    /// ```
+    /// # use url::Url;
+    /// # let url = Url::parse("file:///etc/passwd").unwrap();
+    /// let path = url.to_file_path();
     /// ```
     ///
     /// Returns `Err` if the host is neither empty nor `"localhost"`,
