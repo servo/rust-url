@@ -44,7 +44,6 @@ version = ">=0.6.1, <0.8"
 optional = true
 
 [dependencies]
-uuid = "0.1.17"
 rustc-serialize = "0.3"
 unicode-bidi = "0.2.3"
 unicode-normalization = "0.1.2"
