@@ -118,7 +118,7 @@ assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css")
 #![cfg_attr(feature="heap_size", feature(plugin, custom_derive))]
 #![cfg_attr(feature="heap_size", plugin(heapsize_plugin))]
 
-extern crate rustc_serialize;
+#[cfg(feature="rustc-serialize")] extern crate rustc_serialize;
 #[macro_use] extern crate matches;
 #[cfg(feature="serde")] extern crate serde;
 #[cfg(feature="heap_size")] #[macro_use] extern crate heapsize;
@@ -540,6 +540,7 @@ impl RangeArg for RangeTo<u32> {
     }
 }
 
+#[cfg(feature="rustc-serialize")]
 impl rustc_serialize::Encodable for Url {
     fn encode<S: rustc_serialize::Encoder>(&self, encoder: &mut S) -> Result<(), S::Error> {
         encoder.emit_str(self.as_str())
@@ -547,6 +548,7 @@ impl rustc_serialize::Encodable for Url {
 }
 
 
+#[cfg(feature="rustc-serialize")]
 impl rustc_serialize::Decodable for Url {
     fn decode<D: rustc_serialize::Decoder>(decoder: &mut D) -> Result<Url, D::Error> {
         Url::parse(&*try!(decoder.read_str())).map_err(|error| {
