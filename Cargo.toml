@@ -21,6 +21,7 @@ harness = false
 
 [dev-dependencies]
 rustc-test = "0.1"
+rustc-serialize = "0.3"
 
 [features]
 query_encoding = ["encoding"]
@@ -32,5 +33,5 @@ heapsize = {version = ">=0.1.1, <0.4", optional = true}
 heapsize_plugin = {version = "0.1.0", optional = true}
 encoding = {version = "0.2", optional = true}
 serde = {version = ">=0.6.1, <0.8", optional = true}
-rustc-serialize = "0.3"
+rustc-serialize = {version = "0.3", optional = true}
 matches = "0.1"
