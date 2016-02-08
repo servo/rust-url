@@ -27,23 +27,11 @@ query_encoding = ["encoding"]
 serde_serialization = ["serde"]
 heap_size = ["heapsize", "heapsize_plugin"]
 
-[dependencies.heapsize]
-version = ">=0.1.1, <0.4"
-optional = true
-
-[dependencies.heapsize_plugin]
-version = "0.1.4"
-optional = true
-
-[dependencies.encoding]
-version = "0.2"
-optional = true
-
-[dependencies.serde]
-version = ">=0.6.1, <0.8"
-optional = true
-
 [dependencies]
+heapsize = {version = ">=0.1.1, <0.4", optional = true}
+heapsize_plugin = {version = "0.1.4", optional = true}
+encoding = {version = "0.2", optional = true}
+serde = {version = ">=0.6.1, <0.8", optional = true}
 rustc-serialize = "0.3"
 unicode-bidi = "0.2.3"
 unicode-normalization = "0.1.2"
