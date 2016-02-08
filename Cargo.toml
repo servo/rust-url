@@ -22,7 +22,6 @@ rustc-test = "0.1"
 
 [features]
 query_encoding = ["encoding"]
-serde_serialization = ["serde"]
 heap_size = ["heapsize", "heapsize_plugin"]
 
 [dependencies]
