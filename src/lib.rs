@@ -140,6 +140,7 @@ pub use origin::Origin;
 pub use host::Host;
 pub use parser::ParseError;
 pub use slicing::Position;
+pub use webidl::WebIdl;
 
 mod encoding;
 mod host;
@@ -147,6 +148,7 @@ mod idna_mapping;
 mod origin;
 mod parser;
 mod slicing;
+mod webidl;
 
 pub mod percent_encoding;
 pub mod form_urlencoded;
