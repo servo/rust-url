@@ -124,7 +124,6 @@ extern crate rustc_serialize;
 #[cfg(feature="heap_size")] #[macro_use] extern crate heapsize;
 
 extern crate idna;
-extern crate uuid;
 
 use host::HostInternal;
 use percent_encoding::{PATH_SEGMENT_ENCODE_SET, percent_encode_to};
@@ -134,14 +133,15 @@ use std::hash;
 use std::ops::{Range, RangeFrom, RangeTo};
 use std::path::{Path, PathBuf};
 use std::str;
-use uuid::Uuid;
 
 pub use encoding::EncodingOverride;
+pub use origin::Origin;
 pub use parser::ParseError;
 pub use host::Host;
 
 mod encoding;
 mod host;
+mod origin;
 mod parser;
 pub mod percent_encoding;
 pub mod form_urlencoded;
@@ -163,31 +163,6 @@ pub struct Url {
     path_start: u32,  // Before initial '/' if !non_relative
     query_start: Option<u32>,  // Before '?', unlike Position::QueryStart
     fragment_start: Option<u32>,  // Before '#', unlike Position::FragmentStart
-}
-
-/// Opaque identifier for URLs that have file or other schemes
-#[derive(PartialEq, Eq, Clone, Debug)]
-pub struct OpaqueOrigin(Uuid);
-
-#[cfg(feature="heap_size")]
-known_heap_size!(0, OpaqueOrigin);
-
-impl OpaqueOrigin {
-    /// Creates a new opaque origin with a random UUID.
-    pub fn new() -> OpaqueOrigin {
-        OpaqueOrigin(Uuid::new_v4())
-    }
-}
-
-/// The origin of the URL
-#[derive(PartialEq, Eq, Clone, Debug)]
-#[cfg_attr(feature="heap_size", derive(HeapSizeOf))]
-pub enum Origin {
-    /// A globally unique identifier
-    UID(OpaqueOrigin),
-
-    /// Consists of the URL's scheme, host and port
-    Tuple(String, Host<String>, u16)
 }
 
 impl Url {
@@ -441,27 +416,6 @@ impl Url {
             }
         }
         Err(())
-    }
-
-    /// Return the origin of this URL (https://url.spec.whatwg.org/#origin)
-    pub fn origin(&self) -> Origin {
-        let scheme = self.scheme();
-        match scheme {
-            "blob" => {
-                let result = Url::parse(self.path());
-                match result {
-                    Ok(ref url) => url.origin(),
-                    Err(_)  => Origin::UID(OpaqueOrigin::new())
-                }
-            },
-            "ftp" | "gopher" | "http" | "https" | "ws" | "wss" => {
-                Origin::Tuple(scheme.to_owned(), self.host().unwrap().to_owned(),
-                    self.port_or_default().unwrap())
-            },
-            // TODO: Figure out what to do if the scheme is a file
-            "file" => Origin::UID(OpaqueOrigin::new()),
-            _ => Origin::UID(OpaqueOrigin::new())
-        }
     }
 
     /// Parse the URL’s query string, if any, as `application/x-www-form-urlencoded`

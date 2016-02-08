@@ -45,6 +45,5 @@ optional = true
 
 [dependencies]
 idna = { version = "0.1.0", path = "./idna" }
-uuid = { version = "0.2", features = ["v4"] }
 rustc-serialize = "0.3"
 matches = "0.1"
