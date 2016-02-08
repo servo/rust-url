@@ -120,7 +120,7 @@ assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css")
 
 extern crate rustc_serialize;
 #[macro_use] extern crate matches;
-#[cfg(feature="serde_serialization")] extern crate serde;
+#[cfg(feature="serde")] extern crate serde;
 #[cfg(feature="heap_size")] #[macro_use] extern crate heapsize;
 
 extern crate idna;
@@ -555,8 +555,8 @@ impl rustc_serialize::Decodable for Url {
 
 /// Serializes this URL into a `serde` stream.
 ///
-/// This implementation is only available if the `serde_serialization` Cargo feature is enabled.
-#[cfg(feature="serde_serialization")]
+/// This implementation is only available if the `serde` Cargo feature is enabled.
+#[cfg(feature="serde")]
 impl serde::Serialize for Url {
     fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: serde::Serializer {
         format!("{}", self).serialize(serializer)
@@ -565,8 +565,8 @@ impl serde::Serialize for Url {
 
 /// Deserializes this URL from a `serde` stream.
 ///
-/// This implementation is only available if the `serde_serialization` Cargo feature is enabled.
-#[cfg(feature="serde_serialization")]
+/// This implementation is only available if the `serde` Cargo feature is enabled.
+#[cfg(feature="serde")]
 impl serde::Deserialize for Url {
     fn deserialize<D>(deserializer: &mut D) -> Result<Url, D::Error> where D: serde::Deserializer {
         let string_representation: String = try!(serde::Deserialize::deserialize(deserializer));
