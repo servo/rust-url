@@ -84,8 +84,8 @@ fn parse_internal(input: &[u8], mut encoding_override: EncodingOverride, mut use
     }
 
     Some(pairs.into_iter().map(|(name, value)| (
-        encoding_override.decode(&percent_decode(&name)),
-        encoding_override.decode(&percent_decode(&value))
+        encoding_override.decode(&percent_decode(&name).collect::<Vec<u8>>()),
+        encoding_override.decode(&percent_decode(&value).collect::<Vec<u8>>()),
     )).collect())
 }
 
