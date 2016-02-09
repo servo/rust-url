@@ -7,7 +7,9 @@
 // except according to those terms.
 
 use std::ascii::AsciiExt;
+use std::borrow::Cow;
 use std::fmt::Write;
+use std::slice;
 
 /// Represents a set of characters / bytes that should be percent-encoded.
 ///
@@ -163,41 +165,53 @@ pub fn utf8_percent_encode<E: EncodeSet>(input: &str, encode_set: E) -> String {
 }
 
 
-/// Percent-decode the given bytes, and push the result to `output`.
-pub fn percent_decode_to(input: &[u8], output: &mut Vec<u8>) {
-    let mut i = 0;
-    while i < input.len() {
-        let c = input[i];
-        if c == b'%' && i + 2 < input.len() {
-            let h = (input[i + 1] as char).to_digit(16);
-            let l = (input[i + 2] as char).to_digit(16);
-            if let (Some(h), Some(l)) = (h, l) {
-                output.push(h as u8 * 0x10 + l as u8);
-                i += 3;
-                continue
-            }
-        }
-
-        output.push(c);
-        i += 1;
+/// Percent-decode the given bytes and return an iterator of bytes.
+#[inline]
+pub fn percent_decode(input: &[u8]) -> PercentDecode {
+    PercentDecode {
+        iter: input.iter()
     }
 }
 
-
-/// Percent-decode the given bytes.
-#[inline]
-pub fn percent_decode(input: &[u8]) -> Vec<u8> {
-    let mut output = Vec::new();
-    percent_decode_to(input, &mut output);
-    output
+pub struct PercentDecode<'a> {
+    iter: slice::Iter<'a, u8>,
 }
 
+impl<'a> Iterator for PercentDecode<'a> {
+    type Item = u8;
+
+    fn next(&mut self) -> Option<u8> {
+        self.iter.next().map(|&byte| {
+            if byte == b'%' {
+                let after_percent_sign = self.iter.clone();
+                let h = self.iter.next().and_then(|&b| (b as char).to_digit(16));
+                let l = self.iter.next().and_then(|&b| (b as char).to_digit(16));
+                if let (Some(h), Some(l)) = (h, l) {
+                    return h as u8 * 0x10 + l as u8
+                }
+                self.iter = after_percent_sign;
+            }
+            byte
+        })
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let (low, high) = self.iter.size_hint();
+        (low, high.and_then(|high| high.checked_mul(3)))
+    }
+}
 
 /// Percent-decode the given bytes, and decode the result as UTF-8.
 ///
 /// This is “lossy”: invalid UTF-8 percent-encoded byte sequences
 /// will be replaced � U+FFFD, the replacement character.
-#[inline]
 pub fn lossy_utf8_percent_decode(input: &[u8]) -> String {
-    String::from_utf8_lossy(&percent_decode(input)).to_string()
+    let bytes = percent_decode(input).collect::<Vec<u8>>();
+    match String::from_utf8_lossy(&bytes) {
+        Cow::Owned(s) => return s,
+        Cow::Borrowed(_) => {}
+    }
+    unsafe {
+        String::from_utf8_unchecked(bytes)
+    }
 }
