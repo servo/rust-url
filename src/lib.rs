@@ -126,7 +126,7 @@ assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css")
 extern crate idna;
 
 use host::HostInternal;
-use percent_encoding::{PATH_SEGMENT_ENCODE_SET, percent_encode_to, percent_decode};
+use percent_encoding::{PATH_SEGMENT_ENCODE_SET, percent_encode, percent_decode};
 use std::cmp;
 use std::fmt;
 use std::hash;
@@ -585,7 +585,8 @@ fn path_to_file_url_segments(path: &Path, serialization: &mut String) -> Result<
     // skip the root component
     for component in path.components().skip(1) {
         serialization.push('/');
-        percent_encode_to(component.as_os_str().as_bytes(), PATH_SEGMENT_ENCODE_SET, serialization)
+        serialization.extend(percent_encode(
+            component.as_os_str().as_bytes(), PATH_SEGMENT_ENCODE_SET))
     }
     Ok(())
 }
@@ -624,7 +625,7 @@ fn path_to_file_url_segments_windows(path: &Path, serialization: &mut String) ->
         // FIXME: somehow work with non-unicode?
         let component = try!(component.as_os_str().to_str().ok_or(()));
         serialization.push('/');
-        percent_encode_to(component.as_bytes(), PATH_SEGMENT_ENCODE_SET, serialization);
+        serialization.extend(percent_encode(component.as_bytes(), PATH_SEGMENT_ENCODE_SET));
     }
     Ok(())
 }
