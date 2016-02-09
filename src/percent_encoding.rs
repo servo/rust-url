@@ -169,8 +169,10 @@ pub fn percent_decode_to(input: &[u8], output: &mut Vec<u8>) {
     while i < input.len() {
         let c = input[i];
         if c == b'%' && i + 2 < input.len() {
-            if let (Some(h), Some(l)) = (from_hex(input[i + 1]), from_hex(input[i + 2])) {
-                output.push(h * 0x10 + l);
+            let h = (input[i + 1] as char).to_digit(16);
+            let l = (input[i + 2] as char).to_digit(16);
+            if let (Some(h), Some(l)) = (h, l) {
+                output.push(h as u8 * 0x10 + l as u8);
                 i += 3;
                 continue
             }
@@ -198,32 +200,4 @@ pub fn percent_decode(input: &[u8]) -> Vec<u8> {
 #[inline]
 pub fn lossy_utf8_percent_decode(input: &[u8]) -> String {
     String::from_utf8_lossy(&percent_decode(input)).to_string()
-}
-
-/// Convert the given hex character into its numeric value.
-///
-/// # Examples
-///
-/// ```
-/// use url::percent_encoding::from_hex;
-/// assert_eq!(from_hex('0' as u8), Some(0));
-/// assert_eq!(from_hex('1' as u8), Some(1));
-/// assert_eq!(from_hex('9' as u8), Some(9));
-/// assert_eq!(from_hex('A' as u8), Some(10));
-/// assert_eq!(from_hex('a' as u8), Some(10));
-/// assert_eq!(from_hex('F' as u8), Some(15));
-/// assert_eq!(from_hex('f' as u8), Some(15));
-/// assert_eq!(from_hex('G' as u8), None);
-/// assert_eq!(from_hex('g' as u8), None);
-/// assert_eq!(from_hex('Z' as u8), None);
-/// assert_eq!(from_hex('z' as u8), None);
-/// ```
-#[inline]
-pub fn from_hex(byte: u8) -> Option<u8> {
-    match byte {
-        b'0' ... b'9' => Some(byte - b'0'),  // 0..9
-        b'A' ... b'F' => Some(byte + 10 - b'A'),  // A..F
-        b'a' ... b'f' => Some(byte + 10 - b'a'),  // a..f
-        _ => None
-    }
 }

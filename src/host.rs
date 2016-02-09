@@ -10,7 +10,7 @@ use std::cmp;
 use std::fmt::{self, Formatter, Write};
 use std::net::{Ipv4Addr, Ipv6Addr};
 use parser::{ParseResult, ParseError};
-use percent_encoding::{from_hex, percent_decode};
+use percent_encoding::percent_decode;
 use idna;
 
 #[derive(Copy, Clone, Debug)]
@@ -259,7 +259,7 @@ fn parse_ipv6addr(input: &str) -> ParseResult<Ipv6Addr> {
         let end = cmp::min(len, start + 4);
         let mut value = 0u16;
         while i < end {
-            match from_hex(input[i]) {
+            match (input[i] as char).to_digit(16) {
                 Some(digit) => {
                     value = value * 0x10 + digit as u16;
                     i += 1;
