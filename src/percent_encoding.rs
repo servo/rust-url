@@ -8,7 +8,6 @@
 
 use std::ascii::AsciiExt;
 use std::borrow::Cow;
-use std::fmt::Write;
 use std::slice;
 
 /// Represents a set of characters / bytes that should be percent-encoded.
@@ -49,7 +48,7 @@ pub trait EncodeSet {
 ///     pub QUERY_ENCODE_SET = [SIMPLE_ENCODE_SET] | {' ', '"', '#', '<', '>'}
 /// }
 /// # fn main() {
-/// assert_eq!(utf8_percent_encode("foo bar", QUERY_ENCODE_SET), "foo%20bar");
+/// assert_eq!(utf8_percent_encode("foo bar", QUERY_ENCODE_SET).collect::<String>(), "foo%20bar");
 /// # }
 /// ```
 #[macro_export]
@@ -116,54 +115,70 @@ define_encode_set! {
     }
 }
 
-/// Percent-encode the given bytes, and push the result to `output`.
-///
-/// The pushed strings are within the ASCII range.
+/// Percent-encode the given bytes and return an iterator of `char` in the ASCII range.
 #[inline]
-pub fn percent_encode_to<E: EncodeSet>(input: &[u8], encode_set: E, output: &mut String) {
-    for &byte in input {
-        if encode_set.contains(byte) {
-            write!(output, "%{:02X}", byte).unwrap();
-        } else {
-            assert!(byte.is_ascii());
-            unsafe {
-                output.as_mut_vec().push(byte)
-            }
-        }
+pub fn percent_encode<E: EncodeSet>(input: &[u8], encode_set: E) -> PercentEncode<E> {
+    PercentEncode {
+        iter: input.iter(),
+        encode_set: encode_set,
+        state: PercentEncodeState::NextByte,
     }
 }
 
-
-/// Percent-encode the given bytes.
-///
-/// The returned string is within the ASCII range.
+/// Percent-encode the UTF-8 encoding of the given string
+/// and return an iterator of `char` in the ASCII range.
 #[inline]
-pub fn percent_encode<E: EncodeSet>(input: &[u8], encode_set: E) -> String {
-    let mut output = String::new();
-    percent_encode_to(input, encode_set, &mut output);
-    output
+pub fn utf8_percent_encode<E: EncodeSet>(input: &str, encode_set: E) -> PercentEncode<E> {
+    percent_encode(input.as_bytes(), encode_set)
 }
 
-
-/// Percent-encode the UTF-8 encoding of the given string, and push the result to `output`.
-///
-/// The pushed strings are within the ASCII range.
-#[inline]
-pub fn utf8_percent_encode_to<E: EncodeSet>(input: &str, encode_set: E, output: &mut String) {
-    percent_encode_to(input.as_bytes(), encode_set, output)
+pub struct PercentEncode<'a, E: EncodeSet> {
+    iter: slice::Iter<'a, u8>,
+    encode_set: E,
+    state: PercentEncodeState,
 }
 
-
-/// Percent-encode the UTF-8 encoding of the given string.
-///
-/// The returned string is within the ASCII range.
-#[inline]
-pub fn utf8_percent_encode<E: EncodeSet>(input: &str, encode_set: E) -> String {
-    let mut output = String::new();
-    utf8_percent_encode_to(input, encode_set, &mut output);
-    output
+enum PercentEncodeState {
+    NextByte,
+    HexHigh(u8),
+    HexLow(u8),
 }
 
+impl<'a, E: EncodeSet> Iterator for PercentEncode<'a, E> {
+    type Item = char;
+
+    fn next(&mut self) -> Option<char> {
+        // str::char::from_digit always returns lowercase.
+        const UPPER_HEX: [char; 16] = ['0', '1', '2', '3', '4', '5', '6', '7',
+                                       '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'];
+        match self.state {
+            PercentEncodeState::HexHigh(byte) => {
+                self.state = PercentEncodeState::HexLow(byte);
+                Some(UPPER_HEX[(byte >> 4) as usize])
+            }
+            PercentEncodeState::HexLow(byte) => {
+                self.state = PercentEncodeState::NextByte;
+                Some(UPPER_HEX[(byte & 0x0F) as usize])
+            }
+            PercentEncodeState::NextByte => {
+                self.iter.next().map(|&byte| {
+                    if self.encode_set.contains(byte) {
+                        self.state = PercentEncodeState::HexHigh(byte);
+                        '%'
+                    } else {
+                        assert!(byte.is_ascii());
+                        byte as char
+                    }
+                })
+            }
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let (low, high) = self.iter.size_hint();
+        (low.saturating_add(2) / 3, high)
+    }
+}
 
 /// Percent-decode the given bytes and return an iterator of bytes.
 #[inline]

@@ -13,7 +13,7 @@ use std::fmt::{self, Formatter, Write};
 use super::{Url, EncodingOverride};
 use host::{self, HostInternal};
 use percent_encoding::{
-    utf8_percent_encode_to, percent_encode_to,
+    utf8_percent_encode, percent_encode,
     SIMPLE_ENCODE_SET, DEFAULT_ENCODE_SET, USERINFO_ENCODE_SET, QUERY_ENCODE_SET
 };
 
@@ -604,7 +604,7 @@ impl<'a> Parser<'a> {
                 _ => {
                     self.check_url_code_point(input, i, c);
                     let utf8_c = &input[i..next_i];
-                    utf8_percent_encode_to(utf8_c, USERINFO_ENCODE_SET, &mut self.serialization);
+                    self.serialization.extend(utf8_percent_encode(utf8_c, USERINFO_ENCODE_SET));
                 }
             }
         }
@@ -794,8 +794,8 @@ impl<'a> Parser<'a> {
                     '\t' | '\n' | '\r' => self.syntax_violation("invalid characters"),
                     _ => {
                         self.check_url_code_point(input, i, c);
-                        utf8_percent_encode_to(
-                            &input[i..next_i], DEFAULT_ENCODE_SET, &mut self.serialization);
+                        self.serialization.extend(utf8_percent_encode(
+                            &input[i..next_i], DEFAULT_ENCODE_SET));
                     }
                 }
             }
@@ -861,8 +861,8 @@ impl<'a> Parser<'a> {
                 '\t' | '\n' | '\r' => self.syntax_violation("invalid character"),
                 _ => {
                     self.check_url_code_point(input, i, c);
-                    utf8_percent_encode_to(
-                        &input[i..next_i], SIMPLE_ENCODE_SET, &mut self.serialization);
+                    self.serialization.extend(utf8_percent_encode(
+                        &input[i..next_i], SIMPLE_ENCODE_SET));
                 }
             }
         }
@@ -941,7 +941,7 @@ impl<'a> Parser<'a> {
             _ => EncodingOverride::utf8(),
         };
         let query_bytes = encoding.encode(&query);
-        percent_encode_to(&query_bytes, QUERY_ENCODE_SET, &mut self.serialization);
+        self.serialization.extend(percent_encode(&query_bytes, QUERY_ENCODE_SET));
         remaining
     }
 
@@ -969,8 +969,8 @@ impl<'a> Parser<'a> {
                 '\0' | '\t' | '\n' | '\r' => self.syntax_violation("invalid character"),
                 _ => {
                     self.check_url_code_point(input, i, c);
-                    utf8_percent_encode_to(
-                        &input[i..next_i], SIMPLE_ENCODE_SET, &mut self.serialization);
+                    self.serialization.extend(utf8_percent_encode(
+                        &input[i..next_i], SIMPLE_ENCODE_SET));
                 }
             }
         }
