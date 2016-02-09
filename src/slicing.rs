@@ -45,10 +45,10 @@ impl Index<Range<Position>> for Url {
 /// # use url::{Url, Position};
 /// # fn something(some_url: Url) {
 /// let serialization: &str = &some_url[..];
-/// let serialization_without_fragment: &str = &some_url[..Position::QueryEnd];
-/// let authority: &str = &some_url[Position::UsernameStart..Position::PortEnd];
-/// let data_url_payload: &str = &some_url[Position::PathStart..Position::QueryEnd];
-/// let scheme_relative: &str = &some_url[Position::UsernameStart..];
+/// let serialization_without_fragment: &str = &some_url[..Position::AfterQuery];
+/// let authority: &str = &some_url[Position::BeforeUsername..Position::AfterPort];
+/// let data_url_payload: &str = &some_url[Position::BeforePath..Position::AfterQuery];
+/// let scheme_relative: &str = &some_url[Position::BeforeUsername..];
 /// # }
 /// ```
 ///
@@ -63,48 +63,48 @@ impl Index<Range<Position>> for Url {
 /// ```
 ///
 /// When a given component is not present,
-/// its "start" and "end" position are the same
-/// (so that `&some_url[FooStart..FooEnd]` is the empty string)
+/// its "before" and "after" position are the same
+/// (so that `&some_url[BeforeFoo..AfterFoo]` is the empty string)
 /// and component ordering is preserved
 /// (so that a missing query "is between" a path and a fragment).
 ///
 /// The end of a component and the start of the next are either the same or separate
 /// by a delimiter.
 /// (Not that the initial `/` of a path is considered part of the path here, not a delimiter.)
-/// For example, `&url[..FragmentStart]` would include a `#` delimiter (if present in `url`),
-/// so `&url[..QueryEnd]` might be desired instead.
+/// For example, `&url[..BeforeFragment]` would include a `#` delimiter (if present in `url`),
+/// so `&url[..AfterQuery]` might be desired instead.
 ///
-/// `SchemeStart` and `FragmentEnd` are always the start and end of the entire URL,
-/// so `&url[SchemeStart..X]` is the same as `&url[..X]`
-/// and `&url[X..FragmentEnd]` is the same as `&url[X..]`.
+/// `BeforeScheme` and `AfterFragment` are always the start and end of the entire URL,
+/// so `&url[BeforeScheme..X]` is the same as `&url[..X]`
+/// and `&url[X..AfterFragment]` is the same as `&url[X..]`.
 pub enum Position {
-    SchemeStart,
-    SchemeEnd,
-    UsernameStart,
-    UsernameEnd,
-    PasswordStart,
-    PasswordEnd,
-    HostStart,
-    HostEnd,
-    PortStart,
-    PortEnd,
-    PathStart,
-    PathEnd,
-    QueryStart,
-    QueryEnd,
-    FragmentStart,
-    FragmentEnd
+    BeforeScheme,
+    AfterScheme,
+    BeforeUsername,
+    AfterUsername,
+    BeforePassword,
+    AfterPassword,
+    BeforeHost,
+    AfterHost,
+    BeforePort,
+    AfterPort,
+    BeforePath,
+    AfterPath,
+    BeforeQuery,
+    AfterQuery,
+    BeforeFragment,
+    AfterFragment
 }
 
 impl Url {
     #[inline]
     fn index(&self, position: Position) -> usize {
         match position {
-            Position::SchemeStart => 0,
+            Position::BeforeScheme => 0,
 
-            Position::SchemeEnd => self.scheme_end as usize,
+            Position::AfterScheme => self.scheme_end as usize,
 
-            Position::UsernameStart => if self.non_relative {
+            Position::BeforeUsername => if self.non_relative {
                 debug_assert!(self.byte_at(self.scheme_end) == b':');
                 debug_assert!(self.scheme_end + ":".len() as u32 == self.username_end);
                 self.scheme_end as usize + ":".len()
@@ -113,9 +113,9 @@ impl Url {
                 self.scheme_end as usize + "://".len()
             },
 
-            Position::UsernameEnd => self.username_end as usize,
+            Position::AfterUsername => self.username_end as usize,
 
-            Position::PasswordStart => if self.port.is_some() {
+            Position::BeforePassword => if self.port.is_some() {
                 debug_assert!(self.has_host());
                 debug_assert!(self.byte_at(self.username_end) == b':');
                 self.username_end as usize + ":".len()
@@ -124,7 +124,7 @@ impl Url {
                 self.username_end as usize
             },
 
-            Position::PasswordEnd => if self.port.is_some() {
+            Position::AfterPassword => if self.port.is_some() {
                 debug_assert!(self.has_host());
                 debug_assert!(self.byte_at(self.username_end) == b':');
                 debug_assert!(self.byte_at(self.host_start - "@".len() as u32) == b'@');
@@ -134,28 +134,28 @@ impl Url {
                 self.host_start as usize
             },
 
-            Position::HostStart => self.host_start as usize,
+            Position::BeforeHost => self.host_start as usize,
 
-            Position::HostEnd => self.host_end as usize,
+            Position::AfterHost => self.host_end as usize,
 
-            Position::PortStart => if self.port.is_some() {
+            Position::BeforePort => if self.port.is_some() {
                 debug_assert!(self.byte_at(self.host_end) == b':');
                 self.host_end as usize + ":".len()
             } else {
                 self.host_end as usize
             },
 
-            Position::PortEnd => self.path_start as usize,
+            Position::AfterPort => self.path_start as usize,
 
-            Position::PathStart => self.path_start as usize,
+            Position::BeforePath => self.path_start as usize,
 
-            Position::PathEnd => match (self.query_start, self.fragment_start) {
+            Position::AfterPath => match (self.query_start, self.fragment_start) {
                 (Some(q), _) => q as usize,
                 (None, Some(f)) => f as usize,
                 (None, None) => self.serialization.len(),
             },
 
-            Position::QueryStart => match (self.query_start, self.fragment_start) {
+            Position::BeforeQuery => match (self.query_start, self.fragment_start) {
                 (Some(q), _) => {
                     debug_assert!(self.byte_at(q) == b'?');
                     q as usize + "?".len()
@@ -164,12 +164,12 @@ impl Url {
                 (None, None) => self.serialization.len(),
             },
 
-            Position::QueryEnd => match self.fragment_start {
+            Position::AfterQuery => match self.fragment_start {
                 None => self.serialization.len(),
                 Some(f) => f as usize,
             },
 
-            Position::FragmentStart => match self.fragment_start {
+            Position::BeforeFragment => match self.fragment_start {
                 Some(f) => {
                     debug_assert!(self.byte_at(f) == b'#');
                     f as usize + "#".len()
@@ -177,7 +177,7 @@ impl Url {
                 None => self.serialization.len(),
             },
 
-            Position::FragmentEnd => self.serialization.len(),
+            Position::AfterFragment => self.serialization.len(),
         }
     }
 }
