@@ -8,6 +8,7 @@
 
 use std::ascii::AsciiExt;
 use std::borrow::Cow;
+use std::fmt::{self, Write};
 use std::slice;
 
 /// Represents a set of characters / bytes that should be percent-encoded.
@@ -23,7 +24,7 @@ use std::slice;
 ///
 /// A few sets are defined in this module.
 /// Use the [`define_encode_set!`](../macro.define_encode_set!.html) macro to define different ones.
-pub trait EncodeSet {
+pub trait EncodeSet: Clone {
     /// Called with UTF-8 bytes rather than code points.
     /// Should return false for all non-ASCII bytes.
     fn contains(&self, byte: u8) -> bool;
@@ -132,12 +133,14 @@ pub fn utf8_percent_encode<E: EncodeSet>(input: &str, encode_set: E) -> PercentE
     percent_encode(input.as_bytes(), encode_set)
 }
 
+#[derive(Clone)]
 pub struct PercentEncode<'a, E: EncodeSet> {
     iter: slice::Iter<'a, u8>,
     encode_set: E,
     state: PercentEncodeState,
 }
 
+#[derive(Clone)]
 enum PercentEncodeState {
     NextByte,
     HexHigh(u8),
@@ -180,6 +183,15 @@ impl<'a, E: EncodeSet> Iterator for PercentEncode<'a, E> {
     }
 }
 
+impl<'a, E: EncodeSet> fmt::Display for PercentEncode<'a, E> {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        for c in (*self).clone() {
+            try!(formatter.write_char(c))
+        }
+        Ok(())
+    }
+}
+
 /// Percent-decode the given bytes and return an iterator of bytes.
 #[inline]
 pub fn percent_decode(input: &[u8]) -> PercentDecode {
@@ -188,6 +200,7 @@ pub fn percent_decode(input: &[u8]) -> PercentDecode {
     }
 }
 
+#[derive(Clone)]
 pub struct PercentDecode<'a> {
     iter: slice::Iter<'a, u8>,
 }
@@ -214,6 +227,14 @@ impl<'a> Iterator for PercentDecode<'a> {
         let (low, high) = self.iter.size_hint();
         (low, high.and_then(|high| high.checked_mul(3)))
     }
+}
+
+/// Percent-decode the given bytes, and decode the result as UTF-8.
+///
+/// This is return `Err` when the percent-decoded bytes are not well-formed in UTF-8.
+pub fn utf8_percent_decode(input: &[u8]) -> Result<String, ::std::string::FromUtf8Error> {
+    let bytes = percent_decode(input).collect::<Vec<u8>>();
+    String::from_utf8(bytes)
 }
 
 /// Percent-decode the given bytes, and decode the result as UTF-8.
