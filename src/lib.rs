@@ -126,7 +126,7 @@ assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css")
 extern crate idna;
 
 use host::HostInternal;
-use percent_encoding::{PATH_SEGMENT_ENCODE_SET, percent_encode_to};
+use percent_encoding::{PATH_SEGMENT_ENCODE_SET, percent_encode_to, percent_decode};
 use std::cmp;
 use std::fmt;
 use std::hash;
@@ -635,12 +635,10 @@ fn file_url_segments_to_pathbuf(segments: str::Split<char>) -> Result<PathBuf, (
     use std::os::unix::prelude::OsStrExt;
     use std::path::PathBuf;
 
-    use percent_encoding::percent_decode_to;
-
     let mut bytes = Vec::new();
     for segment in segments {
         bytes.push(b'/');
-        percent_decode_to(segment.as_bytes(), &mut bytes);
+        bytes.extend(percent_decode(segment.as_bytes()));
     }
     let os_str = OsStr::from_bytes(&bytes);
     let path = PathBuf::from(os_str);
@@ -657,8 +655,6 @@ fn file_url_segments_to_pathbuf(segments: str::Split<char>) -> Result<PathBuf, (
 // Build this unconditionally to alleviate https://github.com/servo/rust-url/issues/102
 #[cfg_attr(not(windows), allow(dead_code))]
 fn file_url_segments_to_pathbuf_windows(mut segments: str::Split<char>) -> Result<PathBuf, ()> {
-    use percent_encoding::percent_decode;
-
     let first = try!(segments.next().ok_or(()));
     if first.len() != 2 || !first.starts_with(parser::ascii_alpha)
             || first.as_bytes()[1] != b':' {
@@ -669,7 +665,7 @@ fn file_url_segments_to_pathbuf_windows(mut segments: str::Split<char>) -> Resul
         string.push('\\');
 
         // Currently non-unicode windows paths cannot be represented
-        match String::from_utf8(percent_decode(segment.as_bytes())) {
+        match String::from_utf8(percent_decode(segment.as_bytes()).collect()) {
             Ok(s) => string.push_str(&s),
             Err(..) => return Err(()),
         }
