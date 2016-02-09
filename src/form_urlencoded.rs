@@ -16,7 +16,7 @@
 use std::borrow::Borrow;
 use std::ascii::AsciiExt;
 use encoding::EncodingOverride;
-use percent_encoding::{percent_encode_to, percent_decode, FORM_URLENCODED_ENCODE_SET};
+use percent_encoding::{percent_encode, percent_decode, FORM_URLENCODED_ENCODE_SET};
 
 
 /// Convert a byte string in the `application/x-www-form-urlencoded` format
@@ -125,7 +125,7 @@ where I: IntoIterator, I::Item: Borrow<(K, V)>, K: AsRef<str>, V: AsRef<str> {
             if byte == b' ' {
                 output.push_str("+")
             } else {
-                percent_encode_to(&[byte], FORM_URLENCODED_ENCODE_SET, output)
+                output.extend(percent_encode(&[byte], FORM_URLENCODED_ENCODE_SET))
             }
         }
     }
