@@ -798,14 +798,22 @@ impl<'a> Parser<'a> {
                     '\t' | '\n' | '\r' => self.syntax_violation("invalid characters"),
                     _ => {
                         self.check_url_code_point(input, i, c);
+                        if c == '%' {
+                            let after_percent_sign = iter.clone();
+                            if matches!(iter.next(), Some((_, '2', _))) &&
+                                    matches!(iter.next(), Some((_, 'E', _)) | Some((_, 'e', _))) {
+                                self.serialization.push('.');
+                                continue
+                            }
+                            iter = after_percent_sign
+                        }
                         self.serialization.extend(utf8_percent_encode(
                             &input[i..next_i], DEFAULT_ENCODE_SET));
                     }
                 }
             }
             match &self.serialization[segment_start..] {
-                ".." | ".%2e" | ".%2E" | "%2e." | "%2E." |
-                "%2e%2e" | "%2E%2e" | "%2e%2E" | "%2E%2E" => {
+                ".." => {
                     debug_assert!(self.serialization.as_bytes()[segment_start - 1] == b'/');
                     self.serialization.truncate(segment_start - 1);  // Truncate "/.."
                     self.pop_path(scheme_type, path_start);
@@ -813,7 +821,7 @@ impl<'a> Parser<'a> {
                         self.serialization.push('/')
                     }
                 },
-                "." | "%2e" | "%2E" => {
+                "." => {
                     self.serialization.truncate(segment_start);
                 },
                 _ => {
@@ -968,13 +976,12 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_fragment(&mut self, input: &str) {
-        for (i, c, next_i) in input.char_ranges() {
+        for (i, c) in input.char_indices() {
             match c {
                 '\0' | '\t' | '\n' | '\r' => self.syntax_violation("invalid character"),
                 _ => {
                     self.check_url_code_point(input, i, c);
-                    self.serialization.extend(utf8_percent_encode(
-                        &input[i..next_i], SIMPLE_ENCODE_SET));
+                    self.serialization.push(c);  // No percent-encoding here.
                 }
             }
         }
@@ -1043,6 +1050,7 @@ impl<'a> StrCharRanges<'a> for &'a str {
     }
 }
 
+#[derive(Clone)]
 pub struct CharRanges<'a> {
     slice: &'a str,
     position: usize,

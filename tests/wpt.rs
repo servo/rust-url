@@ -8,182 +8,98 @@
 
 //! Tests copied form https://github.com/w3c/web-platform-tests/blob/master/url/
 
+extern crate rustc_serialize;
 extern crate test;
 extern crate url;
 
-use std::char;
-use url::Url;
+use rustc_serialize::json::Json;
+use url::{Url, WebIdl};
 
 
-fn run_one(entry: Entry) {
-    let Entry {
-        input,
-        base,
-        scheme: expected_scheme,
-        username: expected_username,
-        password: expected_password,
-        host: expected_host,
-        port: expected_port,
-        path: expected_path,
-        query: expected_query,
-        fragment: expected_fragment,
-        expected_failure,
-    } = entry;
+fn run_one(input: String, base: String, expected: Result<TestCase, ()>) {
     let base = match Url::parse(&base) {
         Ok(base) => base,
-        Err(message) => panic!("Error parsing base {}: {}", base, message)
+        Err(message) => panic!("Error parsing base {:?}: {}", base, message)
     };
-    let expecting_err = expected_scheme.is_none() ^ expected_failure;
-    let url = match base.join(&input) {
-        Ok(url) => url,
-        Err(reason) => {
-            assert!(expecting_err, "Error parsing URL {}: {}", input, reason);
-            return
-        }
+    let (url, expected) = match (base.join(&input), expected) {
+        (Ok(url), Ok(expected)) => (url, expected),
+        (Err(_), Err(())) => return,
+        (Err(message), Ok(_)) => panic!("Error parsing URL {:?}: {}", input, message),
+        (Ok(_), Err(())) => panic!("Expected a parse error for URL {:?}", input),
     };
-    assert!(!expecting_err, "Expected a parse error for URL {}", input);
 
-    macro_rules! assert_eq {
-        ($a: expr, $b: expr) => {
+    macro_rules! assert_getter {
+        ($attribute: ident) => {
             {
-                let a = $a;
-                let b = $b;
-                if a != b {
-                    if expected_failure {
-                        return
-                    } else {
-                        panic!("{:?} != {:?} for {:?}", a, b, url)
-                    }
-                }
+                let a = WebIdl::$attribute(&url);
+                let b = expected.$attribute;
+                assert!(a == b, "{:?} != {:?} for URL {:?}", a, b, url);
             }
         }
     }
 
-    assert_eq!(Some(url.scheme().to_owned()), expected_scheme);
-    assert_eq!(url.username(), expected_username);
-    assert_eq!(url.password().map(|s| s.to_owned()), expected_password);
-    assert_eq!(url.host_str().unwrap_or("").to_owned(), expected_host);
-    assert_eq!(url.port(), expected_port);
-    assert_eq!(Some(url.path().to_owned()), expected_path);
-    assert_eq!(url.query().map(|s| format!("?{}", s)), expected_query);
-    assert_eq!(url.fragment().map(|s| format!("#{}", s)), expected_fragment);
-
-    assert!(!expected_failure, "Unexpected success for {}", input);
+    assert_getter!(href);
+    //assert_getter!(origin);  FIXME
+    assert_getter!(protocol);
+    assert_getter!(username);
+    assert_getter!(password);
+    assert_getter!(host);
+    assert_getter!(hostname);
+    assert_getter!(port);
+    assert_getter!(pathname);
+    assert_getter!(search);
+    assert_getter!(hash);
 }
 
-struct Entry {
-    input: String,
-    base: String,
-    scheme: Option<String>,
+struct TestCase {
+    href: String,
+    origin: String,
+    protocol: String,
     username: String,
-    password: Option<String>,
+    password: String,
     host: String,
-    port: Option<u16>,
-    path: Option<String>,
-    query: Option<String>,
-    fragment: Option<String>,
-    expected_failure: bool,
-}
-
-fn parse_test_data(input: &str) -> Vec<Entry> {
-    let mut tests: Vec<Entry> = Vec::new();
-    for line in input.lines() {
-        if line == "" || line.starts_with("#") {
-            continue
-        }
-        let mut pieces = line.split(' ').collect::<Vec<&str>>();
-        let expected_failure = pieces[0] == "XFAIL";
-        if expected_failure {
-            pieces.remove(0);
-        }
-        let input = unescape(pieces.remove(0));
-        let mut test = Entry {
-            input: input,
-            base: if pieces.is_empty() || pieces[0] == "" {
-                tests.last().unwrap().base.clone()
-            } else {
-                unescape(pieces.remove(0))
-            },
-            scheme: None,
-            username: String::new(),
-            password: None,
-            host: String::new(),
-            port: None,
-            path: None,
-            query: None,
-            fragment: None,
-            expected_failure: expected_failure,
-        };
-        for piece in pieces {
-            if piece == "" || piece.starts_with("#") {
-                continue
-            }
-            let colon = piece.find(':').unwrap();
-            let value = unescape(&piece[colon + 1..]);
-            match &piece[..colon] {
-                "s" => test.scheme = Some(value),
-                "u" => test.username = value,
-                "pass" => test.password = Some(value),
-                "h" => test.host = value,
-                "port" => test.port = Some(value.parse().unwrap()),
-                "p" => test.path = Some(value),
-                "q" => test.query = Some(value),
-                "f" => test.fragment = Some(value),
-                _ => panic!("Invalid token")
-            }
-        }
-        tests.push(test)
-    }
-    tests
-}
-
-fn unescape(input: &str) -> String {
-    let mut output = String::new();
-    let mut chars = input.chars();
-    loop {
-        match chars.next() {
-            None => return output,
-            Some(c) => output.push(
-                if c == '\\' {
-                    match chars.next().unwrap() {
-                        '\\' => '\\',
-                        'n' => '\n',
-                        'r' => '\r',
-                        's' => ' ',
-                        't' => '\t',
-                        'f' => '\x0C',
-                        'u' => {
-                            char::from_u32((((
-                                chars.next().unwrap().to_digit(16).unwrap()) * 16 +
-                                chars.next().unwrap().to_digit(16).unwrap()) * 16 +
-                                chars.next().unwrap().to_digit(16).unwrap()) * 16 +
-                                chars.next().unwrap().to_digit(16).unwrap()).unwrap()
-                        }
-                        _ => panic!("Invalid test data input"),
-                    }
-                } else {
-                    c
-                }
-            )
-        }
-    }
-}
-
-fn make_test(entry: Entry) -> test::TestDescAndFn {
-    test::TestDescAndFn {
-        desc: test::TestDesc {
-            name: test::DynTestName(format!("{:?} base {:?}", entry.input, entry.base)),
-            ignore: false,
-            should_panic: test::ShouldPanic::No,
-        },
-        testfn: test::TestFn::dyn_test_fn(move || run_one(entry)),
-    }
-
+    hostname: String,
+    port: String,
+    pathname: String,
+    search: String,
+    hash: String,
 }
 
 fn main() {
-    test::test_main(
-        &std::env::args().collect::<Vec<_>>(),
-        parse_test_data(include_str!("urltestdata.txt")).into_iter().map(make_test).collect(),
-    )
+    let json = Json::from_str(include_str!("urltestdata.json"))
+        .expect("JSON parse error in urltestdata.json");
+    let tests = json.as_array().unwrap().iter().filter_map(|entry| {
+        if entry.is_string() {
+            return None  // ignore comments
+        }
+        let string = |key| entry.find(key).unwrap().as_string().unwrap().to_owned();
+        let base = string("base");
+        let input = string("input");
+        let expected = if entry.find("failure").is_some() {
+            Err(())
+        } else {
+            Ok(TestCase {
+                href: string("href"),
+                origin: string("origin"),
+                protocol: string("protocol"),
+                username: string("username"),
+                password: string("password"),
+                host: string("host"),
+                hostname: string("hostname"),
+                port: string("port"),
+                pathname: string("pathname"),
+                search: string("search"),
+                hash: string("hash"),
+            })
+        };
+        Some(test::TestDescAndFn {
+            desc: test::TestDesc {
+                name: test::DynTestName(format!("{:?} @ base {:?}", input, base)),
+                ignore: false,
+                should_panic: test::ShouldPanic::No,
+            },
+            testfn: test::TestFn::dyn_test_fn(move || run_one(input, base, expected)),
+        })
+    }).collect();
+    test::test_main(&std::env::args().collect::<Vec<_>>(), tests)
 }

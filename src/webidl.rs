@@ -32,13 +32,13 @@ impl WebIdl {
     }
 
     /// **Not implemented yet** Getter for https://url.spec.whatwg.org/#dom-url-origin
-    pub fn get_origin(_url: &Url) -> String {
+    pub fn origin(_url: &Url) -> String {
         unimplemented!()  // FIXME
     }
 
     /// Getter for https://url.spec.whatwg.org/#dom-url-protocol
     #[inline]
-    pub fn get_protocol(url: &Url) -> &str {
+    pub fn protocol(url: &Url) -> &str {
         debug_assert!(url.byte_at(url.scheme_end) == b':');
         url.slice(..url.scheme_end + 1)
     }
@@ -50,7 +50,7 @@ impl WebIdl {
 
     /// Getter for https://url.spec.whatwg.org/#dom-url-username
     #[inline]
-    pub fn get_username(url: &Url) -> &str {
+    pub fn username(url: &Url) -> &str {
         url.username()
     }
 
@@ -61,7 +61,7 @@ impl WebIdl {
 
     /// Getter for https://url.spec.whatwg.org/#dom-url-password
     #[inline]
-    pub fn get_password(url: &Url) -> &str {
+    pub fn password(url: &Url) -> &str {
         url.password().unwrap_or("")
     }
 
@@ -72,9 +72,8 @@ impl WebIdl {
 
     /// Getter for https://url.spec.whatwg.org/#dom-url-host
     #[inline]
-    pub fn get_host(url: &Url) -> &str {
-        let host = url.slice(url.host_start..url.host_end);
-        debug_assert!(!host.is_empty() || url.non_relative);
+    pub fn host(url: &Url) -> &str {
+        let host = url.slice(url.host_start..url.path_start);
         host
     }
 
@@ -85,7 +84,7 @@ impl WebIdl {
 
     /// Getter for https://url.spec.whatwg.org/#dom-url-hostname
     #[inline]
-    pub fn get_hostname(url: &Url) -> &str {
+    pub fn hostname(url: &Url) -> &str {
         url.host_str().unwrap_or("")
     }
 
@@ -96,7 +95,7 @@ impl WebIdl {
 
     /// Getter for https://url.spec.whatwg.org/#dom-url-port
     #[inline]
-    pub fn get_port(url: &Url) -> &str {
+    pub fn port(url: &Url) -> &str {
         if url.port.is_some() {
             debug_assert!(url.byte_at(url.host_end) == b':');
             url.slice(url.host_end + 1..url.path_start)
@@ -112,7 +111,7 @@ impl WebIdl {
 
     /// Getter for https://url.spec.whatwg.org/#dom-url-pathname
     #[inline]
-    pub fn get_pathname(url: &Url) -> &str {
+    pub fn pathname(url: &Url) -> &str {
          url.path()
     }
 
@@ -122,13 +121,21 @@ impl WebIdl {
     }
 
     /// Getter for https://url.spec.whatwg.org/#dom-url-search
-    pub fn get_search(url: &Url) -> &str {
+    pub fn search(url: &Url) -> &str {
         match (url.query_start, url.fragment_start) {
-            (None, _) => "",
-            (Some(query_start), None) => url.slice(query_start..),
-            (Some(query_start), Some(fragment_start)) => {
-                url.slice(query_start..fragment_start)
-            }
+            (Some(query_start), None) if {
+                debug_assert!(url.byte_at(query_start) == b'?');
+                // If the query (after ?) is not empty
+                (query_start as usize) < url.serialization.len() - 1
+            } => url.slice(query_start..),
+
+            (Some(query_start), Some(fragment_start)) if {
+                debug_assert!(url.byte_at(query_start) == b'?');
+                // If the fragment (after ?) is not empty
+                query_start < fragment_start
+            } => url.slice(query_start..fragment_start),
+
+            _ => "",
         }
     }
 
@@ -138,15 +145,19 @@ impl WebIdl {
     }
 
     /// **Not implemented yet** Getter for https://url.spec.whatwg.org/#dom-url-searchparams
-    pub fn get_search_params(_url: &Url) -> Vec<(String, String)> {
+    pub fn search_params(_url: &Url) -> Vec<(String, String)> {
         unimplemented!();  // FIXME
     }
 
     /// Getter for https://url.spec.whatwg.org/#dom-url-hash
-    pub fn get_hash(url: &Url) -> &str {
+    pub fn hash(url: &Url) -> &str {
         match url.fragment_start {
-            Some(start) => url.slice(start..),
-            None => "",
+            Some(start) if {
+                debug_assert!(url.byte_at(start) == b'#');
+                // If the fragment (after #) is not empty
+                (start as usize) < url.serialization.len() - 1
+            } => url.slice(start..),
+            _ => "",
         }
     }
 
