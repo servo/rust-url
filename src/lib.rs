@@ -343,7 +343,10 @@ impl Url {
         }
     }
 
-    /// Return this URL’s fragment identifier, if any, as a percent-encoded ASCII string.
+    /// Return this URL’s fragment identifier, if any.
+    ///
+    /// **Note:** the parser does *not* percent-encode this component,
+    /// but the input may be percent-encoded already.
     pub fn fragment(&self) -> Option<&str> {
         self.fragment_start.map(|start| {
             debug_assert!(self.byte_at(start) == b'#');
