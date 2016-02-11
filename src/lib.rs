@@ -202,6 +202,7 @@ impl Url {
             base_url: base_url,
             query_encoding_override: encoding_override,
             log_syntax_violation: log_syntax_violation,
+            context: parser::Context::UrlParser,
         }.parse_url(input)
     }
 
