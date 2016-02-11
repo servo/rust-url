@@ -126,11 +126,13 @@ assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css")
 extern crate idna;
 
 use host::HostInternal;
+use parser::{Parser, Context};
 use percent_encoding::{PATH_SEGMENT_ENCODE_SET, percent_encode, percent_decode};
 use std::cmp;
 use std::fmt;
 use std::hash;
 use std::io;
+use std::mem;
 use std::net::ToSocketAddrs;
 use std::ops::{Range, RangeFrom, RangeTo};
 use std::path::{Path, PathBuf};
@@ -139,7 +141,7 @@ use std::str;
 pub use encoding::EncodingOverride;
 pub use origin::Origin;
 pub use host::{Host, HostAndPort, SocketAddrs};
-pub use parser::ParseError;
+pub use parser::{ParseError, to_u32};
 pub use slicing::Position;
 pub use webidl::WebIdl;
 
@@ -194,12 +196,12 @@ impl Url {
                       encoding_override: EncodingOverride,
                       log_syntax_violation: Option<&Fn(&'static str)>)
                       -> Result<Url, ::ParseError> {
-        parser::Parser {
+        Parser {
             serialization: String::with_capacity(input.len()),
             base_url: base_url,
             query_encoding_override: encoding_override,
             log_syntax_violation: log_syntax_violation,
-            context: parser::Context::UrlParser,
+            context: Context::UrlParser,
         }.parse_url(input)
     }
 
@@ -386,13 +388,37 @@ impl Url {
 
     /// Return this URL’s fragment identifier, if any.
     ///
-    /// **Note:** the parser does *not* percent-encode this component,
-    /// but the input may be percent-encoded already.
+    /// **Note:** the parser did *not* percent-encode this component,
+    /// but the input may have been percent-encoded already.
     pub fn fragment(&self) -> Option<&str> {
         self.fragment_start.map(|start| {
             debug_assert!(self.byte_at(start) == b'#');
             self.slice(start + 1..)
         })
+    }
+
+    fn mutate<F: FnOnce(&mut Parser)>(&mut self, f: F) {
+        let mut parser = Parser {
+            serialization: mem::replace(&mut self.serialization, String::new()),
+            base_url: None,
+            query_encoding_override: EncodingOverride::utf8(),
+            log_syntax_violation: None,
+            context: Context::Setter,
+        };
+        f(&mut parser);
+        self.serialization = parser.serialization;
+    }
+
+    /// Change this URL’s fragment identifier.
+    pub fn set_fragment(&mut self, fragment: Option<&str>) {
+        if let Some(start) = self.fragment_start {
+            debug_assert!(self.byte_at(start) == b'#');
+            self.serialization.truncate(start as usize);
+        }
+        if let Some(input) = fragment {
+            self.serialization.push('#');
+            self.mutate(|parser| parser.parse_fragment(input));
+        }
     }
 
     /// Convert a file name as `std::path::Path` into an URL in the `file` scheme.
