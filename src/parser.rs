@@ -1049,7 +1049,7 @@ pub fn ascii_alpha(ch: char) -> bool {
 }
 
 #[inline]
-fn to_u32(i: usize) -> ParseResult<u32> {
+pub fn to_u32(i: usize) -> ParseResult<u32> {
     if i <= ::std::u32::MAX as usize {
         Ok(i as u32)
     } else {

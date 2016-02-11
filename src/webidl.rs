@@ -161,8 +161,14 @@ impl WebIdl {
         }
     }
 
-    /// **Not implemented yet** Setter for https://url.spec.whatwg.org/#dom-url-hash
-    pub fn set_hash(_url: &mut Url, _new_hash: &str) {
-        unimplemented!()  // FIXME
+    /// Setter for https://url.spec.whatwg.org/#dom-url-hash
+    pub fn set_hash(url: &mut Url, new_hash: &str) {
+        if url.scheme() != "javascript" {
+            url.set_fragment(match new_hash {
+                "" => None,
+                _ if new_hash.starts_with('#') => Some(&new_hash[1..]),
+                _ => Some(new_hash),
+            })
+        }
     }
 }
