@@ -63,12 +63,6 @@ impl From<::idna::uts46::Errors> for ParseError {
     fn from(_: ::idna::uts46::Errors) -> ParseError { ParseError::IdnaError }
 }
 
-#[derive(PartialEq, Eq)]
-pub enum Context {
-    UrlParser,
-    Setter,
-}
-
 #[derive(Copy, Clone)]
 pub enum SchemeType {
     File,
@@ -109,6 +103,13 @@ pub struct Parser<'a> {
     pub base_url: Option<&'a Url>,
     pub query_encoding_override: EncodingOverride,
     pub log_syntax_violation: Option<&'a Fn(&'static str)>,
+    pub context: Context,
+}
+
+#[derive(PartialEq, Eq)]
+pub enum Context {
+    UrlParser,
+    Setter,
 }
 
 impl<'a> Parser<'a> {
@@ -133,7 +134,7 @@ impl<'a> Parser<'a> {
         if input.len() < original_input.len() {
             self.syntax_violation("leading or trailing control or space character")
         }
-        if let Ok(remaining) = self.parse_scheme(input, Context::UrlParser) {
+        if let Ok(remaining) = self.parse_scheme(input) {
             return self.parse_with_scheme(remaining)
         }
 
@@ -156,7 +157,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse_scheme<'i>(&mut self, input: &'i str, context: Context) -> Result<&'i str, ()> {
+    pub fn parse_scheme<'i>(&mut self, input: &'i str) -> Result<&'i str, ()> {
         if input.is_empty() || !input.starts_with(ascii_alpha) {
             return Err(())
         }
@@ -174,7 +175,7 @@ impl<'a> Parser<'a> {
             }
         }
         // EOF before ':'
-        match context {
+        match self.context {
             Context::Setter => Ok(""),
             Context::UrlParser => {
                 self.serialization.clear();
@@ -234,7 +235,7 @@ impl<'a> Parser<'a> {
         let remaining = if relative {
             let path_start = self.serialization.len();
             self.serialization.push('/');
-            self.parse_path(scheme_type, &mut false, path_start, &input[1..], Context::UrlParser)
+            self.parse_path(scheme_type, &mut false, path_start, &input[1..])
         } else {
             self.parse_non_relative_path(input)
         };
@@ -356,13 +357,11 @@ impl<'a> Parser<'a> {
                     let host_end = try!(to_u32(self.serialization.len()));
                     let mut has_host = !matches!(host, HostInternal::None);
                     let remaining = if path_start {
-                        self.parse_path_start(
-                            SchemeType::File, &mut has_host, remaining, Context::UrlParser)
+                        self.parse_path_start(SchemeType::File, &mut has_host, remaining)
                     } else {
                         let path_start = self.serialization.len();
                         self.serialization.push('/');
-                        self.parse_path(SchemeType::File, &mut has_host, path_start,
-                                        remaining, Context::UrlParser)
+                        self.parse_path(SchemeType::File, &mut has_host, path_start, remaining)
                     };
                     // FIXME: deal with has_host
                     let (query_start, fragment_start) =
@@ -393,7 +392,7 @@ impl<'a> Parser<'a> {
                         }
                     }
                     let remaining = self.parse_path(
-                        SchemeType::File, &mut false, path_start, input, Context::UrlParser);
+                        SchemeType::File, &mut false, path_start, input);
                     let (query_start, fragment_start) =
                         try!(self.parse_query_and_fragment(scheme_end, remaining));
                     let path_start = path_start as u32;
@@ -425,8 +424,7 @@ impl<'a> Parser<'a> {
                     self.serialization.push_str(before_query);
                     self.pop_path(SchemeType::File, base_url.path_start as usize);
                     let remaining = self.parse_path(
-                        SchemeType::File, &mut true, base_url.path_start as usize,
-                        input, Context::UrlParser);
+                        SchemeType::File, &mut true, base_url.path_start as usize, input);
                     let non_relative = false;
                     self.with_query_and_fragment(
                         non_relative, base_url.scheme_end, base_url.username_end, base_url.host_start,
@@ -436,7 +434,7 @@ impl<'a> Parser<'a> {
                     let scheme_end = "file".len() as u32;
                     let path_start = "file://".len();
                     let remaining = self.parse_path(
-                        SchemeType::File, &mut false, path_start, input, Context::UrlParser);
+                        SchemeType::File, &mut false, path_start, input);
                     let (query_start, fragment_start) =
                         try!(self.parse_query_and_fragment(scheme_end, remaining));
                     let path_start = path_start as u32;
@@ -507,7 +505,7 @@ impl<'a> Parser<'a> {
                 debug_assert!(base_url.byte_at(path_start) == b'/');
                 self.serialization.push_str(base_url.slice(..path_start + 1));
                 let remaining = self.parse_path(
-                    scheme_type, &mut true, path_start as usize, &input[1..], Context::UrlParser);
+                    scheme_type, &mut true, path_start as usize, &input[1..]);
                 let non_relative = false;
                 self.with_query_and_fragment(
                     non_relative, base_url.scheme_end, base_url.username_end, base_url.host_start,
@@ -523,7 +521,7 @@ impl<'a> Parser<'a> {
                 // FIXME spec says just "remove last entry", not the "pop" algorithm
                 self.pop_path(scheme_type, base_url.path_start as usize);
                 let remaining = self.parse_path(
-                    scheme_type, &mut true, base_url.path_start as usize, input, Context::UrlParser);
+                    scheme_type, &mut true, base_url.path_start as usize, input);
                 let non_relative = false;
                 self.with_query_and_fragment(
                     non_relative, base_url.scheme_end, base_url.username_end, base_url.host_start,
@@ -546,7 +544,7 @@ impl<'a> Parser<'a> {
         // path state
         let path_start = try!(to_u32(self.serialization.len()));
         let remaining = self.parse_path_start(
-            scheme_type, &mut true, remaining, Context::UrlParser);
+            scheme_type, &mut true, remaining);
         self.with_query_and_fragment(non_relative, scheme_end, username_end, host_start,
                                      host_end, host, port, path_start, remaining)
     }
@@ -732,7 +730,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_path_start<'i>(&mut self, scheme_type: SchemeType, has_host: &mut bool,
-                            mut input: &'i str, context: Context)
+                            mut input: &'i str)
                             -> &'i str {
         // Path start state
         let mut iter = input.chars();
@@ -746,11 +744,11 @@ impl<'a> Parser<'a> {
         }
         let path_start = self.serialization.len();
         self.serialization.push('/');
-        self.parse_path(scheme_type, has_host, path_start, input, context)
+        self.parse_path(scheme_type, has_host, path_start, input)
     }
 
     fn parse_path<'i>(&mut self, scheme_type: SchemeType, has_host: &mut bool,
-                      path_start: usize, input: &'i str, context: Context)
+                      path_start: usize, input: &'i str)
                       -> &'i str {
         // Relative path state
         debug_assert!(self.serialization.ends_with("/"));
@@ -773,7 +771,7 @@ impl<'a> Parser<'a> {
                         end = i;
                         break
                     },
-                    '?' | '#' if context == Context::UrlParser => {
+                    '?' | '#' if self.context == Context::UrlParser => {
                         end = i;
                         break
                     },
@@ -893,7 +891,7 @@ impl<'a> Parser<'a> {
             Some('?') => {
                 query_start = Some(try!(to_u32(self.serialization.len())));
                 self.serialization.push('?');
-                let remaining = self.parse_query(scheme_end, &input[1..], Context::UrlParser);
+                let remaining = self.parse_query(scheme_end, &input[1..]);
                 if let Some(remaining) = remaining {
                     input = remaining
                 } else {
@@ -912,13 +910,13 @@ impl<'a> Parser<'a> {
         Ok((query_start, Some(fragment_start)))
     }
 
-    pub fn parse_query<'i>(&mut self, scheme_end: u32, input: &'i str, context: Context)
+    pub fn parse_query<'i>(&mut self, scheme_end: u32, input: &'i str)
                            -> Option<&'i str> {
         let mut query = String::new();  // FIXME: use a streaming decoder instead
         let mut remaining = None;
         for (i, c) in input.char_indices() {
             match c {
-                '#' if context == Context::UrlParser => {
+                '#' if self.context == Context::UrlParser => {
                     remaining = Some(&input[i..]);
                     break
                 },
