@@ -234,20 +234,12 @@ impl Url {
     /// Return the password for this URL, if any, as a percent-encoded ASCII string.
     pub fn password(&self) -> Option<&str> {
         if self.byte_at(self.username_end) == b':' {
-            debug_assert!(self.has_host());
+            debug_assert!(self.host().is_some());
             debug_assert!(self.byte_at(self.host_start - 1) == b'@');
             Some(self.slice(self.username_end + 1..self.host_start - 1))
         } else {
             None
         }
-    }
-
-    /// Return whether this URL has a host.
-    ///
-    /// Non-relative URLs (typical of `data:` and `mailto:`) and some `file:` URLs don’
-    #[inline]
-    pub fn has_host(&self) -> bool {
-        !matches!(self.host, HostInternal::None)
     }
 
     /// Return the string representation of the host (domain or IP address) for this URL, if any.
@@ -258,10 +250,10 @@ impl Url {
     ///
     /// See also the `host` method.
     pub fn host_str(&self) -> Option<&str> {
-        if self.has_host() {
-            Some(self.slice(self.host_start..self.host_end))
-        } else {
+        if matches!(self.host, HostInternal::None) {
             None
+        } else {
+            Some(self.slice(self.host_start..self.host_end))
         }
     }
 
