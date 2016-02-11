@@ -58,7 +58,7 @@ impl Index<Range<Position>> for Url {
 /// ```notrust
 /// url =
 ///     scheme ":"
-///     [ "//" [ username [ ":" password ]? "@" ]? host [ ":" port ]? ]
+///     [ "//" [ username [ ":" password ]? "@" ]? host [ ":" port ]? ]?
 ///     path [ "?" query ]? [ "#" fragment ]?
 /// ```
 ///
@@ -116,7 +116,7 @@ impl Url {
             Position::AfterUsername => self.username_end as usize,
 
             Position::BeforePassword => if self.port.is_some() {
-                debug_assert!(self.has_host());
+                debug_assert!(self.host().is_some());
                 debug_assert!(self.byte_at(self.username_end) == b':');
                 self.username_end as usize + ":".len()
             } else {
@@ -125,7 +125,7 @@ impl Url {
             },
 
             Position::AfterPassword => if self.port.is_some() {
-                debug_assert!(self.has_host());
+                debug_assert!(self.host().is_some());
                 debug_assert!(self.byte_at(self.username_end) == b':');
                 debug_assert!(self.byte_at(self.host_start - "@".len() as u32) == b'@');
                 self.host_start as usize - "@".len()
