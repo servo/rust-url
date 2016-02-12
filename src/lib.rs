@@ -399,7 +399,7 @@ impl Url {
         })
     }
 
-    fn mutate<F: FnOnce(&mut Parser)>(&mut self, f: F) {
+    fn mutate<F: FnOnce(&mut Parser) -> R, R>(&mut self, f: F) -> R {
         let mut parser = Parser {
             serialization: mem::replace(&mut self.serialization, String::new()),
             base_url: None,
@@ -407,19 +407,53 @@ impl Url {
             log_syntax_violation: None,
             context: Context::Setter,
         };
-        f(&mut parser);
+        let result = f(&mut parser);
         self.serialization = parser.serialization;
+        result
     }
 
     /// Change this URL’s fragment identifier.
     pub fn set_fragment(&mut self, fragment: Option<&str>) {
+        // Remove any previous fragment
         if let Some(start) = self.fragment_start {
             debug_assert!(self.byte_at(start) == b'#');
             self.serialization.truncate(start as usize);
         }
+        // Write the new one
         if let Some(input) = fragment {
+            self.fragment_start = Some(to_u32(self.serialization.len()).unwrap());
             self.serialization.push('#');
-            self.mutate(|parser| parser.parse_fragment(input));
+            self.mutate(|parser| parser.parse_fragment(input))
+        } else {
+            self.fragment_start = None
+        }
+    }
+
+    /// Change this URL’s query string.
+    pub fn set_query(&mut self, query: Option<&str>) {
+        // Stash any fragment
+        let fragment = self.fragment_start.map(|start| {
+            let f = self.slice(start..).to_owned();
+            self.serialization.truncate(start as usize);
+            f
+        });
+        // Remove any previous query
+        if let Some(start) = self.query_start {
+            debug_assert!(self.byte_at(start) == b'?');
+            self.serialization.truncate(start as usize);
+        }
+        // Write the new one
+        if let Some(input) = query {
+            self.query_start = Some(to_u32(self.serialization.len()).unwrap());
+            self.serialization.push('?');
+            let scheme_end = self.scheme_end;
+            self.mutate(|parser| parser.parse_query(scheme_end, input));
+        }
+        // Restore the fragment, if any
+        if let Some(ref fragment) = fragment {
+            self.fragment_start = Some(to_u32(self.serialization.len()).unwrap());
+            debug_assert!(fragment.starts_with('#'));
+            self.serialization.push_str(fragment)  // It’s already been through the parser
         }
     }
 
