@@ -44,30 +44,12 @@ macro_rules! simple_enum_error {
 simple_enum_error! {
     EmptyHost => "empty host",
     IdnaError => "invalid international domain name",
-    InvalidScheme => "invalid scheme",
     InvalidPort => "invalid port number",
     InvalidIpv4Address => "invalid IPv4 address",
     InvalidIpv6Address => "invalid IPv6 address",
     InvalidDomainCharacter => "invalid domain character",
-    InvalidCharacter => "invalid character",
-    InvalidBackslash => "invalid backslash",
-    InvalidPercentEncoded => "invalid percent-encoded sequence",
-    InvalidAtSymbolInUser => "invalid @-symbol in user",
-    ExpectedTwoSlashes => "expected two slashes (//)",
-    ExpectedInitialSlash => "expected the input to start with a slash",
-    NonUrlCodePoint => "non URL code point",
-    RelativeUrlWithScheme => "relative URL with scheme",
     RelativeUrlWithoutBase => "relative URL without a base",
     RelativeUrlWithNonRelativeBase => "relative URL with a non-relative base",
-    NonAsciiDomainsNotSupportedYet => "non-ASCII domains are not supported yet",
-    CannotSetJavascriptFragment => "cannot set fragment on javascript: URL",
-    CannotSetPortWithFileLikeScheme => "cannot set port with file-like scheme",
-    CannotSetUsernameWithNonRelativeScheme => "cannot set username with non-relative scheme",
-    CannotSetPasswordWithNonRelativeScheme => "cannot set password with non-relative scheme",
-    CannotSetHostPortWithNonRelativeScheme => "cannot set host and port with non-relative scheme",
-    CannotSetHostWithNonRelativeScheme => "cannot set host with non-relative scheme",
-    CannotSetPortWithNonRelativeScheme => "cannot set port with non-relative scheme",
-    CannotSetPathWithNonRelativeScheme => "cannot set path with non-relative scheme",
     Overflow => "URLs more than 4 GB are not supported",
 }
 
@@ -170,9 +152,9 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse_scheme<'i>(&mut self, input: &'i str, context: Context) -> ParseResult<&'i str> {
+    pub fn parse_scheme<'i>(&mut self, input: &'i str, context: Context) -> Result<&'i str, ()> {
         if input.is_empty() || !input.starts_with(ascii_alpha) {
-            return Err(ParseError::InvalidScheme)
+            return Err(())
         }
         debug_assert!(self.serialization.is_empty());
         for (i, c) in input.char_indices() {
@@ -183,7 +165,7 @@ impl<'a> Parser<'a> {
                 ':' => return Ok(&input[i + 1..]),
                 _ => {
                     self.serialization.clear();
-                    return Err(ParseError::InvalidScheme)
+                    return Err(())
                 }
             }
         }
@@ -192,7 +174,7 @@ impl<'a> Parser<'a> {
             Context::Setter => Ok(""),
             Context::UrlParser => {
                 self.serialization.clear();
-                Err(ParseError::InvalidScheme)
+                Err(())
             }
         }
     }

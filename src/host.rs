@@ -161,7 +161,7 @@ fn longest_zero_sequence(pieces: &[u16; 8]) -> (isize, isize) {
 }
 
 
-fn parse_ipv4number(mut input: &str) -> ParseResult<u32> {
+fn parse_ipv4number(mut input: &str) -> Result<u32, ()> {
     let mut r = 10;
     if input.starts_with("0x") || input.starts_with("0X") {
         input = &input[2..];
@@ -174,11 +174,11 @@ fn parse_ipv4number(mut input: &str) -> ParseResult<u32> {
         return Ok(0);
     }
     if input.starts_with("+") {
-        return Err(ParseError::InvalidIpv4Address)
+        return Err(())
     }
     match u32::from_str_radix(&input, r) {
         Ok(number) => Ok(number),
-        Err(_) => Err(ParseError::InvalidIpv4Address),
+        Err(_) => Err(()),
     }
 }
 
