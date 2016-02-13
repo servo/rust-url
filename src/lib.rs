@@ -736,10 +736,11 @@ impl Url {
             scheme_data.password.as_ref().map(|password| password as &str))
     }
 
-    /// If the URL is in a *relative scheme*, return a mutable reference to its password, if any.
+    /// If the URL is in a *relative scheme*, return a mutable reference to its password field,
+    /// which is of type Option<String>.
     #[inline]
-    pub fn password_mut(&mut self) -> Option<&mut String> {
-        self.relative_scheme_data_mut().and_then(|scheme_data| scheme_data.password.as_mut())
+    pub fn password_mut(&mut self) -> Option<&mut Option<String>> {
+        self.relative_scheme_data_mut().map(|scheme_data| &mut scheme_data.password)
     }
 
     /// Percent-decode the URL’s password, if any.
