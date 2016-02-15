@@ -23,7 +23,7 @@ impl Url {
             },
             "ftp" | "gopher" | "http" | "https" | "ws" | "wss" => {
                 Origin::Tuple(scheme.to_owned(), self.host().unwrap().to_owned(),
-                    self.port_or_default().unwrap())
+                    self.port_or_known_default().unwrap())
             },
             // TODO: Figure out what to do if the scheme is a file
             "file" => Origin::new_opaque(),
