@@ -130,6 +130,7 @@ use percent_encoding::{PATH_SEGMENT_ENCODE_SET, percent_encode, percent_decode};
 use std::cmp;
 use std::fmt;
 use std::hash;
+#[cfg(has_ipaddr)] use std::net::IpAddr;
 use std::ops::{Range, RangeFrom, RangeTo};
 use std::path::{Path, PathBuf};
 use std::str;
@@ -241,7 +242,9 @@ impl Url {
     }
 
     /// Return the string representation of the host (domain or IP address) for this URL, if any.
+    ///
     /// Non-ASCII domains are punycode-encoded per IDNA.
+    /// IPv6 addresses are given between `[` and `]` brackets.
     ///
     /// Non-relative URLs (typical of `data:` and `mailto:`) and some `file:` URLs
     /// don’t have a host.
@@ -268,6 +271,29 @@ impl Url {
             HostInternal::Domain => Some(Host::Domain(self.slice(self.host_start..self.host_end))),
             HostInternal::Ipv4(address) => Some(Host::Ipv4(address)),
             HostInternal::Ipv6(address) => Some(Host::Ipv6(address)),
+        }
+    }
+
+    /// If this URL has a host and it is a domain name (not an IP address), return it.
+    pub fn domain(&self) -> Option<&str> {
+        match self.host {
+            HostInternal::None => None,
+            HostInternal::Domain => Some(self.slice(self.host_start..self.host_end)),
+            HostInternal::Ipv4(_) => None,
+            HostInternal::Ipv6(_) => None,
+        }
+    }
+
+    /// If this URL has a host and it is an IP address (not a domain name), return it.
+    ///
+    /// This does **not** resolve domain names.
+    #[cfg(has_ipaddr)]
+    pub fn ip_address(&self) -> Option<IpAddr> {
+        match self.host {
+            HostInternal::None => None,
+            HostInternal::Domain => None,
+            HostInternal::Ipv4(address) => Some(IpAddr::V4(address)),
+            HostInternal::Ipv6(address) => Some(IpAddr::V6(address)),
         }
     }
 
