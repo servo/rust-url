@@ -104,13 +104,12 @@ impl Url {
 
             Position::AfterScheme => self.scheme_end as usize,
 
-            Position::BeforeUsername => if self.non_relative {
+            Position::BeforeUsername => if self.slice(self.scheme_end..).starts_with("://") {
+                self.scheme_end as usize + "://".len()
+            } else {
                 debug_assert!(self.byte_at(self.scheme_end) == b':');
                 debug_assert!(self.scheme_end + ":".len() as u32 == self.username_end);
                 self.scheme_end as usize + ":".len()
-            } else {
-                debug_assert!(self.slice(self.scheme_end..).starts_with("://"));
-                self.scheme_end as usize + "://".len()
             },
 
             Position::AfterUsername => self.username_end as usize,
