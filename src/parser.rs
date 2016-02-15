@@ -142,7 +142,7 @@ impl<'a> Parser<'a> {
         if let Some(base_url) = self.base_url {
             if input.starts_with("#") {
                 self.fragment_only(base_url, input)
-            } else if base_url.non_relative {
+            } else if base_url.non_relative() {
                 Err(ParseError::RelativeUrlWithNonRelativeBase)
             } else {
                 let scheme_type = SchemeType::from(base_url.scheme());
@@ -204,7 +204,7 @@ impl<'a> Parser<'a> {
                     if slashes_count < 2 &&
                             base_url.scheme() == &self.serialization[..scheme_end as usize] {
                         // Non-relative URLs only happen with "not special" schemes.
-                        debug_assert!(!base_url.non_relative);
+                        debug_assert!(!base_url.non_relative());
                         self.serialization.clear();
                         return self.parse_relative(input, scheme_type, base_url)
                     }
@@ -231,15 +231,14 @@ impl<'a> Parser<'a> {
         let host_end = path_start;
         let host = HostInternal::None;
         let port = None;
-        let relative = input.starts_with("/");
-        let remaining = if relative {
+        let remaining = if input.starts_with("/") {
             let path_start = self.serialization.len();
             self.serialization.push('/');
             self.parse_path(scheme_type, &mut false, path_start, &input[1..])
         } else {
             self.parse_non_relative_path(input)
         };
-        self.with_query_and_fragment(!relative, scheme_end, username_end, host_start,
+        self.with_query_and_fragment(scheme_end, username_end, host_start,
                                      host_end, host, port, path_start, remaining)
     }
 
@@ -267,7 +266,6 @@ impl<'a> Parser<'a> {
                     let path_start = "file://".len() as u32;
                     Ok(Url {
                         serialization: self.serialization,
-                        non_relative: false,
                         scheme_end: scheme_end,
                         username_end: path_start,
                         host_start: path_start,
@@ -305,7 +303,6 @@ impl<'a> Parser<'a> {
                         try!(self.parse_query_and_fragment(scheme_end, input));
                     Ok(Url {
                         serialization: self.serialization,
-                        non_relative: false,
                         scheme_end: scheme_end,
                         username_end: path_start,
                         host_start: path_start,
@@ -329,7 +326,6 @@ impl<'a> Parser<'a> {
                     self.parse_fragment(&input[1..]);
                     Ok(Url {
                         serialization: self.serialization,
-                        non_relative: false,
                         scheme_end: scheme_end,
                         username_end: path_start,
                         host_start: path_start,
@@ -368,7 +364,6 @@ impl<'a> Parser<'a> {
                         try!(self.parse_query_and_fragment(scheme_end, remaining));
                     Ok(Url {
                         serialization: self.serialization,
-                        non_relative: false,
                         scheme_end: scheme_end,
                         username_end: host_start,
                         host_start: host_start,
@@ -398,7 +393,6 @@ impl<'a> Parser<'a> {
                     let path_start = path_start as u32;
                     Ok(Url {
                         serialization: self.serialization,
-                        non_relative: false,
                         scheme_end: scheme_end,
                         username_end: path_start,
                         host_start: path_start,
@@ -425,9 +419,8 @@ impl<'a> Parser<'a> {
                     self.pop_path(SchemeType::File, base_url.path_start as usize);
                     let remaining = self.parse_path(
                         SchemeType::File, &mut true, base_url.path_start as usize, input);
-                    let non_relative = false;
                     self.with_query_and_fragment(
-                        non_relative, base_url.scheme_end, base_url.username_end, base_url.host_start,
+                        base_url.scheme_end, base_url.username_end, base_url.host_start,
                         base_url.host_end, base_url.host, base_url.port, base_url.path_start, remaining)
                 } else {
                     self.serialization.push_str("file:///");
@@ -440,7 +433,6 @@ impl<'a> Parser<'a> {
                     let path_start = path_start as u32;
                     Ok(Url {
                         serialization: self.serialization,
-                        non_relative: false,
                         scheme_end: scheme_end,
                         username_end: path_start,
                         host_start: path_start,
@@ -506,9 +498,8 @@ impl<'a> Parser<'a> {
                 self.serialization.push_str(base_url.slice(..path_start + 1));
                 let remaining = self.parse_path(
                     scheme_type, &mut true, path_start as usize, &input[1..]);
-                let non_relative = false;
                 self.with_query_and_fragment(
-                    non_relative, base_url.scheme_end, base_url.username_end, base_url.host_start,
+                    base_url.scheme_end, base_url.username_end, base_url.host_start,
                     base_url.host_end, base_url.host, base_url.port, base_url.path_start, remaining)
             }
             _ => {
@@ -522,9 +513,8 @@ impl<'a> Parser<'a> {
                 self.pop_path(scheme_type, base_url.path_start as usize);
                 let remaining = self.parse_path(
                     scheme_type, &mut true, base_url.path_start as usize, input);
-                let non_relative = false;
                 self.with_query_and_fragment(
-                    non_relative, base_url.scheme_end, base_url.username_end, base_url.host_start,
+                    base_url.scheme_end, base_url.username_end, base_url.host_start,
                     base_url.host_end, base_url.host, base_url.port, base_url.path_start, remaining)
             }
         }
@@ -534,7 +524,6 @@ impl<'a> Parser<'a> {
                           -> ParseResult<Url> {
         self.serialization.push('/');
         self.serialization.push('/');
-        let non_relative = false;
         // authority state
         let (username_end, remaining) = try!(self.parse_userinfo(input, scheme_type));
         // host state
@@ -545,7 +534,7 @@ impl<'a> Parser<'a> {
         let path_start = try!(to_u32(self.serialization.len()));
         let remaining = self.parse_path_start(
             scheme_type, &mut true, remaining);
-        self.with_query_and_fragment(non_relative, scheme_end, username_end, host_start,
+        self.with_query_and_fragment(scheme_end, username_end, host_start,
                                      host_end, host, port, path_start, remaining)
     }
 
@@ -861,7 +850,7 @@ impl<'a> Parser<'a> {
         ""
     }
 
-    fn with_query_and_fragment(mut self, non_relative: bool, scheme_end: u32, username_end: u32,
+    fn with_query_and_fragment(mut self, scheme_end: u32, username_end: u32,
                                host_start: u32, host_end: u32, host: HostInternal,
                                port: Option<u16>, path_start: u32, remaining: &str)
                                -> ParseResult<Url> {
@@ -869,7 +858,6 @@ impl<'a> Parser<'a> {
             try!(self.parse_query_and_fragment(scheme_end, remaining));
         Ok(Url {
             serialization: self.serialization,
-            non_relative: non_relative,
             scheme_end: scheme_end,
             username_end: username_end,
             host_start: host_start,
