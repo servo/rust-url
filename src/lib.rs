@@ -131,14 +131,15 @@ use percent_encoding::{PATH_SEGMENT_ENCODE_SET, percent_encode, percent_decode};
 use std::cmp;
 use std::fmt;
 use std::hash;
-#[cfg(has_ipaddr)] use std::net::IpAddr;
+use std::io;
+use std::net::ToSocketAddrs;
 use std::ops::{Range, RangeFrom, RangeTo};
 use std::path::{Path, PathBuf};
 use std::str;
 
 pub use encoding::EncodingOverride;
 pub use origin::Origin;
-pub use host::Host;
+pub use host::{Host, HostAndPort, SocketAddrs};
 pub use parser::ParseError;
 pub use slicing::Position;
 pub use webidl::WebIdl;
@@ -291,12 +292,12 @@ impl Url {
     ///
     /// This does **not** resolve domain names.
     #[cfg(has_ipaddr)]
-    pub fn ip_address(&self) -> Option<IpAddr> {
+    pub fn ip_address(&self) -> Option<net::IpAddr> {
         match self.host {
             HostInternal::None => None,
             HostInternal::Domain => None,
-            HostInternal::Ipv4(address) => Some(IpAddr::V4(address)),
-            HostInternal::Ipv6(address) => Some(IpAddr::V6(address)),
+            HostInternal::Ipv4(address) => Some(net::IpAddr::V4(address)),
+            HostInternal::Ipv6(address) => Some(net::IpAddr::V6(address)),
         }
     }
 
@@ -314,8 +315,50 @@ impl Url {
     /// For URLs in these schemes, this method always returns `Some(_)`.
     /// For other schemes, it is the same as `Url::port()`.
     #[inline]
-    pub fn port_or_default(&self) -> Option<u16> {
+    pub fn port_or_known_default(&self) -> Option<u16> {
         self.port.or_else(|| parser::default_port(self.scheme()))
+    }
+
+    /// If the URL has a host, return something that implements `ToSocketAddrs`.
+    ///
+    /// If the URL has no port number and the scheme’s default port number is not known
+    /// (see `Url::port_or_known_default`),
+    /// the closure is called to obtain a port number.
+    /// Typically, this closure can match on the result `Url::scheme`
+    /// to have per-scheme default port numbers,
+    /// and panic for schemes it’s not prepared to handle.
+    /// For example:
+    ///
+    /// ```rust
+    /// # use url::Url;
+    /// # use std::net::TcpStream;
+    /// # use std::io;
+    ///
+    /// fn connect(url: &Url) -> io::Result<TcpStream> {
+    ///     TcpStream::connect(try!(url.with_default_port(default_port)))
+    /// }
+    ///
+    /// fn default_port(url: &Url) -> Result<u16, ()> {
+    ///     match url.scheme() {
+    ///         "git" => Ok(9418),
+    ///         "git+ssh" => Ok(22),
+    ///         "git+https" => Ok(443),
+    ///         "git+http" => Ok(80),
+    ///         _ => Err(()),
+    ///     }
+    /// }
+    /// ```
+    pub fn with_default_port<F>(&self, f: F) -> io::Result<HostAndPort<&str>>
+    where F: FnOnce(&Url) -> Result<u16, ()> {
+        Ok(HostAndPort {
+            host: try!(self.host()
+                           .ok_or(())
+                           .or_else(|()| io_error("URL has no host"))),
+            port: try!(self.port_or_known_default()
+                           .ok_or(())
+                           .or_else(|()| f(self))
+                           .or_else(|()| io_error("URL has no port number")))
+        })
     }
 
     /// Return the path for this URL, as a percent-encoded ASCII string.
@@ -463,6 +506,15 @@ impl Url {
     #[inline]
     fn byte_at(&self, i: u32) -> u8 {
         self.serialization.as_bytes()[i as usize]
+    }
+}
+
+/// Return an error if `Url::host` or `Url::port_or_known_default` return `None`.
+impl ToSocketAddrs for Url {
+    type Iter = SocketAddrs;
+
+    fn to_socket_addrs(&self) -> io::Result<Self::Iter> {
+        try!(self.with_default_port(|_| Err(()))).to_socket_addrs()
     }
 }
 
@@ -696,4 +748,8 @@ fn file_url_segments_to_pathbuf_windows(mut segments: str::Split<char>) -> Resul
     debug_assert!(path.is_absolute(),
                   "to_file_path() failed to produce an absolute Path");
     Ok(path)
+}
+
+fn io_error<T>(reason: &str) -> io::Result<T> {
+    Err(io::Error::new(io::ErrorKind::InvalidData, reason))
 }
