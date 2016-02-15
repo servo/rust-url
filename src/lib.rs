@@ -147,7 +147,6 @@ pub use webidl::WebIdl;
 
 mod encoding;
 mod host;
-mod idna_mapping;
 mod origin;
 mod parser;
 mod slicing;
@@ -280,23 +279,8 @@ impl Url {
     /// If this URL has a host and it is a domain name (not an IP address), return it.
     pub fn domain(&self) -> Option<&str> {
         match self.host {
-            HostInternal::None => None,
             HostInternal::Domain => Some(self.slice(self.host_start..self.host_end)),
-            HostInternal::Ipv4(_) => None,
-            HostInternal::Ipv6(_) => None,
-        }
-    }
-
-    /// If this URL has a host and it is an IP address (not a domain name), return it.
-    ///
-    /// This does **not** resolve domain names.
-    #[cfg(has_ipaddr)]
-    pub fn ip_address(&self) -> Option<net::IpAddr> {
-        match self.host {
-            HostInternal::None => None,
-            HostInternal::Domain => None,
-            HostInternal::Ipv4(address) => Some(net::IpAddr::V4(address)),
-            HostInternal::Ipv6(address) => Some(net::IpAddr::V6(address)),
+            _ => None,
         }
     }
 
