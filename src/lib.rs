@@ -160,7 +160,6 @@ pub mod idna;
 #[cfg_attr(feature="heap_size", derive(HeapSizeOf))]
 pub struct Url {
     serialization: String,
-    non_relative: bool,
 
     // Components
     scheme_end: u32,  // Before ':'
@@ -169,7 +168,7 @@ pub struct Url {
     host_end: u32,
     host: HostInternal,
     port: Option<u16>,
-    path_start: u32,  // Before initial '/' if !non_relative
+    path_start: u32,  // Before initial '/', if any
     query_start: Option<u32>,  // Before '?', unlike Position::QueryStart
     fragment_start: Option<u32>,  // Before '#', unlike Position::FragmentStart
 }
@@ -211,7 +210,7 @@ impl Url {
         &self.serialization
     }
 
-    /// Return the scheme of this URL, as an ASCII string without the ':' delimiter.
+    /// Return the scheme of this URL, lower-cased, as an ASCII string without the ':' delimiter.
     #[inline]
     pub fn scheme(&self) -> &str {
         self.slice(..self.scheme_end)
@@ -220,7 +219,7 @@ impl Url {
     /// Return whether this URL is non-relative (typical of e.g. `data:` and `mailto:` URLs.)
     #[inline]
     pub fn non_relative(&self) -> bool {
-        self.non_relative
+        self.byte_at(self.path_start) != b'/'
     }
 
     /// Return the username for this URL (typically the empty string)
@@ -312,12 +311,11 @@ impl Url {
     ///
     /// Return `None` for non-relative URLs, or an iterator of at least one string.
     pub fn path_segments(&self) -> Option<str::Split<char>> {
-        if self.non_relative {
-            None
-        } else {
-            let path = self.path();
-            debug_assert!(path.starts_with("/"));
+        let path = self.path();
+        if path.starts_with('/') {
             Some(path[1..].split('/'))
+        } else {
+            None
         }
     }
 
@@ -357,7 +355,6 @@ impl Url {
         try!(path_to_file_url_segments(path.as_ref(), &mut serialization));
         Ok(Url {
             serialization: serialization,
-            non_relative: false,
             scheme_end: "file".len() as u32,
             username_end: path_start,
             host_start: path_start,
