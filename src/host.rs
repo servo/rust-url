@@ -120,6 +120,7 @@ impl<S: AsRef<str>> ToSocketAddrs for HostAndPort<S> {
         let port = self.port;
         match self.host {
             Host::Domain(ref domain) => Ok(SocketAddrs {
+                // FIXME: use std::net::lookup_host when it’s stable.
                 state: SocketAddrsState::Domain(try!((domain.as_ref(), port).to_socket_addrs()))
             }),
             Host::Ipv4(address) => Ok(SocketAddrs {
