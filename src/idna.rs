@@ -45,7 +45,7 @@ fn find_char(codepoint: char) -> &'static Mapping {
     &TABLE[min].mapping
 }
 
-fn map_char(codepoint: char, flags: Uts46Flags, output: &mut String) -> Result<(), Error> {
+fn map_char(codepoint: char, flags: Uts46Flags, output: &mut String, errors: &mut Vec<Error>) {
     match *find_char(codepoint) {
         Mapping::Valid => output.push(codepoint),
         Mapping::Ignored => {},
@@ -57,23 +57,23 @@ fn map_char(codepoint: char, flags: Uts46Flags, output: &mut String) -> Result<(
                 output.push(codepoint)
             }
         }
-        Mapping::Disallowed => return Err(Error::DissallowedCharacter),
+        Mapping::Disallowed => {
+            errors.push(Error::DissallowedCharacter);
+            output.push(codepoint);
+        }
         Mapping::DisallowedStd3Valid => {
             if flags.use_std3_ascii_rules {
-                return Err(Error::DissallowedByStd3AsciiRules);
-            } else {
-                output.push(codepoint)
+                errors.push(Error::DissallowedByStd3AsciiRules);
             }
+            output.push(codepoint)
         }
         Mapping::DisallowedStd3Mapped(mapping) => {
             if flags.use_std3_ascii_rules {
-                return Err(Error::DissallowedMappedInStd3);
-            } else {
-                output.push_str(mapping)
+                errors.push(Error::DissallowedMappedInStd3);
             }
+            output.push_str(mapping)
         }
     }
-    Ok(())
 }
 
 // http://tools.ietf.org/html/rfc5893#section-2
@@ -185,9 +185,9 @@ fn passes_bidi(label: &str, transitional_processing: bool) -> bool {
 }
 
 /// http://www.unicode.org/reports/tr46/#Validity_Criteria
-fn validate(label: &str, flags: Uts46Flags) -> Result<(), Error> {
+fn validate(label: &str, flags: Uts46Flags, errors: &mut Vec<Error>) {
     if label.nfc().ne(label.chars()) {
-        return Err(Error::ValidityCriteria);
+        errors.push(Error::ValidityCriteria);
     }
 
     // Can not contain '.' since the input is from .split('.')
@@ -207,17 +207,15 @@ fn validate(label: &str, flags: Uts46Flags) -> Result<(), Error> {
         })
         || !passes_bidi(label, flags.transitional_processing)
     {
-        Err(Error::ValidityCriteria)
-    } else {
-        Ok(())
+        errors.push(Error::ValidityCriteria)
     }
 }
 
 /// http://www.unicode.org/reports/tr46/#Processing
-fn uts46_processing(domain: &str, flags: Uts46Flags) -> Result<String, Error> {
+fn uts46_processing(domain: &str, flags: Uts46Flags, errors: &mut Vec<Error>) -> String {
     let mut mapped = String::new();
     for c in domain.chars() {
-        try!(map_char(c, flags, &mut mapped))
+        map_char(c, flags, &mut mapped, errors)
     }
     let normalized: String = mapped.nfc().collect();
     let mut validated = String::new();
@@ -227,21 +225,19 @@ fn uts46_processing(domain: &str, flags: Uts46Flags) -> Result<String, Error> {
         }
         if label.starts_with("xn--") {
             match punycode::decode_to_string(&label["xn--".len()..]) {
-                Some(label) => {
-                    try!(validate(&label, Uts46Flags {
-                        transitional_processing: false,
-                        ..flags
-                    }));
-                    validated.push_str(&label)
+                Some(decoded_label) => {
+                    let flags = Uts46Flags { transitional_processing: false, ..flags };
+                    validate(&decoded_label, flags, errors);
+                    validated.push_str(&decoded_label)
                 }
-                None => return Err(Error::PunycodeError),
+                None => errors.push(Error::PunycodeError)
             }
         } else {
-            try!(validate(label, flags));
+            validate(label, flags, errors);
             validated.push_str(label)
         }
     }
-    Ok(validated)
+    validated
 }
 
 #[derive(Copy, Clone)]
@@ -262,9 +258,10 @@ pub enum Error {
 }
 
 /// http://www.unicode.org/reports/tr46/#ToASCII
-pub fn uts46_to_ascii(domain: &str, flags: Uts46Flags) -> Result<String, Error> {
+pub fn uts46_to_ascii(domain: &str, flags: Uts46Flags) -> Result<String, Vec<Error>> {
+    let mut errors = Vec::new();
     let mut result = String::new();
-    for label in try!(uts46_processing(domain, flags)).split('.') {
+    for label in uts46_processing(domain, flags, &mut errors).split('.') {
         if result.len() > 0 {
             result.push('.');
         }
@@ -276,7 +273,7 @@ pub fn uts46_to_ascii(domain: &str, flags: Uts46Flags) -> Result<String, Error> 
                     result.push_str("xn--");
                     result.push_str(&x);
                 },
-                None => return Err(Error::PunycodeError)
+                None => errors.push(Error::PunycodeError)
             }
         }
     }
@@ -285,17 +282,42 @@ pub fn uts46_to_ascii(domain: &str, flags: Uts46Flags) -> Result<String, Error> 
         let domain = if result.ends_with(".") { &result[..result.len()-1]  } else { &*result };
         if domain.len() < 1 || domain.len() > 253 ||
                 domain.split('.').any(|label| label.len() < 1 || label.len() > 63) {
-            return Err(Error::TooLongForDns)
+            errors.push(Error::TooLongForDns)
         }
     }
-    Ok(result)
+    if errors.is_empty() {
+        Ok(result)
+    } else {
+        Err(errors)
+    }
 }
 
 /// https://url.spec.whatwg.org/#concept-domain-to-ascii
-pub fn domain_to_ascii(domain: &str) -> Result<String, Error> {
+pub fn domain_to_ascii(domain: &str) -> Result<String, Vec<Error>> {
     uts46_to_ascii(domain, Uts46Flags {
         use_std3_ascii_rules: false,
         transitional_processing: true, // XXX: switch when Firefox does
+        verify_dns_length: false,
+    })
+}
+
+/// http://www.unicode.org/reports/tr46/#ToUnicode
+///
+/// Only `use_std3_ascii_rules` is used in `flags`.
+pub fn uts46_to_unicode(domain: &str, mut flags: Uts46Flags) -> (String, Vec<Error>) {
+    flags.transitional_processing = false;
+    let mut errors = Vec::new();
+    let domain = uts46_processing(domain, flags, &mut errors);
+    (domain, errors)
+}
+
+/// https://url.spec.whatwg.org/#concept-domain-to-unicode
+pub fn domain_to_unicode(domain: &str) -> (String, Vec<Error>) {
+    uts46_to_unicode(domain, Uts46Flags {
+        use_std3_ascii_rules: false,
+
+        // Unused:
+        transitional_processing: true,
         verify_dns_length: false,
     })
 }
