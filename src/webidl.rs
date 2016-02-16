@@ -31,9 +31,9 @@ impl WebIdl {
         Ok(())
     }
 
-    /// **Not implemented yet** Getter for https://url.spec.whatwg.org/#dom-url-origin
-    pub fn origin(_url: &Url) -> String {
-        unimplemented!()  // FIXME
+    /// Getter for https://url.spec.whatwg.org/#dom-url-origin
+    pub fn origin(url: &Url) -> String {
+        url.origin().unicode_serialization()
     }
 
     /// Getter for https://url.spec.whatwg.org/#dom-url-protocol
