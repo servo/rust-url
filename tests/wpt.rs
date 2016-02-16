@@ -29,17 +29,20 @@ fn run_one(input: String, base: String, expected: Result<TestCase, ()>) {
     };
 
     macro_rules! assert_getter {
-        ($attribute: ident) => {
+        ($attribute: ident) => { assert_getter!($attribute, expected.$attribute) };
+        ($attribute: ident, $expected: expr) => {
             {
                 let a = WebIdl::$attribute(&url);
-                let b = expected.$attribute;
+                let b = $expected;
                 assert!(a == b, "{:?} != {:?} for URL {:?}", a, b, url);
             }
         }
     }
 
     assert_getter!(href);
-    //assert_getter!(origin);  FIXME
+    if let Some(expected_origin) = expected.origin {
+        assert_getter!(origin, expected_origin);
+    }
     assert_getter!(protocol);
     assert_getter!(username);
     assert_getter!(password);
@@ -53,7 +56,7 @@ fn run_one(input: String, base: String, expected: Result<TestCase, ()>) {
 
 struct TestCase {
     href: String,
-    origin: String,
+    origin: Option<String>,
     protocol: String,
     username: String,
     password: String,
@@ -80,7 +83,7 @@ fn main() {
         } else {
             Ok(TestCase {
                 href: string("href"),
-                origin: string("origin"),
+                origin: entry.find("origin").map(|j| j.as_string().unwrap().to_owned()),
                 protocol: string("protocol"),
                 username: string("username"),
                 password: string("password"),
