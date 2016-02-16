@@ -2,15 +2,17 @@
 //!
 //! https://url.spec.whatwg.org/#idna
 
-use idna_mapping::TABLE;
+use self::Mapping::*;
 use punycode;
 use std::ascii::AsciiExt;
 use unicode_normalization::UnicodeNormalization;
 use unicode_normalization::char::is_combining_mark;
 use unicode_bidi::{BidiClass, bidi_class};
 
+include!("idna_mapping.rs");
+
 #[derive(Debug)]
-pub enum Mapping {
+enum Mapping {
     Valid,
     Ignored,
     Mapped(&'static str),
@@ -20,7 +22,7 @@ pub enum Mapping {
     DisallowedStd3Mapped(&'static str),
 }
 
-pub struct Range {
+struct Range {
     pub from: char,
     pub to: char,
     pub mapping: Mapping,
