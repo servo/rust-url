@@ -130,11 +130,11 @@ use host::HostInternal;
 use parser::{Parser, Context};
 use percent_encoding::{PATH_SEGMENT_ENCODE_SET, percent_encode, percent_decode};
 use std::cmp;
-use std::fmt;
+use std::fmt::{self, Write};
 use std::hash;
 use std::io;
 use std::mem;
-use std::net::ToSocketAddrs;
+use std::net::{ToSocketAddrs, Ipv4Addr, Ipv6Addr};
 use std::ops::{Range, RangeFrom, RangeTo};
 use std::path::{Path, PathBuf};
 use std::str;
@@ -472,6 +472,100 @@ impl Url {
             debug_assert!(fragment.starts_with('#'));
             self.serialization.push_str(fragment)  // It’s already been through the parser
         }
+    }
+
+    /// Change this URL’s host.
+    ///
+    /// If this URL is non-relative, do nothing and return `Err`.
+    ///
+    /// Removing the host (calling this with `None`)
+    /// will also remove any username, password, and port number.
+    pub fn set_host(&mut self, host: Option<&str>) -> Result<(), ()> {
+        if self.non_relative() {
+            return Err(())
+        }
+
+        if let Some(host) = host {
+            self.set_host_internal(try!(Host::parse(host).map_err(|_| ())))
+        } else if self.has_host() {
+            // Not debug_assert! since this proves that `unsafe` below is OK:
+            assert!(self.byte_at(self.scheme_end) == b':');
+            assert!(self.byte_at(self.path_start) == b'/');
+            let new_path_start = self.scheme_end + 1;
+            unsafe {
+                self.serialization.as_mut_vec()
+                    .drain(self.path_start as usize..new_path_start as usize);
+            }
+            let offset = self.path_start - new_path_start;
+            self.path_start = new_path_start;
+            self.username_end = new_path_start;
+            self.host_start = new_path_start;
+            self.host_end = new_path_start;
+            self.port = None;
+            if let Some(ref mut index) = self.query_start { *index -= offset }
+            if let Some(ref mut index) = self.fragment_start { *index -= offset }
+        }
+        Ok(())
+    }
+
+    fn set_host_internal(&mut self, host: Host<String>) {
+        let after_host = self.slice(self.host_end..).to_owned();
+        self.serialization.truncate(self.host_start as usize);
+        if !self.has_host() {
+            debug_assert!(self.slice(self.scheme_end..self.host_start) == ":");
+            debug_assert!(self.username_end == self.host_start);
+            self.serialization.push('/');
+            self.serialization.push('/');
+            self.username_end += 2;
+            self.host_start += 2;
+        }
+        let old_host_end = self.host_end;
+        write!(&mut self.serialization, "{}", host).unwrap();
+        let new_host_end = to_u32(self.serialization.len()).unwrap();
+        self.serialization.push_str(&after_host);
+
+        self.host = match host {
+            Host::Domain(_) => HostInternal::Domain,
+            Host::Ipv4(address) => HostInternal::Ipv4(address),
+            Host::Ipv6(address) => HostInternal::Ipv6(address),
+        };
+        self.host_end = new_host_end;
+        let adjust = |index: &mut u32| {
+            *index -= old_host_end;
+            *index += new_host_end;
+        };
+        adjust(&mut self.host_end);
+        adjust(&mut self.path_start);
+        if let Some(ref mut index) = self.query_start { adjust(index) }
+        if let Some(ref mut index) = self.fragment_start { adjust(index) }
+    }
+
+    /// Change this URL’s host to the given IPv4 address.
+    ///
+    /// If this URL is non-relative, do nothing and return `Err`.
+    ///
+    /// Compared to `Url::set_host`, this skips the host parser.
+    pub fn set_ipv4_host(&mut self, address: Ipv4Addr) -> Result<(), ()> {
+        if self.non_relative() {
+            return Err(())
+        }
+
+        self.set_host_internal(Host::Ipv4(address));
+        Ok(())
+    }
+
+    /// Change this URL’s host to the given IPv6 address.
+    ///
+    /// If this URL is non-relative, do nothing and return `Err`.
+    ///
+    /// Compared to `Url::set_host`, this skips the host parser.
+    pub fn set_ipv6_host(&mut self, address: Ipv6Addr) -> Result<(), ()> {
+        if self.non_relative() {
+            return Err(())
+        }
+
+        self.set_host_internal(Host::Ipv6(address));
+        Ok(())
     }
 
     /// Change this URL’s scheme.
