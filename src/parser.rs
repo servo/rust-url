@@ -113,6 +113,16 @@ pub enum Context {
 }
 
 impl<'a> Parser<'a> {
+    pub fn for_setter(serialization: String) -> Parser<'a> {
+        Parser {
+            serialization: serialization,
+            base_url: None,
+            query_encoding_override: EncodingOverride::utf8(),
+            log_syntax_violation: None,
+            context: Context::Setter,
+        }
+    }
+
     fn syntax_violation(&self, reason: &'static str) {
         if let Some(log) = self.log_syntax_violation {
             log(reason)

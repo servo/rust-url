@@ -420,13 +420,7 @@ impl Url {
     }
 
     fn mutate<F: FnOnce(&mut Parser) -> R, R>(&mut self, f: F) -> R {
-        let mut parser = Parser {
-            serialization: mem::replace(&mut self.serialization, String::new()),
-            base_url: None,
-            query_encoding_override: EncodingOverride::utf8(),
-            log_syntax_violation: None,
-            context: Context::Setter,
-        };
+        let mut parser = Parser::for_setter(mem::replace(&mut self.serialization, String::new()));
         let result = f(&mut parser);
         self.serialization = parser.serialization;
         result
@@ -475,6 +469,43 @@ impl Url {
             debug_assert!(fragment.starts_with('#'));
             self.serialization.push_str(fragment)  // It’s already been through the parser
         }
+    }
+
+    /// Change this URL’s scheme.
+    ///
+    /// Do nothing and return `Err` if:
+    /// * The new scheme is not in `[a-zA-Z][a-zA-Z0-9+.-]+`
+    /// * This URL is non-relative and the new scheme is one of
+    ///   `http`, `https`, `ws`, `wss`, `ftp`, or `gopher`
+    pub fn set_scheme(&mut self, scheme: &str) -> Result<(), ()> {
+        self.set_scheme_internal(scheme, false)
+    }
+
+    fn set_scheme_internal(&mut self, scheme: &str, allow_extra_input_after_colon: bool)
+                          -> Result<(), ()> {
+        let mut parser = Parser::for_setter(String::new());
+        let remaining = try!(parser.parse_scheme(scheme));
+        if !(remaining.is_empty() || allow_extra_input_after_colon) {
+            return Err(())
+        }
+        let old_scheme_end = self.scheme_end;
+        let new_scheme_end = to_u32(parser.serialization.len()).unwrap();
+        let adjust = |index: &mut u32| {
+            *index -= old_scheme_end;
+            *index += new_scheme_end;
+        };
+
+        self.scheme_end = new_scheme_end;
+        adjust(&mut self.username_end);
+        adjust(&mut self.host_start);
+        adjust(&mut self.host_end);
+        adjust(&mut self.path_start);
+        if let Some(ref mut index) = self.query_start { adjust(index) }
+        if let Some(ref mut index) = self.fragment_start { adjust(index) }
+
+        parser.serialization.push_str(self.slice(old_scheme_end..));
+        self.serialization = parser.serialization;
+        Ok(())
     }
 
     /// Convert a file name as `std::path::Path` into an URL in the `file` scheme.
