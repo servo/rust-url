@@ -43,9 +43,9 @@ impl WebIdl {
         url.slice(..url.scheme_end + 1)
     }
 
-    /// **Not implemented yet** Setter for https://url.spec.whatwg.org/#dom-url-protocol
-    pub fn set_protocol(_url: &mut Url, _new_protocol: &str) {
-        unimplemented!()  // FIXME
+    /// Setter for https://url.spec.whatwg.org/#dom-url-protocol
+    pub fn set_protocol(url: &mut Url, new_protocol: &str) {
+        let _ = url.set_scheme_internal(new_protocol, true);
     }
 
     /// Getter for https://url.spec.whatwg.org/#dom-url-username
