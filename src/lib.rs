@@ -175,17 +175,24 @@ pub struct Url {
     fragment_start: Option<u32>,  // Before '#', unlike Position::FragmentStart
 }
 
+#[derive(Default)]
+pub struct ParseOptions<'a> {
+    pub base_url: Option<&'a Url>,
+    #[cfg(feature = "query_encoding")] pub encoding_override: Option<encoding::EncodingRef>,
+    pub log_syntax_violation: Option<&'a Fn(&'static str)>,
+}
+
 impl Url {
     /// Parse an absolute URL from a string.
     #[inline]
     pub fn parse(input: &str) -> Result<Url, ::ParseError> {
-        Url::parse_with(input, None, EncodingOverride::utf8(), None)
+        Url::parse_with(input, ParseOptions::default())
     }
 
     /// Parse a string as an URL, with this URL as the base URL.
     #[inline]
     pub fn join(&self, input: &str) -> Result<Url, ::ParseError> {
-        Url::parse_with(input, Some(self), EncodingOverride::utf8(), None)
+        Url::parse_with(input, ParseOptions { base_url: Some(self), ..Default::default() })
     }
 
     /// The URL parser with all of its parameters.
@@ -193,16 +200,12 @@ impl Url {
     /// `encoding_override` is a legacy concept only relevant for HTML.
     /// When it’s not needed,
     /// `s.parse::<Url>()`, `Url::from_str(s)` and `url.join(s)` can be used instead.
-    pub fn parse_with(input: &str,
-                      base_url: Option<&Url>,
-                      encoding_override: EncodingOverride,
-                      log_syntax_violation: Option<&Fn(&'static str)>)
-                      -> Result<Url, ::ParseError> {
+    pub fn parse_with(input: &str, options: ParseOptions) -> Result<Url, ::ParseError> {
         Parser {
             serialization: String::with_capacity(input.len()),
-            base_url: base_url,
-            query_encoding_override: encoding_override,
-            log_syntax_violation: log_syntax_violation,
+            base_url: options.base_url,
+            query_encoding_override: EncodingOverride::from_parse_options(&options),
+            log_syntax_violation: options.log_syntax_violation,
             context: Context::UrlParser,
         }.parse_url(input)
     }
