@@ -140,7 +140,7 @@ use std::path::{Path, PathBuf};
 use std::str;
 
 pub use encoding::EncodingOverride;
-pub use origin::Origin;
+pub use origin::{Origin, OpaqueOrigin};
 pub use host::{Host, HostAndPort, SocketAddrs};
 pub use parser::{ParseError, to_u32};
 pub use slicing::Position;
