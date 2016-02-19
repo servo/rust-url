@@ -105,7 +105,7 @@ impl Url {
 
             Position::AfterScheme => self.scheme_end as usize,
 
-            Position::BeforeUsername => if self.slice(self.scheme_end..).starts_with("://") {
+            Position::BeforeUsername => if self.has_host() {
                 self.scheme_end as usize + "://".len()
             } else {
                 debug_assert!(self.byte_at(self.scheme_end) == b':');
@@ -115,18 +115,18 @@ impl Url {
 
             Position::AfterUsername => self.username_end as usize,
 
-            Position::BeforePassword => if self.port.is_some() {
-                debug_assert!(self.host().is_some());
-                debug_assert!(self.byte_at(self.username_end) == b':');
+            Position::BeforePassword => if self.byte_at(self.username_end) == b':' {
+                debug_assert!(self.has_host());
+                debug_assert!(self.host_start < self.host_end);
                 self.username_end as usize + ":".len()
             } else {
                 debug_assert!(self.username_end == self.host_start);
                 self.username_end as usize
             },
 
-            Position::AfterPassword => if self.port.is_some() {
-                debug_assert!(self.host().is_some());
-                debug_assert!(self.byte_at(self.username_end) == b':');
+            Position::AfterPassword => if self.byte_at(self.username_end) == b':' {
+                debug_assert!(self.has_host());
+                debug_assert!(self.host_start < self.host_end);
                 debug_assert!(self.byte_at(self.host_start - "@".len() as u32) == b'@');
                 self.host_start as usize - "@".len()
             } else {

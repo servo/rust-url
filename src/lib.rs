@@ -159,6 +159,15 @@ pub mod form_urlencoded;
 #[derive(Clone)]
 #[cfg_attr(feature="heap_size", derive(HeapSizeOf))]
 pub struct Url {
+    /// Syntax in pseudo-BNF:
+    ///
+    ///   url = scheme ":" [ hierarchical | non-hierarchical ] [ "?" query ]? [ "#" fragment ]?
+    ///   non-hierarchical = non-hierarchical-path
+    ///   non-hierarchical-path = /* Does not start with "/" */
+    ///   hierarchical = authority? hierarchical-path
+    ///   authority = "//" userinfo? host [ ":" port ]?
+    ///   userinfo = username [ ":" password ]? "@"
+    ///   hierarchical-path = [ "/" path-segment ]+
     serialization: String,
 
     // Components
@@ -219,6 +228,13 @@ impl Url {
         self.slice(..self.scheme_end)
     }
 
+    /// Return whether the URL has a host.
+    #[inline]
+    pub fn has_host(&self) -> bool {
+        debug_assert!(self.byte_at(self.scheme_end) == b':');
+        self.slice(self.scheme_end + 1 ..).starts_with("//")
+    }
+
     /// Return whether this URL is non-relative (typical of e.g. `data:` and `mailto:` URLs.)
     #[inline]
     pub fn non_relative(&self) -> bool {
@@ -228,7 +244,7 @@ impl Url {
     /// Return the username for this URL (typically the empty string)
     /// as a percent-encoded ASCII string.
     pub fn username(&self) -> &str {
-        if self.slice(self.scheme_end..).starts_with("://") {
+        if self.has_host() {
             self.slice(self.scheme_end + 3..self.username_end)
         } else {
             ""
@@ -237,8 +253,11 @@ impl Url {
 
     /// Return the password for this URL, if any, as a percent-encoded ASCII string.
     pub fn password(&self) -> Option<&str> {
+        // This ':' is not the one marking a port number since a host can not be empty.
+        // (Except for file: URLs, which do not have port numbers.)
         if self.byte_at(self.username_end) == b':' {
-            debug_assert!(self.host().is_some());
+            debug_assert!(self.has_host());
+            debug_assert!(self.host_start < self.host_end);
             debug_assert!(self.byte_at(self.host_start - 1) == b'@');
             Some(self.slice(self.username_end + 1..self.host_start - 1))
         } else {
@@ -256,10 +275,10 @@ impl Url {
     ///
     /// See also the `host` method.
     pub fn host_str(&self) -> Option<&str> {
-        if matches!(self.host, HostInternal::None) {
-            None
-        } else {
+        if self.has_host() {
             Some(self.slice(self.host_start..self.host_end))
+        } else {
+            None
         }
     }
 
