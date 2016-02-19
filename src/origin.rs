@@ -52,6 +52,10 @@ impl Origin {
         Origin::Opaque(OpaqueOrigin(Arc::new(0)))
     }
 
+    pub fn is_tuple(&self) -> bool {
+        matches!(*self, Origin::Tuple(..))
+    }
+
     /// https://html.spec.whatwg.org/multipage/#ascii-serialisation-of-an-origin
     pub fn ascii_serialization(&self) -> String {
         match *self {
