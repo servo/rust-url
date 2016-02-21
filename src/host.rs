@@ -58,6 +58,9 @@ impl Host {
         ][..]).is_some() {
             return Err(ParseError::InvalidDomainCharacter)
         }
+        if domain.is_empty() {
+            return Err(ParseError::RelativeUrlWithoutBase)
+        }
         match parse_ipv4addr(&domain[..]) {
             Ok(Some(ipv4addr)) => Ok(Host::Ipv4(ipv4addr)),
             Ok(None) => Ok(Host::Domain(domain.to_ascii_lowercase())),

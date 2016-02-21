@@ -10,6 +10,7 @@ extern crate url;
 
 use std::net::{Ipv4Addr, Ipv6Addr};
 use url::{Host, Url};
+use url::ParseError;
 
 #[test]
 fn new_file_paths() {
@@ -80,6 +81,10 @@ fn new_directory_paths() {
     if cfg!(unix) {
         assert_eq!(Url::from_directory_path(Path::new("relative")), Err(()));
         assert_eq!(Url::from_directory_path(Path::new("../relative")), Err(()));
+        assert_eq!(Url::parse("relative"), Err(ParseError::RelativeUrlWithoutBase));
+        assert_eq!(Url::parse("../relative"), Err(ParseError::RelativeUrlWithoutBase));
+        assert_eq!(Url::parse("./relative"), Err(ParseError::RelativeUrlWithoutBase));
+        assert_eq!(Url::parse("file://./foo"), Err(ParseError::RelativeUrlWithoutBase));
 
         let url = Url::from_directory_path(Path::new("/foo/bar")).unwrap();
         assert_eq!(url.host(), Some(&Host::Domain("".to_string())));
