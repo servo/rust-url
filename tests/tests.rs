@@ -114,6 +114,12 @@ fn issue_124() {
 }
 
 #[test]
+fn issue_166() {
+    assert_eq!(Host::parse(".org").unwrap(), Host::Domain(".org".to_owned()));
+    assert_eq!(Url::parse("file://./foo").unwrap().domain(), Some("."));
+}
+
+#[test]
 fn relative_scheme_data_equality() {
     use std::hash::{Hash, Hasher, SipHasher};
 
