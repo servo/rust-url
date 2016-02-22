@@ -219,10 +219,12 @@ fn uts46_processing(domain: &str, flags: Uts46Flags) -> Result<String, Error> {
     }
     let normalized: String = mapped.nfc().collect();
     let mut validated = String::new();
+    let mut first = true;
     for label in normalized.split('.') {
-        if validated.len() > 0 {
+        if !first {
             validated.push('.');
         }
+        first = false;
         if label.starts_with("xn--") {
             match punycode::decode_to_string(&label["xn--".len()..]) {
                 Some(label) => {
@@ -262,10 +264,12 @@ pub enum Error {
 /// http://www.unicode.org/reports/tr46/#ToASCII
 pub fn uts46_to_ascii(domain: &str, flags: Uts46Flags) -> Result<String, Error> {
     let mut result = String::new();
+    let mut first = true;
     for label in try!(uts46_processing(domain, flags)).split('.') {
-        if result.len() > 0 {
+        if !first {
             result.push('.');
         }
+        first = false;
         if label.is_ascii() {
             result.push_str(label);
         } else {
