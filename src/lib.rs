@@ -474,6 +474,109 @@ impl Url {
         }
     }
 
+    /// Remove the last segment of this URL’s path.
+    ///
+    /// If this URL is non-relative, do nothing and return `Err`.
+    pub fn pop_path_segment(&mut self) -> Result<(), ()> {
+        if self.non_relative() {
+            return Err(())
+        }
+        let last_slash;
+        let path_len;
+        {
+            let path = self.path();
+            last_slash = path.rfind('/').unwrap();
+            path_len = path.len();
+        };
+        if last_slash > 0 {
+            // Found a slash other than the initial one
+            let last_slash = last_slash + self.path_start as usize;
+            let path_end = path_len + self.path_start as usize;
+            unsafe {
+                self.serialization.as_mut_vec().drain(last_slash..path_end);
+            }
+            let offset = (path_end - last_slash) as u32;
+            if let Some(ref mut index) = self.query_start { *index -= offset }
+            if let Some(ref mut index) = self.fragment_start { *index -= offset }
+        }
+        Ok(())
+    }
+
+    /// Add a segment at the end of this URL’s path.
+    ///
+    /// If this URL is non-relative, do nothing and return `Err`.
+    pub fn push_path_segment(&mut self, segment: &str) -> Result<(), ()> {
+        if self.non_relative() {
+            return Err(())
+        }
+        let after_path = match (self.query_start, self.fragment_start) {
+            (Some(i), _) | (None, Some(i)) => {
+                let s = self.slice(i..).to_owned();
+                self.serialization.truncate(i as usize);
+                Some(s)
+            },
+            (None, None) => None
+        };
+        let scheme_type = parser::SchemeType::from(self.scheme());
+        let path_start = self.path_start as usize;
+        self.serialization.push('/');
+        self.mutate(|parser| {
+            parser.context = parser::Context::PathSegmentSetter;
+            let mut has_host = true;  // FIXME account for this?
+            parser.parse_path(scheme_type, &mut has_host, path_start, segment)
+        });
+        let offset = to_u32(self.serialization.len()).unwrap() - self.path_start;
+        if let Some(ref mut index) = self.query_start { *index += offset }
+        if let Some(ref mut index) = self.fragment_start { *index += offset }
+        if let Some(ref after_path) = after_path {
+            self.serialization.push_str(after_path)
+        }
+        Ok(())
+    }
+
+    /// Change this URL’s port number.
+    ///
+    /// If this URL is non-relative, does not have a host, or has the `file` scheme;
+    /// do nothing and return `Err`.
+    pub fn set_port(&mut self, mut port: Option<u16>) -> Result<(), ()> {
+        if self.non_relative() {
+            return Err(())
+        }
+        if port.is_some() && port == parser::default_port(self.scheme()) {
+            port = None
+        }
+        match (self.port, port) {
+            (None, None) => {}
+            (Some(_), None) => {
+                unsafe {
+                    self.serialization.as_mut_vec().drain(
+                        self.host_end as usize .. self.path_start as usize);
+                }
+                let offset = self.path_start - self.host_end;
+                self.path_start = self.host_end;
+                if let Some(ref mut index) = self.query_start { *index -= offset }
+                if let Some(ref mut index) = self.fragment_start { *index -= offset }
+            }
+            (Some(old), Some(new)) if old == new => {}
+            (_, Some(new)) => {
+                let path_and_after = self.slice(self.path_start..).to_owned();
+                self.serialization.truncate(self.host_end as usize);
+                write!(&mut self.serialization, ":{}", new).unwrap();
+                let old_path_start = self.path_start;
+                let new_path_start = to_u32(self.serialization.len()).unwrap();
+                self.path_start = new_path_start;
+                let adjust = |index: &mut u32| {
+                    *index -= old_path_start;
+                    *index += new_path_start;
+                };
+                if let Some(ref mut index) = self.query_start { adjust(index) }
+                if let Some(ref mut index) = self.fragment_start { adjust(index) }
+                self.serialization.push_str(&path_and_after);
+            }
+        }
+        Ok(())
+    }
+
     /// Change this URL’s host.
     ///
     /// If this URL is non-relative, do nothing and return `Err`.

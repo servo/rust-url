@@ -14,7 +14,8 @@ use super::{Url, EncodingOverride};
 use host::{self, HostInternal};
 use percent_encoding::{
     utf8_percent_encode, percent_encode,
-    SIMPLE_ENCODE_SET, DEFAULT_ENCODE_SET, USERINFO_ENCODE_SET, QUERY_ENCODE_SET
+    SIMPLE_ENCODE_SET, DEFAULT_ENCODE_SET, USERINFO_ENCODE_SET, QUERY_ENCODE_SET,
+    PATH_SEGMENT_ENCODE_SET
 };
 
 pub type ParseResult<T> = Result<T, ParseError>;
@@ -75,7 +76,7 @@ impl SchemeType {
         matches!(*self, SchemeType::File)
     }
 
-    fn from(s: &str) -> Self {
+    pub fn from(s: &str) -> Self {
         match s {
             "http" | "https" | "ws" | "wss" | "ftp" | "gopher" => SchemeType::SpecialNotFile,
             "file" => SchemeType::File,
@@ -106,6 +107,7 @@ pub struct Parser<'a> {
 pub enum Context {
     UrlParser,
     Setter,
+    PathSegmentSetter,
 }
 
 impl<'a> Parser<'a> {
@@ -181,12 +183,11 @@ impl<'a> Parser<'a> {
             }
         }
         // EOF before ':'
-        match self.context {
-            Context::Setter => Ok(""),
-            Context::UrlParser => {
-                self.serialization.clear();
-                Err(())
-            }
+        if self.context == Context::Setter {
+            Ok("")
+        } else {
+            self.serialization.clear();
+            Err(())
         }
     }
 
@@ -742,9 +743,9 @@ impl<'a> Parser<'a> {
         self.parse_path(scheme_type, has_host, path_start, input)
     }
 
-    fn parse_path<'i>(&mut self, scheme_type: SchemeType, has_host: &mut bool,
-                      path_start: usize, input: &'i str)
-                      -> &'i str {
+    pub fn parse_path<'i>(&mut self, scheme_type: SchemeType, has_host: &mut bool,
+                          path_start: usize, input: &'i str)
+                          -> &'i str {
         // Relative path state
         debug_assert!(self.serialization.ends_with("/"));
         let mut iter = input.char_ranges();
@@ -782,8 +783,13 @@ impl<'a> Parser<'a> {
                             }
                             iter = after_percent_sign
                         }
-                        self.serialization.extend(utf8_percent_encode(
-                            &input[i..next_i], DEFAULT_ENCODE_SET));
+                        if self.context == Context::PathSegmentSetter {
+                            self.serialization.extend(utf8_percent_encode(
+                                &input[i..next_i], PATH_SEGMENT_ENCODE_SET));
+                        } else {
+                            self.serialization.extend(utf8_percent_encode(
+                                &input[i..next_i], DEFAULT_ENCODE_SET));
+                        }
                     }
                 }
             }
