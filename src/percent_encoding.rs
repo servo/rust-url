@@ -97,8 +97,8 @@ define_encode_set! {
 }
 
 define_encode_set! {
-    /// This encode set is used for username and password.
-    pub PATH_SEGMENT_ENCODE_SET = [DEFAULT_ENCODE_SET] | {'%'}
+    /// This encode set is used for on '/'-separated path segment
+    pub PATH_SEGMENT_ENCODE_SET = [DEFAULT_ENCODE_SET] | {'%', '/'}
 }
 
 define_encode_set! {
