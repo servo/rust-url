@@ -7,19 +7,30 @@
 // except according to those terms.
 
 use {Url, ParseError};
+use host::Host;
+use idna::domain_to_unicode;
 
 /// https://url.spec.whatwg.org/#api
 pub struct WebIdl;
 
 impl WebIdl {
-    /// **Not implemented yet** https://url.spec.whatwg.org/#dom-url-domaintoascii
-    pub fn domain_to_ascii(_domain: &str) -> String {
-        unimplemented!()  // FIXME
+    /// https://url.spec.whatwg.org/#dom-url-domaintoascii
+    pub fn domain_to_ascii(domain: &str) -> String {
+        match Host::parse(domain) {
+            Ok(Host::Domain(domain)) => domain,
+            _ => String::new(),
+        }
     }
 
-    /// **Not implemented yet** https://url.spec.whatwg.org/#dom-url-domaintounicode
-    pub fn domain_to_unicode(_domain: &str) -> String {
-        unimplemented!()  // FIXME
+    /// https://url.spec.whatwg.org/#dom-url-domaintounicode
+    pub fn domain_to_unicode(domain: &str) -> String {
+        match Host::parse(domain) {
+            Ok(Host::Domain(ref domain)) => {
+                let (unicode, _errors) = domain_to_unicode(domain);
+                unicode
+            }
+            _ => String::new(),
+        }
     }
 
     pub fn href(url: &Url) -> &str {
@@ -54,9 +65,9 @@ impl WebIdl {
         url.username()
     }
 
-    /// **Not implemented yet** Setter for https://url.spec.whatwg.org/#dom-url-username
-    pub fn set_username(_url: &mut Url, _new_username: &str) {
-        unimplemented!()  // FIXME
+    /// Setter for https://url.spec.whatwg.org/#dom-url-username
+    pub fn set_username(url: &mut Url, new_username: &str) {
+        let _ = url.set_username(new_username);
     }
 
     /// Getter for https://url.spec.whatwg.org/#dom-url-password
@@ -65,9 +76,9 @@ impl WebIdl {
         url.password().unwrap_or("")
     }
 
-    /// **Not implemented yet** Setter for https://url.spec.whatwg.org/#dom-url-password
-    pub fn set_password(_url: &mut Url, _new_password: &str) {
-        unimplemented!()  // FIXME
+    /// Setter for https://url.spec.whatwg.org/#dom-url-password
+    pub fn set_password(url: &mut Url, new_password: &str) {
+        let _ = url.set_password(if new_password.is_empty() { None } else { Some(new_password) });
     }
 
     /// Getter for https://url.spec.whatwg.org/#dom-url-host
@@ -115,9 +126,11 @@ impl WebIdl {
          url.path()
     }
 
-    /// **Not implemented yet** Setter for https://url.spec.whatwg.org/#dom-url-pathname
-    pub fn set_pathname(_url: &mut Url, _new_pathname: &str) {
-        unimplemented!()  // FIXME
+    /// Setter for https://url.spec.whatwg.org/#dom-url-pathname
+    pub fn set_pathname(url: &mut Url, new_pathname: &str) {
+        if !url.non_relative() {
+            url.set_path(new_pathname)
+        }
     }
 
     /// Getter for https://url.spec.whatwg.org/#dom-url-search
@@ -148,9 +161,9 @@ impl WebIdl {
         })
     }
 
-    /// **Not implemented yet** Getter for https://url.spec.whatwg.org/#dom-url-searchparams
-    pub fn search_params(_url: &Url) -> Vec<(String, String)> {
-        unimplemented!();  // FIXME
+    /// Getter for https://url.spec.whatwg.org/#dom-url-searchparams
+    pub fn search_params(url: &Url) -> Vec<(String, String)> {
+        url.query_pairs().unwrap_or_else(Vec::new)
     }
 
     /// Getter for https://url.spec.whatwg.org/#dom-url-hash
