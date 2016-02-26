@@ -127,7 +127,8 @@ extern crate idna;
 
 use host::HostInternal;
 use parser::{Parser, Context};
-use percent_encoding::{PATH_SEGMENT_ENCODE_SET, percent_encode, percent_decode};
+use percent_encoding::{PATH_SEGMENT_ENCODE_SET, USERINFO_ENCODE_SET,
+                       percent_encode, percent_decode, utf8_percent_encode};
 use std::cmp;
 use std::fmt::{self, Write};
 use std::hash;
@@ -664,7 +665,6 @@ impl Url {
             *index -= old_host_end;
             *index += new_host_end;
         };
-        adjust(&mut self.host_end);
         adjust(&mut self.path_start);
         if let Some(ref mut index) = self.query_start { adjust(index) }
         if let Some(ref mut index) = self.fragment_start { adjust(index) }
@@ -695,6 +695,92 @@ impl Url {
         }
 
         self.set_host_internal(Host::Ipv6(address));
+        Ok(())
+    }
+
+    /// Change this URL’s password.
+    ///
+    /// If this URL is non-relative or does not have a host, do nothing and return `Err`.
+    pub fn set_password(&mut self, password: Option<&str>) -> Result<(), ()> {
+        if !self.has_host() {
+            return Err(())
+        }
+        if let Some(password) = password {
+            let host_and_after = self.slice(self.host_start..).to_owned();
+            self.serialization.truncate(self.username_end as usize);
+            self.serialization.push(':');
+            self.serialization.extend(utf8_percent_encode(password, USERINFO_ENCODE_SET));
+            self.serialization.push('@');
+
+            let old_host_start = self.host_start;
+            let new_host_start = to_u32(self.serialization.len()).unwrap();
+            let adjust = |index: &mut u32| {
+                *index -= old_host_start;
+                *index += new_host_start;
+            };
+            self.host_start = new_host_start;
+            adjust(&mut self.host_end);
+            adjust(&mut self.path_start);
+            if let Some(ref mut index) = self.query_start { adjust(index) }
+            if let Some(ref mut index) = self.fragment_start { adjust(index) }
+
+            self.serialization.push_str(&host_and_after);
+        } else if self.byte_at(self.username_end) == b':' {  // If there is a password to remove
+            let has_username_or_password = self.byte_at(self.host_start - 1) == b'@';
+            debug_assert!(has_username_or_password);
+            let username_start = self.scheme_end + 3;
+            let empty_username = username_start == self.username_end;
+            let start = self.username_end;  // Remove the ':'
+            let end = if empty_username {
+                self.host_start // Remove the '@' as well
+            } else {
+                self.host_start - 1  // Keep the '@' to separate the username from the host
+            };
+            unsafe {
+                self.serialization.as_mut_vec().drain(start as usize .. end as usize);
+            }
+            let offset = end - start;
+            self.host_start -= offset;
+            self.host_end -= offset;
+            if let Some(ref mut index) = self.query_start { *index -= offset }
+            if let Some(ref mut index) = self.fragment_start { *index -= offset }
+        }
+        Ok(())
+    }
+
+    /// Change this URL’s username.
+    ///
+    /// If this URL is non-relative or does not have a host, do nothing and return `Err`.
+    pub fn set_username(&mut self, username: &str) -> Result<(), ()> {
+        if !self.has_host() {
+            return Err(())
+        }
+        let username_start = self.scheme_end + 3;
+        if self.slice(username_start..self.username_end) == username {
+            return Ok(())
+        }
+        let after_username = self.slice(self.username_end..).to_owned();
+        self.serialization.truncate(username_start as usize);
+        self.serialization.extend(utf8_percent_encode(username, USERINFO_ENCODE_SET));
+
+        let old_username_end = self.username_end;
+        let new_username_end = to_u32(self.serialization.len()).unwrap();
+        let adjust = |index: &mut u32| {
+            *index -= old_username_end;
+            *index += new_username_end;
+        };
+
+        self.username_end = new_username_end;
+        adjust(&mut self.host_start);
+        adjust(&mut self.host_end);
+        adjust(&mut self.path_start);
+        if let Some(ref mut index) = self.query_start { adjust(index) }
+        if let Some(ref mut index) = self.fragment_start { adjust(index) }
+
+        if !after_username.starts_with(|c| matches!(c, '@' | ':')) {
+            self.serialization.push('@');
+        }
+        self.serialization.push_str(&after_username);
         Ok(())
     }
 
