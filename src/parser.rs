@@ -729,7 +729,7 @@ impl<'a> Parser<'a> {
         return Ok((opt_port, &input[end..]))
     }
 
-    fn parse_path_start<'i>(&mut self, scheme_type: SchemeType, has_host: &mut bool,
+    pub fn parse_path_start<'i>(&mut self, scheme_type: SchemeType, has_host: &mut bool,
                             mut input: &'i str)
                             -> &'i str {
         // Path start state
@@ -760,12 +760,13 @@ impl<'a> Parser<'a> {
             end = input.len();
             while let Some((i, c, next_i)) = iter.next() {
                 match c {
-                    '/' => {
+                    '/' if self.context != Context::PathSegmentSetter => {
                         ends_with_slash = true;
                         end = i;
                         break
                     },
-                    '\\' if scheme_type.is_special() => {
+                    '\\' if self.context != Context::PathSegmentSetter &&
+                            scheme_type.is_special() => {
                         self.syntax_violation("backslash");
                         ends_with_slash = true;
                         end = i;
@@ -851,10 +852,10 @@ impl<'a> Parser<'a> {
 
     }
 
-    fn parse_non_relative_path<'i>(&mut self, input: &'i str) -> &'i str {
+    pub fn parse_non_relative_path<'i>(&mut self, input: &'i str) -> &'i str {
         for (i, c, next_i) in input.char_ranges() {
             match c {
-                '?' | '#' => return &input[i..],
+                '?' | '#' if self.context == Context::UrlParser => return &input[i..],
                 '\t' | '\n' | '\r' => self.syntax_violation("invalid character"),
                 _ => {
                     self.check_url_code_point(input, i, c);
