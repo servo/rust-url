@@ -474,6 +474,38 @@ impl Url {
         }
     }
 
+    /// Change this URL’s path.
+    pub fn set_path(&mut self, path: &str) {
+        let (old_after_path_pos, after_path) = match (self.query_start, self.fragment_start) {
+            (Some(i), _) | (None, Some(i)) => (i, self.slice(i..).to_owned()),
+            (None, None) => (to_u32(self.serialization.len()).unwrap(), String::new())
+        };
+        let non_relative = self.non_relative();
+        let scheme_type = parser::SchemeType::from(self.scheme());
+        self.serialization.truncate(self.path_start as usize);
+        self.mutate(|parser| {
+            if non_relative {
+                if path.starts_with('/') {
+                    parser.serialization.push_str("%2F");
+                    parser.parse_non_relative_path(&path[1..]);
+                } else {
+                    parser.parse_non_relative_path(path);
+                }
+            } else {
+                let mut has_host = true;  // FIXME
+                parser.parse_path_start(scheme_type, &mut has_host, path);
+            }
+        });
+        let new_after_path_pos = to_u32(self.serialization.len()).unwrap();
+        let adjust = |index: &mut u32| {
+            *index -= old_after_path_pos;
+            *index += new_after_path_pos;
+        };
+        if let Some(ref mut index) = self.query_start { adjust(index) }
+        if let Some(ref mut index) = self.fragment_start { adjust(index) }
+        self.serialization.push_str(&after_path)
+    }
+
     /// Remove the last segment of this URL’s path.
     ///
     /// If this URL is non-relative, do nothing and return `Err`.
@@ -513,9 +545,9 @@ impl Url {
             (Some(i), _) | (None, Some(i)) => {
                 let s = self.slice(i..).to_owned();
                 self.serialization.truncate(i as usize);
-                Some(s)
+                s
             },
-            (None, None) => None
+            (None, None) => String::new()
         };
         let scheme_type = parser::SchemeType::from(self.scheme());
         let path_start = self.path_start as usize;
@@ -528,9 +560,7 @@ impl Url {
         let offset = to_u32(self.serialization.len()).unwrap() - self.path_start;
         if let Some(ref mut index) = self.query_start { *index += offset }
         if let Some(ref mut index) = self.fragment_start { *index += offset }
-        if let Some(ref after_path) = after_path {
-            self.serialization.push_str(after_path)
-        }
+        self.serialization.push_str(&after_path);
         Ok(())
     }
 
