@@ -541,7 +541,7 @@ impl SchemeType {
     }
 }
 
-/// http://url.spec.whatwg.org/#relative-scheme
+/// http://url.spec.whatwg.org/#special-scheme
 pub fn whatwg_scheme_type_mapper(scheme: &str) -> SchemeType {
     match scheme {
         "file" => SchemeType::FileLike,
