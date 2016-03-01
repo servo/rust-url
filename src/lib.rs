@@ -570,12 +570,17 @@ impl Url {
     /// If this URL is non-relative, does not have a host, or has the `file` scheme;
     /// do nothing and return `Err`.
     pub fn set_port(&mut self, mut port: Option<u16>) -> Result<(), ()> {
-        if self.non_relative() {
+        if !self.has_host() || self.scheme() == "file" {
             return Err(())
         }
         if port.is_some() && port == parser::default_port(self.scheme()) {
             port = None
         }
+        self.set_port_inner(port);
+        Ok(())
+    }
+
+    fn set_port_inner(&mut self, port: Option<u16>) {
         match (self.port, port) {
             (None, None) => {}
             (Some(_), None) => {
@@ -605,7 +610,6 @@ impl Url {
                 self.serialization.push_str(&path_and_after);
             }
         }
-        Ok(())
     }
 
     /// Change this URL’s host.
