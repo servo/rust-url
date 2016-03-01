@@ -24,6 +24,16 @@ pub enum HostInternal {
     Ipv6(Ipv6Addr),
 }
 
+impl<S> From<Host<S>> for HostInternal {
+    fn from(host: Host<S>) -> HostInternal {
+        match host {
+            Host::Domain(_) => HostInternal::Domain,
+            Host::Ipv4(address) => HostInternal::Ipv4(address),
+            Host::Ipv6(address) => HostInternal::Ipv6(address),
+        }
+    }
+}
+
 /// The host name of an URL.
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 #[cfg_attr(feature="heap_size", derive(HeapSizeOf))]
@@ -154,19 +164,6 @@ impl Iterator for SocketAddrs {
             }
             SocketAddrsState::Done => None
         }
-    }
-}
-
-/// Parse `input` as a host.
-/// If successful, write its serialization to `serialization`
-/// and return the internal representation for `Url`.
-pub fn parse(input: &str, serialization: &mut String) -> ParseResult<HostInternal> {
-    let host = try!(Host::parse(input));
-    write!(serialization, "{}", host).unwrap();
-    match host {
-        Host::Domain(_) => Ok(HostInternal::Domain),
-        Host::Ipv4(address) => Ok(HostInternal::Ipv4(address)),
-        Host::Ipv6(address) => Ok(HostInternal::Ipv6(address)),
     }
 }
 
