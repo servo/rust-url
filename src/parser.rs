@@ -602,10 +602,15 @@ impl<'a> Parser<'a> {
         let (host, remaining) = try!(self.parse_host(input, scheme_type));
         let host_end = try!(to_u32(self.serialization.len()));
         let (port, remaining) = if remaining.starts_with(":") {
-            try!(self.parse_port(&remaining[1..], scheme_end))
+            let syntax_violation = |message| self.syntax_violation(message);
+            let scheme = || default_port(&self.serialization[..scheme_end as usize]);
+            try!(Parser::parse_port(&remaining[1..], syntax_violation, scheme))
         } else {
             (None, remaining)
         };
+        if let Some(port) = port {
+            write!(&mut self.serialization, ":{}", port).unwrap()
+        }
         Ok((host_end, host, port, remaining))
     }
 
@@ -692,8 +697,9 @@ impl<'a> Parser<'a> {
         Ok((true, host, &input[end..]))
     }
 
-    pub fn parse_port<'i>(&mut self, input: &'i str, scheme_end: u32)
-                          -> ParseResult<(Option<u16>, &'i str)> {
+    pub fn parse_port<'i, V, P>(input: &'i str, syntax_violation: V, default_port: P)
+                                -> ParseResult<(Option<u16>, &'i str)>
+                                where V: Fn(&'static str), P: Fn() -> Option<u16> {
         let mut port = 0;
         let mut has_any_digit = false;
         let mut end = input.len();
@@ -710,17 +716,14 @@ impl<'a> Parser<'a> {
                         end = i;
                         break
                     },
-                    '\t' | '\n' | '\r' => self.syntax_violation("invalid character"),
+                    '\t' | '\n' | '\r' => syntax_violation("invalid character"),
                     _ => return Err(ParseError::InvalidPort)
                 }
             }
         }
         let mut opt_port = Some(port as u16);
-        if !has_any_digit || opt_port == default_port(&self.serialization[..scheme_end as usize]) {
+        if !has_any_digit || opt_port == default_port() {
             opt_port = None;
-        } else {
-            self.serialization.push(':');
-            write!(&mut self.serialization, "{}", port).unwrap();
         }
         return Ok((opt_port, &input[end..]))
     }

@@ -9,6 +9,7 @@
 use {Url, ParseError};
 use host::Host;
 use idna::domain_to_unicode;
+use parser::{Parser, default_port};
 
 /// https://url.spec.whatwg.org/#api
 pub struct WebIdl;
@@ -115,9 +116,20 @@ impl WebIdl {
         }
     }
 
-    /// **Not implemented yet** Setter for https://url.spec.whatwg.org/#dom-url-port
-    pub fn set_port(_url: &mut Url, _new_port: &str) {
-        unimplemented!()  // FIXME
+    /// Setter for https://url.spec.whatwg.org/#dom-url-port
+    pub fn set_port(url: &mut Url, new_port: &str) {
+        let result;
+        {
+            // has_host implies !non_relative
+            let scheme = url.scheme();
+            if !url.has_host() || scheme == "file" {
+                return
+            }
+            result = Parser::parse_port(new_port, |_| (), || default_port(scheme))
+        }
+        if let Ok((new_port, _remaining)) = result {
+            url.set_port_inner(new_port)
+        }
     }
 
     /// Getter for https://url.spec.whatwg.org/#dom-url-pathname
