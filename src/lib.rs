@@ -576,11 +576,11 @@ impl Url {
         if port.is_some() && port == parser::default_port(self.scheme()) {
             port = None
         }
-        self.set_port_inner(port);
+        self.set_port_internal(port);
         Ok(())
     }
 
-    fn set_port_inner(&mut self, port: Option<u16>) {
+    fn set_port_internal(&mut self, port: Option<u16>) {
         match (self.port, port) {
             (None, None) => {}
             (Some(_), None) => {
@@ -614,7 +614,8 @@ impl Url {
 
     /// Change this URL’s host.
     ///
-    /// If this URL is non-relative, do nothing and return `Err`.
+    /// If this URL is non-relative or there is an error parsing the given `host`,
+    /// do nothing and return `Err`.
     ///
     /// Removing the host (calling this with `None`)
     /// will also remove any username, password, and port number.
@@ -624,7 +625,7 @@ impl Url {
         }
 
         if let Some(host) = host {
-            self.set_host_internal(try!(Host::parse(host).map_err(|_| ())))
+            self.set_host_internal(try!(Host::parse(host).map_err(|_| ())), None)
         } else if self.has_host() {
             // Not debug_assert! since this proves that `unsafe` below is OK:
             assert!(self.byte_at(self.scheme_end) == b':');
@@ -646,8 +647,10 @@ impl Url {
         Ok(())
     }
 
-    fn set_host_internal(&mut self, host: Host<String>) {
-        let after_host = self.slice(self.host_end..).to_owned();
+    /// opt_new_port: None means leave unchanged, Some(None) means remove any port number.
+    fn set_host_internal(&mut self, host: Host<String>, opt_new_port: Option<Option<u16>>) {
+        let old_suffix_pos = if opt_new_port.is_some() { self.path_start } else { self.host_end };
+        let suffix = self.slice(old_suffix_pos..).to_owned();
         self.serialization.truncate(self.host_start as usize);
         if !self.has_host() {
             debug_assert!(self.slice(self.scheme_end..self.host_start) == ":");
@@ -657,20 +660,22 @@ impl Url {
             self.username_end += 2;
             self.host_start += 2;
         }
-        let old_host_end = self.host_end;
         write!(&mut self.serialization, "{}", host).unwrap();
-        let new_host_end = to_u32(self.serialization.len()).unwrap();
-        self.serialization.push_str(&after_host);
+        self.host_end = to_u32(self.serialization.len()).unwrap();
+        self.host = host.into();
 
-        self.host = match host {
-            Host::Domain(_) => HostInternal::Domain,
-            Host::Ipv4(address) => HostInternal::Ipv4(address),
-            Host::Ipv6(address) => HostInternal::Ipv6(address),
-        };
-        self.host_end = new_host_end;
+        if let Some(new_port) = opt_new_port {
+            self.port = new_port;
+            if let Some(port) = new_port {
+                write!(&mut self.serialization, ":{}", port).unwrap();
+            }
+        }
+        let new_suffix_pos = to_u32(self.serialization.len()).unwrap();
+        self.serialization.push_str(&suffix);
+
         let adjust = |index: &mut u32| {
-            *index -= old_host_end;
-            *index += new_host_end;
+            *index -= old_suffix_pos;
+            *index += new_suffix_pos;
         };
         adjust(&mut self.path_start);
         if let Some(ref mut index) = self.query_start { adjust(index) }
@@ -687,7 +692,7 @@ impl Url {
             return Err(())
         }
 
-        self.set_host_internal(Host::Ipv4(address));
+        self.set_host_internal(Host::Ipv4(address), None);
         Ok(())
     }
 
@@ -701,7 +706,7 @@ impl Url {
             return Err(())
         }
 
-        self.set_host_internal(Host::Ipv6(address));
+        self.set_host_internal(Host::Ipv6(address), None);
         Ok(())
     }
 
