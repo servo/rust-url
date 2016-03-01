@@ -11,7 +11,7 @@ use std::error::Error;
 use std::fmt::{self, Formatter, Write};
 
 use super::{Url, EncodingOverride};
-use host::{self, HostInternal};
+use host::{Host, HostInternal};
 use percent_encoding::{
     utf8_percent_encode, percent_encode,
     SIMPLE_ENCODE_SET, DEFAULT_ENCODE_SET, USERINFO_ENCODE_SET, QUERY_ENCODE_SET,
@@ -603,7 +603,9 @@ impl<'a> Parser<'a> {
     pub fn parse_host_and_port<'i>(&mut self, input: &'i str,
                                    scheme_end: u32, scheme_type: SchemeType)
                                    -> ParseResult<(u32, HostInternal, Option<u16>, &'i str)> {
-        let (host, remaining) = try!(self.parse_host(input, scheme_type));
+        let (host, remaining) = try!(
+            Parser::parse_host(input, scheme_type, |m| self.syntax_violation(m)));
+        write!(&mut self.serialization, "{}", host).unwrap();
         let host_end = try!(to_u32(self.serialization.len()));
         let (port, remaining) = if remaining.starts_with(":") {
             let syntax_violation = |message| self.syntax_violation(message);
@@ -615,11 +617,12 @@ impl<'a> Parser<'a> {
         if let Some(port) = port {
             write!(&mut self.serialization, ":{}", port).unwrap()
         }
-        Ok((host_end, host, port, remaining))
+        Ok((host_end, host.into(), port, remaining))
     }
 
-    pub fn parse_host<'i>(&mut self, input: &'i str, scheme_type: SchemeType)
-                          -> ParseResult<(HostInternal, &'i str)> {
+    pub fn parse_host<'i, S>(input: &'i str, scheme_type: SchemeType, syntax_violation: S)
+                             -> ParseResult<(Host<String>, &'i str)>
+                             where S: Fn(&'static str) {
         let mut inside_square_brackets = false;
         let mut has_ignored_chars = false;
         let mut end = input.len();
@@ -638,7 +641,7 @@ impl<'a> Parser<'a> {
                     break
                 }
                 b'\t' | b'\n' | b'\r' => {
-                    self.syntax_violation("invalid character");
+                    syntax_violation("invalid character");
                     has_ignored_chars = true;
                 }
                 b'[' => inside_square_brackets = true,
@@ -656,7 +659,7 @@ impl<'a> Parser<'a> {
         if scheme_type.is_special() && host_input.is_empty() {
             return Err(ParseError::EmptyHost)
         }
-        let host = try!(host::parse(&host_input, &mut self.serialization));
+        let host = try!(Host::parse(&host_input));
         Ok((host, &input[end..]))
     }
 
@@ -687,17 +690,17 @@ impl<'a> Parser<'a> {
         if is_windows_drive_letter(host_input) {
             return Ok((false, HostInternal::None, input))
         }
-        let mut host;
-        if host_input.is_empty() {
-            host = HostInternal::None;
+        let host = if host_input.is_empty() {
+            HostInternal::None
         } else {
-            let host_start = self.serialization.len();
-            host = try!(host::parse(&host_input, &mut self.serialization));
-            if &self.serialization[host_start..] == "localhost" {
-                host = HostInternal::None;
-                self.serialization.truncate(host_start);
+            match try!(Host::parse(&host_input)) {
+                Host::Domain(ref d) if d == "localhost" => HostInternal::None,
+                host => {
+                    write!(&mut self.serialization, "{}", host).unwrap();
+                    host.into()
+                }
             }
-        }
+        };
         Ok((true, host, &input[end..]))
     }
 
