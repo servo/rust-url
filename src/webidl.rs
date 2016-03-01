@@ -9,7 +9,7 @@
 use {Url, ParseError};
 use host::Host;
 use idna::domain_to_unicode;
-use parser::{Parser, default_port};
+use parser::{Parser, SchemeType, default_port};
 
 /// https://url.spec.whatwg.org/#api
 pub struct WebIdl;
@@ -89,9 +89,30 @@ impl WebIdl {
         host
     }
 
-    /// **Not implemented yet** Setter for https://url.spec.whatwg.org/#dom-url-host
-    pub fn set_host(_url: &mut Url, _new_host: &str) {
-        unimplemented!()  // FIXME
+    /// Setter for https://url.spec.whatwg.org/#dom-url-host
+    pub fn set_host(url: &mut Url, new_host: &str) {
+        if url.non_relative() {
+            return
+        }
+        let host;
+        let opt_port;
+        {
+            let scheme = url.scheme();
+            let result = Parser::parse_host(new_host, SchemeType::from(scheme), |_| ());
+            match result {
+                Ok((h, remaining)) => {
+                    host = h;
+                    opt_port = if remaining.starts_with(':') {
+                        Parser::parse_port(remaining, |_| (), || default_port(scheme))
+                        .ok().map(|(port, _remaining)| port)
+                    } else {
+                        None
+                    };
+                }
+                Err(_) => return
+            }
+        }
+        url.set_host_internal(host, opt_port)
     }
 
     /// Getter for https://url.spec.whatwg.org/#dom-url-hostname
@@ -100,9 +121,15 @@ impl WebIdl {
         url.host_str().unwrap_or("")
     }
 
-    /// **Not implemented yet** Setter for https://url.spec.whatwg.org/#dom-url-hostname
-    pub fn set_hostname(_url: &mut Url, _new_hostname: &str) {
-        unimplemented!()  // FIXME
+    /// Setter for https://url.spec.whatwg.org/#dom-url-hostname
+    pub fn set_hostname(url: &mut Url, new_hostname: &str) {
+        if url.non_relative() {
+            return
+        }
+        let result = Parser::parse_host(new_hostname, SchemeType::from(url.scheme()), |_| ());
+        if let Ok((host, _remaining)) = result {
+            url.set_host_internal(host, None)
+        }
     }
 
     /// Getter for https://url.spec.whatwg.org/#dom-url-port
@@ -128,7 +155,7 @@ impl WebIdl {
             result = Parser::parse_port(new_port, |_| (), || default_port(scheme))
         }
         if let Ok((new_port, _remaining)) = result {
-            url.set_port_inner(new_port)
+            url.set_port_internal(new_port)
         }
     }
 
