@@ -1172,3 +1172,76 @@ fn file_url_segments_to_pathbuf_windows(mut segments: str::Split<char>) -> Resul
 fn io_error<T>(reason: &str) -> io::Result<T> {
     Err(io::Error::new(io::ErrorKind::InvalidData, reason))
 }
+
+/// The `IntoUrl` trait applies to a type that is convertible into a `Url`.
+pub trait IntoUrl {
+    /// Consumes the object, returning either a `Url` or parse error.
+    fn into_url(self) -> Result<Url, ParseError>;
+}
+
+impl IntoUrl for Url {
+    fn into_url(self) -> Result<Url, ParseError> {
+        Ok(self)
+    }
+}
+
+impl<'a> IntoUrl for &'a str {
+    fn into_url(self) -> Result<Url, ParseError> {
+        Url::parse(self)
+    }
+}
+
+impl<'a> IntoUrl for &'a String {
+    fn into_url(self) -> Result<Url, ParseError> {
+        Url::parse(self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn url_into_url() {
+        use super::{IntoUrl, Url};
+        let u1: Url = "http://example.com".parse().unwrap();
+        let u2 = u1.clone().into_url().unwrap();
+        assert_eq!(u1, u2);
+    }
+
+    #[test]
+    fn str_ref_into_url_ok() {
+        use super::{IntoUrl, Url};
+        let u1: Url = "http://example.com".parse().unwrap();
+        let u2: Url = "http://example.com".into_url().unwrap();
+        assert_eq!(u1, u2);
+    }
+
+    #[test]
+    fn str_ref_into_url_nok() {
+        use super::IntoUrl;
+        match "This is an invalid URL.".into_url() {
+            Err(..) => (),
+            x @ _ => {
+                panic!("Got unexpected result: {:?}", x);
+            }
+        }
+    }
+
+    #[test]
+    fn string_into_url() {
+        use super::{IntoUrl, Url};
+        let u1: Url = "http://example.com".parse().unwrap();
+        let u2: Url = String::from("http://example.com").into_url().unwrap();
+        assert_eq!(u1, u2);
+    }
+
+    #[test]
+    fn string_into_url_nok() {
+        use super::IntoUrl;
+        match String::from("This is an invalid URL.").into_url() {
+            Err(..) => (),
+            x @ _ => {
+                panic!("Got unexpected result: {:?}", x);
+            }
+        }
+    }
+}
