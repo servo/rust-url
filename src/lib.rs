@@ -540,9 +540,7 @@ impl Url {
             // Found a slash other than the initial one
             let last_slash = last_slash + self.path_start as usize;
             let path_end = path_len + self.path_start as usize;
-            unsafe {
-                self.serialization.as_mut_vec().drain(last_slash..path_end);
-            }
+            self.serialization.drain(last_slash..path_end);
             let offset = (path_end - last_slash) as u32;
             if let Some(ref mut index) = self.query_start { *index -= offset }
             if let Some(ref mut index) = self.fragment_start { *index -= offset }
@@ -599,10 +597,7 @@ impl Url {
         match (self.port, port) {
             (None, None) => {}
             (Some(_), None) => {
-                unsafe {
-                    self.serialization.as_mut_vec().drain(
-                        self.host_end as usize .. self.path_start as usize);
-                }
+                self.serialization.drain(self.host_end as usize .. self.path_start as usize);
                 let offset = self.path_start - self.host_end;
                 self.path_start = self.host_end;
                 if let Some(ref mut index) = self.query_start { *index -= offset }
@@ -642,14 +637,10 @@ impl Url {
         if let Some(host) = host {
             self.set_host_internal(try!(Host::parse(host).map_err(|_| ())), None)
         } else if self.has_host() {
-            // Not debug_assert! since this proves that `unsafe` below is OK:
-            assert!(self.byte_at(self.scheme_end) == b':');
-            assert!(self.byte_at(self.path_start) == b'/');
+            debug_assert!(self.byte_at(self.scheme_end) == b':');
+            debug_assert!(self.byte_at(self.path_start) == b'/');
             let new_path_start = self.scheme_end + 1;
-            unsafe {
-                self.serialization.as_mut_vec()
-                    .drain(self.path_start as usize..new_path_start as usize);
-            }
+            self.serialization.drain(self.path_start as usize..new_path_start as usize);
             let offset = self.path_start - new_path_start;
             self.path_start = new_path_start;
             self.username_end = new_path_start;
@@ -753,9 +744,7 @@ impl Url {
             } else {
                 self.host_start - 1  // Keep the '@' to separate the username from the host
             };
-            unsafe {
-                self.serialization.as_mut_vec().drain(start as usize .. end as usize);
-            }
+            self.serialization.drain(start as usize .. end as usize);
             let offset = end - start;
             self.host_start -= offset;
             self.host_end -= offset;
