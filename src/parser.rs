@@ -68,11 +68,11 @@ pub enum SchemeType {
 }
 
 impl SchemeType {
-    fn is_special(&self) -> bool {
+    pub fn is_special(&self) -> bool {
         !matches!(*self, SchemeType::NotSpecial)
     }
 
-    fn is_file(&self) -> bool {
+    pub fn is_file(&self) -> bool {
         matches!(*self, SchemeType::File)
     }
 
