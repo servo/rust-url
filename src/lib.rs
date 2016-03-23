@@ -221,9 +221,20 @@ impl Url {
         }.parse_url(input)
     }
 
+    /// Return the serialization of this URL.
+    ///
+    /// This is fast since that serialization is already stored in the `Url` struct.
     #[inline]
     pub fn as_str(&self) -> &str {
         &self.serialization
+    }
+
+    /// Return the serialization of this URL.
+    ///
+    /// This consumes the `Url` and takes ownership of the `String` stored in it.
+    #[inline]
+    pub fn into_string(self) -> String {
+        self.serialization
     }
 
     /// Return the scheme of this URL, lower-cased, as an ASCII string without the ':' delimiter.
