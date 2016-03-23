@@ -144,7 +144,7 @@ use std::str;
 pub use encoding::EncodingOverride;
 pub use origin::{Origin, OpaqueOrigin};
 pub use host::{Host, HostAndPort, SocketAddrs};
-pub use parser::{ParseError, to_u32};
+pub use parser::{ParseError, SchemeType, to_u32};
 pub use slicing::Position;
 pub use webidl::WebIdl;
 
@@ -481,7 +481,7 @@ impl Url {
             (None, None) => (to_u32(self.serialization.len()).unwrap(), String::new())
         };
         let non_relative = self.non_relative();
-        let scheme_type = parser::SchemeType::from(self.scheme());
+        let scheme_type = SchemeType::from(self.scheme());
         self.serialization.truncate(self.path_start as usize);
         self.mutate(|parser| {
             if non_relative {
@@ -549,7 +549,7 @@ impl Url {
             },
             (None, None) => String::new()
         };
-        let scheme_type = parser::SchemeType::from(self.scheme());
+        let scheme_type = SchemeType::from(self.scheme());
         let path_start = self.path_start as usize;
         self.serialization.push('/');
         self.mutate(|parser| {
@@ -799,7 +799,8 @@ impl Url {
                           -> Result<(), ()> {
         let mut parser = Parser::for_setter(String::new());
         let remaining = try!(parser.parse_scheme(scheme));
-        if !(remaining.is_empty() || allow_extra_input_after_colon) {
+        if (!remaining.is_empty() && !allow_extra_input_after_colon) ||
+                (!self.has_host() && SchemeType::from(&parser.serialization).is_special()) {
             return Err(())
         }
         let old_scheme_end = self.scheme_end;
