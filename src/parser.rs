@@ -820,8 +820,9 @@ impl<'a> Parser<'a> {
                     if scheme_type.is_file() && is_windows_drive_letter(
                         &self.serialization[path_start + 1..]
                     ) {
-                        unsafe {
-                            *self.serialization.as_mut_vec().last_mut().unwrap() = b':'
+                        if self.serialization.ends_with('|') {
+                            self.serialization.pop();
+                            self.serialization.push(':');
                         }
                         if *has_host {
                             self.syntax_violation("file: with host and Windows drive letter");
