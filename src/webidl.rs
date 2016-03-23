@@ -91,7 +91,7 @@ impl WebIdl {
 
     /// Setter for https://url.spec.whatwg.org/#dom-url-host
     pub fn set_host(url: &mut Url, new_host: &str) {
-        if url.non_relative() {
+        if url.cannot_be_a_base() {
             return
         }
         let host;
@@ -123,7 +123,7 @@ impl WebIdl {
 
     /// Setter for https://url.spec.whatwg.org/#dom-url-hostname
     pub fn set_hostname(url: &mut Url, new_hostname: &str) {
-        if url.non_relative() {
+        if url.cannot_be_a_base() {
             return
         }
         let result = Parser::parse_host(new_hostname, SchemeType::from(url.scheme()), |_| ());
@@ -147,7 +147,7 @@ impl WebIdl {
     pub fn set_port(url: &mut Url, new_port: &str) {
         let result;
         {
-            // has_host implies !non_relative
+            // has_host implies !cannot_be_a_base
             let scheme = url.scheme();
             if !url.has_host() || scheme == "file" {
                 return
@@ -167,7 +167,7 @@ impl WebIdl {
 
     /// Setter for https://url.spec.whatwg.org/#dom-url-pathname
     pub fn set_pathname(url: &mut Url, new_pathname: &str) {
-        if !url.non_relative() {
+        if !url.cannot_be_a_base() {
             url.set_path(new_pathname)
         }
     }

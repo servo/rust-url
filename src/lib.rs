@@ -68,10 +68,10 @@ assert!(issue_list_url.path_segments().map(|c| c.collect::<Vec<_>>()) ==
         Some(vec!["rust-lang", "rust", "issues"]));
 assert!(issue_list_url.query() == Some("labels=E-easy&state=open"));
 assert!(issue_list_url.fragment() == None);
-assert!(!issue_list_url.non_relative());
+assert!(!issue_list_url.cannot_be_a_base());
 ```
 
-Some URLs are said to be "non-relative":
+Some URLs are said to be *cannot-be-a-base*:
 they don’t have a username, password, host, or port,
 and their "path" is an arbitrary string rather than slash-separated segments:
 
@@ -80,7 +80,7 @@ use url::Url;
 
 let data_url = Url::parse("data:text/plain,Hello?World#").unwrap();
 
-assert!(data_url.non_relative());
+assert!(data_url.cannot_be_a_base());
 assert!(data_url.scheme() == "data");
 assert!(data_url.path() == "text/plain,Hello");
 assert!(data_url.path_segments().is_none());
@@ -247,9 +247,13 @@ impl Url {
         self.slice(self.scheme_end + 1 ..).starts_with("//")
     }
 
-    /// Return whether this URL is non-relative (typical of e.g. `data:` and `mailto:` URLs.)
+    /// Return whether this URL is a cannot-be-a-base URL,
+    /// meaning that parsing a relative URL string with this URL as the base will return an error.
+    ///
+    /// This is the case if the scheme and `:` delimiter are not followed by a `/` slash,
+    /// as is typically the case of `data:` and `mailto:` URLs.
     #[inline]
-    pub fn non_relative(&self) -> bool {
+    pub fn cannot_be_a_base(&self) -> bool {
         self.byte_at(self.path_start) != b'/'
     }
 
@@ -282,7 +286,7 @@ impl Url {
     /// Non-ASCII domains are punycode-encoded per IDNA.
     /// IPv6 addresses are given between `[` and `]` brackets.
     ///
-    /// Non-relative URLs (typical of `data:` and `mailto:`) and some `file:` URLs
+    /// Cannot-be-a-base URLs (typical of `data:` and `mailto:`) and some `file:` URLs
     /// don’t have a host.
     ///
     /// See also the `host` method.
@@ -297,7 +301,7 @@ impl Url {
     /// Return the parsed representation of the host for this URL.
     /// Non-ASCII domain labels are punycode-encoded per IDNA.
     ///
-    /// Non-relative URLs (typical of `data:` and `mailto:`) and some `file:` URLs
+    /// Cannot-be-a-base URLs (typical of `data:` and `mailto:`) and some `file:` URLs
     /// don’t have a host.
     ///
     /// See also the `host_str` method.
@@ -381,7 +385,7 @@ impl Url {
     /// Return the path for this URL, as a percent-encoded ASCII string.
     /// For relative URLs, this starts with a '/' slash
     /// and continues with slash-separated path segments.
-    /// For non-relative URLs, this is an arbitrary string that doesn’t start with '/'.
+    /// For cannot-be-a-base URLs, this is an arbitrary string that doesn’t start with '/'.
     pub fn path(&self) -> &str {
         match (self.query_start, self.fragment_start) {
             (None, None) => self.slice(self.path_start..),
@@ -395,7 +399,7 @@ impl Url {
     /// If this URL is relative, return an iterator of '/' slash-separated path segments,
     /// each as a percent-encoded ASCII string.
     ///
-    /// Return `None` for non-relative URLs, or an iterator of at least one string.
+    /// Return `None` for cannot-be-a-base URLs, or an iterator of at least one string.
     pub fn path_segments(&self) -> Option<str::Split<char>> {
         let path = self.path();
         if path.starts_with('/') {
@@ -489,16 +493,16 @@ impl Url {
             (Some(i), _) | (None, Some(i)) => (i, self.slice(i..).to_owned()),
             (None, None) => (to_u32(self.serialization.len()).unwrap(), String::new())
         };
-        let non_relative = self.non_relative();
+        let cannot_be_a_base = self.cannot_be_a_base();
         let scheme_type = SchemeType::from(self.scheme());
         self.serialization.truncate(self.path_start as usize);
         self.mutate(|parser| {
-            if non_relative {
+            if cannot_be_a_base {
                 if path.starts_with('/') {
                     parser.serialization.push_str("%2F");
-                    parser.parse_non_relative_path(&path[1..]);
+                    parser.parse_cannot_be_a_base_path(&path[1..]);
                 } else {
-                    parser.parse_non_relative_path(path);
+                    parser.parse_cannot_be_a_base_path(path);
                 }
             } else {
                 let mut has_host = true;  // FIXME
@@ -517,9 +521,9 @@ impl Url {
 
     /// Remove the last segment of this URL’s path.
     ///
-    /// If this URL is non-relative, do nothing and return `Err`.
+    /// If this URL is cannot-be-a-base, do nothing and return `Err`.
     pub fn pop_path_segment(&mut self) -> Result<(), ()> {
-        if self.non_relative() {
+        if self.cannot_be_a_base() {
             return Err(())
         }
         let last_slash;
@@ -545,9 +549,9 @@ impl Url {
 
     /// Add a segment at the end of this URL’s path.
     ///
-    /// If this URL is non-relative, do nothing and return `Err`.
+    /// If this URL is cannot-be-a-base, do nothing and return `Err`.
     pub fn push_path_segment(&mut self, segment: &str) -> Result<(), ()> {
-        if self.non_relative() {
+        if self.cannot_be_a_base() {
             return Err(())
         }
         let after_path = match (self.query_start, self.fragment_start) {
@@ -575,7 +579,7 @@ impl Url {
 
     /// Change this URL’s port number.
     ///
-    /// If this URL is non-relative, does not have a host, or has the `file` scheme;
+    /// If this URL is cannot-be-a-base, does not have a host, or has the `file` scheme;
     /// do nothing and return `Err`.
     pub fn set_port(&mut self, mut port: Option<u16>) -> Result<(), ()> {
         if !self.has_host() || self.scheme() == "file" {
@@ -622,13 +626,13 @@ impl Url {
 
     /// Change this URL’s host.
     ///
-    /// If this URL is non-relative or there is an error parsing the given `host`,
+    /// If this URL is cannot-be-a-base or there is an error parsing the given `host`,
     /// do nothing and return `Err`.
     ///
     /// Removing the host (calling this with `None`)
     /// will also remove any username, password, and port number.
     pub fn set_host(&mut self, host: Option<&str>) -> Result<(), ()> {
-        if self.non_relative() {
+        if self.cannot_be_a_base() {
             return Err(())
         }
 
@@ -692,11 +696,11 @@ impl Url {
 
     /// Change this URL’s host to the given IP address.
     ///
-    /// If this URL is non-relative, do nothing and return `Err`.
+    /// If this URL is cannot-be-a-base, do nothing and return `Err`.
     ///
     /// Compared to `Url::set_host`, this skips the host parser.
     pub fn set_ip_host(&mut self, address: IpAddr) -> Result<(), ()> {
-        if self.non_relative() {
+        if self.cannot_be_a_base() {
             return Err(())
         }
 
@@ -710,7 +714,7 @@ impl Url {
 
     /// Change this URL’s password.
     ///
-    /// If this URL is non-relative or does not have a host, do nothing and return `Err`.
+    /// If this URL is cannot-be-a-base or does not have a host, do nothing and return `Err`.
     pub fn set_password(&mut self, password: Option<&str>) -> Result<(), ()> {
         if !self.has_host() {
             return Err(())
@@ -760,7 +764,7 @@ impl Url {
 
     /// Change this URL’s username.
     ///
-    /// If this URL is non-relative or does not have a host, do nothing and return `Err`.
+    /// If this URL is cannot-be-a-base or does not have a host, do nothing and return `Err`.
     pub fn set_username(&mut self, username: &str) -> Result<(), ()> {
         if !self.has_host() {
             return Err(())
@@ -798,7 +802,7 @@ impl Url {
     ///
     /// Do nothing and return `Err` if:
     /// * The new scheme is not in `[a-zA-Z][a-zA-Z0-9+.-]+`
-    /// * This URL is non-relative and the new scheme is one of
+    /// * This URL is cannot-be-a-base and the new scheme is one of
     ///   `http`, `https`, `ws`, `wss`, `ftp`, or `gopher`
     pub fn set_scheme(&mut self, scheme: &str) -> Result<(), ()> {
         self.set_scheme_internal(scheme, false)

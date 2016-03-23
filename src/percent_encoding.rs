@@ -74,7 +74,7 @@ macro_rules! define_encode_set {
     }
 }
 
-/// This encode set is used for fragment identifier and non-relative scheme data.
+/// This encode set is used for the path of cannot-be-a-base URLs.
 #[derive(Copy, Clone)]
 #[allow(non_camel_case_types)]
 pub struct SIMPLE_ENCODE_SET;
