@@ -50,7 +50,7 @@ simple_enum_error! {
     InvalidIpv6Address => "invalid IPv6 address",
     InvalidDomainCharacter => "invalid domain character",
     RelativeUrlWithoutBase => "relative URL without a base",
-    RelativeUrlWithNonRelativeBase => "relative URL with a non-relative base",
+    RelativeUrlWithCannotBeABaseBase => "relative URL with a cannot-be-a-base base",
     Overflow => "URLs more than 4 GB are not supported",
 }
 
@@ -154,8 +154,8 @@ impl<'a> Parser<'a> {
         if let Some(base_url) = self.base_url {
             if input.starts_with("#") {
                 self.fragment_only(base_url, input)
-            } else if base_url.non_relative() {
-                Err(ParseError::RelativeUrlWithNonRelativeBase)
+            } else if base_url.cannot_be_a_base() {
+                Err(ParseError::RelativeUrlWithCannotBeABaseBase)
             } else {
                 let scheme_type = SchemeType::from(base_url.scheme());
                 if scheme_type.is_file() {
@@ -214,8 +214,8 @@ impl<'a> Parser<'a> {
                 if let Some(base_url) = self.base_url {
                     if slashes_count < 2 &&
                             base_url.scheme() == &self.serialization[..scheme_end as usize] {
-                        // Non-relative URLs only happen with "not special" schemes.
-                        debug_assert!(!base_url.non_relative());
+                        // "Cannot-be-a-base" URLs only happen with "not special" schemes.
+                        debug_assert!(!base_url.cannot_be_a_base());
                         self.serialization.clear();
                         return self.parse_relative(input, scheme_type, base_url)
                     }
@@ -247,7 +247,7 @@ impl<'a> Parser<'a> {
             self.serialization.push('/');
             self.parse_path(scheme_type, &mut false, path_start, &input[1..])
         } else {
-            self.parse_non_relative_path(input)
+            self.parse_cannot_be_a_base_path(input)
         };
         self.with_query_and_fragment(scheme_end, username_end, host_start,
                                      host_end, host, port, path_start, remaining)
@@ -858,7 +858,7 @@ impl<'a> Parser<'a> {
 
     }
 
-    pub fn parse_non_relative_path<'i>(&mut self, input: &'i str) -> &'i str {
+    pub fn parse_cannot_be_a_base_path<'i>(&mut self, input: &'i str) -> &'i str {
         for (i, c, next_i) in input.char_ranges() {
             match c {
                 '?' | '#' if self.context == Context::UrlParser => return &input[i..],
