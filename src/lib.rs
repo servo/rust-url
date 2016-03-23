@@ -136,7 +136,7 @@ use std::fmt::{self, Write};
 use std::hash;
 use std::io;
 use std::mem;
-use std::net::{ToSocketAddrs, Ipv4Addr, Ipv6Addr};
+use std::net::{ToSocketAddrs, IpAddr};
 use std::ops::{Range, RangeFrom, RangeTo};
 use std::path::{Path, PathBuf};
 use std::str;
@@ -681,31 +681,21 @@ impl Url {
         if let Some(ref mut index) = self.fragment_start { adjust(index) }
     }
 
-    /// Change this URL’s host to the given IPv4 address.
+    /// Change this URL’s host to the given IP address.
     ///
     /// If this URL is non-relative, do nothing and return `Err`.
     ///
     /// Compared to `Url::set_host`, this skips the host parser.
-    pub fn set_ipv4_host(&mut self, address: Ipv4Addr) -> Result<(), ()> {
+    pub fn set_ip_host(&mut self, address: IpAddr) -> Result<(), ()> {
         if self.non_relative() {
             return Err(())
         }
 
-        self.set_host_internal(Host::Ipv4(address), None);
-        Ok(())
-    }
-
-    /// Change this URL’s host to the given IPv6 address.
-    ///
-    /// If this URL is non-relative, do nothing and return `Err`.
-    ///
-    /// Compared to `Url::set_host`, this skips the host parser.
-    pub fn set_ipv6_host(&mut self, address: Ipv6Addr) -> Result<(), ()> {
-        if self.non_relative() {
-            return Err(())
-        }
-
-        self.set_host_internal(Host::Ipv6(address), None);
+        let address = match address {
+            IpAddr::V4(address) => Host::Ipv4(address),
+            IpAddr::V6(address) => Host::Ipv6(address),
+        };
+        self.set_host_internal(address, None);
         Ok(())
     }
 
