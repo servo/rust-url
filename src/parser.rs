@@ -10,7 +10,8 @@ use std::ascii::AsciiExt;
 use std::error::Error;
 use std::fmt::{self, Formatter, Write};
 
-use super::{Url, EncodingOverride};
+use Url;
+use encoding::EncodingOverride;
 use host::{Host, HostInternal};
 use percent_encoding::{
     utf8_percent_encode, percent_encode,
