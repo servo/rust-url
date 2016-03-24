@@ -27,10 +27,6 @@ pub struct EncodingOverride {
 
 #[cfg(feature = "query_encoding")]
 impl EncodingOverride {
-    pub fn from_parse_options(options: &::ParseOptions) -> EncodingOverride {
-        EncodingOverride::from_opt_encoding(options.encoding_override)
-    }
-
     pub fn from_opt_encoding(encoding: Option<EncodingRef>) -> EncodingOverride {
         encoding.map(EncodingOverride::from_encoding).unwrap_or_else(EncodingOverride::utf8)
     }
@@ -80,11 +76,6 @@ pub struct EncodingOverride;
 
 #[cfg(not(feature = "query_encoding"))]
 impl EncodingOverride {
-    #[inline]
-    pub fn from_parse_options(_options: &::ParseOptions) -> EncodingOverride {
-        EncodingOverride
-    }
-
     #[inline]
     pub fn utf8() -> EncodingOverride {
         EncodingOverride

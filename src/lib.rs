@@ -186,39 +186,66 @@ pub struct Url {
     fragment_start: Option<u32>,  // Before '#', unlike Position::FragmentStart
 }
 
-#[derive(Default)]
+#[derive(Copy, Clone)]
 pub struct ParseOptions<'a> {
-    pub base_url: Option<&'a Url>,
-    #[cfg(feature = "query_encoding")] pub encoding_override: Option<encoding::EncodingRef>,
-    pub log_syntax_violation: Option<&'a Fn(&'static str)>,
+    base_url: Option<&'a Url>,
+    encoding_override: encoding::EncodingOverride,
+    log_syntax_violation: Option<&'a Fn(&'static str)>,
+}
+
+impl<'a> ParseOptions<'a> {
+    /// Change the base URL
+    pub fn base_url(mut self, new: Option<&'a Url>) -> Self {
+        self.base_url = new;
+        self
+    }
+
+    /// Override the character encoding of query strings.
+    /// This is a legacy concept only relevant for HTML.
+    #[cfg(feature = "query_encoding")]
+    pub fn encoding_override(mut self, new: Option<encoding::EncodingRef>) -> Self {
+        self.encoding_override = EncodingOverride::from_opt_encoding(new);
+        self
+    }
+
+    /// Call the provided function or closure on non-fatal parse errors.
+    pub fn log_syntax_violation(mut self, new: Option<&'a Fn(&'static str)>) -> Self {
+        self.log_syntax_violation = new;
+        self
+    }
+
+    /// Parse an URL string with the configuration so far.
+    pub fn parse(self, input: &str) -> Result<Url, ::ParseError> {
+        Parser {
+            serialization: String::with_capacity(input.len()),
+            base_url: self.base_url,
+            query_encoding_override: self.encoding_override,
+            log_syntax_violation: self.log_syntax_violation,
+            context: Context::UrlParser,
+        }.parse_url(input)
+    }
 }
 
 impl Url {
     /// Parse an absolute URL from a string.
     #[inline]
     pub fn parse(input: &str) -> Result<Url, ::ParseError> {
-        Url::parse_with(input, ParseOptions::default())
+        Url::options().parse(input)
     }
 
     /// Parse a string as an URL, with this URL as the base URL.
     #[inline]
     pub fn join(&self, input: &str) -> Result<Url, ::ParseError> {
-        Url::parse_with(input, ParseOptions { base_url: Some(self), ..Default::default() })
+        Url::options().base_url(Some(self)).parse(input)
     }
 
-    /// The URL parser with all of its parameters.
-    ///
-    /// `encoding_override` is a legacy concept only relevant for HTML.
-    /// When it’s not needed,
-    /// `s.parse::<Url>()`, `Url::from_str(s)` and `url.join(s)` can be used instead.
-    pub fn parse_with(input: &str, options: ParseOptions) -> Result<Url, ::ParseError> {
-        Parser {
-            serialization: String::with_capacity(input.len()),
-            base_url: options.base_url,
-            query_encoding_override: EncodingOverride::from_parse_options(&options),
-            log_syntax_violation: options.log_syntax_violation,
-            context: Context::UrlParser,
-        }.parse_url(input)
+    /// Return a default `ParseOptions` that can fully configure the URL parser.
+    pub fn options<'a>() -> ParseOptions<'a> {
+        ParseOptions {
+            base_url: None,
+            encoding_override: EncodingOverride::utf8(),
+            log_syntax_violation: None,
+        }
     }
 
     /// Return the serialization of this URL.
