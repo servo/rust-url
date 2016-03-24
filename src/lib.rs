@@ -125,8 +125,9 @@ assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css")
 
 extern crate idna;
 
+use encoding::EncodingOverride;
 use host::HostInternal;
-use parser::{Parser, Context};
+use parser::{Parser, Context, SchemeType, to_u32};
 use percent_encoding::{PATH_SEGMENT_ENCODE_SET, USERINFO_ENCODE_SET,
                        percent_encode, percent_decode, utf8_percent_encode};
 use std::cmp;
@@ -139,10 +140,9 @@ use std::ops::{Range, RangeFrom, RangeTo};
 use std::path::{Path, PathBuf};
 use std::str;
 
-pub use encoding::EncodingOverride;
 pub use origin::{Origin, OpaqueOrigin};
 pub use host::{Host, HostAndPort, SocketAddrs};
-pub use parser::{ParseError, SchemeType, to_u32};
+pub use parser::ParseError;
 pub use slicing::Position;
 pub use webidl::WebIdl;
 
@@ -183,6 +183,7 @@ pub struct Url {
     fragment_start: Option<u32>,  // Before '#', unlike Position::FragmentStart
 }
 
+/// Full configuration for the URL parser.
 #[derive(Copy, Clone)]
 pub struct ParseOptions<'a> {
     base_url: Option<&'a Url>,

@@ -34,10 +34,12 @@ impl WebIdl {
         }
     }
 
+    /// Getter for https://url.spec.whatwg.org/#dom-url-href
     pub fn href(url: &Url) -> &str {
         &url.serialization
     }
 
+    /// Setter for https://url.spec.whatwg.org/#dom-url-href
     pub fn set_href(url: &mut Url, value: &str) -> Result<(), ParseError> {
         *url = try!(Url::parse(value));
         Ok(())

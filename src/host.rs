@@ -143,6 +143,7 @@ impl<S: AsRef<str>> ToSocketAddrs for HostAndPort<S> {
     }
 }
 
+/// Socket addresses for an URL.
 pub struct SocketAddrs {
     state: SocketAddrsState
 }
