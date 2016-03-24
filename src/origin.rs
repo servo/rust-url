@@ -52,6 +52,8 @@ impl Origin {
         Origin::Opaque(OpaqueOrigin(Arc::new(0)))
     }
 
+    /// Return whether this origin is a (scheme, host, port) tuple
+    /// (as opposed to an opaque origin).
     pub fn is_tuple(&self) -> bool {
         matches!(*self, Origin::Tuple(..))
     }
