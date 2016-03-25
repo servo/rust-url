@@ -144,14 +144,12 @@ pub use origin::{Origin, OpaqueOrigin};
 pub use host::{Host, HostAndPort, SocketAddrs};
 pub use parser::ParseError;
 pub use slicing::Position;
-pub use webidl::WebIdl;
 
 mod encoding;
 mod host;
 mod origin;
 mod parser;
 mod slicing;
-mod webidl;
 
 pub mod percent_encoding;
 pub mod form_urlencoded;
@@ -822,14 +820,9 @@ impl Url {
     /// * This URL is cannot-be-a-base and the new scheme is one of
     ///   `http`, `https`, `ws`, `wss`, `ftp`, or `gopher`
     pub fn set_scheme(&mut self, scheme: &str) -> Result<(), ()> {
-        self.set_scheme_internal(scheme, false)
-    }
-
-    fn set_scheme_internal(&mut self, scheme: &str, allow_extra_input_after_colon: bool)
-                          -> Result<(), ()> {
         let mut parser = Parser::for_setter(String::new());
         let remaining = try!(parser.parse_scheme(scheme));
-        if (!remaining.is_empty() && !allow_extra_input_after_colon) ||
+        if !remaining.is_empty() ||
                 (!self.has_host() && SchemeType::from(&parser.serialization).is_special()) {
             return Err(())
         }
@@ -853,6 +846,72 @@ impl Url {
         Ok(())
     }
 
+    /// Setter for https://url.spec.whatwg.org/#dom-url-host
+    ///
+    /// Unless you need to be interoperable with web browsers,
+    /// use `set_host` and `set_port` instead.
+    pub fn quirky_set_host_and_port(&mut self, new_host: &str) -> Result<(), ()> {
+        if self.cannot_be_a_base() {
+            return Err(())
+        }
+        let host;
+        let opt_port;
+        {
+            let scheme = self.scheme();
+            let result = Parser::parse_host(new_host, SchemeType::from(scheme), |_| ());
+            match result {
+                Ok((h, remaining)) => {
+                    host = h;
+                    opt_port = if remaining.starts_with(':') {
+                        Parser::parse_port(remaining, |_| (), || parser::default_port(scheme))
+                        .ok().map(|(port, _remaining)| port)
+                    } else {
+                        None
+                    };
+                }
+                Err(_) => return Err(())
+            }
+        }
+        self.set_host_internal(host, opt_port);
+        Ok(())
+    }
+
+    /// Setter for https://url.spec.whatwg.org/#dom-url-hostname
+    ///
+    /// Unless you need to be interoperable with web browsers, use `set_host` instead.
+    pub fn quirky_set_host(&mut self, new_hostname: &str) -> Result<(), ()> {
+        if self.cannot_be_a_base() {
+            return Err(())
+        }
+        let result = Parser::parse_host(new_hostname, SchemeType::from(self.scheme()), |_| ());
+        if let Ok((host, _remaining)) = result {
+            self.set_host_internal(host, None);
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
+
+    /// Setter for https://url.spec.whatwg.org/#dom-url-port
+    ///
+    /// Unless you need to be interoperable with web browsers, use `set_port` instead.
+    pub fn quirky_set_port(&mut self, new_port: &str) -> Result<(), ()> {
+        let result;
+        {
+            // has_host implies !cannot_be_a_base
+            let scheme = self.scheme();
+            if !self.has_host() || scheme == "file" {
+                return Err(())
+            }
+            result = Parser::parse_port(new_port, |_| (), || parser::default_port(scheme))
+        }
+        if let Ok((new_port, _remaining)) = result {
+            self.set_port_internal(new_port);
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
     /// Convert a file name as `std::path::Path` into an URL in the `file` scheme.
     ///
     /// This returns `Err` if the given path is not absolute or,
