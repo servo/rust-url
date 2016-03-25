@@ -13,7 +13,7 @@ extern crate test;
 extern crate url;
 
 use rustc_serialize::json::Json;
-use url::{Url, WebIdl};
+use url::{Url, Position};
 
 
 fn run_one(input: String, base: String, expected: Result<TestCase, ()>) {
@@ -28,30 +28,38 @@ fn run_one(input: String, base: String, expected: Result<TestCase, ()>) {
         (Ok(_), Err(())) => panic!("Expected a parse error for URL {:?}", input),
     };
 
-    macro_rules! assert_getter {
-        ($attribute: ident) => { assert_getter!($attribute, expected.$attribute) };
-        ($attribute: ident, $expected: expr) => {
+    macro_rules! assert_eq {
+        ($expected: expr, $got: expr) => {
             {
-                let a = WebIdl::$attribute(&url);
-                let b = $expected;
-                assert!(a == b, "{:?} != {:?} for URL {:?}", a, b, url);
+                let expected = $expected;
+                let got = $got;
+                assert!(expected == got, "{:?} != {} {:?} for URL {:?}",
+                        got, stringify!($expected), expected, url);
             }
         }
     }
 
-    assert_getter!(href);
+    assert_eq!(expected.href, url.as_str());
     if let Some(expected_origin) = expected.origin {
-        assert_getter!(origin, expected_origin);
+        assert_eq!(expected_origin, url.origin().unicode_serialization());
     }
-    assert_getter!(protocol);
-    assert_getter!(username);
-    assert_getter!(password);
-    assert_getter!(host);
-    assert_getter!(hostname);
-    assert_getter!(port);
-    assert_getter!(pathname);
-    assert_getter!(search);
-    assert_getter!(hash);
+    assert_eq!(expected.protocol, &url.as_str()[..url.scheme().len() + ":".len()]);
+    assert_eq!(expected.username, url.username());
+    assert_eq!(expected.password, url.password().unwrap_or(""));
+    assert_eq!(expected.host, &url[Position::BeforeHost..Position::AfterPort]);
+    assert_eq!(expected.hostname, url.host_str().unwrap_or(""));
+    assert_eq!(expected.port, &url[Position::BeforePort..Position::AfterPort]);
+    assert_eq!(expected.pathname, url.path());
+    assert_eq!(expected.search, trim(&url[Position::AfterPath..Position::AfterQuery]));
+    assert_eq!(expected.hash, trim(&url[Position::AfterQuery..]));
+}
+
+fn trim(s: &str) -> &str {
+    if s.len() == 1 {
+        ""
+    } else {
+        s
+    }
 }
 
 struct TestCase {
