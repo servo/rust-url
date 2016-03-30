@@ -13,8 +13,6 @@ license = "MIT/Apache-2.0"
 
 [[test]] name = "format"
 [[test]] name = "form_urlencoded"
-[[test]] name = "idna"
-[[test]] name = "punycode"
 [[test]] name = "tests"
 [[test]]
 name = "wpt"
@@ -45,6 +43,7 @@ version = ">=0.6.1, <0.8"
 optional = true
 
 [dependencies]
+idna = { version = "0.1.0", path = "./idna" }
 uuid = "0.1.17"
 rustc-serialize = "0.3"
 unicode-bidi = "0.2.3"

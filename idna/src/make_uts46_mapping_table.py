@@ -6,8 +6,7 @@
 # option. This file may not be copied, modified, or distributed
 # except according to those terms.
 
-
-# Run as: python make_idna_table.py idna_table.txt > src/idna_table.rs
+# Run as: python make_uts46_mapping_table.py IdnaMappingTable.txt > uts46_mapping_table.rs
 # You can get the latest idna table from
 # http://www.unicode.org/Public/idna/latest/IdnaMappingTable.txt
 
