@@ -8,15 +8,16 @@
 
 use idna::punycode::{decode, encode_str};
 use rustc_serialize::json::{Json, Object};
+use test::TestFn;
 
-fn one_test(description: &str, decoded: &str, encoded: &str) {
+fn one_test(decoded: &str, encoded: &str) {
     match decode(encoded) {
         None => panic!("Decoding {} failed.", encoded),
         Some(result) => {
             let result = result.into_iter().collect::<String>();
             assert!(result == decoded,
-                    format!("Incorrect decoding of {}:\n   {}\n!= {}\n{}",
-                            encoded, result, decoded, description))
+                    format!("Incorrect decoding of \"{}\":\n   \"{}\"\n!= \"{}\"\n",
+                            encoded, result, decoded))
         }
     }
 
@@ -24,8 +25,8 @@ fn one_test(description: &str, decoded: &str, encoded: &str) {
         None => panic!("Encoding {} failed.", decoded),
         Some(result) => {
             assert!(result == encoded,
-                    format!("Incorrect encoding of {}:\n   {}\n!= {}\n{}",
-                            decoded, result, encoded, description))
+                    format!("Incorrect encoding of \"{}\":\n   \"{}\"\n!= \"{}\"\n",
+                            decoded, result, encoded))
         }
     }
 }
@@ -38,17 +39,24 @@ fn get_string<'a>(map: &'a Object, key: &str) -> &'a str {
     }
 }
 
-#[test]
-fn test_punycode() {
-
+pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
     match Json::from_str(include_str!("punycode_tests.json")) {
-        Ok(Json::Array(tests)) => for test in &tests {
+        Ok(Json::Array(tests)) => for (i, test) in tests.into_iter().enumerate() {
             match test {
-                &Json::Object(ref o) => one_test(
-                    get_string(o, "description"),
-                    get_string(o, "decoded"),
-                    get_string(o, "encoded")
-                ),
+                Json::Object(o) => {
+                    let test_name = {
+                        let desc = get_string(&o, "description");
+                            if desc.is_empty() {
+                            format!("Punycode {}", i + 1)
+                        } else {
+                            format!("Punycode {}: {}", i + 1, desc)
+                        }
+                    };
+                    add_test(test_name, TestFn::dyn_test_fn(move || one_test(
+                        get_string(&o, "decoded"),
+                        get_string(&o, "encoded"),
+                    )))
+                }
                 _ => panic!(),
             }
         },
