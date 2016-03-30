@@ -141,8 +141,7 @@ extern crate serde;
 #[cfg(feature="heap_size")]
 #[macro_use] extern crate heapsize;
 
-extern crate unicode_normalization;
-extern crate unicode_bidi;
+extern crate idna;
 
 use std::fmt::{self, Formatter};
 use std::str;
@@ -170,9 +169,7 @@ mod parser;
 pub mod urlutils;
 pub mod percent_encoding;
 pub mod form_urlencoded;
-pub mod punycode;
 pub mod format;
-pub mod idna;
 
 /// The parsed representation of an absolute URL.
 #[derive(PartialEq, Eq, Clone, Debug, Hash, PartialOrd, Ord)]

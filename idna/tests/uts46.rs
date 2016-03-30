@@ -1,7 +1,13 @@
-extern crate url;
+// Copyright 2013-2014 Valentin Gosu.
+//
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
 
 use std::char;
-use url::idna;
+use idna::uts46;
 
 #[test]
 fn test_uts46() {
@@ -35,7 +41,7 @@ fn test_uts46() {
             continue;
         }
 
-        let result = idna::uts46_to_ascii(&source, idna::Uts46Flags {
+        let result = uts46::to_ascii(&source, uts46::Flags {
             use_std3_ascii_rules: true,
             transitional_processing: test_type == "T",
             verify_dns_length: true,

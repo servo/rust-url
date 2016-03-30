@@ -1,7 +1,12 @@
-extern crate url;
-extern crate rustc_serialize;
+// Copyright 2013 Simon Sapin.
+//
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
 
-use url::punycode::{decode, encode_str};
+use idna::punycode::{decode, encode_str};
 use rustc_serialize::json::{Json, Object};
 
 fn one_test(description: &str, decoded: &str, encoded: &str) {
