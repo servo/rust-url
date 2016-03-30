@@ -12,9 +12,8 @@ keywords = ["url", "parser"]
 license = "MIT/Apache-2.0"
 
 [[test]]
-name = "form_urlencoded"
-[[test]]
 name = "tests"
+
 [[test]]
 name = "wpt"
 harness = false
