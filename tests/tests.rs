@@ -8,6 +8,7 @@
 
 extern crate url;
 
+use std::borrow::Cow;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::path::{Path, PathBuf};
 use url::{Host, Url};
@@ -213,14 +214,14 @@ fn test_serialization() {
 fn test_form_urlencoded() {
     use url::form_urlencoded::*;
 
-    let pairs = &[
-        ("foo".to_string(), "é&".to_string()),
-        ("bar".to_string(), "".to_string()),
-        ("foo".to_string(), "#".to_string())
+    let pairs: &[(Cow<str>, Cow<str>)] = &[
+        ("foo".into(), "é&".into()),
+        ("bar".into(), "".into()),
+        ("foo".into(), "#".into())
     ];
     let encoded = serialize(pairs);
     assert_eq!(encoded, "foo=%C3%A9%26&bar=&foo=%23");
-    assert_eq!(parse(encoded.as_bytes()), pairs.to_vec());
+    assert_eq!(parse(encoded.as_bytes()).collect::<Vec<_>>(), pairs.to_vec());
 }
 
 #[test]

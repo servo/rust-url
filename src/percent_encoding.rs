@@ -249,7 +249,7 @@ impl<'a, E: EncodeSet> From<PercentEncode<'a, E>> for Cow<'a, str> {
 /// (which returns `Cow::Borrowed` when `input` contains no percent-encoded sequence)
 /// and has `decode_utf8()` and `decode_utf8_lossy()` methods.
 #[inline]
-pub fn percent_decode(input: &[u8]) -> PercentDecode {
+pub fn percent_decode<'a>(input: &'a [u8]) -> PercentDecode<'a> {
     PercentDecode {
         bytes: input.iter()
     }
