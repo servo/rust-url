@@ -43,6 +43,8 @@ impl EncodingOverride {
     }
 
     pub fn lookup(label: &[u8]) -> Option<EncodingOverride> {
+        // Don't use String::from_utf8_lossy since no encoding label contains U+FFFD
+        // https://encoding.spec.whatwg.org/#names-and-labels
         ::std::str::from_utf8(label)
         .ok()
         .and_then(encoding_from_whatwg_label)
@@ -53,10 +55,10 @@ impl EncodingOverride {
         self.encoding.is_none()
     }
 
-    pub fn decode(&self, input: &[u8]) -> String {
+    pub fn decode<'a>(&self, input: &'a [u8]) -> Cow<'a, str> {
         match self.encoding {
-            Some(encoding) => encoding.decode(input, DecoderTrap::Replace).unwrap(),
-            None => String::from_utf8_lossy(input).to_string(),
+            Some(encoding) => encoding.decode(input, DecoderTrap::Replace).unwrap().into(),
+            None => String::from_utf8_lossy(input),
         }
     }
 
@@ -89,8 +91,8 @@ impl EncodingOverride {
         true
     }
 
-    pub fn decode(&self, input: &[u8]) -> String {
-        String::from_utf8_lossy(input).into_owned()
+    pub fn decode<'a>(&self, input: &'a [u8]) -> Cow<'a, str> {
+        String::from_utf8_lossy(input)
     }
 
     pub fn encode<'a>(&self, input: &'a str) -> Cow<'a, [u8]> {

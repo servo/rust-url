@@ -13,27 +13,30 @@
 //! Converts between a string (such as an URL’s query string)
 //! and a sequence of (name, value) pairs.
 
-use std::borrow::Borrow;
 use std::ascii::AsciiExt;
+use std::borrow::{Borrow, Cow};
 use encoding::EncodingOverride;
 use percent_encoding::{percent_encode, percent_decode, FORM_URLENCODED_ENCODE_SET};
 
 
 /// Convert a byte string in the `application/x-www-form-urlencoded` format
-/// into a vector of (name, value) pairs.
+/// into a iterator of (name, value) pairs.
 ///
 /// Use `parse(input.as_bytes())` to parse a `&str` string.
 ///
-/// The names and values are URL-decoded. For instance, `%23first=%25try%25` will be
+/// The names and values are percent-decoded. For instance, `%23first=%25try%25` will be
 /// converted to `[("#first", "%try%")]`.
 #[inline]
-pub fn parse(input: &[u8]) -> Vec<(String, String)> {
-    parse_internal(input, EncodingOverride::utf8(), false).unwrap()
+pub fn parse(input: &[u8]) -> Parser {
+    Parser {
+        input: input,
+        encoding: EncodingOverride::utf8(),
+    }
 }
 
 
 /// Convert a byte string in the `application/x-www-form-urlencoded` format
-/// into a vector of (name, value) pairs.
+/// into a iterator of (name, value) pairs.
 ///
 /// Use `parse(input.as_bytes())` to parse a `&str` string.
 ///
@@ -45,50 +48,101 @@ pub fn parse(input: &[u8]) -> Vec<(String, String)> {
 ///    after percent-decoding. Defaults to UTF-8.
 /// * `use_charset`: The *use _charset_ flag*. If in doubt, set to `false`.
 #[cfg(feature = "query_encoding")]
-#[inline]
-pub fn parse_with_encoding(input: &[u8], encoding_override: Option<::encoding::EncodingRef>,
-                           use_charset: bool)
-                           -> Option<Vec<(String, String)>> {
-    parse_internal(input, EncodingOverride::from_opt_encoding(encoding_override), use_charset)
-}
-
-
-fn parse_internal(input: &[u8], mut encoding_override: EncodingOverride, mut use_charset: bool)
-                  -> Option<Vec<(String, String)>> {
-    let mut pairs = Vec::new();
-    for piece in input.split(|&b| b == b'&') {
-        if !piece.is_empty() {
-            let (name, value) = match piece.iter().position(|b| *b == b'=') {
-                Some(position) => (&piece[..position], &piece[position + 1..]),
-                None => (piece, &[][..])
-            };
-
-            #[inline]
-            fn replace_plus(input: &[u8]) -> Vec<u8> {
-                input.iter().map(|&b| if b == b'+' { b' ' } else { b }).collect()
-            }
-
-            let name = replace_plus(name);
-            let value = replace_plus(value);
-            if use_charset && name == b"_charset_" {
-                if let Some(encoding) = EncodingOverride::lookup(&value) {
-                    encoding_override = encoding;
+pub fn parse_with_encoding<'a>(input: &'a [u8],
+                               encoding_override: Option<::encoding::EncodingRef>,
+                               use_charset: bool)
+                               -> Result<Parser<'a>, ()> {
+    let mut encoding = EncodingOverride::from_opt_encoding(encoding_override);
+    if !(encoding.is_utf8() || input.is_ascii()) {
+        return Err(())
+    }
+    if use_charset {
+        for sequence in input.split(|&b| b == b'&') {
+            // No '+' in "_charset_" to replace with ' '.
+            if sequence.starts_with(b"_charset_=") {
+                let value = &sequence[b"_charset_=".len()..];
+                // Skip replacing '+' with ' ' in value since no encoding label contains either:
+                // https://encoding.spec.whatwg.org/#names-and-labels
+                if let Some(e) = EncodingOverride::lookup(value) {
+                    encoding = e;
+                    break
                 }
-                use_charset = false;
             }
-            pairs.push((name, value));
         }
     }
-    if !(encoding_override.is_utf8() || input.is_ascii()) {
-        return None
-    }
-
-    Some(pairs.into_iter().map(|(name, value)| (
-        encoding_override.decode(&percent_decode(&name).collect::<Vec<u8>>()),
-        encoding_override.decode(&percent_decode(&value).collect::<Vec<u8>>()),
-    )).collect())
+    Ok(Parser {
+        input: input,
+        encoding: encoding,
+    })
 }
 
+/// The return type of `parse()`.
+pub struct Parser<'a> {
+    input: &'a [u8],
+    encoding: EncodingOverride,
+}
+
+impl<'a> Iterator for Parser<'a> {
+    type Item = (Cow<'a, str>, Cow<'a, str>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if self.input.is_empty() {
+                return None
+            }
+            let mut split2 = self.input.splitn(2, |&b| b == b'&');
+            let sequence = split2.next().unwrap();
+            self.input = split2.next().unwrap_or(&[][..]);
+            if sequence.is_empty() {
+                continue
+            }
+            let mut split2 = sequence.splitn(2, |&b| b == b'=');
+            let name = split2.next().unwrap();
+            let value = split2.next().unwrap_or(&[][..]);
+            return Some((
+                decode(name, self.encoding),
+                decode(value, self.encoding),
+            ))
+        }
+    }
+}
+
+/// * Replace b'+' with b' '
+/// * Then percent-decode
+/// * Then decode with `encoding`
+fn decode<'a>(input: &'a [u8], encoding: EncodingOverride) -> Cow<'a, str> {
+    // The return value can borrow `input` but not an intermediate Cow,
+    // so we need to return Owned if either of the intermediate Cow is Owned
+    match replace_plus(input) {
+        Cow::Owned(replaced) => {
+            let decoded: Cow<_> = percent_decode(&replaced).into();
+            encoding.decode(&decoded).into_owned().into()
+        }
+        Cow::Borrowed(replaced) => {
+            match percent_decode(replaced).into() {
+                Cow::Owned(decoded) => encoding.decode(&decoded).into_owned().into(),
+                Cow::Borrowed(decoded) => encoding.decode(decoded),
+            }
+        }
+    }
+}
+
+/// Replace b'+' with b' '
+fn replace_plus<'a>(input: &'a [u8]) -> Cow<'a, [u8]> {
+    match input.iter().position(|&b| b == b'+') {
+        None => input.into(),
+        Some(first_position) => {
+            let mut replaced = input.to_owned();
+            replaced[first_position] = b' ';
+            for byte in &mut replaced[first_position + 1..] {
+                if *byte == b'+' {
+                    *byte = b' ';
+                }
+            }
+            replaced.into()
+        }
+    }
+}
 
 /// Convert an iterator of (name, value) pairs
 /// into a string in the `application/x-www-form-urlencoded` format.

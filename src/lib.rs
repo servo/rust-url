@@ -990,9 +990,9 @@ impl Url {
     }
 
     /// Parse the URL’s query string, if any, as `application/x-www-form-urlencoded`
-    /// and return a vector of (key, value) pairs.
+    /// and return an iterator of (key, value) pairs.
     #[inline]
-    pub fn query_pairs(&self) -> Option<Vec<(String, String)>> {
+    pub fn query_pairs(&self) -> Option<form_urlencoded::Parser> {
         self.query().map(|query| form_urlencoded::parse(query.as_bytes()))
     }
 
