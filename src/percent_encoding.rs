@@ -10,6 +10,7 @@ use std::ascii::AsciiExt;
 use std::borrow::Cow;
 use std::fmt::{self, Write};
 use std::slice;
+use std::str;
 
 /// Represents a set of characters / bytes that should be percent-encoded.
 ///
@@ -26,7 +27,7 @@ use std::slice;
 /// Use the [`define_encode_set!`](../macro.define_encode_set!.html) macro to define different ones.
 pub trait EncodeSet: Clone {
     /// Called with UTF-8 bytes rather than code points.
-    /// Should return false for all non-ASCII bytes.
+    /// Should return true for all non-ASCII bytes.
     fn contains(&self, byte: u8) -> bool;
 }
 
@@ -116,79 +117,128 @@ define_encode_set! {
     }
 }
 
-/// Percent-encode the given bytes and return an iterator of `char` in the ASCII range.
+/// Return the percent-encoding of the given bytes.
+///
+/// This is unconditional, unlike `percent_encode()` which uses an encode set.
+pub fn percent_encode_byte(byte: u8) -> &'static str {
+    let index = usize::from(byte) * 3;
+    &"\
+        %00%01%02%03%04%05%06%07%08%09%0A%0B%0C%0D%0E%0F\
+        %10%11%12%13%14%15%16%17%18%19%1A%1B%1C%1D%1E%1F\
+        %20%21%22%23%24%25%26%27%28%29%2A%2B%2C%2D%2E%2F\
+        %30%31%32%33%34%35%36%37%38%39%3A%3B%3C%3D%3E%3F\
+        %40%41%42%43%44%45%46%47%48%49%4A%4B%4C%4D%4E%4F\
+        %50%51%52%53%54%55%56%57%58%59%5A%5B%5C%5D%5E%5F\
+        %60%61%62%63%64%65%66%67%68%69%6A%6B%6C%6D%6E%6F\
+        %70%71%72%73%74%75%76%77%78%79%7A%7B%7C%7D%7E%7F\
+        %80%81%82%83%84%85%86%87%88%89%8A%8B%8C%8D%8E%8F\
+        %90%91%92%93%94%95%96%97%98%99%9A%9B%9C%9D%9E%9F\
+        %A0%A1%A2%A3%A4%A5%A6%A7%A8%A9%AA%AB%AC%AD%AE%AF\
+        %B0%B1%B2%B3%B4%B5%B6%B7%B8%B9%BA%BB%BC%BD%BE%BF\
+        %C0%C1%C2%C3%C4%C5%C6%C7%C8%C9%CA%CB%CC%CD%CE%CF\
+        %D0%D1%D2%D3%D4%D5%D6%D7%D8%D9%DA%DB%DC%DD%DE%DF\
+        %E0%E1%E2%E3%E4%E5%E6%E7%E8%E9%EA%EB%EC%ED%EE%EF\
+        %F0%F1%F2%F3%F4%F5%F6%F7%F8%F9%FA%FB%FC%FD%FE%FF\
+    "[index..index + 3]
+}
+
+/// Percent-encode the given bytes with the given encode set.
+///
+/// The encode set define which bytes (in addition to non-ASCII and controls)
+/// need to be percent-encoded.
+/// The choice of this set depends on context.
+/// For example, `?` needs to be encoded in an URL path but not in a query string.
+///
+/// The return value is an iterator of `&str` slices (so it has a `.collect::<String>()` method)
+/// that also implements `Display` and `Into<Cow<str>>`.
+/// The latter returns `Cow::Borrowed` when none of the bytes in `input`
+/// are in the given encode set.
 #[inline]
 pub fn percent_encode<E: EncodeSet>(input: &[u8], encode_set: E) -> PercentEncode<E> {
     PercentEncode {
-        iter: input.iter(),
+        bytes: input,
         encode_set: encode_set,
-        state: PercentEncodeState::NextByte,
     }
 }
 
-/// Percent-encode the UTF-8 encoding of the given string
-/// and return an iterator of `char` in the ASCII range.
+/// Percent-encode the UTF-8 encoding of the given string.
+///
+/// See `percent_decode()` for how to use the return value.
 #[inline]
 pub fn utf8_percent_encode<E: EncodeSet>(input: &str, encode_set: E) -> PercentEncode<E> {
     percent_encode(input.as_bytes(), encode_set)
 }
 
+/// The return type of `percent_decode()`.
 #[derive(Clone)]
 pub struct PercentEncode<'a, E: EncodeSet> {
-    iter: slice::Iter<'a, u8>,
+    bytes: &'a [u8],
     encode_set: E,
-    state: PercentEncodeState,
-}
-
-#[derive(Clone)]
-enum PercentEncodeState {
-    NextByte,
-    HexHigh(u8),
-    HexLow(u8),
 }
 
 impl<'a, E: EncodeSet> Iterator for PercentEncode<'a, E> {
-    type Item = char;
+    type Item = &'a str;
 
-    fn next(&mut self) -> Option<char> {
-        // str::char::from_digit always returns lowercase.
-        const UPPER_HEX: [char; 16] = ['0', '1', '2', '3', '4', '5', '6', '7',
-                                       '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'];
-        match self.state {
-            PercentEncodeState::HexHigh(byte) => {
-                self.state = PercentEncodeState::HexLow(byte);
-                Some(UPPER_HEX[(byte >> 4) as usize])
-            }
-            PercentEncodeState::HexLow(byte) => {
-                self.state = PercentEncodeState::NextByte;
-                Some(UPPER_HEX[(byte & 0x0F) as usize])
-            }
-            PercentEncodeState::NextByte => {
-                self.iter.next().map(|&byte| {
+    fn next(&mut self) -> Option<&'a str> {
+        if let Some((&first_byte, remaining)) = self.bytes.split_first() {
+            if self.encode_set.contains(first_byte) {
+                self.bytes = remaining;
+                Some(percent_encode_byte(first_byte))
+            } else {
+                assert!(first_byte.is_ascii());
+                for (i, &byte) in remaining.iter().enumerate() {
                     if self.encode_set.contains(byte) {
-                        self.state = PercentEncodeState::HexHigh(byte);
-                        '%'
+                        // 1 for first_byte + i for previous iterations of this loop
+                        let (unchanged_slice, remaining) = self.bytes.split_at(1 + i);
+                        self.bytes = remaining;
+                        return Some(unsafe { str::from_utf8_unchecked(unchanged_slice) })
                     } else {
                         assert!(byte.is_ascii());
-                        byte as char
                     }
-                })
+                }
+                let unchanged_slice = self.bytes;
+                self.bytes = &[][..];
+                Some(unsafe { str::from_utf8_unchecked(unchanged_slice) })
             }
+        } else {
+            None
         }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let (low, high) = self.iter.size_hint();
-        (low.saturating_add(2) / 3, high)
+        if self.bytes.is_empty() {
+            (0, Some(0))
+        } else {
+            (1, Some(self.bytes.len()))
+        }
     }
 }
 
 impl<'a, E: EncodeSet> fmt::Display for PercentEncode<'a, E> {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         for c in (*self).clone() {
-            try!(formatter.write_char(c))
+            try!(formatter.write_str(c))
         }
         Ok(())
+    }
+}
+
+impl<'a, E: EncodeSet> From<PercentEncode<'a, E>> for Cow<'a, str> {
+    fn from(mut iter: PercentEncode<'a, E>) -> Self {
+        match iter.next() {
+            None => "".into(),
+            Some(first) => {
+                match iter.next() {
+                    None => first.into(),
+                    Some(second) => {
+                        let mut string = first.to_owned();
+                        string.push_str(second);
+                        string.extend(iter);
+                        string.into()
+                    }
+                }
+            }
+        }
     }
 }
 
