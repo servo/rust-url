@@ -12,7 +12,7 @@ use std::io;
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
 use std::vec;
 use parser::{ParseResult, ParseError};
-use percent_encoding::lossy_utf8_percent_decode;
+use percent_encoding::percent_decode;
 use idna;
 
 #[derive(Copy, Clone, Debug)]
@@ -77,7 +77,7 @@ impl Host<String> {
             }
             return parse_ipv6addr(&input[1..input.len() - 1]).map(Host::Ipv6)
         }
-        let domain = lossy_utf8_percent_decode(input.as_bytes());
+        let domain = percent_decode(input.as_bytes()).decode_utf8_lossy();
         let domain = try!(idna::domain_to_ascii(&domain));
         if domain.find(|c| matches!(c,
             '\0' | '\t' | '\n' | '\r' | ' ' | '#' | '%' | '/' | ':' | '?' | '@' | '[' | '\\' | ']'

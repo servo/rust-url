@@ -163,7 +163,7 @@ pub fn percent_encode<E: EncodeSet>(input: &[u8], encode_set: E) -> PercentEncod
 
 /// Percent-encode the UTF-8 encoding of the given string.
 ///
-/// See `percent_decode()` for how to use the return value.
+/// See `percent_encode()` for how to use the return value.
 #[inline]
 pub fn utf8_percent_encode<E: EncodeSet>(input: &str, encode_set: E) -> PercentEncode<E> {
     percent_encode(input.as_bytes(), encode_set)
@@ -242,62 +242,107 @@ impl<'a, E: EncodeSet> From<PercentEncode<'a, E>> for Cow<'a, str> {
     }
 }
 
-/// Percent-decode the given bytes and return an iterator of bytes.
+/// Percent-decode the given bytes.
+///
+/// The return value is an iterator of decoded `u8` bytes
+/// that also implements `Into<Cow<u8>>`
+/// (which returns `Cow::Borrowed` when `input` contains no percent-encoded sequence)
+/// and has `decode_utf8()` and `decode_utf8_lossy()` methods.
 #[inline]
 pub fn percent_decode(input: &[u8]) -> PercentDecode {
     PercentDecode {
-        iter: input.iter()
+        bytes: input.iter()
     }
 }
 
+/// The return type of `percent_decode()`.
 #[derive(Clone)]
 pub struct PercentDecode<'a> {
-    iter: slice::Iter<'a, u8>,
+    bytes: slice::Iter<'a, u8>,
+}
+
+fn after_percent_sign(iter: &mut slice::Iter<u8>) -> Option<u8> {
+    let initial_iter = iter.clone();
+    let h = iter.next().and_then(|&b| (b as char).to_digit(16));
+    let l = iter.next().and_then(|&b| (b as char).to_digit(16));
+    if let (Some(h), Some(l)) = (h, l) {
+        Some(h as u8 * 0x10 + l as u8)
+    } else {
+        *iter = initial_iter;
+        None
+    }
 }
 
 impl<'a> Iterator for PercentDecode<'a> {
     type Item = u8;
 
     fn next(&mut self) -> Option<u8> {
-        self.iter.next().map(|&byte| {
+        self.bytes.next().map(|&byte| {
             if byte == b'%' {
-                let after_percent_sign = self.iter.clone();
-                let h = self.iter.next().and_then(|&b| (b as char).to_digit(16));
-                let l = self.iter.next().and_then(|&b| (b as char).to_digit(16));
-                if let (Some(h), Some(l)) = (h, l) {
-                    return h as u8 * 0x10 + l as u8
-                }
-                self.iter = after_percent_sign;
+                after_percent_sign(&mut self.bytes).unwrap_or(byte)
+            } else {
+                byte
             }
-            byte
         })
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let (low, high) = self.iter.size_hint();
-        (low, high.and_then(|high| high.checked_mul(3)))
+        let bytes = self.bytes.len();
+        (bytes / 3, Some(bytes))
     }
 }
 
-/// Percent-decode the given bytes, and decode the result as UTF-8.
-///
-/// This is return `Err` when the percent-decoded bytes are not well-formed in UTF-8.
-pub fn utf8_percent_decode(input: &[u8]) -> Result<String, ::std::string::FromUtf8Error> {
-    let bytes = percent_decode(input).collect::<Vec<u8>>();
-    String::from_utf8(bytes)
+impl<'a> From<PercentDecode<'a>> for Cow<'a, [u8]> {
+    fn from(mut iter: PercentDecode<'a>) -> Self {
+        let initial_bytes = iter.bytes.as_slice();
+        while iter.bytes.find(|&&b| b == b'%').is_some() {
+            if let Some(decoded_byte) = after_percent_sign(&mut iter.bytes) {
+                let unchanged_bytes_len = initial_bytes.len() - iter.bytes.len() - 3;
+                let mut decoded = initial_bytes[..unchanged_bytes_len].to_owned();
+                decoded.push(decoded_byte);
+                decoded.extend(iter);
+                return decoded.into()
+            }
+        }
+        // Nothing to decode
+        initial_bytes.into()
+    }
 }
 
-/// Percent-decode the given bytes, and decode the result as UTF-8.
-///
-/// This is “lossy”: invalid UTF-8 percent-encoded byte sequences
-/// will be replaced � U+FFFD, the replacement character.
-pub fn lossy_utf8_percent_decode(input: &[u8]) -> String {
-    let bytes = percent_decode(input).collect::<Vec<u8>>();
-    match String::from_utf8_lossy(&bytes) {
-        Cow::Owned(s) => return s,
-        Cow::Borrowed(_) => {}
+impl<'a> PercentDecode<'a> {
+    /// Decode the result of percent-decoding as UTF-8.
+    ///
+    /// This is return `Err` when the percent-decoded bytes are not well-formed in UTF-8.
+    pub fn decode_utf8(self) -> Result<Cow<'a, str>, str::Utf8Error> {
+        match self.clone().into() {
+            Cow::Borrowed(bytes) => {
+                match str::from_utf8(bytes) {
+                    Ok(s) => Ok(s.into()),
+                    Err(e) => Err(e),
+                }
+            }
+            Cow::Owned(bytes) => {
+                match String::from_utf8(bytes) {
+                    Ok(s) => Ok(s.into()),
+                    Err(e) => Err(e.utf8_error()),
+                }
+            }
+        }
     }
-    unsafe {
-        String::from_utf8_unchecked(bytes)
+
+    /// Decode the result of percent-decoding as UTF-8, lossily.
+    ///
+    /// Invalid UTF-8 percent-encoded byte sequences will be replaced � U+FFFD,
+    /// the replacement character.
+    pub fn decode_utf8_lossy(self) -> Cow<'a, str> {
+        match self.clone().into() {
+            Cow::Borrowed(bytes) => String::from_utf8_lossy(bytes),
+            Cow::Owned(bytes) => {
+                match String::from_utf8_lossy(&bytes) {
+                    Cow::Borrowed(_) => unsafe { String::from_utf8_unchecked(bytes) }.into(),
+                    Cow::Owned(s) => s.into(),
+                }
+            }
+        }
     }
 }
