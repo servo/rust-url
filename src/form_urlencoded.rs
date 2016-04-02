@@ -167,7 +167,7 @@ pub fn serialize_with_encoding<I, K, V>(pairs: I,
                                         encoding_override: Option<::encoding::EncodingRef>)
                                         -> String
 where I: IntoIterator, I::Item: Borrow<(K, V)>, K: AsRef<str>, V: AsRef<str> {
-    serialize_internal(pairs, EncodingOverride::from_opt_encoding(encoding_override))
+    serialize_internal(pairs, EncodingOverride::from_opt_encoding(encoding_override).to_output_encoding())
 }
 
 fn serialize_internal<I, K, V>(pairs: I, encoding_override: EncodingOverride) -> String

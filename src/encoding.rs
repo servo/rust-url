@@ -51,6 +51,16 @@ impl EncodingOverride {
         .map(EncodingOverride::from_encoding)
     }
 
+    /// https://encoding.spec.whatwg.org/#get-an-output-encoding
+    pub fn to_output_encoding(self) -> Self {
+        if let Some(encoding) = self.encoding {
+            if matches!(encoding.name(), "utf-16le" | "utf-16be") {
+                return Self::utf8()
+            }
+        }
+        self
+    }
+
     pub fn is_utf8(&self) -> bool {
         self.encoding.is_none()
     }
@@ -85,6 +95,10 @@ impl EncodingOverride {
 
     pub fn lookup(_label: &[u8]) -> Option<EncodingOverride> {
         None
+    }
+
+    pub fn to_output_encoding(self) -> Self {
+        self
     }
 
     pub fn is_utf8(&self) -> bool {

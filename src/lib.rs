@@ -202,7 +202,7 @@ impl<'a> ParseOptions<'a> {
     /// This is a legacy concept only relevant for HTML.
     #[cfg(feature = "query_encoding")]
     pub fn encoding_override(mut self, new: Option<encoding::EncodingRef>) -> Self {
-        self.encoding_override = EncodingOverride::from_opt_encoding(new);
+        self.encoding_override = EncodingOverride::from_opt_encoding(new).to_output_encoding();
         self
     }
 
