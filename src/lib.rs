@@ -450,6 +450,13 @@ impl Url {
         }
     }
 
+    /// Parse the URL’s query string, if any, as `application/x-www-form-urlencoded`
+    /// and return an iterator of (key, value) pairs.
+    #[inline]
+    pub fn query_pairs(&self) -> form_urlencoded::Parse {
+        form_urlencoded::parse(self.query().unwrap_or("").as_bytes())
+    }
+
     /// Return this URL’s fragment identifier, if any.
     ///
     /// **Note:** the parser did *not* percent-encode this component,
@@ -487,24 +494,66 @@ impl Url {
 
     /// Change this URL’s query string.
     pub fn set_query(&mut self, query: Option<&str>) {
+        self.set_query_internal(|url| {
+            // Remove any previous query
+            if let Some(start) = url.query_start.take() {
+                debug_assert!(url.byte_at(start) == b'?');
+                url.serialization.truncate(start as usize);
+            }
+            // Write the new query, if any
+            if let Some(input) = query {
+                url.query_start = Some(to_u32(url.serialization.len()).unwrap());
+                url.serialization.push('?');
+                let scheme_end = url.scheme_end;
+                url.mutate(|parser| parser.parse_query(scheme_end, input));
+            }
+        })
+    }
+
+    /// Change this URL’s query string, viewed as a sequence of name/value pairs
+    /// in `application/x-www-form-urlencoded` syntax.
+    ///
+    /// Example:
+    ///
+    /// ```rust
+    /// # use url::Url;
+    /// let mut url = Url::parse("https://example.net?...#nav").unwrap();
+    /// assert_eq!(url.query(), Some("..."));
+    /// url.mutate_query_pairs(|query| {
+    ///     query.clear();
+    ///     query.append_pair("foo", "bar & baz");
+    /// });
+    /// assert_eq!(url.query(), Some("foo=bar+%26+baz"));
+    /// assert_eq!(url.as_str(), "https://example.net/?foo=bar+%26+baz#nav");
+    /// url.mutate_query_pairs(|query| {
+    ///     query.append_pair("saison", "Été+hiver");
+    /// });
+    /// assert_eq!(url.query(), Some("foo=bar+%26+baz&saison=%C3%89t%C3%A9%2Bhiver"));
+    /// ```
+    pub fn mutate_query_pairs<F: FnOnce(&mut form_urlencoded::Serializer)>(&mut self, f: F) {
+        self.set_query_internal(|url| {
+            let query_start;
+            if let Some(start) = url.query_start {
+                debug_assert!(url.byte_at(start) == b'?');
+                query_start = start as usize;
+            } else {
+                query_start = url.serialization.len();
+                url.query_start = Some(to_u32(query_start).unwrap());
+                url.serialization.push('?');
+            }
+            let query_start = query_start + "?".len();
+            f(&mut form_urlencoded::Serializer::new(&mut url.serialization, query_start))
+        })
+    }
+
+    fn set_query_internal<F: FnOnce(&mut Url)>(&mut self, f: F) {
         // Stash any fragment
         let fragment = self.fragment_start.map(|start| {
             let f = self.slice(start..).to_owned();
             self.serialization.truncate(start as usize);
             f
         });
-        // Remove any previous query
-        if let Some(start) = self.query_start {
-            debug_assert!(self.byte_at(start) == b'?');
-            self.serialization.truncate(start as usize);
-        }
-        // Write the new one
-        if let Some(input) = query {
-            self.query_start = Some(to_u32(self.serialization.len()).unwrap());
-            self.serialization.push('?');
-            let scheme_end = self.scheme_end;
-            self.mutate(|parser| parser.parse_query(scheme_end, input));
-        }
+        f(self);
         // Restore the fragment, if any
         if let Some(ref fragment) = fragment {
             self.fragment_start = Some(to_u32(self.serialization.len()).unwrap());
@@ -985,13 +1034,6 @@ impl Url {
             }
         }
         Err(())
-    }
-
-    /// Parse the URL’s query string, if any, as `application/x-www-form-urlencoded`
-    /// and return an iterator of (key, value) pairs.
-    #[inline]
-    pub fn query_pairs(&self) -> form_urlencoded::Parse {
-        form_urlencoded::parse(self.query().unwrap_or("").as_bytes())
     }
 
     // Private helper methods:

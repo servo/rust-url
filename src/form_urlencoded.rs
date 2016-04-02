@@ -6,7 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-//! Parser and serializer for the [`application/x-www-form-urlencoded` format](
+//! Parser and serializer for the [`application/x-www-form-urlencoded` syntax](
 //! http://url.spec.whatwg.org/#application/x-www-form-urlencoded),
 //! as used by HTML forms.
 //!
@@ -19,7 +19,7 @@ use std::borrow::{Borrow, Cow};
 use std::str;
 
 
-/// Convert a byte string in the `application/x-www-form-urlencoded` format
+/// Convert a byte string in the `application/x-www-form-urlencoded` syntax
 /// into a iterator of (name, value) pairs.
 ///
 /// Use `parse(input.as_bytes())` to parse a `&str` string.
@@ -35,7 +35,7 @@ pub fn parse(input: &[u8]) -> Parse {
 }
 
 
-/// Convert a byte string in the `application/x-www-form-urlencoded` format
+/// Convert a byte string in the `application/x-www-form-urlencoded` syntax
 /// into a iterator of (name, value) pairs.
 ///
 /// Use `parse(input.as_bytes())` to parse a `&str` string.
@@ -197,7 +197,7 @@ impl<'a> Serializer<'a> {
     /// for the given range of the given string.
     ///
     /// If the range is non-empty, the corresponding slice of the string is assumed
-    /// to already be in `application/x-www-form-urlencoded` format.
+    /// to already be in `application/x-www-form-urlencoded` syntax.
     pub fn new(string: &'a mut String, start_position: usize) -> Self {
         &string[start_position..];  // Panic if out of bounds
         Serializer {
