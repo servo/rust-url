@@ -112,7 +112,7 @@ impl<'a> Iterator for Parse<'a> {
 fn decode(input: &[u8], encoding: EncodingOverride) -> Cow<str> {
     let replaced = replace_plus(input);
     encoding.decode(match percent_decode(&replaced).if_any() {
-        Some(vec) => vec.into(),
+        Some(vec) => Cow::Owned(vec),
         None => replaced,
     })
 }
@@ -120,7 +120,7 @@ fn decode(input: &[u8], encoding: EncodingOverride) -> Cow<str> {
 /// Replace b'+' with b' '
 fn replace_plus<'a>(input: &'a [u8]) -> Cow<'a, [u8]> {
     match input.iter().position(|&b| b == b'+') {
-        None => input.into(),
+        None => Cow::Borrowed(input),
         Some(first_position) => {
             let mut replaced = input.to_owned();
             replaced[first_position] = b' ';
@@ -129,7 +129,7 @@ fn replace_plus<'a>(input: &'a [u8]) -> Cow<'a, [u8]> {
                     *byte = b' ';
                 }
             }
-            replaced.into()
+            Cow::Owned(replaced)
         }
     }
 }

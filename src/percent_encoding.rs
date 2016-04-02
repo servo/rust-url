@@ -288,8 +288,8 @@ impl<'a> Iterator for PercentDecode<'a> {
 impl<'a> From<PercentDecode<'a>> for Cow<'a, [u8]> {
     fn from(iter: PercentDecode<'a>) -> Self {
         match iter.if_any() {
-            Some(vec) => vec.into(),
-            None => iter.bytes.as_slice().into(),
+            Some(vec) => Cow::Owned(vec),
+            None => Cow::Borrowed(iter.bytes.as_slice()),
         }
     }
 }
