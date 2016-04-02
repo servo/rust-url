@@ -65,18 +65,17 @@ impl EncodingOverride {
         self.encoding.is_none()
     }
 
-    pub fn decode<'a>(&self, input: &'a [u8]) -> Cow<'a, str> {
+    pub fn decode<'a>(&self, input: Cow<'a, [u8]>) -> Cow<'a, str> {
         match self.encoding {
-            Some(encoding) => encoding.decode(input, DecoderTrap::Replace).unwrap().into(),
-            None => String::from_utf8_lossy(input),
+            Some(encoding) => encoding.decode(&input, DecoderTrap::Replace).unwrap().into(),
+            None => decode_utf8_lossy(input),
         }
     }
 
-    pub fn encode<'a>(&self, input: &'a str) -> Cow<'a, [u8]> {
+    pub fn encode<'a>(&self, input: Cow<'a, str>) -> Cow<'a, [u8]> {
         match self.encoding {
-            Some(encoding) => Cow::Owned(
-                encoding.encode(input, EncoderTrap::NcrEscape).unwrap()),
-            None => Cow::Borrowed(input.as_bytes()),  // UTF-8
+            Some(encoding) => encoding.encode(&input, EncoderTrap::NcrEscape).unwrap().into(),
+            None => encode_utf8(input)
         }
     }
 }
@@ -105,11 +104,30 @@ impl EncodingOverride {
         true
     }
 
-    pub fn decode<'a>(&self, input: &'a [u8]) -> Cow<'a, str> {
-        String::from_utf8_lossy(input)
+    pub fn decode<'a>(&self, input: Cow<'a, [u8]>) -> Cow<'a, str> {
+        decode_utf8_lossy(input)
     }
 
-    pub fn encode<'a>(&self, input: &'a str) -> Cow<'a, [u8]> {
-        Cow::Borrowed(input.as_bytes())
+    pub fn encode<'a>(&self, input: Cow<'a, str>) -> Cow<'a, [u8]> {
+        encode_utf8(input)
+    }
+}
+
+pub fn decode_utf8_lossy(input: Cow<[u8]>) -> Cow<str> {
+    match input {
+        Cow::Borrowed(bytes) => String::from_utf8_lossy(bytes),
+        Cow::Owned(bytes) => {
+            match String::from_utf8_lossy(&bytes) {
+                Cow::Borrowed(_) => unsafe { String::from_utf8_unchecked(bytes) }.into(),
+                Cow::Owned(s) => s.into(),
+            }
+        }
+    }
+}
+
+pub fn encode_utf8(input: Cow<str>) -> Cow<[u8]> {
+    match input {
+        Cow::Borrowed(s) => s.as_bytes().into(),
+        Cow::Owned(s) => s.into_bytes().into()
     }
 }

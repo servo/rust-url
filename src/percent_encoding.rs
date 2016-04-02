@@ -6,6 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use encoding;
 use std::ascii::AsciiExt;
 use std::borrow::Cow;
 use std::fmt::{self, Write};
@@ -293,23 +294,34 @@ impl<'a> Iterator for PercentDecode<'a> {
 }
 
 impl<'a> From<PercentDecode<'a>> for Cow<'a, [u8]> {
-    fn from(mut iter: PercentDecode<'a>) -> Self {
-        let initial_bytes = iter.bytes.as_slice();
-        while iter.bytes.find(|&&b| b == b'%').is_some() {
-            if let Some(decoded_byte) = after_percent_sign(&mut iter.bytes) {
-                let unchanged_bytes_len = initial_bytes.len() - iter.bytes.len() - 3;
-                let mut decoded = initial_bytes[..unchanged_bytes_len].to_owned();
-                decoded.push(decoded_byte);
-                decoded.extend(iter);
-                return decoded.into()
-            }
+    fn from(iter: PercentDecode<'a>) -> Self {
+        match iter.if_any() {
+            Some(vec) => vec.into(),
+            None => iter.bytes.as_slice().into(),
         }
-        // Nothing to decode
-        initial_bytes.into()
     }
 }
 
 impl<'a> PercentDecode<'a> {
+    /// If the percent-decoding is different from the input, return it as a new bytes vector.
+    pub fn if_any(&self) -> Option<Vec<u8>> {
+        let mut bytes_iter = self.bytes.clone();
+        while bytes_iter.find(|&&b| b == b'%').is_some() {
+            if let Some(decoded_byte) = after_percent_sign(&mut bytes_iter) {
+                let initial_bytes = self.bytes.as_slice();
+                let unchanged_bytes_len = initial_bytes.len() - bytes_iter.len() - 3;
+                let mut decoded = initial_bytes[..unchanged_bytes_len].to_owned();
+                decoded.push(decoded_byte);
+                decoded.extend(PercentDecode {
+                    bytes: bytes_iter
+                });
+                return Some(decoded)
+            }
+        }
+        // Nothing to decode
+        None
+    }
+
     /// Decode the result of percent-decoding as UTF-8.
     ///
     /// This is return `Err` when the percent-decoded bytes are not well-formed in UTF-8.
@@ -335,14 +347,6 @@ impl<'a> PercentDecode<'a> {
     /// Invalid UTF-8 percent-encoded byte sequences will be replaced � U+FFFD,
     /// the replacement character.
     pub fn decode_utf8_lossy(self) -> Cow<'a, str> {
-        match self.clone().into() {
-            Cow::Borrowed(bytes) => String::from_utf8_lossy(bytes),
-            Cow::Owned(bytes) => {
-                match String::from_utf8_lossy(&bytes) {
-                    Cow::Borrowed(_) => unsafe { String::from_utf8_unchecked(bytes) }.into(),
-                    Cow::Owned(s) => s.into(),
-                }
-            }
-        }
+        encoding::decode_utf8_lossy(self.clone().into())
     }
 }

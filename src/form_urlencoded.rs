@@ -107,24 +107,12 @@ impl<'a> Iterator for Parser<'a> {
     }
 }
 
-/// * Replace b'+' with b' '
-/// * Then percent-decode
-/// * Then decode with `encoding`
-fn decode<'a>(input: &'a [u8], encoding: EncodingOverride) -> Cow<'a, str> {
-    // The return value can borrow `input` but not an intermediate Cow,
-    // so we need to return Owned if either of the intermediate Cow is Owned
-    match replace_plus(input) {
-        Cow::Owned(replaced) => {
-            let decoded: Cow<_> = percent_decode(&replaced).into();
-            encoding.decode(&decoded).into_owned().into()
-        }
-        Cow::Borrowed(replaced) => {
-            match percent_decode(replaced).into() {
-                Cow::Owned(decoded) => encoding.decode(&decoded).into_owned().into(),
-                Cow::Borrowed(decoded) => encoding.decode(decoded),
-            }
-        }
-    }
+fn decode(input: &[u8], encoding: EncodingOverride) -> Cow<str> {
+    let replaced = replace_plus(input);
+    encoding.decode(match percent_decode(&replaced).if_any() {
+        Some(vec) => vec.into(),
+        None => replaced,
+    })
 }
 
 /// Replace b'+' with b' '
@@ -175,7 +163,7 @@ where I: IntoIterator, I::Item: Borrow<(K, V)>, K: AsRef<str>, V: AsRef<str> {
     #[inline]
     fn byte_serialize(input: &str, output: &mut String,
                       encoding_override: EncodingOverride) {
-        for &byte in encoding_override.encode(input).iter() {
+        for &byte in encoding_override.encode(input.into()).iter() {
             if byte == b' ' {
                 output.push_str("+")
             } else {
