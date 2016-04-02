@@ -11,7 +11,7 @@ extern crate url;
 use std::borrow::Cow;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::path::{Path, PathBuf};
-use url::{Host, Url};
+use url::{Host, Url, form_urlencoded};
 
 macro_rules! assert_from_file_path {
     ($path: expr) => { assert_from_file_path!($path, $path) };
@@ -212,30 +212,24 @@ fn test_serialization() {
 
 #[test]
 fn test_form_urlencoded() {
-    use url::form_urlencoded::*;
-
     let pairs: &[(Cow<str>, Cow<str>)] = &[
         ("foo".into(), "é&".into()),
         ("bar".into(), "".into()),
         ("foo".into(), "#".into())
     ];
-    let encoded = serialize(pairs);
+    let mut encoded = String::new();
+    form_urlencoded::Serializer::new(&mut encoded, 0).append_pairs(pairs);
     assert_eq!(encoded, "foo=%C3%A9%26&bar=&foo=%23");
-    assert_eq!(parse(encoded.as_bytes()).collect::<Vec<_>>(), pairs.to_vec());
+    assert_eq!(form_urlencoded::parse(encoded.as_bytes()).collect::<Vec<_>>(), pairs.to_vec());
 }
 
 #[test]
 fn test_form_serialize() {
-    use url::form_urlencoded::*;
-
-    let pairs = [("foo", "é&"),
-                 ("bar", ""),
-                 ("foo", "#")];
-
-    let want = "foo=%C3%A9%26&bar=&foo=%23";
-    // Works with referenced tuples
-    assert_eq!(serialize(pairs.iter()), want);
-    // Works with owned tuples
-    assert_eq!(serialize(pairs.iter().map(|p| (p.0, p.1))), want);
-
+    let mut encoded = String::new();
+    form_urlencoded::Serializer::new(&mut encoded, 0).append_pairs(&[
+        ("foo", "é&"),
+        ("bar", ""),
+        ("foo", "#")
+    ]);
+    assert_eq!(encoded, "foo=%C3%A9%26&bar=&foo=%23");
 }
