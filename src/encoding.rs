@@ -81,7 +81,7 @@ impl EncodingOverride {
 
     pub fn encode<'a>(&self, input: Cow<'a, str>) -> Cow<'a, [u8]> {
         match self.encoding {
-            Some(encoding) => encoding.encode(&input, EncoderTrap::NcrEscape).unwrap().into(),
+            Some(encoding) => Cow::Owned(encoding.encode(&input, EncoderTrap::NcrEscape).unwrap()),
             None => encode_utf8(input)
         }
     }
@@ -122,7 +122,7 @@ pub fn decode_utf8_lossy(input: Cow<[u8]>) -> Cow<str> {
 
 pub fn encode_utf8(input: Cow<str>) -> Cow<[u8]> {
     match input {
-        Cow::Borrowed(s) => s.as_bytes().into(),
-        Cow::Owned(s) => s.into_bytes().into()
+        Cow::Borrowed(s) => Cow::Borrowed(s.as_bytes()),
+        Cow::Owned(s) => Cow::Owned(s.into_bytes())
     }
 }
