@@ -945,7 +945,7 @@ impl<'a> Parser<'a> {
             "http" | "https" | "file" | "ftp" | "gopher" => self.query_encoding_override,
             _ => EncodingOverride::utf8(),
         };
-        let query_bytes = encoding.encode(&query);
+        let query_bytes = encoding.encode(query.into());
         self.serialization.extend(percent_encode(&query_bytes, QUERY_ENCODE_SET));
         remaining
     }
