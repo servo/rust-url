@@ -110,14 +110,6 @@ define_encode_set! {
     }
 }
 
-define_encode_set! {
-    /// This encode set is used in `application/x-www-form-urlencoded` serialization.
-    pub FORM_URLENCODED_ENCODE_SET = [SIMPLE_ENCODE_SET] | {
-        ' ', '!', '"', '#', '$', '%', '&', '\'', '(', ')', '+', ',', '/', ':', ';',
-        '<', '=', '>', '?', '@', '[', '\\', ']', '^', '`', '{', '|', '}', '~'
-    }
-}
-
 /// Return the percent-encoding of the given bytes.
 ///
 /// This is unconditional, unlike `percent_encode()` which uses an encode set.

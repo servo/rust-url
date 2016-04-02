@@ -65,6 +65,13 @@ impl EncodingOverride {
         self.encoding.is_none()
     }
 
+    pub fn name(&self) -> &'static str {
+        match self.encoding {
+            Some(encoding) => encoding.name(),
+            None => "utf-8",
+        }
+    }
+
     pub fn decode<'a>(&self, input: Cow<'a, [u8]>) -> Cow<'a, str> {
         match self.encoding {
             Some(encoding) => encoding.decode(&input, DecoderTrap::Replace).unwrap().into(),
@@ -90,18 +97,6 @@ impl EncodingOverride {
     #[inline]
     pub fn utf8() -> Self {
         EncodingOverride
-    }
-
-    pub fn lookup(_label: &[u8]) -> Option<Self> {
-        None
-    }
-
-    pub fn to_output_encoding(self) -> Self {
-        self
-    }
-
-    pub fn is_utf8(&self) -> bool {
-        true
     }
 
     pub fn decode<'a>(&self, input: Cow<'a, [u8]>) -> Cow<'a, str> {

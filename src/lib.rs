@@ -992,8 +992,8 @@ impl Url {
     /// Parse the URL’s query string, if any, as `application/x-www-form-urlencoded`
     /// and return an iterator of (key, value) pairs.
     #[inline]
-    pub fn query_pairs(&self) -> Option<form_urlencoded::Parser> {
-        self.query().map(|query| form_urlencoded::parse(query.as_bytes()))
+    pub fn query_pairs(&self) -> form_urlencoded::Parse {
+        form_urlencoded::parse(self.query().unwrap_or("").as_bytes())
     }
 
     // Private helper methods:
