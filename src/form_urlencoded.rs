@@ -208,14 +208,16 @@ impl<'a> Serializer<'a> {
     }
 
     /// Remove any existing name/value pair.
-    pub fn clear(&mut self) {
-        self.string.truncate(self.start_position)
+    pub fn clear(&mut self) -> &mut Self {
+        self.string.truncate(self.start_position);
+        self
     }
 
     /// Set the character encoding to be used for names and values before percent-encoding.
     #[cfg(feature = "query_encoding")]
-    pub fn encoding_override(&mut self, new: Option<::encoding::EncodingRef>) {
-        self.encoding = EncodingOverride::from_opt_encoding(new).to_output_encoding();;
+    pub fn encoding_override(&mut self, new: Option<::encoding::EncodingRef>) -> &mut Self {
+        self.encoding = EncodingOverride::from_opt_encoding(new).to_output_encoding();
+        self
     }
 
     fn append_separator_if_needed(&mut self) {
@@ -225,11 +227,12 @@ impl<'a> Serializer<'a> {
     }
 
     /// Serialize and append a name/value pair.
-    pub fn append_pair(&mut self, name: &str, value: &str) {
+    pub fn append_pair(&mut self, name: &str, value: &str) -> &mut Self {
         self.append_separator_if_needed();
         self.string.extend(byte_serialize(&self.encoding.encode(name.into())));
         self.string.push('=');
         self.string.extend(byte_serialize(&self.encoding.encode(value.into())));
+        self
     }
 
     /// Serialize and append a number of name/value pairs.
@@ -237,21 +240,23 @@ impl<'a> Serializer<'a> {
     /// This simply calls `append_pair` repeatedly.
     /// This can be more convenient, so the user doesn’t need to introduce a block
     /// to limit the scope of `Serializer`’s borrow of its string.
-    pub fn append_pairs<I, K, V>(&mut self, iter: I)
+    pub fn append_pairs<I, K, V>(&mut self, iter: I) -> &mut Self
     where I: IntoIterator, I::Item: Borrow<(K, V)>, K: AsRef<str>, V: AsRef<str> {
         for pair in iter {
             let &(ref k, ref v) = pair.borrow();
-            self.append_pair(k.as_ref(), v.as_ref())
+            self.append_pair(k.as_ref(), v.as_ref());
         }
+        self
     }
 
     /// Add a name/value pair whose name is `_charset_`
     /// and whose value is the character encoding’s name.
     /// (See the `encoding_override()` method.)
     #[cfg(feature = "query_encoding")]
-    pub fn append_charset(&mut self) {
+    pub fn append_charset(&mut self) -> &mut Self {
         self.append_separator_if_needed();
         self.string.push_str("_charset_=");
         self.string.push_str(self.encoding.name());
+        self
     }
 }

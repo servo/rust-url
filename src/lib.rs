@@ -123,7 +123,7 @@ assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css")
 #[cfg(feature="serde")] extern crate serde;
 #[cfg(feature="heap_size")] #[macro_use] extern crate heapsize;
 
-extern crate idna;
+pub extern crate idna;
 extern crate unicode_normalization;
 extern crate unicode_bidi;
 
