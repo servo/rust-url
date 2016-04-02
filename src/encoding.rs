@@ -27,28 +27,28 @@ pub struct EncodingOverride {
 
 #[cfg(feature = "query_encoding")]
 impl EncodingOverride {
-    pub fn from_opt_encoding(encoding: Option<EncodingRef>) -> EncodingOverride {
-        encoding.map(EncodingOverride::from_encoding).unwrap_or_else(EncodingOverride::utf8)
+    pub fn from_opt_encoding(encoding: Option<EncodingRef>) -> Self {
+        encoding.map(Self::from_encoding).unwrap_or_else(Self::utf8)
     }
 
-    pub fn from_encoding(encoding: EncodingRef) -> EncodingOverride {
+    pub fn from_encoding(encoding: EncodingRef) -> Self {
         EncodingOverride {
             encoding: if encoding.name() == "utf-8" { None } else { Some(encoding) }
         }
     }
 
     #[inline]
-    pub fn utf8() -> EncodingOverride {
+    pub fn utf8() -> Self {
         EncodingOverride { encoding: None }
     }
 
-    pub fn lookup(label: &[u8]) -> Option<EncodingOverride> {
+    pub fn lookup(label: &[u8]) -> Option<Self> {
         // Don't use String::from_utf8_lossy since no encoding label contains U+FFFD
         // https://encoding.spec.whatwg.org/#names-and-labels
         ::std::str::from_utf8(label)
         .ok()
         .and_then(encoding_from_whatwg_label)
-        .map(EncodingOverride::from_encoding)
+        .map(Self::from_encoding)
     }
 
     /// https://encoding.spec.whatwg.org/#get-an-output-encoding
@@ -89,11 +89,11 @@ pub struct EncodingOverride;
 #[cfg(not(feature = "query_encoding"))]
 impl EncodingOverride {
     #[inline]
-    pub fn utf8() -> EncodingOverride {
+    pub fn utf8() -> Self {
         EncodingOverride
     }
 
-    pub fn lookup(_label: &[u8]) -> Option<EncodingOverride> {
+    pub fn lookup(_label: &[u8]) -> Option<Self> {
         None
     }
 
