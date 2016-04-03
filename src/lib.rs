@@ -494,76 +494,103 @@ impl Url {
         }
     }
 
-    /// Change this URL’s query string.
-    pub fn set_query(&mut self, query: Option<&str>) {
-        self.set_query_internal(|url| {
-            // Remove any previous query
-            if let Some(start) = url.query_start.take() {
-                debug_assert!(url.byte_at(start) == b'?');
-                url.serialization.truncate(start as usize);
-            }
-            // Write the new query, if any
-            if let Some(input) = query {
-                url.query_start = Some(to_u32(url.serialization.len()).unwrap());
-                url.serialization.push('?');
-                let scheme_end = url.scheme_end;
-                url.mutate(|parser| parser.parse_query(scheme_end, input));
-            }
-        })
-    }
-
-    /// Change this URL’s query string, viewed as a sequence of name/value pairs
-    /// in `application/x-www-form-urlencoded` syntax.
-    ///
-    /// Example:
-    ///
-    /// ```rust
-    /// # use url::Url;
-    /// let mut url = Url::parse("https://example.net?...#nav").unwrap();
-    /// assert_eq!(url.query(), Some("..."));
-    /// url.mutate_query_pairs(|query| {
-    ///     query.clear();
-    ///     query.append_pair("foo", "bar & baz");
-    /// });
-    /// assert_eq!(url.query(), Some("foo=bar+%26+baz"));
-    /// assert_eq!(url.as_str(), "https://example.net/?foo=bar+%26+baz#nav");
-    /// url.mutate_query_pairs(|query| {
-    ///     query.append_pair("saison", "Été+hiver");
-    /// });
-    /// assert_eq!(url.query(), Some("foo=bar+%26+baz&saison=%C3%89t%C3%A9%2Bhiver"));
-    /// ```
-    pub fn mutate_query_pairs<F: FnOnce(&mut form_urlencoded::Serializer)>(&mut self, f: F) {
-        self.set_query_internal(|url| {
-            let query_start;
-            if let Some(start) = url.query_start {
-                debug_assert!(url.byte_at(start) == b'?');
-                query_start = start as usize;
-            } else {
-                query_start = url.serialization.len();
-                url.query_start = Some(to_u32(query_start).unwrap());
-                url.serialization.push('?');
-            }
-            let query_start = query_start + "?".len();
-            f(&mut form_urlencoded::Serializer::new(&mut url.serialization, query_start))
-        })
-    }
-
-    fn set_query_internal<F: FnOnce(&mut Url)>(&mut self, f: F) {
-        // Stash any fragment
-        let fragment = self.fragment_start.map(|start| {
-            let f = self.slice(start..).to_owned();
+    fn take_fragment(&mut self) -> Option<String> {
+        self.fragment_start.take().map(|start| {
+            debug_assert!(self.byte_at(start) == b'#');
+            let fragment = self.slice(start + 1..).to_owned();
             self.serialization.truncate(start as usize);
-            f
-        });
-        f(self);
-        // Restore the fragment, if any
+            fragment
+        })
+    }
+
+    fn restore_already_parsed_fragment(&mut self, fragment: Option<String>) {
         if let Some(ref fragment) = fragment {
+            assert!(self.fragment_start.is_none());
             self.fragment_start = Some(to_u32(self.serialization.len()).unwrap());
-            debug_assert!(fragment.starts_with('#'));
-            self.serialization.push_str(fragment)  // It’s already been through the parser
+            self.serialization.push('#');
+            self.serialization.push_str(fragment);
         }
     }
 
+    /// Change this URL’s query string.
+    pub fn set_query(&mut self, query: Option<&str>) {
+        let fragment = self.take_fragment();
+
+        // Remove any previous query
+        if let Some(start) = self.query_start.take() {
+            debug_assert!(self.byte_at(start) == b'?');
+            self.serialization.truncate(start as usize);
+        }
+        // Write the new query, if any
+        if let Some(input) = query {
+            self.query_start = Some(to_u32(self.serialization.len()).unwrap());
+            self.serialization.push('?');
+            let scheme_end = self.scheme_end;
+            self.mutate(|parser| parser.parse_query(scheme_end, input));
+        }
+
+        self.restore_already_parsed_fragment(fragment);
+    }
+
+    /// Manipulate this URL’s query string, viewed as a sequence of name/value pairs
+    /// in `application/x-www-form-urlencoded` syntax.
+    ///
+    /// The return value has a method-chaining API:
+    ///
+    /// ```rust
+    /// # use url::Url;
+    /// let mut url = Url::parse("https://example.net?lang=fr#nav").unwrap();
+    /// assert_eq!(url.query(), Some("lang=fr"));
+    ///
+    /// url.mutate_query_pairs().append_pair("foo", "bar");
+    /// assert_eq!(url.query(), Some("lang=fr&foo=bar"));
+    /// assert_eq!(url.as_str(), "https://example.net/?lang=fr&foo=bar#nav");
+    ///
+    /// url.mutate_query_pairs()
+    ///     .clear()
+    ///     .append_pair("foo", "bar & baz")
+    ///     .append_pair("saisons", "Été+hiver");
+    /// assert_eq!(url.query(), Some("foo=bar+%26+baz&saisons=%C3%89t%C3%A9%2Bhiver"));
+    /// assert_eq!(url.as_str(),
+    ///            "https://example.net/?foo=bar+%26+baz&saisons=%C3%89t%C3%A9%2Bhiver#nav");
+    /// ```
+    ///
+    /// Note: `url.mutate_query_pairs().clear();` is equivalent to `url.set_query(Some(""))`,
+    /// not `url.set_query(None)`.
+    ///
+    /// The state of `Url` is unspecified if this return value is leaked without being dropped.
+    pub fn mutate_query_pairs(&mut self) -> form_urlencoded::Serializer<UrlQuery> {
+        let fragment = self.take_fragment();
+
+        let query_start;
+        if let Some(start) = self.query_start {
+            debug_assert!(self.byte_at(start) == b'?');
+            query_start = start as usize;
+        } else {
+            query_start = self.serialization.len();
+            self.query_start = Some(to_u32(query_start).unwrap());
+            self.serialization.push('?');
+        }
+
+        let query = UrlQuery { url: self, fragment: fragment };
+        form_urlencoded::Serializer::for_suffix(query, query_start + "?".len())
+    }
+}
+
+
+/// Implementation detail of `Url::mutate_query_pairs`. Typically not used directly.
+pub struct UrlQuery<'a> {
+    url: &'a mut Url,
+    fragment: Option<String>,
+}
+
+impl<'a> Drop for UrlQuery<'a> {
+    fn drop(&mut self) {
+        self.url.restore_already_parsed_fragment(self.fragment.take())
+    }
+}
+
+impl Url {
     /// Change this URL’s path.
     pub fn set_path(&mut self, path: &str) {
         let (old_after_path_pos, after_path) = match (self.query_start, self.fragment_start) {
