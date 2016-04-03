@@ -213,7 +213,7 @@ fn test_form_urlencoded() {
         ("bar".into(), "".into()),
         ("foo".into(), "#".into())
     ];
-    let encoded = form_urlencoded::Serializer::new(String::new()).append_pairs(pairs).finish();
+    let encoded = form_urlencoded::Serializer::new(String::new()).append_pair_iter(pairs).finish();
     assert_eq!(encoded, "foo=%C3%A9%26&bar=&foo=%23");
     assert_eq!(form_urlencoded::parse(encoded.as_bytes()).collect::<Vec<_>>(), pairs.to_vec());
 }
