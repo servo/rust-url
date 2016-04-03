@@ -217,19 +217,17 @@ fn test_form_urlencoded() {
         ("bar".into(), "".into()),
         ("foo".into(), "#".into())
     ];
-    let mut encoded = String::new();
-    form_urlencoded::Serializer::new(&mut encoded, 0).append_pairs(pairs);
+    let encoded = form_urlencoded::Serializer::new(String::new()).append_pairs(pairs).finish();
     assert_eq!(encoded, "foo=%C3%A9%26&bar=&foo=%23");
     assert_eq!(form_urlencoded::parse(encoded.as_bytes()).collect::<Vec<_>>(), pairs.to_vec());
 }
 
 #[test]
 fn test_form_serialize() {
-    let mut encoded = String::new();
-    form_urlencoded::Serializer::new(&mut encoded, 0).append_pairs(&[
-        ("foo", "é&"),
-        ("bar", ""),
-        ("foo", "#")
-    ]);
+    let encoded = form_urlencoded::Serializer::new(String::new())
+        .append_pair("foo", "é&")
+        .append_pair("bar", "")
+        .append_pair("foo", "#")
+        .finish();
     assert_eq!(encoded, "foo=%C3%A9%26&bar=&foo=%23");
 }

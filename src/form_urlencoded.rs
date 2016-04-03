@@ -186,30 +186,74 @@ impl<'a> Iterator for ByteSerialize<'a> {
 
 /// The [`application/x-www-form-urlencoded` serializer](
 /// https://url.spec.whatwg.org/#concept-urlencoded-serializer).
-pub struct Serializer<'a> {
-    string: &'a mut String,
+pub struct Serializer<T: Target> {
+    target: Option<T>,
     start_position: usize,
     encoding: EncodingOverride,
 }
 
-impl<'a> Serializer<'a> {
-    /// Create a new `application/x-www-form-urlencoded` serializer
-    /// for the given range of the given string.
+pub trait Target {
+    fn as_mut_string(&mut self) -> &mut String;
+    fn finish(self) -> Self::Finished;
+    type Finished;
+}
+
+impl Target for String {
+    fn as_mut_string(&mut self) -> &mut String { self }
+    fn finish(self) -> Self { self }
+    type Finished = Self;
+}
+
+impl<'a> Target for &'a mut String {
+    fn as_mut_string(&mut self) -> &mut String { &mut **self }
+    fn finish(self) -> Self { self }
+    type Finished = Self;
+}
+
+// `as_mut_string` string here exposes the internal serialization of an `Url`,
+// which should not be exposed to users.
+// We achieve that by not giving users direct access to `UrlQuery`:
+// * Its fields are private
+//   (and so can not be constructed with struct literal syntax outside of this crate),
+// * It has no constructor
+// * It is only visible (on the type level) to users in the return type of
+//   `Url::mutate_query_pairs` which is `Serializer<UrlQuery>`
+// * `Serializer` keeps its target in a private field
+// * Unlike in other `Target` impls, `UrlQuery::finished` does not return `Self`.
+impl<'a> Target for ::UrlQuery<'a> {
+    fn as_mut_string(&mut self) -> &mut String { &mut self.url.serialization }
+    fn finish(self) -> &'a mut ::Url { self.url }
+    type Finished = &'a mut ::Url;
+}
+
+impl<T: Target> Serializer<T> {
+    /// Create a new `application/x-www-form-urlencoded` serializer for the given target.
     ///
-    /// If the range is non-empty, the corresponding slice of the string is assumed
-    /// to already be in `application/x-www-form-urlencoded` syntax.
-    pub fn new(string: &'a mut String, start_position: usize) -> Self {
-        &string[start_position..];  // Panic if out of bounds
+    /// If the target is non-empty,
+    /// its content is assumed to already be in `application/x-www-form-urlencoded` syntax.
+    pub fn new(target: T) -> Self {
+        Self::for_suffix(target, 0)
+    }
+
+    /// Create a new `application/x-www-form-urlencoded` serializer
+    /// for a suffix of the given target.
+    ///
+    /// If that suffix is non-empty,
+    /// its content is assumed to already be in `application/x-www-form-urlencoded` syntax.
+    pub fn for_suffix(mut target: T, start_position: usize) -> Self {
+        &target.as_mut_string()[start_position..];  // Panic if out of bounds
         Serializer {
-            string: string,
+            target: Some(target),
             start_position: start_position,
             encoding: EncodingOverride::utf8(),
         }
     }
 
     /// Remove any existing name/value pair.
+    ///
+    /// Panics if called after `.finish()`.
     pub fn clear(&mut self) -> &mut Self {
-        self.string.truncate(self.start_position);
+        string(&mut self.target).truncate(self.start_position);
         self
     }
 
@@ -220,18 +264,11 @@ impl<'a> Serializer<'a> {
         self
     }
 
-    fn append_separator_if_needed(&mut self) {
-        if self.string.len() > self.start_position {
-            self.string.push('&')
-        }
-    }
-
     /// Serialize and append a name/value pair.
+    ///
+    /// Panics if called after `.finish()`.
     pub fn append_pair(&mut self, name: &str, value: &str) -> &mut Self {
-        self.append_separator_if_needed();
-        self.string.extend(byte_serialize(&self.encoding.encode(name.into())));
-        self.string.push('=');
-        self.string.extend(byte_serialize(&self.encoding.encode(value.into())));
+        append_pair(string(&mut self.target), self.start_position, self.encoding, name, value);
         self
     }
 
@@ -240,11 +277,16 @@ impl<'a> Serializer<'a> {
     /// This simply calls `append_pair` repeatedly.
     /// This can be more convenient, so the user doesn’t need to introduce a block
     /// to limit the scope of `Serializer`’s borrow of its string.
+    ///
+    /// Panics if called after `.finish()`.
     pub fn append_pairs<I, K, V>(&mut self, iter: I) -> &mut Self
     where I: IntoIterator, I::Item: Borrow<(K, V)>, K: AsRef<str>, V: AsRef<str> {
-        for pair in iter {
-            let &(ref k, ref v) = pair.borrow();
-            self.append_pair(k.as_ref(), v.as_ref());
+        {
+            let string = string(&mut self.target);
+            for pair in iter {
+                let &(ref k, ref v) = pair.borrow();
+                append_pair(string, self.start_position, self.encoding, k.as_ref(), v.as_ref());
+            }
         }
         self
     }
@@ -252,11 +294,50 @@ impl<'a> Serializer<'a> {
     /// Add a name/value pair whose name is `_charset_`
     /// and whose value is the character encoding’s name.
     /// (See the `encoding_override()` method.)
+    ///
+    /// Panics if called after `.finish()`.
     #[cfg(feature = "query_encoding")]
     pub fn append_charset(&mut self) -> &mut Self {
-        self.append_separator_if_needed();
-        self.string.push_str("_charset_=");
-        self.string.push_str(self.encoding.name());
+        {
+            let string = string(&mut self.target);
+            append_separator_if_needed(string, self.start_position);
+            string.push_str("_charset_=");
+            string.push_str(self.encoding.name());
+        }
         self
     }
+
+    /// If this serializer was constructed with a string, take and return that string.
+    ///
+    /// ```rust
+    /// use url::form_urlencoded;
+    /// let encoded: String = form_urlencoded::Serializer::new(String::new())
+    ///     .append_pair("foo", "bar & baz")
+    ///     .append_pair("saison", "Été+hiver")
+    ///     .finish();
+    /// assert_eq!(encoded, "foo=bar+%26+baz&saison=%C3%89t%C3%A9%2Bhiver");
+    /// ```
+    ///
+    /// Panics if called more than once.
+    pub fn finish(&mut self) -> T::Finished {
+        self.target.take().expect("url::form_urlencoded::Serializer double finish").finish()
+    }
+}
+
+fn append_separator_if_needed(string: &mut String, start_position: usize) {
+    if string.len() > start_position {
+        string.push('&')
+    }
+}
+
+fn string<T: Target>(target: &mut Option<T>) -> &mut String {
+    target.as_mut().expect("url::form_urlencoded::Serializer finished").as_mut_string()
+}
+
+fn append_pair(string: &mut String, start_position: usize, encoding: EncodingOverride,
+               name: &str, value: &str) {
+    append_separator_if_needed(string, start_position);
+    string.extend(byte_serialize(&encoding.encode(name.into())));
+    string.push('=');
+    string.extend(byte_serialize(&encoding.encode(value.into())));
 }
