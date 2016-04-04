@@ -15,7 +15,7 @@ use parser::{ParseResult, ParseError};
 use percent_encoding::percent_decode;
 use idna;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature="heap_size", derive(HeapSizeOf))]
 pub enum HostInternal {
     None,

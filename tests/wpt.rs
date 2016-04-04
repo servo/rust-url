@@ -28,6 +28,8 @@ fn run_one(input: String, base: String, expected: Result<TestCase, ()>) {
         (Ok(_), Err(())) => panic!("Expected a parse error for URL {:?}", input),
     };
 
+    url.assert_invariants();
+
     macro_rules! assert_eq {
         ($expected: expr, $got: expr) => {
             {

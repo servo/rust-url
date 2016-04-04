@@ -260,6 +260,92 @@ impl Url {
         self.serialization
     }
 
+    /// For internal testing.
+    ///
+    /// Methods of the `Url` struct assume a number of invariants.
+    /// This checks each of these invariants and panic if one is not met.
+    /// This is for testing rust-url itself.
+    pub fn assert_invariants(&self) {
+        macro_rules! assert {
+            ($x: expr) => {
+                if !$x {
+                    panic!("!( {} ) for URL {:?}", stringify!($x), self.serialization)
+                }
+            }
+        }
+
+        macro_rules! assert_eq {
+            ($a: expr, $b: expr) => {
+                {
+                    let a = $a;
+                    let b = $b;
+                    if a != b {
+                        panic!("{:?} != {:?} ({} != {}) for URL {:?}",
+                               a, b, stringify!($a), stringify!($b), self.serialization)
+                    }
+                }
+            }
+        }
+
+        assert!(self.scheme_end >= 1);
+        assert!(matches!(self.byte_at(0), b'a'...b'z' | b'A'...b'Z'));
+        assert!(self.slice(1..self.scheme_end).chars()
+                .all(|c| matches!(c, 'a'...'z' | 'A'...'Z' | '0'...'9' | '+' | '-' | '.')));
+        assert_eq!(self.byte_at(self.scheme_end), b':');
+
+        if self.slice(self.scheme_end + 1 ..).starts_with("//") {
+            // URL with authority
+            match self.byte_at(self.username_end) {
+                b':' => {
+                    assert!(self.host_start >= self.username_end + 2);
+                    assert_eq!(self.byte_at(self.host_start - 1), b'@');
+                }
+                b'@' => assert!(self.host_start == self.username_end + 1),
+                _ => assert_eq!(self.username_end, self.scheme_end + 3),
+            }
+            assert!(self.host_start >= self.username_end);
+            assert!(self.host_end >= self.host_start);
+            let host_str = self.slice(self.host_start..self.host_end);
+            match self.host {
+                HostInternal::None => assert_eq!(host_str, ""),
+                HostInternal::Ipv4(address) => assert_eq!(host_str, address.to_string()),
+                HostInternal::Ipv6(address) => assert_eq!(host_str, format!("[{}]", address)),
+                HostInternal::Domain => {
+                    if SchemeType::from(self.scheme()).is_special() {
+                        assert!(!host_str.is_empty())
+                    }
+                }
+            }
+            if self.path_start == self.host_end {
+                assert_eq!(self.port, None);
+            } else {
+                assert_eq!(self.byte_at(self.host_end), b':');
+                let port_str = self.slice(self.host_end + 1..self.path_start);
+                assert_eq!(self.port, Some(port_str.parse::<u16>().unwrap()));
+            }
+            assert_eq!(self.byte_at(self.path_start), b'/');
+        } else {
+            // Anarchist URL (no authority)
+            assert_eq!(self.username_end, self.scheme_end + 1);
+            assert_eq!(self.host_start, self.scheme_end + 1);
+            assert_eq!(self.host_end, self.scheme_end + 1);
+            assert_eq!(self.host, HostInternal::None);
+            assert_eq!(self.port, None);
+            assert_eq!(self.path_start, self.scheme_end + 1);
+        }
+        if let Some(start) = self.query_start {
+            assert!(start > self.path_start);
+            assert_eq!(self.byte_at(start), b'?');
+        }
+        if let Some(start) = self.fragment_start {
+            assert!(start > self.path_start);
+            assert_eq!(self.byte_at(start), b'#');
+        }
+        if let (Some(query_start), Some(fragment_start)) = (self.query_start, self.fragment_start) {
+            assert!(fragment_start > query_start);
+        }
+    }
+
     /// Return the scheme of this URL, lower-cased, as an ASCII string without the ':' delimiter.
     #[inline]
     pub fn scheme(&self) -> &str {
@@ -297,9 +383,7 @@ impl Url {
     pub fn password(&self) -> Option<&str> {
         // This ':' is not the one marking a port number since a host can not be empty.
         // (Except for file: URLs, which do not have port numbers.)
-        if self.byte_at(self.username_end) == b':' {
-            debug_assert!(self.has_host());
-            debug_assert!(self.host_start < self.host_end);
+        if self.has_host() && self.byte_at(self.username_end) == b':' {
             debug_assert!(self.byte_at(self.host_start - 1) == b'@');
             Some(self.slice(self.username_end + 1..self.host_start - 1))
         } else {

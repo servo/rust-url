@@ -115,18 +115,16 @@ impl Url {
 
             Position::AfterUsername => self.username_end as usize,
 
-            Position::BeforePassword => if self.byte_at(self.username_end) == b':' {
-                debug_assert!(self.has_host());
-                debug_assert!(self.host_start < self.host_end);
+            Position::BeforePassword => if self.has_host() &&
+                                           self.byte_at(self.username_end) == b':' {
                 self.username_end as usize + ":".len()
             } else {
                 debug_assert!(self.username_end == self.host_start);
                 self.username_end as usize
             },
 
-            Position::AfterPassword => if self.byte_at(self.username_end) == b':' {
-                debug_assert!(self.has_host());
-                debug_assert!(self.host_start < self.host_end);
+            Position::AfterPassword => if self.has_host() &&
+                                          self.byte_at(self.username_end) == b':' {
                 debug_assert!(self.byte_at(self.host_start - "@".len() as u32) == b'@');
                 self.host_start as usize - "@".len()
             } else {
