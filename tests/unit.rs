@@ -6,6 +6,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+//! Unit tests
+
 extern crate url;
 
 use std::borrow::Cow;

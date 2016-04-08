@@ -6,7 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-//! Tests copied form https://github.com/w3c/web-platform-tests/blob/master/url/
+//! Data-driven tests
 
 extern crate rustc_serialize;
 extern crate test;
@@ -79,6 +79,7 @@ struct TestCase {
 }
 
 fn main() {
+    // Copied form https://github.com/w3c/web-platform-tests/blob/master/url/
     let json = Json::from_str(include_str!("urltestdata.json"))
         .expect("JSON parse error in urltestdata.json");
     let tests = json.as_array().unwrap().iter().filter_map(|entry| {
