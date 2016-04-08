@@ -16,6 +16,7 @@
 use encoding::EncodingOverride;
 use percent_encoding::{percent_encode_byte, percent_decode};
 use std::borrow::{Borrow, Cow};
+use std::iter;
 use std::str;
 
 
@@ -79,6 +80,7 @@ pub fn parse_with_encoding<'a>(input: &'a [u8],
 }
 
 /// The return type of `parse()`.
+#[derive(Copy, Clone)]
 pub struct Parse<'a> {
     input: &'a [u8],
     encoding: EncodingOverride,
@@ -131,6 +133,16 @@ fn replace_plus<'a>(input: &'a [u8]) -> Cow<'a, [u8]> {
             }
             Cow::Owned(replaced)
         }
+    }
+}
+
+impl<'a> Parse<'a> {
+    /// Return a new iterator that yields pairs of `String` instead of pair of `Cow<str>`.
+    pub fn into_owned(self) -> iter::Map<Parse<'a>, fn((Cow<str>, Cow<str>)) -> (String, String)> {
+        fn into_owned((k, v): (Cow<str>, Cow<str>)) -> (String, String) {
+            (k.into_owned(), v.into_owned())
+        }
+        self.map(into_owned)
     }
 }
 
