@@ -16,7 +16,7 @@ use rustc_serialize::json::Json;
 use url::{Url, Position};
 
 
-fn run_one(input: String, base: String, expected: Result<TestCase, ()>) {
+fn run_parsing(input: String, base: String, expected: Result<ParsingTestCase, ()>) {
     let base = match Url::parse(&base) {
         Ok(base) => base,
         Err(message) => panic!("Error parsing base {:?}: {}", base, message)
@@ -64,7 +64,7 @@ fn trim(s: &str) -> &str {
     }
 }
 
-struct TestCase {
+struct ParsingTestCase {
     href: String,
     origin: Option<String>,
     protocol: String,
@@ -78,13 +78,13 @@ struct TestCase {
     hash: String,
 }
 
-fn main() {
+fn collect_parsing<F: FnMut(String, test::TestFn)>(add_test: &mut F) {
     // Copied form https://github.com/w3c/web-platform-tests/blob/master/url/
     let json = Json::from_str(include_str!("urltestdata.json"))
         .expect("JSON parse error in urltestdata.json");
-    let tests = json.as_array().unwrap().iter().filter_map(|entry| {
+    for entry in json.as_array().unwrap() {
         if entry.is_string() {
-            return None  // ignore comments
+            continue  // ignore comments
         }
         let string = |key| entry.find(key).unwrap().as_string().unwrap().to_owned();
         let base = string("base");
@@ -92,7 +92,7 @@ fn main() {
         let expected = if entry.find("failure").is_some() {
             Err(())
         } else {
-            Ok(TestCase {
+            Ok(ParsingTestCase {
                 href: string("href"),
                 origin: entry.find("origin").map(|j| j.as_string().unwrap().to_owned()),
                 protocol: string("protocol"),
@@ -106,14 +106,25 @@ fn main() {
                 hash: string("hash"),
             })
         };
-        Some(test::TestDescAndFn {
-            desc: test::TestDesc {
-                name: test::DynTestName(format!("{:?} @ base {:?}", input, base)),
-                ignore: false,
-                should_panic: test::ShouldPanic::No,
-            },
-            testfn: test::TestFn::dyn_test_fn(move || run_one(input, base, expected)),
-        })
-    }).collect();
+        add_test(format!("{:?} @ base {:?}", input, base),
+                 test::TestFn::dyn_test_fn(move || run_parsing(input, base, expected)));
+    }
+}
+
+fn main() {
+    let mut tests = Vec::new();
+    {
+        let mut add_one = |name: String, run: test::TestFn| {
+            tests.push(test::TestDescAndFn {
+                desc: test::TestDesc {
+                    name: test::DynTestName(name),
+                    ignore: false,
+                    should_panic: test::ShouldPanic::No,
+                },
+                testfn: run,
+            })
+        };
+        collect_parsing(&mut add_one);
+    }
     test::test_main(&std::env::args().collect::<Vec<_>>(), tests)
 }
