@@ -1084,6 +1084,7 @@ fn path_to_file_url_path_windows(path: &Path) -> Result<Vec<String>, ()> {
     let disk = match components.next() {
         Some(Component::Prefix(ref p)) => match p.kind() {
             Prefix::Disk(byte) => byte,
+            Prefix::VerbatimDisk(byte) => byte,
             _ => return Err(()),
         },
 
