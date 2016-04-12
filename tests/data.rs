@@ -144,9 +144,11 @@ fn collect_setters<F>(add_test: &mut F) where F: FnMut(String, test::TestFn) {
                 let mut expected = test.take("expected").unwrap();
                 add_test(name, test::TestFn::dyn_test_fn(move || {
                     let mut url = Url::parse(&href).unwrap();
+                    url.assert_invariants();
                     let _ = quirks::$setter(&mut url, &new_value);
                     assert_attributes!(url, expected,
                         href protocol username password host hostname port pathname search hash);
+                    url.assert_invariants();
                 }))
             }
         }}

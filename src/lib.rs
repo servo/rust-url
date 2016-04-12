@@ -353,9 +353,13 @@ impl Url {
         self.slice(..self.scheme_end)
     }
 
-    /// Return whether the URL has a host.
+    /// Return whether the URL has an 'authority',
+    /// which can contain a username, password, host, and port number.
+    ///
+    /// URLs that do *not* are either path-only like `unix:/run/foo.socket`
+    /// or cannot-be-a-base like `data:text/plain,Stuff`.
     #[inline]
-    pub fn has_host(&self) -> bool {
+    pub fn has_authority(&self) -> bool {
         debug_assert!(self.byte_at(self.scheme_end) == b':');
         self.slice(self.scheme_end + 1 ..).starts_with("//")
     }
@@ -373,7 +377,7 @@ impl Url {
     /// Return the username for this URL (typically the empty string)
     /// as a percent-encoded ASCII string.
     pub fn username(&self) -> &str {
-        if self.has_host() {
+        if self.has_authority() {
             self.slice(self.scheme_end + 3..self.username_end)
         } else {
             ""
@@ -384,12 +388,17 @@ impl Url {
     pub fn password(&self) -> Option<&str> {
         // This ':' is not the one marking a port number since a host can not be empty.
         // (Except for file: URLs, which do not have port numbers.)
-        if self.has_host() && self.byte_at(self.username_end) == b':' {
+        if self.has_authority() && self.byte_at(self.username_end) == b':' {
             debug_assert!(self.byte_at(self.host_start - 1) == b'@');
             Some(self.slice(self.username_end + 1..self.host_start - 1))
         } else {
             None
         }
+    }
+
+    /// Equivalent to `url.host().is_some()`.
+    pub fn has_host(&self) -> bool {
+        !matches!(self.host, HostInternal::None)
     }
 
     /// Return the string representation of the host (domain or IP address) for this URL, if any.
@@ -946,6 +955,7 @@ impl Url {
             return Err(())
         }
         let username_start = self.scheme_end + 3;
+        debug_assert!(self.slice(self.scheme_end..username_start) == "://");
         if self.slice(username_start..self.username_end) == username {
             return Ok(())
         }
@@ -953,24 +963,35 @@ impl Url {
         self.serialization.truncate(username_start as usize);
         self.serialization.extend(utf8_percent_encode(username, USERINFO_ENCODE_SET));
 
-        let old_username_end = self.username_end;
-        let new_username_end = to_u32(self.serialization.len()).unwrap();
-        let adjust = |index: &mut u32| {
-            *index -= old_username_end;
-            *index += new_username_end;
-        };
+        let mut removed_bytes = self.username_end;
+        self.username_end = to_u32(self.serialization.len()).unwrap();
+        let mut added_bytes = self.username_end;
 
-        self.username_end = new_username_end;
+        let new_username_is_empty = self.username_end == username_start;
+        match (new_username_is_empty, after_username.chars().next()) {
+            (true, Some('@')) => {
+                removed_bytes += 1;
+                self.serialization.push_str(&after_username[1..]);
+            }
+            (false, Some('@')) | (_, Some(':')) | (true, _) => {
+                self.serialization.push_str(&after_username);
+            }
+            (false, _) => {
+                added_bytes += 1;
+                self.serialization.push('@');
+                self.serialization.push_str(&after_username);
+            }
+        }
+
+        let adjust = |index: &mut u32| {
+            *index -= removed_bytes;
+            *index += added_bytes;
+        };
         adjust(&mut self.host_start);
         adjust(&mut self.host_end);
         adjust(&mut self.path_start);
         if let Some(ref mut index) = self.query_start { adjust(index) }
         if let Some(ref mut index) = self.fragment_start { adjust(index) }
-
-        if !after_username.starts_with(|c| matches!(c, '@' | ':')) {
-            self.serialization.push('@');
-        }
-        self.serialization.push_str(&after_username);
         Ok(())
     }
 

@@ -105,7 +105,7 @@ impl Url {
 
             Position::AfterScheme => self.scheme_end as usize,
 
-            Position::BeforeUsername => if self.has_host() {
+            Position::BeforeUsername => if self.has_authority() {
                 self.scheme_end as usize + "://".len()
             } else {
                 debug_assert!(self.byte_at(self.scheme_end) == b':');
@@ -115,7 +115,7 @@ impl Url {
 
             Position::AfterUsername => self.username_end as usize,
 
-            Position::BeforePassword => if self.has_host() &&
+            Position::BeforePassword => if self.has_authority() &&
                                            self.byte_at(self.username_end) == b':' {
                 self.username_end as usize + ":".len()
             } else {
@@ -123,7 +123,7 @@ impl Url {
                 self.username_end as usize
             },
 
-            Position::AfterPassword => if self.has_host() &&
+            Position::AfterPassword => if self.has_authority() &&
                                           self.byte_at(self.username_end) == b':' {
                 debug_assert!(self.byte_at(self.host_start - "@".len() as u32) == b'@');
                 self.host_start as usize - "@".len()

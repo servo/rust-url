@@ -138,7 +138,76 @@
             }
         }
     ],
-    "username": [],
+    "username": [
+        {
+            "comment": "No host means no username",
+            "href": "file:///home/you/index.html",
+            "new_value": "me",
+            "expected": {
+                "href": "file:///home/you/index.html",
+                "username": ""
+            }
+        },
+        {
+            "comment": "Cannot-be-a-base means no username",
+            "href": "mailto:you@example.net",
+            "new_value": "me",
+            "expected": {
+                "href": "mailto:you@example.net",
+                "username": ""
+            }
+        },
+        {
+            "href": "http://example.net",
+            "new_value": "me",
+            "expected": {
+                "href": "http://me@example.net/",
+                "username": "me"
+            }
+        },
+        {
+            "href": "http://:secret@example.net",
+            "new_value": "me",
+            "expected": {
+                "href": "http://me:secret@example.net/",
+                "username": "me"
+            }
+        },
+        {
+            "href": "http://me@example.net",
+            "new_value": "",
+            "expected": {
+                "href": "http://example.net/",
+                "username": ""
+            }
+        },
+        {
+            "href": "http://me:secret@example.net",
+            "new_value": "",
+            "expected": {
+                "href": "http://:secret@example.net/",
+                "username": ""
+            }
+        },
+        {
+            "comment": "UTF-8 percent encoding with the userinfo encode set.",
+            "href": "http://example.net",
+            "new_value": "\u0000\u0001\t\n\r\u001f !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~\u007f\u0080\u0081Éé",
+            "expected": {
+                "href": "http://%00%01%09%0A%0D%1F%20!%22%23$%&'()*+,-.%2F09%3A%3B%3C%3D%3E%3F%40AZ%5B%5C%5D%5E_%60az%7B%7C%7D~%7F%C2%80%C2%81%C3%89%C3%A9@example.net/",
+                "username": "%00%01%09%0A%0D%1F%20!%22%23$%&'()*+,-.%2F09%3A%3B%3C%3D%3E%3F%40AZ%5B%5C%5D%5E_%60az%7B%7C%7D~%7F%C2%80%C2%81%C3%89%C3%A9"
+            }
+        },
+        {
+            "comment": "Bytes already percent-encoded are left as-is.",
+            "href": "http://example.net",
+            "new_value": "%c3%89t%c3%a9",
+            "expected": {
+                "href": "http://%c3%89t%c3%a9@example.net/",
+                "username": "%c3%89t%c3%a9"
+            }
+        }
+    ],
     "password": [],
     "host": [],
     "hostname": [],
