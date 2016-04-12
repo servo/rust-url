@@ -941,6 +941,7 @@ impl Url {
             let offset = end - start;
             self.host_start -= offset;
             self.host_end -= offset;
+            self.path_start -= offset;
             if let Some(ref mut index) = self.query_start { *index -= offset }
             if let Some(ref mut index) = self.fragment_start { *index -= offset }
         }
