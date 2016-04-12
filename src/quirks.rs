@@ -8,7 +8,8 @@
 
 //! Getters and setters for URL components implemented per https://url.spec.whatwg.org/#api
 //!
-//! Unless you need to be interoperable with web browsers, you probably don’t want to use this.
+//! Unless you need to be interoperable with web browsers,
+//! you probably want to use `Url` method instead.
 
 use {Url, Position, Host, ParseError, idna};
 use parser::{Parser, SchemeType, default_port};
