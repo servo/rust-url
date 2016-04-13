@@ -219,10 +219,10 @@
         {
             "comment": "Bytes already percent-encoded are left as-is.",
             "href": "http://example.net",
-            "new_value": "%c3%89t%c3%a9",
+            "new_value": "%c3%89té",
             "expected": {
-                "href": "http://%c3%89t%c3%a9@example.net/",
-                "username": "%c3%89t%c3%a9"
+                "href": "http://%c3%89t%C3%A9@example.net/",
+                "username": "%c3%89t%C3%A9"
             }
         }
     ],
@@ -298,10 +298,10 @@
         {
             "comment": "Bytes already percent-encoded are left as-is.",
             "href": "http://example.net",
-            "new_value": "%c3%89t%c3%a9",
+            "new_value": "%c3%89té",
             "expected": {
-                "href": "http://:%c3%89t%c3%a9@example.net/",
-                "password": "%c3%89t%c3%a9"
+                "href": "http://:%c3%89t%C3%A9@example.net/",
+                "password": "%c3%89t%C3%A9"
             }
         }
     ],
@@ -986,13 +986,96 @@
         {
             "comment": "Bytes already percent-encoded are left as-is, except %2E.",
             "href": "http://example.net",
-            "new_value": "%c3%89t%c3%a9%2e%2E",
+            "new_value": "%2e%2E%c3%89té",
             "expected": {
-                "href": "http://example.net/%c3%89t%c3%a9..",
-                "pathname": "/%c3%89t%c3%a9.."
+                "href": "http://example.net/..%c3%89t%C3%A9",
+                "pathname": "/..%c3%89t%C3%A9"
             }
         }
-   ],
-    "search": [],
+    ],
+    "search": [
+        {
+            "href": "https://example.net#nav",
+            "new_value": "lang=fr",
+            "expected": {
+                "href": "https://example.net/?lang=fr#nav",
+                "search": "?lang=fr"
+            }
+        },
+        {
+            "href": "https://example.net?lang=en-US#nav",
+            "new_value": "lang=fr",
+            "expected": {
+                "href": "https://example.net/?lang=fr#nav",
+                "search": "?lang=fr"
+            }
+        },
+        {
+            "href": "https://example.net?lang=en-US#nav",
+            "new_value": "?lang=fr",
+            "expected": {
+                "href": "https://example.net/?lang=fr#nav",
+                "search": "?lang=fr"
+            }
+        },
+        {
+            "href": "https://example.net?lang=en-US#nav",
+            "new_value": "??lang=fr",
+            "expected": {
+                "href": "https://example.net/??lang=fr#nav",
+                "search": "??lang=fr"
+            }
+        },
+        {
+            "href": "https://example.net?lang=en-US#nav",
+            "new_value": "?",
+            "expected": {
+                "href": "https://example.net/?#nav",
+                "search": ""
+            }
+        },
+        {
+            "href": "https://example.net?lang=en-US#nav",
+            "new_value": "",
+            "expected": {
+                "href": "https://example.net/#nav",
+                "search": ""
+            }
+        },
+        {
+            "href": "https://example.net?lang=en-US",
+            "new_value": "",
+            "expected": {
+                "href": "https://example.net/",
+                "search": ""
+            }
+        },
+        {
+            "href": "https://example.net",
+            "new_value": "",
+            "expected": {
+                "href": "https://example.net/",
+                "search": ""
+            }
+        },
+        {
+            "comment": "UTF-8 percent encoding with the query encode set. Tabs and newlines are removed.",
+            "href": "a:/",
+            "new_value": "\u0000\u0001\t\n\r\u001f !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~\u007f\u0080\u0081Éé",
+            "expected": {
+                "href": "a:/?%00%01%1F%20!%22%23$%&'()*+,-./09:;%3C=%3E?@AZ[\\]^_`az{|}~%7F%C2%80%C2%81%C3%89%C3%A9",
+                "search": "?%00%01%1F%20!%22%23$%&'()*+,-./09:;%3C=%3E?@AZ[\\]^_`az{|}~%7F%C2%80%C2%81%C3%89%C3%A9"
+            }
+        },
+        {
+            "comment": "Bytes already percent-encoded are left as-is",
+            "href": "http://example.net",
+            "new_value": "%c3%89té",
+            "expected": {
+                "href": "http://example.net/?%c3%89t%C3%A9",
+                "search": "?%c3%89t%C3%A9"
+            }
+        }
+    ],
     "hash": []
 }
