@@ -748,7 +748,7 @@ impl<'a> Parser<'a> {
         let mut iter = input.chars();
         match iter.next() {
             Some('/') => input = iter.as_str(),
-            Some('\\') => {
+            Some('\\') if scheme_type.is_special() => {
                 self.syntax_violation("backslash");
                 input = iter.as_str()
             }

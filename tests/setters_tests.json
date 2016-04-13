@@ -922,7 +922,77 @@
             }
         }
     ],
-    "pathname": [],
+    "pathname": [
+        {
+            "comment": "Cannot-be-a-base don’t have a path",
+            "href": "mailto:me@example.net",
+            "new_value": "/foo",
+            "expected": {
+                "href": "mailto:me@example.net",
+                "pathname": "me@example.net"
+            }
+        },
+        {
+            "href": "unix:/run/foo.socket?timeout=10",
+            "new_value": "/var/log/../run/bar.socket",
+            "expected": {
+                "href": "unix:/var/run/bar.socket?timeout=10",
+                "pathname": "/var/run/bar.socket"
+            }
+        },
+        {
+            "href": "https://example.net#nav",
+            "new_value": "home",
+            "expected": {
+                "href": "https://example.net/home#nav",
+                "pathname": "/home"
+            }
+        },
+        {
+            "href": "https://example.net#nav",
+            "new_value": "../home",
+            "expected": {
+                "href": "https://example.net/home#nav",
+                "pathname": "/home"
+            }
+        },
+        {
+            "comment": "\\ is a segment delimiter for 'special' URLs",
+            "href": "http://example.net/home?lang=fr#nav",
+            "new_value": "\\a\\%2E\\b\\%2e.\\c",
+            "expected": {
+                "href": "http://example.net/a/c?lang=fr#nav",
+                "pathname": "/a/c"
+            }
+        },
+        {
+            "comment": "\\ is *not* a segment delimiter for non-'special' URLs",
+            "href": "view-source+http://example.net/home?lang=fr#nav",
+            "new_value": "\\a\\%2E\\b\\%2e.\\c",
+            "expected": {
+                "href": "view-source+http://example.net/\\a\\.\\b\\..\\c?lang=fr#nav",
+                "pathname": "/\\a\\.\\b\\..\\c"
+            }
+        },
+        {
+            "comment": "UTF-8 percent encoding with the default encode set. Tabs and newlines are removed.",
+            "href": "a:/",
+            "new_value": "\u0000\u0001\t\n\r\u001f !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~\u007f\u0080\u0081Éé",
+            "expected": {
+                "href": "a:/%00%01%1F%20!%22%23$%&'()*+,-./09:;%3C=%3E%3F@AZ[\\]^_%60az%7B|%7D~%7F%C2%80%C2%81%C3%89%C3%A9",
+                "pathname": "/%00%01%1F%20!%22%23$%&'()*+,-./09:;%3C=%3E%3F@AZ[\\]^_%60az%7B|%7D~%7F%C2%80%C2%81%C3%89%C3%A9"
+            }
+        },
+        {
+            "comment": "Bytes already percent-encoded are left as-is, except %2E.",
+            "href": "http://example.net",
+            "new_value": "%c3%89t%c3%a9%2e%2E",
+            "expected": {
+                "href": "http://example.net/%c3%89t%c3%a9..",
+                "pathname": "/%c3%89t%c3%a9.."
+            }
+        }
+   ],
     "search": [],
     "hash": []
 }
