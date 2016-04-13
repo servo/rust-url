@@ -69,6 +69,10 @@ fn new_path_windows_fun() {
         // Invalid UTF-8
         url.path_mut().unwrap()[2] = "ba%80r".to_string();
         assert!(url.to_file_path().is_err());
+        
+        // test windows canonicalized path        
+        let path = PathBuf::from(r"\\?\C:\foo\bar");
+        assert!(Url::from_file_path(path).is_ok());
     }
 }
 
