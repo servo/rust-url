@@ -12,7 +12,7 @@
 //! you probably want to use `Url` method instead.
 
 use {Url, Position, Host, ParseError, idna};
-use parser::{Parser, SchemeType, default_port};
+use parser::{Parser, SchemeType, default_port, Context};
 
 /// https://url.spec.whatwg.org/#dom-url-domaintoascii
 pub fn domain_to_ascii(domain: &str) -> String {
@@ -107,7 +107,8 @@ pub fn set_host(url: &mut Url, new_host: &str) -> Result<(), ()> {
             Ok((h, remaining)) => {
                 host = h;
                 opt_port = if remaining.starts_with(':') {
-                    Parser::parse_port(remaining, |_| (), || default_port(scheme))
+                    Parser::parse_port(&remaining[1..], |_| (), || default_port(scheme),
+                                       Context::Setter)
                     .ok().map(|(port, _remaining)| port)
                 } else {
                     None
@@ -155,7 +156,7 @@ pub fn set_port(url: &mut Url, new_port: &str) -> Result<(), ()> {
         if !url.has_host() || scheme == "file" {
             return Err(())
         }
-        result = Parser::parse_port(new_port, |_| (), || default_port(scheme))
+        result = Parser::parse_port(new_port, |_| (), || default_port(scheme), Context::Setter)
     }
     if let Ok((new_port, _remaining)) = result {
         url.set_port_internal(new_port);

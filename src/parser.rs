@@ -108,7 +108,7 @@ pub struct Parser<'a> {
     pub context: Context,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Copy, Clone)]
 pub enum Context {
     UrlParser,
     Setter,
@@ -601,7 +601,7 @@ impl<'a> Parser<'a> {
         Ok((username_end, remaining))
     }
 
-    pub fn parse_host_and_port<'i>(&mut self, input: &'i str,
+    fn parse_host_and_port<'i>(&mut self, input: &'i str,
                                    scheme_end: u32, scheme_type: SchemeType)
                                    -> ParseResult<(u32, HostInternal, Option<u16>, &'i str)> {
         let (host, remaining) = try!(
@@ -611,7 +611,7 @@ impl<'a> Parser<'a> {
         let (port, remaining) = if remaining.starts_with(":") {
             let syntax_violation = |message| self.syntax_violation(message);
             let scheme = || default_port(&self.serialization[..scheme_end as usize]);
-            try!(Parser::parse_port(&remaining[1..], syntax_violation, scheme))
+            try!(Parser::parse_port(&remaining[1..], syntax_violation, scheme, self.context))
         } else {
             (None, remaining)
         };
@@ -705,10 +705,11 @@ impl<'a> Parser<'a> {
         Ok((true, host, &input[end..]))
     }
 
-    pub fn parse_port<'i, V, P>(input: &'i str, syntax_violation: V, default_port: P)
+    pub fn parse_port<'i, V, P>(input: &'i str, syntax_violation: V, default_port: P,
+                                context: Context)
                                 -> ParseResult<(Option<u16>, &'i str)>
                                 where V: Fn(&'static str), P: Fn() -> Option<u16> {
-        let mut port = 0;
+        let mut port: u32 = 0;
         let mut has_any_digit = false;
         let mut end = input.len();
         for (i, c) in input.char_indices() {
@@ -720,13 +721,17 @@ impl<'a> Parser<'a> {
                 has_any_digit = true;
             } else {
                 match c {
-                    '/' | '\\' | '?' | '#' => {
-                        end = i;
-                        break
-                    },
-                    '\t' | '\n' | '\r' => syntax_violation("invalid character"),
-                    _ => return Err(ParseError::InvalidPort)
+                    '\t' | '\n' | '\r' => {
+                        syntax_violation("invalid character");
+                        continue
+                    }
+                    '/' | '\\' | '?' | '#' => {}
+                    _ => if context == Context::UrlParser {
+                        return Err(ParseError::InvalidPort)
+                    }
                 }
+                end = i;
+                break
             }
         }
         let mut opt_port = Some(port as u16);
