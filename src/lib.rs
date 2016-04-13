@@ -813,6 +813,7 @@ impl Url {
                 self.serialization.push_str(&path_and_after);
             }
         }
+        self.port = port;
     }
 
     /// Change this URL’s host.

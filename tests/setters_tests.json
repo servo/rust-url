@@ -357,17 +357,6 @@
             }
         },
         {
-            "comment": "Port number can be removed",
-            "href": "http://example.net:8080",
-            "new_value": "example.com:",
-            "expected": {
-                "href": "http://example.com/",
-                "host": "example.com",
-                "hostname": "example.com",
-                "port": ""
-            }
-        },
-        {
             "comment": "The empty host is not valid for special schemes",
             "href": "http://example.net",
             "new_value": "",
@@ -779,6 +768,159 @@
         }
     ],
     "port": [
+        {
+            "href": "http://example.net",
+            "new_value": "8080",
+            "expected": {
+                "href": "http://example.net:8080/",
+                "host": "example.net:8080",
+                "hostname": "example.net",
+                "port": "8080"
+            }
+        },
+        {
+            "comment": "Port number is removed if empty in the new value: https://github.com/whatwg/url/pull/113",
+            "href": "http://example.net:8080",
+            "new_value": "",
+            "expected": {
+                "href": "http://example.net/",
+                "host": "example.net",
+                "hostname": "example.net",
+                "port": ""
+            }
+        },
+        {
+            "comment": "Default port number is removed",
+            "href": "http://example.net:8080",
+            "new_value": "80",
+            "expected": {
+                "href": "http://example.net/",
+                "host": "example.net",
+                "hostname": "example.net",
+                "port": ""
+            }
+        },
+        {
+            "comment": "Default port number is removed",
+            "href": "https://example.net:4433",
+            "new_value": "443",
+            "expected": {
+                "href": "https://example.net/",
+                "host": "example.net",
+                "hostname": "example.net",
+                "port": ""
+            }
+        },
+        {
+            "comment": "Default port number is only removed for the relevant scheme",
+            "href": "https://example.net",
+            "new_value": "80",
+            "expected": {
+                "href": "https://example.net:80/",
+                "host": "example.net:80",
+                "hostname": "example.net",
+                "port": "80"
+            }
+        },
+        {
+            "comment": "Stuff after a / delimiter is ignored",
+            "href": "http://example.net/path",
+            "new_value": "8080/stuff",
+            "expected": {
+                "href": "http://example.net:8080/path",
+                "host": "example.net:8080",
+                "hostname": "example.net",
+                "port": "8080"
+            }
+        },
+        {
+            "comment": "Stuff after a ? delimiter is ignored",
+            "href": "http://example.net/path",
+            "new_value": "8080?stuff",
+            "expected": {
+                "href": "http://example.net:8080/path",
+                "host": "example.net:8080",
+                "hostname": "example.net",
+                "port": "8080"
+            }
+        },
+        {
+            "comment": "Stuff after a # delimiter is ignored",
+            "href": "http://example.net/path",
+            "new_value": "8080#stuff",
+            "expected": {
+                "href": "http://example.net:8080/path",
+                "host": "example.net:8080",
+                "hostname": "example.net",
+                "port": "8080"
+            }
+        },
+        {
+            "comment": "Stuff after a \\ delimiter is ignored for special schemes",
+            "href": "http://example.net/path",
+            "new_value": "8080\\stuff",
+            "expected": {
+                "href": "http://example.net:8080/path",
+                "host": "example.net:8080",
+                "hostname": "example.net",
+                "port": "8080"
+            }
+        },
+        {
+            "comment": "Anything other than ASCII digit stops the port parser in a setter but is not an error",
+            "href": "view-source+http://example.net/path",
+            "new_value": "8080stuff2",
+            "expected": {
+                "href": "view-source+http://example.net:8080/path",
+                "host": "example.net:8080",
+                "hostname": "example.net",
+                "port": "8080"
+            }
+        },
+        {
+            "comment": "Anything other than ASCII digit stops the port parser in a setter but is not an error",
+            "href": "http://example.net/path",
+            "new_value": "8080stuff2",
+            "expected": {
+                "href": "http://example.net:8080/path",
+                "host": "example.net:8080",
+                "hostname": "example.net",
+                "port": "8080"
+            }
+        },
+        {
+            "comment": "Anything other than ASCII digit stops the port parser in a setter but is not an error",
+            "href": "http://example.net/path",
+            "new_value": "8080+2",
+            "expected": {
+                "href": "http://example.net:8080/path",
+                "host": "example.net:8080",
+                "hostname": "example.net",
+                "port": "8080"
+            }
+        },
+        {
+            "comment": "Port numbers are 16 bit integers",
+            "href": "http://example.net/path",
+            "new_value": "65535",
+            "expected": {
+                "href": "http://example.net:65535/path",
+                "host": "example.net:65535",
+                "hostname": "example.net",
+                "port": "65535"
+            }
+        },
+        {
+            "comment": "Port numbers are 16 bit integers, overflowing is an error",
+            "href": "http://example.net:8080/path",
+            "new_value": "65536",
+            "expected": {
+                "href": "http://example.net:8080/path",
+                "host": "example.net:8080",
+                "hostname": "example.net",
+                "port": "8080"
+            }
+        }
     ],
     "pathname": [],
     "search": [],
