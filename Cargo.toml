@@ -11,11 +11,16 @@ readme = "README.md"
 keywords = ["url", "parser"]
 license = "MIT/Apache-2.0"
 
-[[test]] name = "format"
-[[test]] name = "form_urlencoded"
-[[test]] name = "idna"
-[[test]] name = "punycode"
-[[test]] name = "tests"
+[[test]]
+name = "format"
+[[test]]
+name = "form_urlencoded"
+[[test]]
+name = "idna"
+[[test]]
+name = "punycode"
+[[test]]
+name = "tests"
 [[test]]
 name = "wpt"
 harness = false
