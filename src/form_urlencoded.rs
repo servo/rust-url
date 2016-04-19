@@ -16,7 +16,6 @@
 use encoding::EncodingOverride;
 use percent_encoding::{percent_encode_byte, percent_decode};
 use std::borrow::{Borrow, Cow};
-use std::iter;
 use std::str;
 
 
@@ -137,12 +136,22 @@ fn replace_plus<'a>(input: &'a [u8]) -> Cow<'a, [u8]> {
 }
 
 impl<'a> Parse<'a> {
-    /// Return a new iterator that yields pairs of `String` instead of pair of `Cow<str>`.
-    pub fn into_owned(self) -> iter::Map<Parse<'a>, fn((Cow<str>, Cow<str>)) -> (String, String)> {
-        fn into_owned((k, v): (Cow<str>, Cow<str>)) -> (String, String) {
-            (k.into_owned(), v.into_owned())
-        }
-        self.map(into_owned)
+    /// Return a new iterator that yields pairs of `String` instead of pairs of `Cow<str>`.
+    pub fn into_owned(self) -> ParseIntoOwned<'a> {
+        ParseIntoOwned { inner: self }
+    }
+}
+
+/// Like `Parse`, but yields pairs of `String` instead of pairs of `Cow<str>`.
+pub struct ParseIntoOwned<'a> {
+    inner: Parse<'a>
+}
+
+impl<'a> Iterator for ParseIntoOwned<'a> {
+    type Item = (String, String);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next().map(|(k, v)| (k.into_owned(), v.into_owned()))
     }
 }
 
