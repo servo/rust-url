@@ -291,7 +291,7 @@ impl<T: Target> Serializer<T> {
     /// to limit the scope of `Serializer`’s borrow of its string.
     ///
     /// Panics if called after `.finish()`.
-    pub fn append_pair_iter<I, K, V>(&mut self, iter: I) -> &mut Self
+    pub fn extend_pairs<I, K, V>(&mut self, iter: I) -> &mut Self
     where I: IntoIterator, I::Item: Borrow<(K, V)>, K: AsRef<str>, V: AsRef<str> {
         {
             let string = string(&mut self.target);

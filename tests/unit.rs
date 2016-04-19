@@ -66,8 +66,8 @@ fn new_path_windows_fun() {
 
         // Invalid UTF-8
         assert!(Url::parse("file:///C:/foo/ba%80r").unwrap().to_file_path().is_err());
-        
-        // test windows canonicalized path        
+
+        // test windows canonicalized path
         let path = PathBuf::from(r"\\?\C:\foo\bar");
         assert!(Url::from_file_path(path).is_ok());
     }
@@ -219,7 +219,7 @@ fn test_form_urlencoded() {
         ("bar".into(), "".into()),
         ("foo".into(), "#".into())
     ];
-    let encoded = form_urlencoded::Serializer::new(String::new()).append_pair_iter(pairs).finish();
+    let encoded = form_urlencoded::Serializer::new(String::new()).extend_pairs(pairs).finish();
     assert_eq!(encoded, "foo=%C3%A9%26&bar=&foo=%23");
     assert_eq!(form_urlencoded::parse(encoded.as_bytes()).collect::<Vec<_>>(), pairs.to_vec());
 }
