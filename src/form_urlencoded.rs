@@ -1,4 +1,4 @@
-// Copyright 2013-2015 Simon Sapin.
+// Copyright 2013-2016 Simon Sapin.
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
