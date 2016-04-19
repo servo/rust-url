@@ -9,11 +9,14 @@
 use host::Host;
 use idna::domain_to_unicode;
 use parser::default_port;
-use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT, Ordering};
 use Url;
 
 impl Url {
     /// Return the origin of this URL (https://url.spec.whatwg.org/#origin)
+    ///
+    /// Note: this return an opaque origin for `file:` URLs, which causes
+    /// `url.origin() != url.origin()`.
     pub fn origin(&self) -> Origin {
         let scheme = self.scheme();
         match scheme {
@@ -46,10 +49,12 @@ pub enum Origin {
     Tuple(String, Host<String>, u16)
 }
 
+
 impl Origin {
     /// Creates a new opaque origin that is only equal to itself.
     pub fn new_opaque() -> Origin {
-        Origin::Opaque(OpaqueOrigin(Arc::new(0)))
+        static COUNTER: AtomicUsize = ATOMIC_USIZE_INIT;
+        Origin::Opaque(OpaqueOrigin(COUNTER.fetch_add(1, Ordering::SeqCst)))
     }
 
     /// Return whether this origin is a (scheme, host, port) tuple
@@ -95,17 +100,6 @@ impl Origin {
 }
 
 /// Opaque identifier for URLs that have file or other schemes
-#[derive(Eq, Clone, Debug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 #[cfg_attr(feature="heap_size", derive(HeapSizeOf))]
-// `u8` is a dummy non-zero-sized type to force the allocator to return a unique pointer.
-// (It returns `std::heap::EMPTY` for zero-sized allocations.)
-pub struct OpaqueOrigin(Arc<u8>);
-
-/// Note that `opaque_origin.clone() != opaque_origin`.
-impl PartialEq for OpaqueOrigin {
-    fn eq(&self, other: &Self) -> bool {
-        let a: *const u8 = &*self.0;
-        let b: *const u8 = &*other.0;
-        a == b
-    }
-}
+pub struct OpaqueOrigin(usize);
