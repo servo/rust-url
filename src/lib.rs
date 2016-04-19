@@ -503,9 +503,9 @@ impl Url {
     }
 
     /// Return the path for this URL, as a percent-encoded ASCII string.
-    /// For relative URLs, this starts with a '/' slash
-    /// and continues with slash-separated path segments.
     /// For cannot-be-a-base URLs, this is an arbitrary string that doesn’t start with '/'.
+    /// For other URLs, this starts with a '/' slash
+    /// and continues with slash-separated path segments.
     pub fn path(&self) -> &str {
         match (self.query_start, self.fragment_start) {
             (None, None) => self.slice(self.path_start..),
@@ -516,7 +516,8 @@ impl Url {
         }
     }
 
-    /// If this URL is relative, return an iterator of '/' slash-separated path segments,
+    /// Unless this URL is cannot-be-a-base,
+    /// return an iterator of '/' slash-separated path segments,
     /// each as a percent-encoded ASCII string.
     ///
     /// Return `None` for cannot-be-a-base URLs, or an iterator of at least one string.
@@ -718,6 +719,7 @@ impl Url {
     /// Remove the last segment of this URL’s path.
     ///
     /// If this URL is cannot-be-a-base, do nothing and return `Err`.
+    /// If this URL is not cannot-be-a-base and its path is `/`, do nothing and return `Ok`.
     pub fn pop_path_segment(&mut self) -> Result<(), ()> {
         if self.cannot_be_a_base() {
             return Err(())

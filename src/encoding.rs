@@ -74,6 +74,7 @@ impl EncodingOverride {
 
     pub fn decode<'a>(&self, input: Cow<'a, [u8]>) -> Cow<'a, str> {
         match self.encoding {
+            // `encoding.decode` never returns `Err` when called with `DecoderTrap::Replace`
             Some(encoding) => encoding.decode(&input, DecoderTrap::Replace).unwrap().into(),
             None => decode_utf8_lossy(input),
         }
@@ -81,6 +82,7 @@ impl EncodingOverride {
 
     pub fn encode<'a>(&self, input: Cow<'a, str>) -> Cow<'a, [u8]> {
         match self.encoding {
+            // `encoding.encode` never returns `Err` when called with `EncoderTrap::NcrEscape`
             Some(encoding) => Cow::Owned(encoding.encode(&input, EncoderTrap::NcrEscape).unwrap()),
             None => encode_utf8(input)
         }
@@ -112,10 +114,15 @@ pub fn decode_utf8_lossy(input: Cow<[u8]>) -> Cow<str> {
     match input {
         Cow::Borrowed(bytes) => String::from_utf8_lossy(bytes),
         Cow::Owned(bytes) => {
+            let raw_utf8: *const [u8];
             match String::from_utf8_lossy(&bytes) {
-                Cow::Borrowed(_) => unsafe { String::from_utf8_unchecked(bytes) }.into(),
-                Cow::Owned(s) => s.into(),
+                Cow::Borrowed(utf8) => raw_utf8 = utf8.as_bytes(),
+                Cow::Owned(s) => return s.into(),
             }
+            // from_utf8_lossy returned a borrow of `bytes` unchanged.
+            debug_assert!(raw_utf8 == &*bytes as *const [u8]);
+            // Reuse the existing `Vec` allocation.
+            unsafe { String::from_utf8_unchecked(bytes) }.into()
         }
     }
 }
