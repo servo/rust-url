@@ -266,7 +266,7 @@ enum Error {
 
 /// Errors recorded during UTS #46 processing.
 ///
-/// This is opaque for now, only indicating the precense of at least one error.
+/// This is opaque for now, only indicating the presence of at least one error.
 /// More details may be exposed in the future.
 #[derive(Debug)]
 pub struct Errors(Vec<Error>);
