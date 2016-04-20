@@ -52,6 +52,7 @@ simple_enum_error! {
     InvalidDomainCharacter => "invalid domain character",
     RelativeUrlWithoutBase => "relative URL without a base",
     RelativeUrlWithCannotBeABaseBase => "relative URL with a cannot-be-a-base base",
+    SetHostOnCannotBeABaseUrl => "a cannot-be-a-base URL doesn’t have a host to set",
     Overflow => "URLs more than 4 GB are not supported",
 }
 

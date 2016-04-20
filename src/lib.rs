@@ -825,13 +825,13 @@ impl Url {
     ///
     /// Removing the host (calling this with `None`)
     /// will also remove any username, password, and port number.
-    pub fn set_host(&mut self, host: Option<&str>) -> Result<(), ()> {
+    pub fn set_host(&mut self, host: Option<&str>) -> Result<(), ParseError> {
         if self.cannot_be_a_base() {
-            return Err(())
+            return Err(ParseError::SetHostOnCannotBeABaseUrl)
         }
 
         if let Some(host) = host {
-            self.set_host_internal(try!(Host::parse(host).map_err(|_| ())), None)
+            self.set_host_internal(try!(Host::parse(host)), None)
         } else if self.has_host() {
             debug_assert!(self.byte_at(self.scheme_end) == b':');
             debug_assert!(self.byte_at(self.path_start) == b'/');
