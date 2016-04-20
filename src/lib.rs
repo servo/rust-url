@@ -361,7 +361,7 @@ impl Url {
     #[inline]
     pub fn has_authority(&self) -> bool {
         debug_assert!(self.byte_at(self.scheme_end) == b':');
-        self.slice(self.scheme_end + 1 ..).starts_with("//")
+        self.slice(self.scheme_end..).starts_with("://")
     }
 
     /// Return whether this URL is a cannot-be-a-base URL,
@@ -378,7 +378,7 @@ impl Url {
     /// as a percent-encoded ASCII string.
     pub fn username(&self) -> &str {
         if self.has_authority() {
-            self.slice(self.scheme_end + 3..self.username_end)
+            self.slice(self.scheme_end + ("://".len() as u32)..self.username_end)
         } else {
             ""
         }
