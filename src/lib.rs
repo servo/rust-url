@@ -347,6 +347,15 @@ impl Url {
         }
     }
 
+    /// Return the origin of this URL (https://url.spec.whatwg.org/#origin)
+    ///
+    /// Note: this return an opaque origin for `file:` URLs, which causes
+    /// `url.origin() != url.origin()`.
+    #[inline]
+    pub fn origin(&self) -> Origin {
+        origin::url_origin(self)
+    }
+
     /// Return the scheme of this URL, lower-cased, as an ASCII string without the ':' delimiter.
     #[inline]
     pub fn scheme(&self) -> &str {
@@ -668,22 +677,7 @@ impl Url {
         let query = UrlQuery { url: self, fragment: fragment };
         form_urlencoded::Serializer::for_suffix(query, query_start + "?".len())
     }
-}
 
-
-/// Implementation detail of `Url::mutate_query_pairs`. Typically not used directly.
-pub struct UrlQuery<'a> {
-    url: &'a mut Url,
-    fragment: Option<String>,
-}
-
-impl<'a> Drop for UrlQuery<'a> {
-    fn drop(&mut self) {
-        self.url.restore_already_parsed_fragment(self.fragment.take())
-    }
-}
-
-impl Url {
     /// Change this URL’s path.
     pub fn set_path(&mut self, path: &str) {
         let (old_after_path_pos, after_path) = match (self.query_start, self.fragment_start) {
@@ -1364,4 +1358,16 @@ fn file_url_segments_to_pathbuf_windows(mut segments: str::Split<char>) -> Resul
 
 fn io_error<T>(reason: &str) -> io::Result<T> {
     Err(io::Error::new(io::ErrorKind::InvalidData, reason))
+}
+
+/// Implementation detail of `Url::mutate_query_pairs`. Typically not used directly.
+pub struct UrlQuery<'a> {
+    url: &'a mut Url,
+    fragment: Option<String>,
+}
+
+impl<'a> Drop for UrlQuery<'a> {
+    fn drop(&mut self) {
+        self.url.restore_already_parsed_fragment(self.fragment.take())
+    }
 }

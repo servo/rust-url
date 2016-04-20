@@ -12,29 +12,23 @@ use parser::default_port;
 use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT, Ordering};
 use Url;
 
-impl Url {
-    /// Return the origin of this URL (https://url.spec.whatwg.org/#origin)
-    ///
-    /// Note: this return an opaque origin for `file:` URLs, which causes
-    /// `url.origin() != url.origin()`.
-    pub fn origin(&self) -> Origin {
-        let scheme = self.scheme();
-        match scheme {
-            "blob" => {
-                let result = Url::parse(self.path());
-                match result {
-                    Ok(ref url) => url.origin(),
-                    Err(_)  => Origin::new_opaque()
-                }
-            },
-            "ftp" | "gopher" | "http" | "https" | "ws" | "wss" => {
-                Origin::Tuple(scheme.to_owned(), self.host().unwrap().to_owned(),
-                    self.port_or_known_default().unwrap())
-            },
-            // TODO: Figure out what to do if the scheme is a file
-            "file" => Origin::new_opaque(),
-            _ => Origin::new_opaque()
-        }
+pub fn url_origin(url: &Url) -> Origin {
+    let scheme = url.scheme();
+    match scheme {
+        "blob" => {
+            let result = Url::parse(url.path());
+            match result {
+                Ok(ref url) => url_origin(url),
+                Err(_)  => Origin::new_opaque()
+            }
+        },
+        "ftp" | "gopher" | "http" | "https" | "ws" | "wss" => {
+            Origin::Tuple(scheme.to_owned(), url.host().unwrap().to_owned(),
+                url.port_or_known_default().unwrap())
+        },
+        // TODO: Figure out what to do if the scheme is a file
+        "file" => Origin::new_opaque(),
+        _ => Origin::new_opaque()
     }
 }
 
