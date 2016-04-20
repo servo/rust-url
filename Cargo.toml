@@ -1,8 +1,8 @@
 [package]
 
 name = "url"
-version = "0.5.9"
-authors = [ "Simon Sapin <simon.sapin@exyr.org>" ]
+version = "1.0.0"
+authors = ["The rust-url developers"]
 
 description = "URL library for Rust, based on the WHATWG URL Standard"
 documentation = "http://servo.github.io/rust-url/url/index.html"
@@ -12,46 +12,28 @@ keywords = ["url", "parser"]
 license = "MIT/Apache-2.0"
 
 [[test]]
-name = "format"
+name = "unit"
+
 [[test]]
-name = "form_urlencoded"
-[[test]]
-name = "idna"
-[[test]]
-name = "punycode"
-[[test]]
-name = "tests"
-[[test]]
-name = "wpt"
+name = "data"
 harness = false
+
+[lib]
+test = false
 
 [dev-dependencies]
 rustc-test = "0.1"
+rustc-serialize = "0.3"
 
 [features]
 query_encoding = ["encoding"]
-serde_serialization = ["serde"]
 heap_size = ["heapsize", "heapsize_plugin"]
 
-[dependencies.heapsize]
-version = ">=0.1.1, <0.4"
-optional = true
-
-[dependencies.heapsize_plugin]
-version = "0.1.0"
-optional = true
-
-[dependencies.encoding]
-version = "0.2"
-optional = true
-
-[dependencies.serde]
-version = ">=0.6.1, <0.8"
-optional = true
-
 [dependencies]
-uuid = { version = "0.2", features = ["v4"] }
-rustc-serialize = "0.3"
-unicode-bidi = "0.2.3"
-unicode-normalization = "0.1.2"
+idna = { version = "0.1.0", path = "./idna" }
+heapsize = {version = ">=0.1.1, <0.4", optional = true}
+heapsize_plugin = {version = "0.1.0", optional = true}
+encoding = {version = "0.2", optional = true}
+serde = {version = ">=0.6.1, <0.8", optional = true}
+rustc-serialize = {version = "0.3", optional = true}
 matches = "0.1"

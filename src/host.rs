@@ -1,4 +1,4 @@
-// Copyright 2013-2014 Simon Sapin.
+// Copyright 2013-2016 The rust-url developers.
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -6,84 +6,164 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use std::ascii::AsciiExt;
 use std::cmp;
-use std::fmt::{self, Formatter};
-use std::net::{Ipv4Addr, Ipv6Addr};
+use std::fmt::{self, Formatter, Write};
+use std::io;
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
+use std::vec;
 use parser::{ParseResult, ParseError};
-use percent_encoding::{from_hex, percent_decode};
+use percent_encoding::percent_decode;
 use idna;
 
-
-/// The host name of an URL.
-#[derive(PartialEq, Eq, Clone, Debug, Hash, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature="heap_size", derive(HeapSizeOf))]
-pub enum Host {
-    /// A (DNS) domain name.
-    Domain(String),
-    /// A IPv4 address, represented by four sequences of up to three ASCII digits.
+pub enum HostInternal {
+    None,
+    Domain,
     Ipv4(Ipv4Addr),
-    /// An IPv6 address, represented inside `[...]` square brackets
-    /// so that `:` colon characters in the address are not ambiguous
-    /// with the port number delimiter.
     Ipv6(Ipv6Addr),
 }
 
+impl<S> From<Host<S>> for HostInternal {
+    fn from(host: Host<S>) -> HostInternal {
+        match host {
+            Host::Domain(_) => HostInternal::Domain,
+            Host::Ipv4(address) => HostInternal::Ipv4(address),
+            Host::Ipv6(address) => HostInternal::Ipv6(address),
+        }
+    }
+}
 
-impl Host {
+/// The host name of an URL.
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[cfg_attr(feature="heap_size", derive(HeapSizeOf))]
+pub enum Host<S=String> {
+    /// A DNS domain name, as '.' dot-separated labels.
+    /// Non-ASCII labels are encoded in punycode per IDNA.
+    Domain(S),
+
+    /// An IPv4 address.
+    /// `Url::host_str` returns the serialization of this address,
+    /// as four decimal integers separated by `.` dots.
+    Ipv4(Ipv4Addr),
+
+    /// An IPv6 address.
+    /// `Url::host_str` returns the serialization of that address between `[` and `]` brackets,
+    /// in the format per [RFC 5952 *A Recommendation
+    /// for IPv6 Address Text Representation*](https://tools.ietf.org/html/rfc5952):
+    /// lowercase hexadecimal with maximal `::` compression.
+    Ipv6(Ipv6Addr),
+}
+
+impl<'a> Host<&'a str> {
+    /// Return a copy of `self` that owns an allocated `String` but does not borrow an `&Url`.
+    pub fn to_owned(&self) -> Host<String> {
+        match *self {
+            Host::Domain(domain) => Host::Domain(domain.to_owned()),
+            Host::Ipv4(address) => Host::Ipv4(address),
+            Host::Ipv6(address) => Host::Ipv6(address),
+        }
+    }
+}
+
+impl Host<String> {
     /// Parse a host: either an IPv6 address in [] square brackets, or a domain.
     ///
-    /// Returns `Err` for an empty host, an invalid IPv6 address,
-    /// or a or invalid non-ASCII domain.
-    pub fn parse(input: &str) -> ParseResult<Host> {
-        if input.len() == 0 {
-            return Err(ParseError::EmptyHost)
-        }
+    /// https://url.spec.whatwg.org/#host-parsing
+    pub fn parse(input: &str) -> Result<Self, ParseError> {
         if input.starts_with("[") {
             if !input.ends_with("]") {
                 return Err(ParseError::InvalidIpv6Address)
             }
             return parse_ipv6addr(&input[1..input.len() - 1]).map(Host::Ipv6)
         }
-        let decoded = percent_decode(input.as_bytes());
-        let domain = String::from_utf8_lossy(&decoded);
-
-        let domain = match idna::domain_to_ascii(&domain) {
-            Ok(s) => s,
-            Err(_) => return Err(ParseError::InvalidDomainCharacter)
-        };
-
-        if domain.find(&[
-            '\0', '\t', '\n', '\r', ' ', '#', '%', '/', ':', '?', '@', '[', '\\', ']'
-        ][..]).is_some() {
+        let domain = percent_decode(input.as_bytes()).decode_utf8_lossy();
+        let domain = try!(idna::domain_to_ascii(&domain));
+        if domain.find(|c| matches!(c,
+            '\0' | '\t' | '\n' | '\r' | ' ' | '#' | '%' | '/' | ':' | '?' | '@' | '[' | '\\' | ']'
+        )).is_some() {
             return Err(ParseError::InvalidDomainCharacter)
         }
-        match parse_ipv4addr(&domain[..]) {
-            Ok(Some(ipv4addr)) => Ok(Host::Ipv4(ipv4addr)),
-            Ok(None) => Ok(Host::Domain(domain.to_ascii_lowercase())),
-            Err(e) => Err(e),
+        if let Some(address) = try!(parse_ipv4addr(&domain)) {
+            Ok(Host::Ipv4(address))
+        } else {
+            Ok(Host::Domain(domain.into()))
         }
-    }
-
-    /// Serialize the host as a string.
-    ///
-    /// A domain a returned as-is, an IPv6 address between [] square brackets.
-    pub fn serialize(&self) -> String {
-        self.to_string()
     }
 }
 
-
-impl fmt::Display for Host {
+impl<S: AsRef<str>> fmt::Display for Host<S> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
-            Host::Domain(ref domain) => domain.fmt(f),
+            Host::Domain(ref domain) => domain.as_ref().fmt(f),
             Host::Ipv4(ref addr) => addr.fmt(f),
             Host::Ipv6(ref addr) => {
                 try!(f.write_str("["));
                 try!(write_ipv6(addr, f));
                 f.write_str("]")
             }
+        }
+    }
+}
+
+/// This mostly exists because coherence rules don’t allow us to implement
+/// `ToSocketAddrs for (Host<S>, u16)`.
+pub struct HostAndPort<S=String> {
+    pub host: Host<S>,
+    pub port: u16,
+}
+
+impl<'a> HostAndPort<&'a str> {
+    /// Return a copy of `self` that owns an allocated `String` but does not borrow an `&Url`.
+    pub fn to_owned(&self) -> HostAndPort<String> {
+        HostAndPort {
+            host: self.host.to_owned(),
+            port: self.port
+        }
+    }
+}
+
+impl<S: AsRef<str>> ToSocketAddrs for HostAndPort<S> {
+    type Iter = SocketAddrs;
+
+    fn to_socket_addrs(&self) -> io::Result<Self::Iter> {
+        let port = self.port;
+        match self.host {
+            Host::Domain(ref domain) => Ok(SocketAddrs {
+                // FIXME: use std::net::lookup_host when it’s stable.
+                state: SocketAddrsState::Domain(try!((domain.as_ref(), port).to_socket_addrs()))
+            }),
+            Host::Ipv4(address) => Ok(SocketAddrs {
+                state: SocketAddrsState::One(SocketAddr::V4(SocketAddrV4::new(address, port)))
+            }),
+            Host::Ipv6(address) => Ok(SocketAddrs {
+                state: SocketAddrsState::One(SocketAddr::V6(SocketAddrV6::new(address, port, 0, 0)))
+            }),
+        }
+    }
+}
+
+/// Socket addresses for an URL.
+pub struct SocketAddrs {
+    state: SocketAddrsState
+}
+
+enum SocketAddrsState {
+    Domain(vec::IntoIter<SocketAddr>),
+    One(SocketAddr),
+    Done,
+}
+
+impl Iterator for SocketAddrs {
+    type Item = SocketAddr;
+    fn next(&mut self) -> Option<SocketAddr> {
+        match self.state {
+            SocketAddrsState::Domain(ref mut iter) => iter.next(),
+            SocketAddrsState::One(s) => {
+                self.state = SocketAddrsState::Done;
+                Some(s)
+            }
+            SocketAddrsState::Done => None
         }
     }
 }
@@ -143,7 +223,7 @@ fn longest_zero_sequence(pieces: &[u16; 8]) -> (isize, isize) {
 }
 
 
-fn parse_ipv4number(mut input: &str) -> ParseResult<u32> {
+fn parse_ipv4number(mut input: &str) -> Result<u32, ()> {
     let mut r = 10;
     if input.starts_with("0x") || input.starts_with("0X") {
         input = &input[2..];
@@ -156,15 +236,18 @@ fn parse_ipv4number(mut input: &str) -> ParseResult<u32> {
         return Ok(0);
     }
     if input.starts_with("+") {
-        return Err(ParseError::InvalidIpv4Address)
+        return Err(())
     }
     match u32::from_str_radix(&input, r) {
         Ok(number) => Ok(number),
-        Err(_) => Err(ParseError::InvalidIpv4Address),
+        Err(_) => Err(()),
     }
 }
 
 fn parse_ipv4addr(input: &str) -> ParseResult<Option<Ipv4Addr>> {
+    if input.is_empty() {
+        return Ok(None)
+    }
     let mut parts: Vec<&str> = input.split('.').collect();
     if parts.last() == Some(&"") {
         parts.pop();
@@ -237,7 +320,7 @@ fn parse_ipv6addr(input: &str) -> ParseResult<Ipv6Addr> {
         let end = cmp::min(len, start + 4);
         let mut value = 0u16;
         while i < end {
-            match from_hex(input[i]) {
+            match (input[i] as char).to_digit(16) {
                 Some(digit) => {
                     value = value * 0x10 + digit as u16;
                     i += 1;

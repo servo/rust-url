@@ -1,4 +1,4 @@
-// Copyright 2013-2014 Simon Sapin.
+// Copyright 2013-2014 The rust-url developers.
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -27,43 +27,64 @@ pub struct EncodingOverride {
 
 #[cfg(feature = "query_encoding")]
 impl EncodingOverride {
-    pub fn from_opt_encoding(encoding: Option<EncodingRef>) -> EncodingOverride {
-        encoding.map(EncodingOverride::from_encoding).unwrap_or_else(EncodingOverride::utf8)
+    pub fn from_opt_encoding(encoding: Option<EncodingRef>) -> Self {
+        encoding.map(Self::from_encoding).unwrap_or_else(Self::utf8)
     }
 
-    pub fn from_encoding(encoding: EncodingRef) -> EncodingOverride {
+    pub fn from_encoding(encoding: EncodingRef) -> Self {
         EncodingOverride {
             encoding: if encoding.name() == "utf-8" { None } else { Some(encoding) }
         }
     }
 
-    pub fn utf8() -> EncodingOverride {
+    #[inline]
+    pub fn utf8() -> Self {
         EncodingOverride { encoding: None }
     }
 
-    pub fn lookup(label: &[u8]) -> Option<EncodingOverride> {
+    pub fn lookup(label: &[u8]) -> Option<Self> {
+        // Don't use String::from_utf8_lossy since no encoding label contains U+FFFD
+        // https://encoding.spec.whatwg.org/#names-and-labels
         ::std::str::from_utf8(label)
         .ok()
         .and_then(encoding_from_whatwg_label)
-        .map(EncodingOverride::from_encoding)
+        .map(Self::from_encoding)
+    }
+
+    /// https://encoding.spec.whatwg.org/#get-an-output-encoding
+    pub fn to_output_encoding(self) -> Self {
+        if let Some(encoding) = self.encoding {
+            if matches!(encoding.name(), "utf-16le" | "utf-16be") {
+                return Self::utf8()
+            }
+        }
+        self
     }
 
     pub fn is_utf8(&self) -> bool {
         self.encoding.is_none()
     }
 
-    pub fn decode(&self, input: &[u8]) -> String {
+    pub fn name(&self) -> &'static str {
         match self.encoding {
-            Some(encoding) => encoding.decode(input, DecoderTrap::Replace).unwrap(),
-            None => String::from_utf8_lossy(input).to_string(),
+            Some(encoding) => encoding.name(),
+            None => "utf-8",
         }
     }
 
-    pub fn encode<'a>(&self, input: &'a str) -> Cow<'a, [u8]> {
+    pub fn decode<'a>(&self, input: Cow<'a, [u8]>) -> Cow<'a, str> {
         match self.encoding {
-            Some(encoding) => Cow::Owned(
-                encoding.encode(input, EncoderTrap::NcrEscape).unwrap()),
-            None => Cow::Borrowed(input.as_bytes()),  // UTF-8
+            // `encoding.decode` never returns `Err` when called with `DecoderTrap::Replace`
+            Some(encoding) => encoding.decode(&input, DecoderTrap::Replace).unwrap().into(),
+            None => decode_utf8_lossy(input),
+        }
+    }
+
+    pub fn encode<'a>(&self, input: Cow<'a, str>) -> Cow<'a, [u8]> {
+        match self.encoding {
+            // `encoding.encode` never returns `Err` when called with `EncoderTrap::NcrEscape`
+            Some(encoding) => Cow::Owned(encoding.encode(&input, EncoderTrap::NcrEscape).unwrap()),
+            None => encode_utf8(input)
         }
     }
 }
@@ -75,23 +96,40 @@ pub struct EncodingOverride;
 
 #[cfg(not(feature = "query_encoding"))]
 impl EncodingOverride {
-    pub fn utf8() -> EncodingOverride {
+    #[inline]
+    pub fn utf8() -> Self {
         EncodingOverride
     }
 
-    pub fn lookup(_label: &[u8]) -> Option<EncodingOverride> {
-        None
+    pub fn decode<'a>(&self, input: Cow<'a, [u8]>) -> Cow<'a, str> {
+        decode_utf8_lossy(input)
     }
 
-    pub fn is_utf8(&self) -> bool {
-        true
+    pub fn encode<'a>(&self, input: Cow<'a, str>) -> Cow<'a, [u8]> {
+        encode_utf8(input)
     }
+}
 
-    pub fn decode(&self, input: &[u8]) -> String {
-        String::from_utf8_lossy(input).into_owned()
+pub fn decode_utf8_lossy(input: Cow<[u8]>) -> Cow<str> {
+    match input {
+        Cow::Borrowed(bytes) => String::from_utf8_lossy(bytes),
+        Cow::Owned(bytes) => {
+            let raw_utf8: *const [u8];
+            match String::from_utf8_lossy(&bytes) {
+                Cow::Borrowed(utf8) => raw_utf8 = utf8.as_bytes(),
+                Cow::Owned(s) => return s.into(),
+            }
+            // from_utf8_lossy returned a borrow of `bytes` unchanged.
+            debug_assert!(raw_utf8 == &*bytes as *const [u8]);
+            // Reuse the existing `Vec` allocation.
+            unsafe { String::from_utf8_unchecked(bytes) }.into()
+        }
     }
+}
 
-    pub fn encode<'a>(&self, input: &'a str) -> Cow<'a, [u8]> {
-        Cow::Borrowed(input.as_bytes())
+pub fn encode_utf8(input: Cow<str>) -> Cow<[u8]> {
+    match input {
+        Cow::Borrowed(s) => Cow::Borrowed(s.as_bytes()),
+        Cow::Owned(s) => Cow::Owned(s.into_bytes())
     }
 }

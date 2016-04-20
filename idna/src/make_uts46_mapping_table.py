@@ -1,4 +1,4 @@
-# Copyright 2013-2014 Valentin Gosu.
+# Copyright 2013-2014 The rust-url developers.
 #
 # Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 # http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -6,13 +6,12 @@
 # option. This file may not be copied, modified, or distributed
 # except according to those terms.
 
-
-# Run as: python make_idna_table.py idna_table.txt > src/idna_table.rs
+# Run as: python make_uts46_mapping_table.py IdnaMappingTable.txt > uts46_mapping_table.rs
 # You can get the latest idna table from
 # http://www.unicode.org/Public/idna/latest/IdnaMappingTable.txt
 
 print('''\
-// Copyright 2013-2014 Valentin Gosu.
+// Copyright 2013-2014 The rust-url developers.
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
