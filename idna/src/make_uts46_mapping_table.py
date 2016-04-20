@@ -1,4 +1,4 @@
-# Copyright 2013-2014 Valentin Gosu.
+# Copyright 2013-2014 The rust-url developers.
 #
 # Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 # http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -11,7 +11,7 @@
 # http://www.unicode.org/Public/idna/latest/IdnaMappingTable.txt
 
 print('''\
-// Copyright 2013-2014 Valentin Gosu.
+// Copyright 2013-2014 The rust-url developers.
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
