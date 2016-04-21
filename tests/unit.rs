@@ -249,3 +249,13 @@ fn issue_25() {
     let expected = format!("postgres://me@/{}run/pg.sock", if cfg!(windows) { "C:/" } else { "" });
     assert_eq!(url.as_str(), expected);
 }
+
+#[test]
+/// https://github.com/servo/rust-url/issues/61
+fn issue_61() {
+    let mut url = Url::parse("http://mozilla.org").unwrap();
+    url.set_scheme("https").unwrap();
+    assert_eq!(url.port(), None);
+    assert_eq!(url.port_or_known_default(), Some(443));
+    url.assert_invariants();
+}
