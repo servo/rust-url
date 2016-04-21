@@ -645,11 +645,11 @@ impl Url {
     /// let mut url = Url::parse("https://example.net?lang=fr#nav").unwrap();
     /// assert_eq!(url.query(), Some("lang=fr"));
     ///
-    /// url.mutate_query_pairs().append_pair("foo", "bar");
+    /// url.query_pairs_mut().append_pair("foo", "bar");
     /// assert_eq!(url.query(), Some("lang=fr&foo=bar"));
     /// assert_eq!(url.as_str(), "https://example.net/?lang=fr&foo=bar#nav");
     ///
-    /// url.mutate_query_pairs()
+    /// url.query_pairs_mut()
     ///     .clear()
     ///     .append_pair("foo", "bar & baz")
     ///     .append_pair("saisons", "Été+hiver");
@@ -658,11 +658,11 @@ impl Url {
     ///            "https://example.net/?foo=bar+%26+baz&saisons=%C3%89t%C3%A9%2Bhiver#nav");
     /// ```
     ///
-    /// Note: `url.mutate_query_pairs().clear();` is equivalent to `url.set_query(Some(""))`,
+    /// Note: `url.query_pairs_mut().clear();` is equivalent to `url.set_query(Some(""))`,
     /// not `url.set_query(None)`.
     ///
     /// The state of `Url` is unspecified if this return value is leaked without being dropped.
-    pub fn mutate_query_pairs(&mut self) -> form_urlencoded::Serializer<UrlQuery> {
+    pub fn query_pairs_mut(&mut self) -> form_urlencoded::Serializer<UrlQuery> {
         let fragment = self.take_fragment();
 
         let query_start;
@@ -715,7 +715,8 @@ impl Url {
     ///
     /// If this URL is cannot-be-a-base, do nothing and return `Err`.
     /// If this URL is not cannot-be-a-base and its path is `/`, do nothing and return `Ok`.
-    pub fn pop_path_segment(&mut self) -> Result<(), ()> {
+    // Temporarily private: https://github.com/servo/rust-url/issues/188
+    /*pub*/ fn pop_path_segment(&mut self) -> Result<(), ()> {
         if self.cannot_be_a_base() {
             return Err(())
         }
@@ -741,7 +742,8 @@ impl Url {
     /// Add a segment at the end of this URL’s path.
     ///
     /// If this URL is cannot-be-a-base, do nothing and return `Err`.
-    pub fn push_path_segment(&mut self, segment: &str) -> Result<(), ()> {
+    // Temporarily private: https://github.com/servo/rust-url/issues/188
+    /*pub*/ fn push_path_segment(&mut self, segment: &str) -> Result<(), ()> {
         if self.cannot_be_a_base() {
             return Err(())
         }
@@ -1361,7 +1363,7 @@ fn io_error<T>(reason: &str) -> io::Result<T> {
     Err(io::Error::new(io::ErrorKind::InvalidData, reason))
 }
 
-/// Implementation detail of `Url::mutate_query_pairs`. Typically not used directly.
+/// Implementation detail of `Url::query_pairs_mut`. Typically not used directly.
 pub struct UrlQuery<'a> {
     url: &'a mut Url,
     fragment: Option<String>,
