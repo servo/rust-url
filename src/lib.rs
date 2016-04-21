@@ -848,7 +848,7 @@ impl Url {
         let old_suffix_pos = if opt_new_port.is_some() { self.path_start } else { self.host_end };
         let suffix = self.slice(old_suffix_pos..).to_owned();
         self.serialization.truncate(self.host_start as usize);
-        if !self.has_host() {
+        if !self.has_authority() {
             debug_assert!(self.slice(self.scheme_end..self.host_start) == ":");
             debug_assert!(self.username_end == self.host_start);
             self.serialization.push('/');

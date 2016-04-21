@@ -233,3 +233,19 @@ fn test_form_serialize() {
         .finish();
     assert_eq!(encoded, "foo=%C3%A9%26&bar=&foo=%23");
 }
+
+#[test]
+/// https://github.com/servo/rust-url/issues/25
+fn issue_25() {
+    let filename = if cfg!(windows) { r"C:\run\pg.sock" } else { "/run/pg.sock" };
+    let mut url = Url::from_file_path(filename).unwrap();
+    url.assert_invariants();
+    url.set_scheme("postgres").unwrap();
+    url.assert_invariants();
+    url.set_host(Some("")).unwrap();
+    url.assert_invariants();
+    url.set_username("me").unwrap();
+    url.assert_invariants();
+    let expected = format!("postgres://me@/{}run/pg.sock", if cfg!(windows) { "C:/" } else { "" });
+    assert_eq!(url.as_str(), expected);
+}
