@@ -238,7 +238,7 @@ impl<'a> Target for &'a mut String {
 //   (and so can not be constructed with struct literal syntax outside of this crate),
 // * It has no constructor
 // * It is only visible (on the type level) to users in the return type of
-//   `Url::mutate_query_pairs` which is `Serializer<UrlQuery>`
+//   `Url::query_pairs_mut` which is `Serializer<UrlQuery>`
 // * `Serializer` keeps its target in a private field
 // * Unlike in other `Target` impls, `UrlQuery::finished` does not return `Self`.
 impl<'a> Target for ::UrlQuery<'a> {
