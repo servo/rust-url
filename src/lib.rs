@@ -715,7 +715,8 @@ impl Url {
     ///
     /// If this URL is cannot-be-a-base, do nothing and return `Err`.
     /// If this URL is not cannot-be-a-base and its path is `/`, do nothing and return `Ok`.
-    pub fn pop_path_segment(&mut self) -> Result<(), ()> {
+    // Temporarily private: https://github.com/servo/rust-url/issues/188
+    /*pub*/ fn pop_path_segment(&mut self) -> Result<(), ()> {
         if self.cannot_be_a_base() {
             return Err(())
         }
@@ -741,7 +742,8 @@ impl Url {
     /// Add a segment at the end of this URL’s path.
     ///
     /// If this URL is cannot-be-a-base, do nothing and return `Err`.
-    pub fn push_path_segment(&mut self, segment: &str) -> Result<(), ()> {
+    // Temporarily private: https://github.com/servo/rust-url/issues/188
+    /*pub*/ fn push_path_segment(&mut self, segment: &str) -> Result<(), ()> {
         if self.cannot_be_a_base() {
             return Err(())
         }
