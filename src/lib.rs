@@ -266,6 +266,7 @@ impl Url {
     /// Methods of the `Url` struct assume a number of invariants.
     /// This checks each of these invariants and panic if one is not met.
     /// This is for testing rust-url itself.
+    #[doc(hidden)]
     pub fn assert_invariants(&self) {
         macro_rules! assert {
             ($x: expr) => {
