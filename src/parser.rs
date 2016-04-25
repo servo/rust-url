@@ -744,77 +744,83 @@ impl<'a> Parser<'a> {
         let input_str = input.chars.as_str();
         let mut inside_square_brackets = false;
         let mut has_ignored_chars = false;
-        let mut end = input_str.len();
-        for (i, b) in input_str.bytes().enumerate() {
-            match b {
-                b':' if !inside_square_brackets => {
-                    end = i;
-                    break
-                },
-                b'/' | b'?' | b'#' => {
-                    end = i;
-                    break
-                }
-                b'\\' if scheme_type.is_special() => {
-                    end = i;
-                    break
-                }
-                b'\t' | b'\n' | b'\r' => {
+        let mut non_ignored_chars = 0;
+        let mut bytes = 0;
+        for c in input_str.chars() {
+            match c {
+                ':' if !inside_square_brackets => break,
+                '\\' if scheme_type.is_special() => break,
+                '/' | '?' | '#' => break,
+                '\t' | '\n' | '\r' => {
                     has_ignored_chars = true;
                 }
-                b'[' => inside_square_brackets = true,
-                b']' => inside_square_brackets = false,
-                _ => {}
+                '[' => {
+                    inside_square_brackets = true;
+                    non_ignored_chars += 1
+                }
+                ']' => {
+                    inside_square_brackets = false;
+                    non_ignored_chars += 1
+                }
+                _ => non_ignored_chars += 1
             }
+            bytes += c.len_utf8();
         }
         let replaced: String;
-        let host_input = if has_ignored_chars {
-            replaced = input_str[..end].chars().filter(|&c| !matches!(c, '\t' | '\n' | '\r')).collect();
-            &*replaced
-        } else {
-            &input_str[..end]
-        };
-        if scheme_type.is_special() && host_input.is_empty() {
+        let host_str;
+        {
+            let host_input = input.by_ref().take(non_ignored_chars);
+            if has_ignored_chars {
+                replaced = host_input.collect();
+                host_str = &*replaced
+            } else {
+                for _ in host_input {}
+                host_str = &input_str[..bytes]
+            }
+        }
+        if scheme_type.is_special() && host_str.is_empty() {
             return Err(ParseError::EmptyHost)
         }
-        let host = try!(Host::parse(&host_input));
-        input.chars = input_str[end..].chars();
+        let host = try!(Host::parse(host_str));
         Ok((host, input))
     }
 
-    pub fn parse_file_host<'i>(&mut self, mut input: Input<'i>)
+    pub fn parse_file_host<'i>(&mut self, input: Input<'i>)
                                -> ParseResult<(bool, HostInternal, Input<'i>)> {
         // Undo the Input abstraction here to avoid allocating in the common case
         // where the host part of the input does not contain any tab or newline
         let input_str = input.chars.as_str();
         let mut has_ignored_chars = false;
-        let mut end = input_str.len();
-        for (i, b) in input_str.bytes().enumerate() {
-            match b {
-                b'/' | b'\\' | b'?' | b'#' => {
-                    end = i;
-                    break
-                }
-                b'\t' | b'\n' | b'\r' => {
-                    has_ignored_chars = true;
-                }
-                _ => {}
+        let mut non_ignored_chars = 0;
+        let mut bytes = 0;
+        for c in input_str.chars() {
+            match c {
+                '/' | '\\' | '?' | '#' => break,
+                '\t' | '\n' | '\r' => has_ignored_chars = true,
+                _ => non_ignored_chars += 1,
             }
+            bytes += c.len_utf8();
         }
         let replaced: String;
-        let host_input = if has_ignored_chars {
-            replaced = input_str[..end].chars().filter(|&c| !matches!(c, '\t' | '\n' | '\r')).collect();
-            &*replaced
-        } else {
-            &input_str[..end]
-        };
-        if is_windows_drive_letter(host_input) {
+        let host_str;
+        let mut remaining = input.clone();
+        {
+            let host_input = remaining.by_ref().take(non_ignored_chars);
+            if has_ignored_chars {
+                replaced = host_input.collect();
+                host_str = &*replaced
+            } else {
+                for _ in host_input {}
+                host_str = &input_str[..bytes]
+            }
+        }
+        if is_windows_drive_letter(host_str) {
             return Ok((false, HostInternal::None, input))
         }
-        let host = if host_input.is_empty() {
+        let host = if host_str.is_empty() {
             HostInternal::None
         } else {
-            match try!(Host::parse(&host_input)) {
+            match try!(Host::parse(host_str)) {
                 Host::Domain(ref d) if d == "localhost" => HostInternal::None,
                 host => {
                     write!(&mut self.serialization, "{}", host).unwrap();
@@ -822,8 +828,7 @@ impl<'a> Parser<'a> {
                 }
             }
         };
-        input.chars = input_str[end..].chars();
-        Ok((true, host, input))
+        Ok((true, host, remaining))
     }
 
     pub fn parse_port<'i, P>(mut input: Input<'i>, default_port: P,
