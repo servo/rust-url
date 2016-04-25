@@ -591,7 +591,7 @@ impl Url {
         if let Some(input) = fragment {
             self.fragment_start = Some(to_u32(self.serialization.len()).unwrap());
             self.serialization.push('#');
-            self.mutate(|parser| parser.parse_fragment(input))
+            self.mutate(|parser| parser.parse_fragment(parser::Input::new(input)))
         } else {
             self.fragment_start = None
         }
@@ -629,7 +629,7 @@ impl Url {
             self.query_start = Some(to_u32(self.serialization.len()).unwrap());
             self.serialization.push('?');
             let scheme_end = self.scheme_end;
-            self.mutate(|parser| parser.parse_query(scheme_end, input));
+            self.mutate(|parser| parser.parse_query(scheme_end, parser::Input::new(input)));
         }
 
         self.restore_already_parsed_fragment(fragment);
@@ -680,7 +680,7 @@ impl Url {
     }
 
     /// Change this URL’s path.
-    pub fn set_path(&mut self, path: &str) {
+    pub fn set_path(&mut self, mut path: &str) {
         let (old_after_path_pos, after_path) = match (self.query_start, self.fragment_start) {
             (Some(i), _) | (None, Some(i)) => (i, self.slice(i..).to_owned()),
             (None, None) => (to_u32(self.serialization.len()).unwrap(), String::new())
@@ -692,13 +692,12 @@ impl Url {
             if cannot_be_a_base {
                 if path.starts_with('/') {
                     parser.serialization.push_str("%2F");
-                    parser.parse_cannot_be_a_base_path(&path[1..]);
-                } else {
-                    parser.parse_cannot_be_a_base_path(path);
+                    path = &path[1..];
                 }
+                parser.parse_cannot_be_a_base_path(parser::Input::new(path));
             } else {
                 let mut has_host = true;  // FIXME
-                parser.parse_path_start(scheme_type, &mut has_host, path);
+                parser.parse_path_start(scheme_type, &mut has_host, parser::Input::new(path));
             }
         });
         let new_after_path_pos = to_u32(self.serialization.len()).unwrap();
@@ -761,7 +760,7 @@ impl Url {
         self.mutate(|parser| {
             parser.context = parser::Context::PathSegmentSetter;
             let mut has_host = true;  // FIXME account for this?
-            parser.parse_path(scheme_type, &mut has_host, path_start, segment)
+            parser.parse_path(scheme_type, &mut has_host, path_start, parser::Input::new(segment))
         });
         let offset = to_u32(self.serialization.len()).unwrap() - self.path_start;
         if let Some(ref mut index) = self.query_start { *index += offset }
@@ -1004,7 +1003,7 @@ impl Url {
     ///   `http`, `https`, `ws`, `wss`, `ftp`, or `gopher`
     pub fn set_scheme(&mut self, scheme: &str) -> Result<(), ()> {
         let mut parser = Parser::for_setter(String::new());
-        let remaining = try!(parser.parse_scheme(scheme));
+        let remaining = try!(parser.parse_scheme(parser::Input::new(scheme)));
         if !remaining.is_empty() ||
                 (!self.has_host() && SchemeType::from(&parser.serialization).is_special()) {
             return Err(())
