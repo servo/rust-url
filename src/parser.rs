@@ -104,7 +104,7 @@ pub fn default_port(scheme: &str) -> Option<u16> {
 
 #[derive(Clone)]
 pub struct Input<'i> {
-    chars: str::Chars<'i>
+    chars: str::Chars<'i>,
 }
 
 impl<'i> Input<'i> {
@@ -117,7 +117,10 @@ impl<'i> Input<'i> {
         let input = original_input.trim_matches(c0_control_or_space);
         if let Some(log) = log_syntax_violation {
             if input.len() < original_input.len() {
-                log("leading or trailing control or space character")
+                log("leading or trailing control or space character are ignored in URLs")
+            }
+            if input.chars().any(|c| matches!(c, '\t' | '\n' | '\r')) {
+                log("tabs or newlines are ignored in URLs")
             }
         }
         Input { chars: input.chars() }
@@ -125,7 +128,7 @@ impl<'i> Input<'i> {
 
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.chars.as_str().is_empty()
+        self.clone().next().is_none()
     }
 
     #[inline]
@@ -166,12 +169,20 @@ impl<'i> Input<'i> {
 
     #[inline]
     fn next_utf8(&mut self) -> Option<(char, &'i str)> {
-        let utf8 = self.chars.as_str();
-        self.chars.next().map(|c| (c, &utf8[..c.len_utf8()]))
+        loop {
+            let utf8 = self.chars.as_str();
+            match self.chars.next() {
+                Some(c) => {
+                    if !matches!(c, '\t' | '\n' | '\r') {
+                        return Some((c, &utf8[..c.len_utf8()]))
+                    }
+                }
+                None => return None
+            }
+        }
     }
 }
 
-// std::str::pattern::Pattern is not #[stable] yet
 pub trait Pattern {
     fn split_prefix<'i>(self, input: &mut Input<'i>) -> bool;
 }
@@ -197,7 +208,9 @@ impl<F: FnMut(char) -> bool> Pattern for F {
 
 impl<'i> Iterator for Input<'i> {
     type Item = char;
-    fn next(&mut self) -> Option<char> { self.chars.next() }
+    fn next(&mut self) -> Option<char> {
+        self.chars.by_ref().filter(|&c| !matches!(c, '\t' | '\n' | '\r')).next()
+    }
 }
 
 pub struct Parser<'a> {
@@ -688,17 +701,13 @@ impl<'a> Parser<'a> {
         while userinfo_char_count > 0 {
             let (c, utf8_c) = input.next_utf8().unwrap();
             userinfo_char_count -= 1;
-            match c {
-                ':' if username_end.is_none() => {
-                    // Start parsing password
-                    username_end = Some(try!(to_u32(self.serialization.len())));
-                    self.serialization.push(':');
-                },
-                '\t' | '\n' | '\r' => {},
-                _ => {
-                    self.check_url_code_point(c, &input);
-                    self.serialization.extend(utf8_percent_encode(utf8_c, USERINFO_ENCODE_SET));
-                }
+            if c == ':' && username_end.is_none() {
+                // Start parsing password
+                username_end = Some(try!(to_u32(self.serialization.len())));
+                self.serialization.push(':');
+            } else {
+                self.check_url_code_point(c, &input);
+                self.serialization.extend(utf8_percent_encode(utf8_c, USERINFO_ENCODE_SET));
             }
         }
         let username_end = match username_end {
@@ -713,13 +722,12 @@ impl<'a> Parser<'a> {
                                    scheme_end: u32, scheme_type: SchemeType)
                                    -> ParseResult<(u32, HostInternal, Option<u16>, Input<'i>)> {
         let (host, remaining) = try!(
-            Parser::parse_host(input, scheme_type, |m| self.syntax_violation(m)));
+            Parser::parse_host(input, scheme_type));
         write!(&mut self.serialization, "{}", host).unwrap();
         let host_end = try!(to_u32(self.serialization.len()));
         let (port, remaining) = if let Some(remaining) = remaining.split_prefix(':') {
-            let syntax_violation = |message| self.syntax_violation(message);
             let scheme = || default_port(&self.serialization[..scheme_end as usize]);
-            try!(Parser::parse_port(remaining, syntax_violation, scheme, self.context))
+            try!(Parser::parse_port(remaining, scheme, self.context))
         } else {
             (None, remaining)
         };
@@ -729,9 +737,8 @@ impl<'a> Parser<'a> {
         Ok((host_end, host.into(), port, remaining))
     }
 
-    pub fn parse_host<'i, S>(input: Input<'i>, scheme_type: SchemeType, syntax_violation: S)
-                             -> ParseResult<(Host<String>, Input<'i>)>
-                             where S: Fn(&'static str) {
+    pub fn parse_host<'i>(mut input: Input<'i>, scheme_type: SchemeType)
+                             -> ParseResult<(Host<String>, Input<'i>)> {
         // Undo the Input abstraction here to avoid allocating in the common case
         // where the host part of the input does not contain any tab or newline
         let input_str = input.chars.as_str();
@@ -753,7 +760,6 @@ impl<'a> Parser<'a> {
                     break
                 }
                 b'\t' | b'\n' | b'\r' => {
-                    syntax_violation("invalid character");
                     has_ignored_chars = true;
                 }
                 b'[' => inside_square_brackets = true,
@@ -772,10 +778,11 @@ impl<'a> Parser<'a> {
             return Err(ParseError::EmptyHost)
         }
         let host = try!(Host::parse(&host_input));
-        Ok((host, Input { chars: input_str[end..].chars() }))
+        input.chars = input_str[end..].chars();
+        Ok((host, input))
     }
 
-    pub fn parse_file_host<'i>(&mut self, input: Input<'i>)
+    pub fn parse_file_host<'i>(&mut self, mut input: Input<'i>)
                                -> ParseResult<(bool, HostInternal, Input<'i>)> {
         // Undo the Input abstraction here to avoid allocating in the common case
         // where the host part of the input does not contain any tab or newline
@@ -789,7 +796,6 @@ impl<'a> Parser<'a> {
                     break
                 }
                 b'\t' | b'\n' | b'\r' => {
-                    self.syntax_violation("invalid character");
                     has_ignored_chars = true;
                 }
                 _ => {}
@@ -816,13 +822,14 @@ impl<'a> Parser<'a> {
                 }
             }
         };
-        Ok((true, host, Input { chars: input_str[end..].chars() }))
+        input.chars = input_str[end..].chars();
+        Ok((true, host, input))
     }
 
-    pub fn parse_port<'i, V, P>(mut input: Input<'i>, syntax_violation: V, default_port: P,
+    pub fn parse_port<'i, P>(mut input: Input<'i>, default_port: P,
                                 context: Context)
                                 -> ParseResult<(Option<u16>, Input<'i>)>
-                                where V: Fn(&'static str), P: Fn() -> Option<u16> {
+                                where P: Fn() -> Option<u16> {
         let mut port: u32 = 0;
         let mut has_any_digit = false;
         while let (Some(c), remaining) = input.split_first() {
@@ -832,18 +839,9 @@ impl<'a> Parser<'a> {
                     return Err(ParseError::InvalidPort)
                 }
                 has_any_digit = true;
+            } else if context == Context::UrlParser && !matches!(c, '/' | '\\' | '?' | '#') {
+                return Err(ParseError::InvalidPort)
             } else {
-                match c {
-                    '\t' | '\n' | '\r' => {
-                        syntax_violation("invalid character");
-                        input = remaining;
-                        continue
-                    }
-                    '/' | '\\' | '?' | '#' => {}
-                    _ => if context == Context::UrlParser {
-                        return Err(ParseError::InvalidPort)
-                    }
-                }
                 break
             }
             input = remaining;
@@ -898,7 +896,6 @@ impl<'a> Parser<'a> {
                         input = input_before_c;
                         break
                     },
-                    '\t' | '\n' | '\r' => self.syntax_violation("invalid characters"),
                     _ => {
                         self.check_url_code_point(c, &input);
                         if c == '%' {
@@ -982,9 +979,6 @@ impl<'a> Parser<'a> {
                 Some(('?', _)) | Some(('#', _)) if self.context == Context::UrlParser => {
                     return input_before_c
                 }
-                Some(('\t', _)) | Some(('\n', _)) | Some(('\r', _)) => {
-                    self.syntax_violation("invalid character")
-                }
                 Some((c, utf8_c)) => {
                     self.check_url_code_point(c, &input);
                     self.serialization.extend(utf8_percent_encode(
@@ -1046,16 +1040,12 @@ impl<'a> Parser<'a> {
         let mut query = String::new();  // FIXME: use a streaming decoder instead
         let mut remaining = None;
         while let Some(c) = input.next() {
-            match c {
-                '#' if self.context == Context::UrlParser => {
-                    remaining = Some(input);
-                    break
-                },
-                '\t' | '\n' | '\r' => self.syntax_violation("invalid characters"),
-                _ => {
-                    self.check_url_code_point(c, &input);
-                    query.push(c);
-                }
+            if c == '#' && self.context == Context::UrlParser {
+                remaining = Some(input);
+                break
+            } else {
+                self.check_url_code_point(c, &input);
+                query.push(c);
             }
         }
 
@@ -1089,12 +1079,11 @@ impl<'a> Parser<'a> {
 
     pub fn parse_fragment(&mut self, mut input: Input) {
         while let Some(c) = input.next() {
-            match c {
-                '\0' | '\t' | '\n' | '\r' => self.syntax_violation("invalid character"),
-                _ => {
-                    self.check_url_code_point(c, &input);
-                    self.serialization.push(c);  // No percent-encoding here.
-                }
+            if c ==  '\0' {
+                self.syntax_violation("NULL characters are ignored in URL fragment identifiers")
+            } else {
+                self.check_url_code_point(c, &input);
+                self.serialization.push(c);  // No percent-encoding here.
             }
         }
     }
