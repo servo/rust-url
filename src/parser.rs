@@ -9,6 +9,7 @@
 use std::ascii::AsciiExt;
 use std::error::Error;
 use std::fmt::{self, Formatter, Write};
+use std::str;
 
 use Url;
 use encoding::EncodingOverride;
@@ -101,6 +102,117 @@ pub fn default_port(scheme: &str) -> Option<u16> {
     }
 }
 
+#[derive(Clone)]
+pub struct Input<'i> {
+    chars: str::Chars<'i>,
+}
+
+impl<'i> Input<'i> {
+    pub fn new(input: &'i str) -> Self {
+        Input::with_log(input, None)
+    }
+
+    pub fn with_log(original_input: &'i str, log_syntax_violation: Option<&Fn(&'static str)>)
+                    -> Self {
+        let input = original_input.trim_matches(c0_control_or_space);
+        if let Some(log) = log_syntax_violation {
+            if input.len() < original_input.len() {
+                log("leading or trailing control or space character are ignored in URLs")
+            }
+            if input.chars().any(|c| matches!(c, '\t' | '\n' | '\r')) {
+                log("tabs or newlines are ignored in URLs")
+            }
+        }
+        Input { chars: input.chars() }
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.clone().next().is_none()
+    }
+
+    #[inline]
+    fn starts_with<P: Pattern>(&self, p: P) -> bool {
+        p.split_prefix(&mut self.clone())
+    }
+
+    #[inline]
+    pub fn split_prefix<P: Pattern>(&self, p: P) -> Option<Self> {
+        let mut remaining = self.clone();
+        if p.split_prefix(&mut remaining) {
+            Some(remaining)
+        } else {
+            None
+        }
+    }
+
+    #[inline]
+    fn split_first(&self) -> (Option<char>, Self) {
+        let mut remaining = self.clone();
+        (remaining.next(), remaining)
+    }
+
+    #[inline]
+    fn count_matching<F: Fn(char) -> bool>(&self, f: F) -> (u32, Self) {
+        let mut count = 0;
+        let mut remaining = self.clone();
+        loop {
+            let mut input = remaining.clone();
+            if matches!(input.next(), Some(c) if f(c)) {
+                remaining = input;
+                count += 1;
+            } else {
+                return (count, remaining)
+            }
+        }
+    }
+
+    #[inline]
+    fn next_utf8(&mut self) -> Option<(char, &'i str)> {
+        loop {
+            let utf8 = self.chars.as_str();
+            match self.chars.next() {
+                Some(c) => {
+                    if !matches!(c, '\t' | '\n' | '\r') {
+                        return Some((c, &utf8[..c.len_utf8()]))
+                    }
+                }
+                None => return None
+            }
+        }
+    }
+}
+
+pub trait Pattern {
+    fn split_prefix<'i>(self, input: &mut Input<'i>) -> bool;
+}
+
+impl Pattern for char {
+    fn split_prefix<'i>(self, input: &mut Input<'i>) -> bool { input.next() == Some(self) }
+}
+
+impl<'a> Pattern for &'a str {
+    fn split_prefix<'i>(self, input: &mut Input<'i>) -> bool {
+        for c in self.chars() {
+            if input.next() != Some(c) {
+                return false
+            }
+        }
+        true
+    }
+}
+
+impl<F: FnMut(char) -> bool> Pattern for F {
+    fn split_prefix<'i>(self, input: &mut Input<'i>) -> bool { input.next().map_or(false, self) }
+}
+
+impl<'i> Iterator for Input<'i> {
+    type Item = char;
+    fn next(&mut self) -> Option<char> {
+        self.chars.by_ref().filter(|&c| !matches!(c, '\t' | '\n' | '\r')).next()
+    }
+}
+
 pub struct Parser<'a> {
     pub serialization: String,
     pub base_url: Option<&'a Url>,
@@ -143,18 +255,15 @@ impl<'a> Parser<'a> {
     }
 
     /// https://url.spec.whatwg.org/#concept-basic-url-parser
-    pub fn parse_url(mut self, original_input: &str) -> ParseResult<Url> {
-        let input = original_input.trim_matches(c0_control_or_space);
-        if input.len() < original_input.len() {
-            self.syntax_violation("leading or trailing control or space character")
-        }
-        if let Ok(remaining) = self.parse_scheme(input) {
+    pub fn parse_url(mut self, input: &str) -> ParseResult<Url> {
+        let input = Input::with_log(input, self.log_syntax_violation);
+        if let Ok(remaining) = self.parse_scheme(input.clone()) {
             return self.parse_with_scheme(remaining)
         }
 
         // No-scheme state
         if let Some(base_url) = self.base_url {
-            if input.starts_with("#") {
+            if input.starts_with('#') {
                 self.fragment_only(base_url, input)
             } else if base_url.cannot_be_a_base() {
                 Err(ParseError::RelativeUrlWithCannotBeABaseBase)
@@ -171,17 +280,17 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse_scheme<'i>(&mut self, input: &'i str) -> Result<&'i str, ()> {
+    pub fn parse_scheme<'i>(&mut self, mut input: Input<'i>) -> Result<Input<'i>, ()> {
         if input.is_empty() || !input.starts_with(ascii_alpha) {
             return Err(())
         }
         debug_assert!(self.serialization.is_empty());
-        for (i, c) in input.char_indices() {
+        while let Some(c) = input.next() {
             match c {
                 'a'...'z' | 'A'...'Z' | '0'...'9' | '+' | '-' | '.' => {
                     self.serialization.push(c.to_ascii_lowercase())
                 }
-                ':' => return Ok(&input[i + 1..]),
+                ':' => return Ok(input),
                 _ => {
                     self.serialization.clear();
                     return Err(())
@@ -190,14 +299,14 @@ impl<'a> Parser<'a> {
         }
         // EOF before ':'
         if self.context == Context::Setter {
-            Ok("")
+            Ok(input)
         } else {
             self.serialization.clear();
             Err(())
         }
     }
 
-    fn parse_with_scheme(mut self, input: &str) -> ParseResult<Url> {
+    fn parse_with_scheme(mut self, input: Input) -> ParseResult<Url> {
         let scheme_end = try!(to_u32(self.serialization.len()));
         let scheme_type = SchemeType::from(&self.serialization);
         self.serialization.push(':');
@@ -212,7 +321,7 @@ impl<'a> Parser<'a> {
             }
             SchemeType::SpecialNotFile => {
                 // special relative or authority state
-                let slashes_count = input.find(|c| !matches!(c, '/' | '\\')).unwrap_or(input.len());
+                let (slashes_count, remaining) = input.count_matching(|c| matches!(c, '/' | '\\'));
                 if let Some(base_url) = self.base_url {
                     if slashes_count < 2 &&
                             base_url.scheme() == &self.serialization[..scheme_end as usize] {
@@ -223,19 +332,22 @@ impl<'a> Parser<'a> {
                     }
                 }
                 // special authority slashes state
-                self.syntax_violation_if("expected //", || &input[..slashes_count] != "//");
-                self.after_double_slash(&input[slashes_count..], scheme_type, scheme_end)
+                self.syntax_violation_if("expected //", || {
+                    input.clone().take_while(|&c| matches!(c, '/' | '\\'))
+                    .collect::<String>() != "//"
+                });
+                self.after_double_slash(remaining, scheme_type, scheme_end)
             }
             SchemeType::NotSpecial => self.parse_non_special(input, scheme_type, scheme_end)
         }
     }
 
     /// Scheme other than file, http, https, ws, ws, ftp, gopher.
-    fn parse_non_special(mut self, input: &str, scheme_type: SchemeType, scheme_end: u32)
+    fn parse_non_special(mut self, input: Input, scheme_type: SchemeType, scheme_end: u32)
                          -> ParseResult<Url> {
         // path or authority state (
-        if input.starts_with("//") {
-            return self.after_double_slash(&input[2..], scheme_type, scheme_end)
+        if let Some(input) = input.split_prefix("//") {
+            return self.after_double_slash(input, scheme_type, scheme_end)
         }
         // Anarchist URL (no authority)
         let path_start = try!(to_u32(self.serialization.len()));
@@ -244,10 +356,10 @@ impl<'a> Parser<'a> {
         let host_end = path_start;
         let host = HostInternal::None;
         let port = None;
-        let remaining = if input.starts_with("/") {
+        let remaining = if let Some(input) = input.split_prefix('/') {
             let path_start = self.serialization.len();
             self.serialization.push('/');
-            self.parse_path(scheme_type, &mut false, path_start, &input[1..])
+            self.parse_path(scheme_type, &mut false, path_start, input)
         } else {
             self.parse_cannot_be_a_base_path(input)
         };
@@ -255,11 +367,11 @@ impl<'a> Parser<'a> {
                                      host_end, host, port, path_start, remaining)
     }
 
-    fn parse_file(mut self, input: &str, mut base_file_url: Option<&Url>) -> ParseResult<Url> {
+    fn parse_file(mut self, input: Input, mut base_file_url: Option<&Url>) -> ParseResult<Url> {
         // file state
         debug_assert!(self.serialization.is_empty());
-        let c = input.chars().next();
-        match c {
+        let (first_char, input_after_first_char) = input.split_first();
+        match first_char {
             None => {
                 if let Some(base_url) = base_file_url {
                     // Copy everything except the fragment
@@ -336,7 +448,7 @@ impl<'a> Parser<'a> {
                     let scheme_end = "file".len() as u32;
                     let path_start = "file://".len() as u32;
                     let fragment_start = "file:///".len() as u32;
-                    self.parse_fragment(&input[1..]);
+                    self.parse_fragment(input_after_first_char);
                     Ok(Url {
                         serialization: self.serialization,
                         scheme_end: scheme_end,
@@ -352,17 +464,17 @@ impl<'a> Parser<'a> {
                 }
             }
             Some('/') | Some('\\') => {
-                self.syntax_violation_if("backslash", || c == Some('\\'));
-                let input = &input[1..];
+                self.syntax_violation_if("backslash", || first_char == Some('\\'));
                 // file slash state
-                let c = input.chars().next();
-                self.syntax_violation_if("backslash", || c == Some('\\'));
-                if matches!(c, Some('/') | Some('\\')) {
+                let (next_char, input_after_next_char) = input_after_first_char.split_first();
+                self.syntax_violation_if("backslash", || next_char == Some('\\'));
+                if matches!(next_char, Some('/') | Some('\\')) {
                     // file host state
                     self.serialization.push_str("file://");
                     let scheme_end = "file".len() as u32;
                     let host_start = "file://".len() as u32;
-                    let (path_start, host, remaining) = try!(self.parse_file_host(&input[1..]));
+                    let (path_start, host, remaining) =
+                        try!(self.parse_file_host(input_after_next_char));
                     let host_end = try!(to_u32(self.serialization.len()));
                     let mut has_host = !matches!(host, HostInternal::None);
                     let remaining = if path_start {
@@ -400,7 +512,7 @@ impl<'a> Parser<'a> {
                         }
                     }
                     let remaining = self.parse_path(
-                        SchemeType::File, &mut false, path_start, input);
+                        SchemeType::File, &mut false, path_start, input_after_first_char);
                     let (query_start, fragment_start) =
                         try!(self.parse_query_and_fragment(scheme_end, remaining));
                     let path_start = path_start as u32;
@@ -419,7 +531,7 @@ impl<'a> Parser<'a> {
                 }
             }
             _ => {
-                if starts_with_windows_drive_letter_segment(input) {
+                if starts_with_windows_drive_letter_segment(&input) {
                     base_file_url = None;
                 }
                 if let Some(base_url) = base_file_url {
@@ -461,11 +573,12 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_relative(mut self, input: &str, scheme_type: SchemeType, base_url: &Url)
+    fn parse_relative(mut self, input: Input, scheme_type: SchemeType, base_url: &Url)
                       -> ParseResult<Url> {
         // relative state
         debug_assert!(self.serialization.is_empty());
-        match input.chars().next() {
+        let (first_char, input_after_first_char) = input.split_first();
+        match first_char {
             None => {
                 // Copy everything except the fragment
                 let before_fragment = match base_url.fragment_start {
@@ -498,19 +611,22 @@ impl<'a> Parser<'a> {
             },
             Some('#') => self.fragment_only(base_url, input),
             Some('/') | Some('\\') => {
-                let slashes_count = input.find(|c| !matches!(c, '/' | '\\')).unwrap_or(input.len());
+                let (slashes_count, remaining) = input.count_matching(|c| matches!(c, '/' | '\\'));
                 if slashes_count >= 2 {
-                    self.syntax_violation_if("expected //", || &input[..slashes_count] != "//");
+                    self.syntax_violation_if("expected //", || {
+                        input.clone().take_while(|&c| matches!(c, '/' | '\\'))
+                        .collect::<String>() != "//"
+                    });
                     let scheme_end = base_url.scheme_end;
                     debug_assert!(base_url.byte_at(scheme_end) == b':');
                     self.serialization.push_str(base_url.slice(..scheme_end + 1));
-                    return self.after_double_slash(&input[slashes_count..], scheme_type, scheme_end)
+                    return self.after_double_slash(remaining, scheme_type, scheme_end)
                 }
                 let path_start = base_url.path_start;
                 debug_assert!(base_url.byte_at(path_start) == b'/');
                 self.serialization.push_str(base_url.slice(..path_start + 1));
                 let remaining = self.parse_path(
-                    scheme_type, &mut true, path_start as usize, &input[1..]);
+                    scheme_type, &mut true, path_start as usize, input_after_first_char);
                 self.with_query_and_fragment(
                     base_url.scheme_end, base_url.username_end, base_url.host_start,
                     base_url.host_end, base_url.host, base_url.port, base_url.path_start, remaining)
@@ -533,7 +649,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn after_double_slash(mut self, input: &str, scheme_type: SchemeType, scheme_end: u32)
+    fn after_double_slash(mut self, input: Input, scheme_type: SchemeType, scheme_end: u32)
                           -> ParseResult<Url> {
         self.serialization.push('/');
         self.serialization.push('/');
@@ -552,10 +668,12 @@ impl<'a> Parser<'a> {
     }
 
     /// Return (username_end, remaining)
-    fn parse_userinfo<'i>(&mut self, input: &'i str, scheme_type: SchemeType)
-                          -> ParseResult<(u32, &'i str)> {
+    fn parse_userinfo<'i>(&mut self, mut input: Input<'i>, scheme_type: SchemeType)
+                          -> ParseResult<(u32, Input<'i>)> {
         let mut last_at = None;
-        for (i, c) in input.char_indices() {
+        let mut remaining = input.clone();
+        let mut char_count = 0;
+        while let Some(c) = remaining.next() {
             match c {
                 '@' => {
                     if last_at.is_some() {
@@ -565,33 +683,31 @@ impl<'a> Parser<'a> {
                             "embedding authentification information (username or password) \
                             in an URL is not recommended")
                     }
-                    last_at = Some(i)
+                    last_at = Some((char_count, remaining.clone()))
                 },
                 '/' | '?' | '#' => break,
                 '\\' if scheme_type.is_special() => break,
                 _ => (),
             }
+            char_count += 1;
         }
-        let (input, remaining) = match last_at {
+        let (mut userinfo_char_count, remaining) = match last_at {
             None => return Ok((try!(to_u32(self.serialization.len())), input)),
-            Some(0) => return Ok((try!(to_u32(self.serialization.len())), &input[1..])),
-            Some(at) => (&input[..at], &input[at + 1..]),
+            Some((0, remaining)) => return Ok((try!(to_u32(self.serialization.len())), remaining)),
+            Some(x) => x
         };
 
         let mut username_end = None;
-        for (i, c, next_i) in input.char_ranges() {
-            match c {
-                ':' if username_end.is_none() => {
-                    // Start parsing password
-                    username_end = Some(try!(to_u32(self.serialization.len())));
-                    self.serialization.push(':');
-                },
-                '\t' | '\n' | '\r' => {},
-                _ => {
-                    self.check_url_code_point(input, i, c);
-                    let utf8_c = &input[i..next_i];
-                    self.serialization.extend(utf8_percent_encode(utf8_c, USERINFO_ENCODE_SET));
-                }
+        while userinfo_char_count > 0 {
+            let (c, utf8_c) = input.next_utf8().unwrap();
+            userinfo_char_count -= 1;
+            if c == ':' && username_end.is_none() {
+                // Start parsing password
+                username_end = Some(try!(to_u32(self.serialization.len())));
+                self.serialization.push(':');
+            } else {
+                self.check_url_code_point(c, &input);
+                self.serialization.extend(utf8_percent_encode(utf8_c, USERINFO_ENCODE_SET));
             }
         }
         let username_end = match username_end {
@@ -602,17 +718,16 @@ impl<'a> Parser<'a> {
         Ok((username_end, remaining))
     }
 
-    fn parse_host_and_port<'i>(&mut self, input: &'i str,
+    fn parse_host_and_port<'i>(&mut self, input: Input<'i>,
                                    scheme_end: u32, scheme_type: SchemeType)
-                                   -> ParseResult<(u32, HostInternal, Option<u16>, &'i str)> {
+                                   -> ParseResult<(u32, HostInternal, Option<u16>, Input<'i>)> {
         let (host, remaining) = try!(
-            Parser::parse_host(input, scheme_type, |m| self.syntax_violation(m)));
+            Parser::parse_host(input, scheme_type));
         write!(&mut self.serialization, "{}", host).unwrap();
         let host_end = try!(to_u32(self.serialization.len()));
-        let (port, remaining) = if remaining.starts_with(":") {
-            let syntax_violation = |message| self.syntax_violation(message);
+        let (port, remaining) = if let Some(remaining) = remaining.split_prefix(':') {
             let scheme = || default_port(&self.serialization[..scheme_end as usize]);
-            try!(Parser::parse_port(&remaining[1..], syntax_violation, scheme, self.context))
+            try!(Parser::parse_port(remaining, scheme, self.context))
         } else {
             (None, remaining)
         };
@@ -622,80 +737,90 @@ impl<'a> Parser<'a> {
         Ok((host_end, host.into(), port, remaining))
     }
 
-    pub fn parse_host<'i, S>(input: &'i str, scheme_type: SchemeType, syntax_violation: S)
-                             -> ParseResult<(Host<String>, &'i str)>
-                             where S: Fn(&'static str) {
+    pub fn parse_host<'i>(mut input: Input<'i>, scheme_type: SchemeType)
+                             -> ParseResult<(Host<String>, Input<'i>)> {
+        // Undo the Input abstraction here to avoid allocating in the common case
+        // where the host part of the input does not contain any tab or newline
+        let input_str = input.chars.as_str();
         let mut inside_square_brackets = false;
         let mut has_ignored_chars = false;
-        let mut end = input.len();
-        for (i, b) in input.bytes().enumerate() {
-            match b {
-                b':' if !inside_square_brackets => {
-                    end = i;
-                    break
-                },
-                b'/' | b'?' | b'#' => {
-                    end = i;
-                    break
-                }
-                b'\\' if scheme_type.is_special() => {
-                    end = i;
-                    break
-                }
-                b'\t' | b'\n' | b'\r' => {
-                    syntax_violation("invalid character");
+        let mut non_ignored_chars = 0;
+        let mut bytes = 0;
+        for c in input_str.chars() {
+            match c {
+                ':' if !inside_square_brackets => break,
+                '\\' if scheme_type.is_special() => break,
+                '/' | '?' | '#' => break,
+                '\t' | '\n' | '\r' => {
                     has_ignored_chars = true;
                 }
-                b'[' => inside_square_brackets = true,
-                b']' => inside_square_brackets = false,
-                _ => {}
+                '[' => {
+                    inside_square_brackets = true;
+                    non_ignored_chars += 1
+                }
+                ']' => {
+                    inside_square_brackets = false;
+                    non_ignored_chars += 1
+                }
+                _ => non_ignored_chars += 1
             }
+            bytes += c.len_utf8();
         }
         let replaced: String;
-        let host_input = if has_ignored_chars {
-            replaced = input[..end].chars().filter(|&c| !matches!(c, '\t' | '\n' | '\r')).collect();
-            &*replaced
-        } else {
-            &input[..end]
-        };
-        if scheme_type.is_special() && host_input.is_empty() {
+        let host_str;
+        {
+            let host_input = input.by_ref().take(non_ignored_chars);
+            if has_ignored_chars {
+                replaced = host_input.collect();
+                host_str = &*replaced
+            } else {
+                for _ in host_input {}
+                host_str = &input_str[..bytes]
+            }
+        }
+        if scheme_type.is_special() && host_str.is_empty() {
             return Err(ParseError::EmptyHost)
         }
-        let host = try!(Host::parse(&host_input));
-        Ok((host, &input[end..]))
+        let host = try!(Host::parse(host_str));
+        Ok((host, input))
     }
 
-    pub fn parse_file_host<'i>(&mut self, input: &'i str)
-                               -> ParseResult<(bool, HostInternal, &'i str)> {
+    pub fn parse_file_host<'i>(&mut self, input: Input<'i>)
+                               -> ParseResult<(bool, HostInternal, Input<'i>)> {
+        // Undo the Input abstraction here to avoid allocating in the common case
+        // where the host part of the input does not contain any tab or newline
+        let input_str = input.chars.as_str();
         let mut has_ignored_chars = false;
-        let mut end = input.len();
-        for (i, b) in input.bytes().enumerate() {
-            match b {
-                b'/' | b'\\' | b'?' | b'#' => {
-                    end = i;
-                    break
-                }
-                b'\t' | b'\n' | b'\r' => {
-                    self.syntax_violation("invalid character");
-                    has_ignored_chars = true;
-                }
-                _ => {}
+        let mut non_ignored_chars = 0;
+        let mut bytes = 0;
+        for c in input_str.chars() {
+            match c {
+                '/' | '\\' | '?' | '#' => break,
+                '\t' | '\n' | '\r' => has_ignored_chars = true,
+                _ => non_ignored_chars += 1,
             }
+            bytes += c.len_utf8();
         }
         let replaced: String;
-        let host_input = if has_ignored_chars {
-            replaced = input[..end].chars().filter(|&c| !matches!(c, '\t' | '\n' | '\r')).collect();
-            &*replaced
-        } else {
-            &input[..end]
-        };
-        if is_windows_drive_letter(host_input) {
+        let host_str;
+        let mut remaining = input.clone();
+        {
+            let host_input = remaining.by_ref().take(non_ignored_chars);
+            if has_ignored_chars {
+                replaced = host_input.collect();
+                host_str = &*replaced
+            } else {
+                for _ in host_input {}
+                host_str = &input_str[..bytes]
+            }
+        }
+        if is_windows_drive_letter(host_str) {
             return Ok((false, HostInternal::None, input))
         }
-        let host = if host_input.is_empty() {
+        let host = if host_str.is_empty() {
             HostInternal::None
         } else {
-            match try!(Host::parse(&host_input)) {
+            match try!(Host::parse(host_str)) {
                 Host::Domain(ref d) if d == "localhost" => HostInternal::None,
                 host => {
                     write!(&mut self.serialization, "{}", host).unwrap();
@@ -703,56 +828,46 @@ impl<'a> Parser<'a> {
                 }
             }
         };
-        Ok((true, host, &input[end..]))
+        Ok((true, host, remaining))
     }
 
-    pub fn parse_port<'i, V, P>(input: &'i str, syntax_violation: V, default_port: P,
+    pub fn parse_port<'i, P>(mut input: Input<'i>, default_port: P,
                                 context: Context)
-                                -> ParseResult<(Option<u16>, &'i str)>
-                                where V: Fn(&'static str), P: Fn() -> Option<u16> {
+                                -> ParseResult<(Option<u16>, Input<'i>)>
+                                where P: Fn() -> Option<u16> {
         let mut port: u32 = 0;
         let mut has_any_digit = false;
-        let mut end = input.len();
-        for (i, c) in input.char_indices() {
+        while let (Some(c), remaining) = input.split_first() {
             if let Some(digit) = c.to_digit(10) {
                 port = port * 10 + digit;
                 if port > ::std::u16::MAX as u32 {
                     return Err(ParseError::InvalidPort)
                 }
                 has_any_digit = true;
+            } else if context == Context::UrlParser && !matches!(c, '/' | '\\' | '?' | '#') {
+                return Err(ParseError::InvalidPort)
             } else {
-                match c {
-                    '\t' | '\n' | '\r' => {
-                        syntax_violation("invalid character");
-                        continue
-                    }
-                    '/' | '\\' | '?' | '#' => {}
-                    _ => if context == Context::UrlParser {
-                        return Err(ParseError::InvalidPort)
-                    }
-                }
-                end = i;
                 break
             }
+            input = remaining;
         }
         let mut opt_port = Some(port as u16);
         if !has_any_digit || opt_port == default_port() {
             opt_port = None;
         }
-        return Ok((opt_port, &input[end..]))
+        return Ok((opt_port, input))
     }
 
     pub fn parse_path_start<'i>(&mut self, scheme_type: SchemeType, has_host: &mut bool,
-                            mut input: &'i str)
-                            -> &'i str {
+                            mut input: Input<'i>)
+                            -> Input<'i> {
         // Path start state
-        let mut iter = input.chars();
-        match iter.next() {
-            Some('/') => input = iter.as_str(),
-            Some('\\') if scheme_type.is_special() => {
+        match input.split_first() {
+            (Some('/'), remaining) => input = remaining,
+            (Some('\\'), remaining) => if scheme_type.is_special() {
                 self.syntax_violation("backslash");
-                input = iter.as_str()
-            }
+                input = remaining
+            },
             _ => {}
         }
         let path_start = self.serialization.len();
@@ -761,52 +876,48 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_path<'i>(&mut self, scheme_type: SchemeType, has_host: &mut bool,
-                          path_start: usize, input: &'i str)
-                          -> &'i str {
+                          path_start: usize, mut input: Input<'i>)
+                          -> Input<'i> {
         // Relative path state
         debug_assert!(self.serialization.ends_with("/"));
-        let mut iter = input.char_ranges();
-        let mut end;
         loop {
             let segment_start = self.serialization.len();
             let mut ends_with_slash = false;
-            end = input.len();
-            while let Some((i, c, next_i)) = iter.next() {
+            loop {
+                let input_before_c = input.clone();
+                let (c, utf8_c) = if let Some(x) = input.next_utf8() { x } else { break };
                 match c {
                     '/' if self.context != Context::PathSegmentSetter => {
                         ends_with_slash = true;
-                        end = i;
                         break
                     },
                     '\\' if self.context != Context::PathSegmentSetter &&
                             scheme_type.is_special() => {
                         self.syntax_violation("backslash");
                         ends_with_slash = true;
-                        end = i;
                         break
                     },
                     '?' | '#' if self.context == Context::UrlParser => {
-                        end = i;
+                        input = input_before_c;
                         break
                     },
-                    '\t' | '\n' | '\r' => self.syntax_violation("invalid characters"),
                     _ => {
-                        self.check_url_code_point(input, i, c);
+                        self.check_url_code_point(c, &input);
                         if c == '%' {
-                            let after_percent_sign = iter.clone();
-                            if matches!(iter.next(), Some((_, '2', _))) &&
-                                    matches!(iter.next(), Some((_, 'E', _)) | Some((_, 'e', _))) {
+                            let after_percent_sign = input.clone();
+                            if matches!(input.next(), Some('2')) &&
+                                    matches!(input.next(), Some('E') | Some('e')) {
                                 self.serialization.push('.');
                                 continue
                             }
-                            iter = after_percent_sign
+                            input = after_percent_sign
                         }
                         if self.context == Context::PathSegmentSetter {
                             self.serialization.extend(utf8_percent_encode(
-                                &input[i..next_i], PATH_SEGMENT_ENCODE_SET));
+                                utf8_c, PATH_SEGMENT_ENCODE_SET));
                         } else {
                             self.serialization.extend(utf8_percent_encode(
-                                &input[i..next_i], DEFAULT_ENCODE_SET));
+                                utf8_c, DEFAULT_ENCODE_SET));
                         }
                     }
                 }
@@ -845,7 +956,7 @@ impl<'a> Parser<'a> {
                 break
             }
         }
-        &input[end..]
+        input
     }
 
     /// https://url.spec.whatwg.org/#pop-a-urls-path
@@ -866,24 +977,26 @@ impl<'a> Parser<'a> {
 
     }
 
-    pub fn parse_cannot_be_a_base_path<'i>(&mut self, input: &'i str) -> &'i str {
-        for (i, c, next_i) in input.char_ranges() {
-            match c {
-                '?' | '#' if self.context == Context::UrlParser => return &input[i..],
-                '\t' | '\n' | '\r' => self.syntax_violation("invalid character"),
-                _ => {
-                    self.check_url_code_point(input, i, c);
-                    self.serialization.extend(utf8_percent_encode(
-                        &input[i..next_i], SIMPLE_ENCODE_SET));
+    pub fn parse_cannot_be_a_base_path<'i>(&mut self, mut input: Input<'i>) -> Input<'i> {
+        loop {
+            let input_before_c = input.clone();
+            match input.next_utf8() {
+                Some(('?', _)) | Some(('#', _)) if self.context == Context::UrlParser => {
+                    return input_before_c
                 }
+                Some((c, utf8_c)) => {
+                    self.check_url_code_point(c, &input);
+                    self.serialization.extend(utf8_percent_encode(
+                        utf8_c, SIMPLE_ENCODE_SET));
+                }
+                None => return input
             }
         }
-        ""
     }
 
     fn with_query_and_fragment(mut self, scheme_end: u32, username_end: u32,
                                host_start: u32, host_end: u32, host: HostInternal,
-                               port: Option<u16>, path_start: u32, remaining: &str)
+                               port: Option<u16>, path_start: u32, remaining: Input)
                                -> ParseResult<Url> {
         let (query_start, fragment_start) =
             try!(self.parse_query_and_fragment(scheme_end, remaining));
@@ -902,15 +1015,15 @@ impl<'a> Parser<'a> {
     }
 
     /// Return (query_start, fragment_start)
-    fn parse_query_and_fragment(&mut self, scheme_end: u32, mut input: &str)
+    fn parse_query_and_fragment(&mut self, scheme_end: u32, mut input: Input)
                                 -> ParseResult<(Option<u32>, Option<u32>)> {
         let mut query_start = None;
-        match input.chars().next() {
+        match input.next() {
             Some('#') => {}
             Some('?') => {
                 query_start = Some(try!(to_u32(self.serialization.len())));
                 self.serialization.push('?');
-                let remaining = self.parse_query(scheme_end, &input[1..]);
+                let remaining = self.parse_query(scheme_end, input);
                 if let Some(remaining) = remaining {
                     input = remaining
                 } else {
@@ -918,32 +1031,26 @@ impl<'a> Parser<'a> {
                 }
             }
             None => return Ok((None, None)),
-            _ => panic!("Programming error. parse_query_and_fragment() should not \
-                        have been called with input \"{}\"", input)
-        };
+            _ => panic!("Programming error. parse_query_and_fragment() called without ? or # {:?}")
+        }
 
         let fragment_start = try!(to_u32(self.serialization.len()));
         self.serialization.push('#');
-        debug_assert!(input.starts_with("#"));
-        self.parse_fragment(&input[1..]);
+        self.parse_fragment(input);
         Ok((query_start, Some(fragment_start)))
     }
 
-    pub fn parse_query<'i>(&mut self, scheme_end: u32, input: &'i str)
-                           -> Option<&'i str> {
+    pub fn parse_query<'i>(&mut self, scheme_end: u32, mut input: Input<'i>)
+                           -> Option<Input<'i>> {
         let mut query = String::new();  // FIXME: use a streaming decoder instead
         let mut remaining = None;
-        for (i, c) in input.char_indices() {
-            match c {
-                '#' if self.context == Context::UrlParser => {
-                    remaining = Some(&input[i..]);
-                    break
-                },
-                '\t' | '\n' | '\r' => self.syntax_violation("invalid characters"),
-                _ => {
-                    self.check_url_code_point(input, i, c);
-                    query.push(c);
-                }
+        while let Some(c) = input.next() {
+            if c == '#' && self.context == Context::UrlParser {
+                remaining = Some(input);
+                break
+            } else {
+                self.check_url_code_point(c, &input);
+                query.push(c);
             }
         }
 
@@ -956,17 +1063,18 @@ impl<'a> Parser<'a> {
         remaining
     }
 
-    fn fragment_only(mut self, base_url: &Url, input: &str) -> ParseResult<Url> {
+    fn fragment_only(mut self, base_url: &Url, mut input: Input) -> ParseResult<Url> {
         let before_fragment = match base_url.fragment_start {
             Some(i) => base_url.slice(..i),
             None => &*base_url.serialization,
         };
         debug_assert!(self.serialization.is_empty());
-        self.serialization.reserve(before_fragment.len() + input.len());
+        self.serialization.reserve(before_fragment.len() + input.chars.as_str().len());
         self.serialization.push_str(before_fragment);
         self.serialization.push('#');
-        debug_assert!(input.starts_with("#"));
-        self.parse_fragment(&input[1..]);
+        let next = input.next();
+        debug_assert!(next == Some('#'));
+        self.parse_fragment(input);
         Ok(Url {
             serialization: self.serialization,
             fragment_start: Some(try!(to_u32(before_fragment.len()))),
@@ -974,22 +1082,23 @@ impl<'a> Parser<'a> {
         })
     }
 
-    pub fn parse_fragment(&mut self, input: &str) {
-        for (i, c) in input.char_indices() {
-            match c {
-                '\0' | '\t' | '\n' | '\r' => self.syntax_violation("invalid character"),
-                _ => {
-                    self.check_url_code_point(input, i, c);
-                    self.serialization.push(c);  // No percent-encoding here.
-                }
+    pub fn parse_fragment(&mut self, mut input: Input) {
+        while let Some(c) = input.next() {
+            if c ==  '\0' {
+                self.syntax_violation("NULL characters are ignored in URL fragment identifiers")
+            } else {
+                self.check_url_code_point(c, &input);
+                self.serialization.push(c);  // No percent-encoding here.
             }
         }
     }
 
-    fn check_url_code_point(&self, input: &str, i: usize, c: char) {
+    fn check_url_code_point(&self, c: char, input: &Input) {
         if let Some(log) = self.log_syntax_violation {
             if c == '%' {
-                if !starts_with_2_hex(&input[i + 1..]) {
+                let mut input = input.clone();
+                if !matches!((input.next(), input.next()), (Some(a), Some(b))
+                             if is_ascii_hex_digit(a) && is_ascii_hex_digit(b)) {
                     log("expected 2 hex digits after %")
                 }
             } else if !is_url_code_point(c) {
@@ -1000,15 +1109,8 @@ impl<'a> Parser<'a> {
 }
 
 #[inline]
-fn is_ascii_hex_digit(byte: u8) -> bool {
-    matches!(byte, b'a'...b'f' | b'A'...b'F' | b'0'...b'9')
-}
-
-#[inline]
-fn starts_with_2_hex(input: &str) -> bool {
-    input.len() >= 2
-    && is_ascii_hex_digit(input.as_bytes()[0])
-    && is_ascii_hex_digit(input.as_bytes()[1])
+fn is_ascii_hex_digit(c: char) -> bool {
+    matches!(c, 'a'...'f' | 'A'...'F' | '0'...'9')
 }
 
 // Non URL code points:
@@ -1035,40 +1137,6 @@ fn is_url_code_point(c: char) -> bool {
         '\u{B0000}'...'\u{BFFFD}' | '\u{C0000}'...'\u{CFFFD}' |
         '\u{D0000}'...'\u{DFFFD}' | '\u{E1000}'...'\u{EFFFD}' |
         '\u{F0000}'...'\u{FFFFD}' | '\u{100000}'...'\u{10FFFD}')
-}
-
-
-pub trait StrCharRanges<'a> {
-    fn char_ranges(&self) -> CharRanges<'a>;
-}
-
-impl<'a> StrCharRanges<'a> for &'a str {
-    #[inline]
-    fn char_ranges(&self) -> CharRanges<'a> {
-        CharRanges { slice: *self, position: 0 }
-    }
-}
-
-#[derive(Clone)]
-pub struct CharRanges<'a> {
-    slice: &'a str,
-    position: usize,
-}
-
-impl<'a> Iterator for CharRanges<'a> {
-    type Item = (usize, char, usize);
-
-    #[inline]
-    fn next(&mut self) -> Option<(usize, char, usize)> {
-        match self.slice[self.position..].chars().next() {
-            Some(ch) => {
-                let position = self.position;
-                self.position = position + ch.len_utf8();
-                Some((position, ch, position + ch.len_utf8()))
-            }
-            None => None,
-        }
-    }
 }
 
 /// https://url.spec.whatwg.org/#c0-controls-and-space
@@ -1104,8 +1172,8 @@ fn starts_with_windows_drive_letter(s: &str) -> bool {
     && matches!(s.as_bytes()[1], b':' | b'|')
 }
 
-fn starts_with_windows_drive_letter_segment(s: &str) -> bool {
-    s.len() >= 3
-    && starts_with_windows_drive_letter(s)
-    && matches!(s.as_bytes()[2], b'/' | b'\\' | b'?' | b'#')
+fn starts_with_windows_drive_letter_segment(input: &Input) -> bool {
+    let mut input = input.clone();
+    matches!((input.next(), input.next(), input.next()), (Some(a), Some(b), Some(c))
+             if ascii_alpha(a) && matches!(b, ':' | '|') && matches!(c, '/' | '\\' | '?' | '#'))
 }

@@ -12,7 +12,7 @@
 //! you probably want to use `Url` method instead.
 
 use {Url, Position, Host, ParseError, idna};
-use parser::{Parser, SchemeType, default_port, Context};
+use parser::{Parser, SchemeType, default_port, Context, Input};
 
 /// https://url.spec.whatwg.org/#dom-url-domaintoascii
 pub fn domain_to_ascii(domain: &str) -> String {
@@ -102,13 +102,12 @@ pub fn set_host(url: &mut Url, new_host: &str) -> Result<(), ()> {
     let opt_port;
     {
         let scheme = url.scheme();
-        let result = Parser::parse_host(new_host, SchemeType::from(scheme), |_| ());
+        let result = Parser::parse_host(Input::new(new_host), SchemeType::from(scheme));
         match result {
             Ok((h, remaining)) => {
                 host = h;
-                opt_port = if remaining.starts_with(':') {
-                    Parser::parse_port(&remaining[1..], |_| (), || default_port(scheme),
-                                       Context::Setter)
+                opt_port = if let Some(remaining) = remaining.split_prefix(':') {
+                    Parser::parse_port(remaining, || default_port(scheme), Context::Setter)
                     .ok().map(|(port, _remaining)| port)
                 } else {
                     None
@@ -132,7 +131,7 @@ pub fn set_hostname(url: &mut Url, new_hostname: &str) -> Result<(), ()> {
     if url.cannot_be_a_base() {
         return Err(())
     }
-    let result = Parser::parse_host(new_hostname, SchemeType::from(url.scheme()), |_| ());
+    let result = Parser::parse_host(Input::new(new_hostname), SchemeType::from(url.scheme()));
     if let Ok((host, _remaining)) = result {
         url.set_host_internal(host, None);
         Ok(())
@@ -156,7 +155,7 @@ pub fn set_port(url: &mut Url, new_port: &str) -> Result<(), ()> {
         if !url.has_host() || scheme == "file" {
             return Err(())
         }
-        result = Parser::parse_port(new_port, |_| (), || default_port(scheme), Context::Setter)
+        result = Parser::parse_port(Input::new(new_port), || default_port(scheme), Context::Setter)
     }
     if let Ok((new_port, _remaining)) = result {
         url.set_port_internal(new_port);
