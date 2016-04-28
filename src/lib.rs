@@ -346,6 +346,21 @@ impl Url {
         if let (Some(query_start), Some(fragment_start)) = (self.query_start, self.fragment_start) {
             assert!(fragment_start > query_start);
         }
+
+        let other = Url::parse(self.as_str()).unwrap();
+        assert_eq!(&self.serialization, &other.serialization);
+        assert_eq!(self.scheme_end, other.scheme_end);
+        assert_eq!(self.username_end, other.username_end);
+        assert_eq!(self.host_start, other.host_start);
+        assert_eq!(self.host_end, other.host_end);
+        assert!(self.host == other.host ||
+                // XXX No host round-trips to empty host.
+                // See https://github.com/whatwg/url/issues/79
+                (self.host_str(), other.host_str()) == (None, Some("")));
+        assert_eq!(self.port, other.port);
+        assert_eq!(self.path_start, other.path_start);
+        assert_eq!(self.query_start, other.query_start);
+        assert_eq!(self.fragment_start, other.fragment_start);
     }
 
     /// Return the origin of this URL (https://url.spec.whatwg.org/#origin)
