@@ -142,12 +142,14 @@ use std::str;
 
 pub use origin::{Origin, OpaqueOrigin};
 pub use host::{Host, HostAndPort, SocketAddrs};
+pub use path_segments::PathSegmentsMut;
 pub use parser::ParseError;
 pub use slicing::Position;
 
 mod encoding;
 mod host;
 mod origin;
+mod path_segments;
 mod parser;
 mod slicing;
 
@@ -261,7 +263,7 @@ impl Url {
         self.serialization
     }
 
-    /// For internal testing.
+    /// For internal testing, not part of the public API.
     ///
     /// Methods of the `Url` struct assume a number of invariants.
     /// This checks each of these invariants and panic if one is not met.
@@ -545,7 +547,10 @@ impl Url {
     /// return an iterator of '/' slash-separated path segments,
     /// each as a percent-encoded ASCII string.
     ///
-    /// Return `None` for cannot-be-a-base URLs, or an iterator of at least one string.
+    /// Return `None` for cannot-be-a-base URLs.
+    ///
+    /// When `Some` is returned, the iterator always contains at least one string
+    /// (which may be empty).
     pub fn path_segments(&self) -> Option<str::Split<char>> {
         let path = self.path();
         if path.starts_with('/') {
@@ -694,12 +699,16 @@ impl Url {
         form_urlencoded::Serializer::for_suffix(query, query_start + "?".len())
     }
 
-    /// Change this URL’s path.
-    pub fn set_path(&mut self, mut path: &str) {
-        let (old_after_path_pos, after_path) = match (self.query_start, self.fragment_start) {
+    fn take_after_path(&mut self) -> (u32, String) {
+        match (self.query_start, self.fragment_start) {
             (Some(i), _) | (None, Some(i)) => (i, self.slice(i..).to_owned()),
             (None, None) => (to_u32(self.serialization.len()).unwrap(), String::new())
-        };
+        }
+    }
+
+    /// Change this URL’s path.
+    pub fn set_path(&mut self, mut path: &str) {
+        let (old_after_path_pos, after_path) = self.take_after_path();
         let cannot_be_a_base = self.cannot_be_a_base();
         let scheme_type = SchemeType::from(self.scheme());
         self.serialization.truncate(self.path_start as usize);
@@ -715,73 +724,29 @@ impl Url {
                 parser.parse_path_start(scheme_type, &mut has_host, parser::Input::new(path));
             }
         });
-        let new_after_path_pos = to_u32(self.serialization.len()).unwrap();
+        self.restore_after_path(old_after_path_pos, &after_path);
+    }
+
+    /// Return an object with methods to manipulate this URL’s path segments.
+    ///
+    /// Return `Err(())` if this URl is cannot-be-a-base.
+    pub fn path_segments_mut(&mut self) -> Result<PathSegmentsMut, ()> {
+        if self.cannot_be_a_base() {
+            Err(())
+        } else {
+            Ok(path_segments::new(self))
+        }
+    }
+
+    fn restore_after_path(&mut self, old_after_path_position: u32, after_path: &str) {
+        let new_after_path_position = to_u32(self.serialization.len()).unwrap();
         let adjust = |index: &mut u32| {
-            *index -= old_after_path_pos;
-            *index += new_after_path_pos;
+            *index -= old_after_path_position;
+            *index += new_after_path_position;
         };
         if let Some(ref mut index) = self.query_start { adjust(index) }
         if let Some(ref mut index) = self.fragment_start { adjust(index) }
-        self.serialization.push_str(&after_path)
-    }
-
-    /// Remove the last segment of this URL’s path.
-    ///
-    /// If this URL is cannot-be-a-base, do nothing and return `Err`.
-    /// If this URL is not cannot-be-a-base and its path is `/`, do nothing and return `Ok`.
-    // Temporarily private: https://github.com/servo/rust-url/issues/188
-    /*pub*/ fn pop_path_segment(&mut self) -> Result<(), ()> {
-        if self.cannot_be_a_base() {
-            return Err(())
-        }
-        let last_slash;
-        let path_len;
-        {
-            let path = self.path();
-            last_slash = path.rfind('/').unwrap();
-            path_len = path.len();
-        };
-        if last_slash > 0 {
-            // Found a slash other than the initial one
-            let last_slash = last_slash + self.path_start as usize;
-            let path_end = path_len + self.path_start as usize;
-            self.serialization.drain(last_slash..path_end);
-            let offset = (path_end - last_slash) as u32;
-            if let Some(ref mut index) = self.query_start { *index -= offset }
-            if let Some(ref mut index) = self.fragment_start { *index -= offset }
-        }
-        Ok(())
-    }
-
-    /// Add a segment at the end of this URL’s path.
-    ///
-    /// If this URL is cannot-be-a-base, do nothing and return `Err`.
-    // Temporarily private: https://github.com/servo/rust-url/issues/188
-    /*pub*/ fn push_path_segment(&mut self, segment: &str) -> Result<(), ()> {
-        if self.cannot_be_a_base() {
-            return Err(())
-        }
-        let after_path = match (self.query_start, self.fragment_start) {
-            (Some(i), _) | (None, Some(i)) => {
-                let s = self.slice(i..).to_owned();
-                self.serialization.truncate(i as usize);
-                s
-            },
-            (None, None) => String::new()
-        };
-        let scheme_type = SchemeType::from(self.scheme());
-        let path_start = self.path_start as usize;
-        self.serialization.push('/');
-        self.mutate(|parser| {
-            parser.context = parser::Context::PathSegmentSetter;
-            let mut has_host = true;  // FIXME account for this?
-            parser.parse_path(scheme_type, &mut has_host, path_start, parser::Input::new(segment))
-        });
-        let offset = to_u32(self.serialization.len()).unwrap() - self.path_start;
-        if let Some(ref mut index) = self.query_start { *index += offset }
-        if let Some(ref mut index) = self.fragment_start { *index += offset }
-        self.serialization.push_str(&after_path);
-        Ok(())
+        self.serialization.push_str(after_path)
     }
 
     /// Change this URL’s port number.
