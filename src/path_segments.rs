@@ -23,8 +23,8 @@ use Url;
 /// assert!(url.path_segments_mut().is_err());
 ///
 /// let mut url = Url::parse("http://example.net/foo/index.html").unwrap();
-/// url.path_segments_mut().unwrap().pop().push("img").push("100%.png");
-/// assert_eq!(url.as_str(), "http://example.net/foo/img/100%25.png");
+/// url.path_segments_mut().unwrap().pop().push("img").push("2/100%.png");
+/// assert_eq!(url.as_str(), "http://example.net/foo/img/2%2F100%25.png");
 /// ```
 pub struct PathSegmentsMut<'a> {
     url: &'a mut Url,
@@ -145,19 +145,33 @@ impl<'a> PathSegmentsMut<'a> {
     /// url.path_segments_mut().unwrap().extend(&[org, repo, "issues", issue_number]);
     /// assert_eq!(url.as_str(), "https://github.com/servo/rust-url/issues/188");
     /// ```
+    ///
+    /// In order to make sure that parsing the serialization of an URL gives the same URL,
+    /// a segment of `"."` is ignored and a segment of `".."` *removes* the previous segment
+    /// like `.pop()`:
+    ///
+    /// ```rust
+    /// # use url::Url;
+    /// let mut url = Url::parse("https://github.com/pulls").unwrap();
+    /// url.path_segments_mut().unwrap().extend(&["..", "servo", ".", "rust-url"]);
+    /// assert_eq!(url.as_str(), "https://github.com/servo/rust-url");
+    /// ```
     pub fn extend<I>(&mut self, segments: I) -> &mut Self
     where I: IntoIterator, I::Item: AsRef<str> {
         let scheme_type = SchemeType::from(self.url.scheme());
         let path_start = self.url.path_start as usize;
         self.url.mutate(|parser| {
             parser.context = parser::Context::PathSegmentSetter;
+            let mut previous_segment_was_single_dot = false;
             for segment in segments {
-                if parser.serialization.len() > path_start + 1 {
+                let segment = segment.as_ref();
+                if parser.serialization.len() > path_start + 1 && !previous_segment_was_single_dot {
                     parser.serialization.push('/');
                 }
                 let mut has_host = true;  // FIXME account for this?
                 parser.parse_path(scheme_type, &mut has_host, path_start,
-                                  parser::Input::new(segment.as_ref()));
+                                  parser::Input::new(segment));
+                previous_segment_was_single_dot = segment == ".";
             }
         });
         self
