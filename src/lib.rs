@@ -1243,11 +1243,17 @@ fn path_to_file_url_segments(path: &Path, serialization: &mut String) -> Result<
     if !path.is_absolute() {
         return Err(())
     }
+    let mut empty = true;
     // skip the root component
     for component in path.components().skip(1) {
+        empty = false;
         serialization.push('/');
         serialization.extend(percent_encode(
-            component.as_os_str().as_bytes(), PATH_SEGMENT_ENCODE_SET))
+            component.as_os_str().as_bytes(), PATH_SEGMENT_ENCODE_SET));
+    }
+    if empty {
+        // An URL’s path must not be empty.
+        serialization.push('/');
     }
     Ok(())
 }
