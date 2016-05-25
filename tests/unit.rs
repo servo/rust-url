@@ -259,3 +259,12 @@ fn issue_61() {
     assert_eq!(url.port_or_known_default(), Some(443));
     url.assert_invariants();
 }
+
+#[test]
+/// https://github.com/servo/rust-url/issues/197
+fn issue_197() {
+    let mut url = Url::from_file_path("/").unwrap();
+    url.assert_invariants();
+    assert_eq!(url, Url::parse("file:///").unwrap());
+    url.path_segments_mut().unwrap().pop_if_empty();
+}
