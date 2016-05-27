@@ -9,7 +9,7 @@
 use encoding;
 use std::ascii::AsciiExt;
 use std::borrow::Cow;
-use std::fmt::{self, Write};
+use std::fmt;
 use std::slice;
 use std::str;
 
