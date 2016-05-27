@@ -34,6 +34,7 @@ pub fn url_origin(url: &Url) -> Origin {
 
 /// The origin of an URL
 #[derive(PartialEq, Eq, Clone, Debug)]
+#[cfg_attr(feature="serde", derive(Deserialize, Serialize))]
 #[cfg_attr(feature="heap_size", derive(HeapSizeOf))]
 pub enum Origin {
     /// A globally unique identifier

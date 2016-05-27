@@ -159,6 +159,7 @@ pub mod quirks;
 
 /// A parsed URL record.
 #[derive(Clone)]
+#[cfg_attr(feature="serde", derive(Deserialize, Serialize))]
 #[cfg_attr(feature="heap_size", derive(HeapSizeOf))]
 pub struct Url {
     /// Syntax in pseudo-BNF:
@@ -1213,27 +1214,6 @@ impl rustc_serialize::Decodable for Url {
         Url::parse(&*try!(decoder.read_str())).map_err(|error| {
             decoder.error(&format!("URL parsing error: {}", error))
         })
-    }
-}
-
-/// Serializes this URL into a `serde` stream.
-///
-/// This implementation is only available if the `serde` Cargo feature is enabled.
-#[cfg(feature="serde")]
-impl serde::Serialize for Url {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: serde::Serializer {
-        format!("{}", self).serialize(serializer)
-    }
-}
-
-/// Deserializes this URL from a `serde` stream.
-///
-/// This implementation is only available if the `serde` Cargo feature is enabled.
-#[cfg(feature="serde")]
-impl serde::Deserialize for Url {
-    fn deserialize<D>(deserializer: &mut D) -> Result<Url, D::Error> where D: serde::Deserializer {
-        let string_representation: String = try!(serde::Deserialize::deserialize(deserializer));
-        Ok(Url::parse(&string_representation).unwrap())
     }
 }
 
