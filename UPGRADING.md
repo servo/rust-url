@@ -4,8 +4,8 @@
   and setters maintain invariants that could be violated if you were to set the fields directly.
   Instead of accessing, for example, `url.scheme`, use the getter method, such as `url.scheme()`.
   Instead of assigning directly to a field, for example `url.scheme = "https".to_string()`,
-  use the setter method, such as `url.set_scheme("https").unwrap()`
-  (the setters return a `Result` that must be used).
+  use the setter method, such as `url.set_scheme("https").unwrap()`.
+  (Some setters validate the new value and return a `Result` that must be used).
 
 * The methods of `Url` now return `&str` instead of `String`,
   thus reducing allocations and making serialization cheap.
@@ -235,6 +235,8 @@
 
 * `url::percent_encoding::percent_decode()` used to have a return type of `Vec<u8>`;
   now it returns an iterator of decoded `u8` bytes that also implements `Into<Cow<u8>>`.
+  Use `.into().to_owned()` to obtain a `Vec<u8>`.
+  (`.collect()` also works but might not be as efficient.)
 
 * The `url::percent_encoding::EncodeSet` struct and constant instances
   used with `url::percent_encoding::percent_encode()`
@@ -252,8 +254,9 @@
   * `PATH_SEGMENT_ENCODE_SET` has been added for use on '/'-separated path segments.
 
 * `url::percent_encoding::percent_decode_to()` has been removed.
-  Use `url::percent_encoding::percent_decode()`
-  and manage pushing the results into a data structure yourself.
+  Use `url::percent_encoding::percent_decode()` which returns an iterator.
+  You can then use the iterator’s `collect()` method
+  or give it to some data structure’s `extend()` method.
 * A number of `ParseError` variants have changed.
   [See the documentation for the current set](http://servo.github.io/rust-url/url/enum.ParseError.html).
 * `url::OpaqueOrigin::new()` and `url::Origin::UID(OpaqueOrigin)`
