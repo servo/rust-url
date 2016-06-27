@@ -17,34 +17,42 @@
 
     Before upgrading:
 
-        let issue_list_url = Url::parse(
-             "https://github.com/rust-lang/rust/issues?labels=E-easy&state=open"
-        ).unwrap();
-        assert_eq!(issue_list_url.path(), Some(&["rust-lang".to_string(),
-                                                 "rust".to_string(),
-                                                 "issues".to_string()][..]));
+    ```rust
+    let issue_list_url = Url::parse(
+         "https://github.com/rust-lang/rust/issues?labels=E-easy&state=open"
+    ).unwrap();
+    assert_eq!(issue_list_url.path(), Some(&["rust-lang".to_string(),
+                                             "rust".to_string(),
+                                             "issues".to_string()][..]));
+    ```
 
     After upgrading:
 
-        let issue_list_url = Url::parse(
-             "https://github.com/rust-lang/rust/issues?labels=E-easy&state=open"
-        ).unwrap();
-        assert_eq!(issue_list_url.path(), "/rust-lang/rust/issues");
-        assert_eq!(issue_list_url.path_segments().map(|c| c.collect::<Vec<_>>()),
-                   Some(vec!["rust-lang", "rust", "issues"]));
+    ```rust
+    let issue_list_url = Url::parse(
+         "https://github.com/rust-lang/rust/issues?labels=E-easy&state=open"
+    ).unwrap();
+    assert_eq!(issue_list_url.path(), "/rust-lang/rust/issues");
+    assert_eq!(issue_list_url.path_segments().map(|c| c.collect::<Vec<_>>()),
+               Some(vec!["rust-lang", "rust", "issues"]));
+    ```
 
 * The `path_mut()` method on `url::Url` instances that allowed modification of a URL's path
   has been replaced by `path_segments_mut()`.
 
     Before upgrading:
 
-        let mut url = Url::parse("https://github.com/rust-lang/rust").unwrap();
-        url.path_mut().unwrap().push("issues");
+    ```rust
+    let mut url = Url::parse("https://github.com/rust-lang/rust").unwrap();
+    url.path_mut().unwrap().push("issues");
+    ```
 
     After upgrading:
 
-        let mut url = Url::parse("https://github.com/rust-lang/rust").unwrap();
-        url.path_segments_mut().unwrap().push("issues");
+    ```rust
+    let mut url = Url::parse("https://github.com/rust-lang/rust").unwrap();
+    url.path_segments_mut().unwrap().push("issues");
+    ```
 
 * The `domain_mut()` method on `url::Url` instances that allowed modification of a URL's domain
   has been replaced by `set_host()` and `set_ip_host()`.
@@ -59,45 +67,57 @@
 
     Before upgrading:
 
-        let this_document = Url::parse("http://servo.github.io/rust-url/url/index.html").unwrap();
-        assert_eq!(this_document.serialize(), "http://servo.github.io/rust-url/url/index.html".to_string());
+    ```rust
+    let this_document = Url::parse("http://servo.github.io/rust-url/url/index.html").unwrap();
+    assert_eq!(this_document.serialize(), "http://servo.github.io/rust-url/url/index.html".to_string());
+    ```
 
     After upgrading:
 
-        let this_document = Url::parse("http://servo.github.io/rust-url/url/index.html").unwrap();
-        assert_eq!(this_document.as_str(), "http://servo.github.io/rust-url/url/index.html");
+    ```rust
+    let this_document = Url::parse("http://servo.github.io/rust-url/url/index.html").unwrap();
+    assert_eq!(this_document.as_str(), "http://servo.github.io/rust-url/url/index.html");
+    ```
 
 * `url::UrlParser` has been replaced by `url::Url::parse()` and `url::Url::join()`.
 
     Before upgrading:
 
-        let this_document = Url::parse("http://servo.github.io/rust-url/url/index.html").unwrap();
-        let css_url = UrlParser::new().base_url(&this_document).parse("../main.css").unwrap();
-        assert_eq!(css_url.serialize(), "http://servo.github.io/rust-url/main.css".to_string());
+    ```rust
+    let this_document = Url::parse("http://servo.github.io/rust-url/url/index.html").unwrap();
+    let css_url = UrlParser::new().base_url(&this_document).parse("../main.css").unwrap();
+    assert_eq!(css_url.serialize(), "http://servo.github.io/rust-url/main.css".to_string());
+    ```
 
     After upgrading:
 
-        let this_document = Url::parse("http://servo.github.io/rust-url/url/index.html").unwrap();
-        let css_url = this_document.join("../main.css").unwrap();
-        assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css");
+    ```rust
+    let this_document = Url::parse("http://servo.github.io/rust-url/url/index.html").unwrap();
+    let css_url = this_document.join("../main.css").unwrap();
+    assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css");
+    ```
 
 * `url::parse_path()` and `url::UrlParser::parse_path()` have been removed without replacement.
   As a workaround, you can give a base URL that you then ignore too `url::Url::parse()`.
 
     Before upgrading:
 
-        let (path, query, fragment) = url::parse_path("/foo/bar/../baz?q=42").unwrap();
-        assert_eq!(path, vec!["foo".to_string(), "baz".to_string()]);
-        assert_eq!(query, Some("q=42".to_string()));
-        assert_eq!(fragment, None);
+    ```rust
+    let (path, query, fragment) = url::parse_path("/foo/bar/../baz?q=42").unwrap();
+    assert_eq!(path, vec!["foo".to_string(), "baz".to_string()]);
+    assert_eq!(query, Some("q=42".to_string()));
+    assert_eq!(fragment, None);
+    ```
 
     After upgrading:
 
-        let base = Url::parse("http://example.com").unwrap();
-        let with_path = base.join("/foo/bar/../baz?q=42").unwrap();
-        assert_eq!(with_path.path(), "/foo/baz");
-        assert_eq!(with_path.query(), Some("q=42"));
-        assert_eq!(with_path.fragment(), None);
+    ```rust
+    let base = Url::parse("http://example.com").unwrap();
+    let with_path = base.join("/foo/bar/../baz?q=42").unwrap();
+    assert_eq!(with_path.path(), "/foo/baz");
+    assert_eq!(with_path.query(), Some("q=42"));
+    assert_eq!(with_path.fragment(), None);
+    ```
 
 * The `url::form_urlencoded::serialize()` method
   has been replaced with the `url::form_urlencoded::Serializer` struct.
@@ -108,40 +128,48 @@
 
     Before upgrading:
 
-        let form = url::form_urlencoded::serialize(form.iter().map(|(k, v)| {
-            (&k[..], &v[..])
-        }));
+    ```rust
+    let form = url::form_urlencoded::serialize(form.iter().map(|(k, v)| {
+        (&k[..], &v[..])
+    }));
+    ```
 
     After upgrading:
 
-        let form = url::form_urlencoded::Serializer::new(String::new()).extend_pairs(
-            form.iter().map(|(k, v)| { (&k[..], &v[..]) })
-        ).finish();
+    ```rust
+    let form = url::form_urlencoded::Serializer::new(String::new()).extend_pairs(
+        form.iter().map(|(k, v)| { (&k[..], &v[..]) })
+    ).finish();
+    ```
 
 * The `set_query_from_pairs()` method on `url::Url` instances that took key/value pairs
   has been replaced with `query_pairs_mut()`, which allows you to modify the `url::Url`'s query pairs.
 
     Before upgrading:
 
-        let mut url = Url::parse("https://duckduckgo.com/").unwrap();
-        let pairs = vec![
-            ("q", "test"),
-            ("ia", "images"),
-        ];
-        url.set_query_from_pairs(pairs.iter().map(|&(k, v)| {
-            (&k[..], &v[..])
-        }));
+    ```rust
+    let mut url = Url::parse("https://duckduckgo.com/").unwrap();
+    let pairs = vec![
+        ("q", "test"),
+        ("ia", "images"),
+    ];
+    url.set_query_from_pairs(pairs.iter().map(|&(k, v)| {
+        (&k[..], &v[..])
+    }));
+    ```
 
     After upgrading:
 
-        let mut url = Url::parse("https://duckduckgo.com/").unwrap();
-        let pairs = vec![
-            ("q", "test"),
-            ("ia", "images"),
-        ];
-        url.query_pairs_mut().clear().extend_pairs(
-          pairs.iter().map(|&(k, v)| { (&k[..], &v[..]) })
-        );
+    ```rust
+    let mut url = Url::parse("https://duckduckgo.com/").unwrap();
+    let pairs = vec![
+        ("q", "test"),
+        ("ia", "images"),
+    ];
+    url.query_pairs_mut().clear().extend_pairs(
+      pairs.iter().map(|&(k, v)| { (&k[..], &v[..]) })
+    );
+    ```
 
 * `url::SchemeData`, its variants `Relative` and `NonRelative`,
   and the struct `url::RelativeSchemeData` have been removed.
@@ -152,20 +180,24 @@
 
     Before upgrading:
 
-        match url.scheme_data {
-            url::SchemeData::Relative(..) => {}
-            url::SchemeData::NonRelative(..) => {
-                return Err(human(format!("`{}` must have relative scheme \
-                                          data: {}", field, url)))
-            }
-        }
-
-    After upgrading:
-
-        if url.cannot_be_a_base() {
+    ```rust
+    match url.scheme_data {
+        url::SchemeData::Relative(..) => {}
+        url::SchemeData::NonRelative(..) => {
             return Err(human(format!("`{}` must have relative scheme \
                                       data: {}", field, url)))
         }
+    }
+    ```
+
+    After upgrading:
+
+    ```rust
+    if url.cannot_be_a_base() {
+        return Err(human(format!("`{}` must have relative scheme \
+                                  data: {}", field, url)))
+    }
+    ```
 
 * The functions `url::whatwg_scheme_type_mapper()`, the `SchemeType` enum,
   and the `scheme_type_mapper()` method on `url::UrlParser` instances have been removed.
@@ -176,19 +208,23 @@
 
     Before upgrading:
 
-        let port = match whatwg_scheme_type_mapper(&url.scheme) {
-            SchemeType::Relative(port) => port,
-            _ => return Err(format!("Invalid special scheme: `{}`",
-                                    raw_url.scheme)),
-        };
+    ```rust
+    let port = match whatwg_scheme_type_mapper(&url.scheme) {
+        SchemeType::Relative(port) => port,
+        _ => return Err(format!("Invalid special scheme: `{}`",
+                                raw_url.scheme)),
+    };
+    ```
 
     After upgrading:
 
-        let port = match url.port_or_known_default() {
-            Some(port) => port,
-            _ => return Err(format!("Invalid special scheme: `{}`",
-                                    url.scheme())),
-        };
+    ```rust
+    let port = match url.port_or_known_default() {
+        Some(port) => port,
+        _ => return Err(format!("Invalid special scheme: `{}`",
+                                url.scheme())),
+    };
+    ```
 
 * The following formatting utilities have been removed without replacement;
   look at their linked previous implementations
