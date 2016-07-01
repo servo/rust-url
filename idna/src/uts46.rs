@@ -198,12 +198,10 @@ fn validate(label: &str, flags: Flags, errors: &mut Vec<Error>) {
     }
 
     // Can not contain '.' since the input is from .split('.')
-    if {
-        let mut chars = label.chars().skip(2);
-        let third = chars.next();
-        let fourth = chars.next();
-        (third, fourth) == (Some('-'), Some('-'))
-    } || label.starts_with("-")
+    // Spec says, the label must not contain a HYPHEN-MINUS character in both the
+    // third and fourth positions. But nobody follow this criteria. See the spec issue below:
+    // https://github.com/whatwg/url/issues/53
+    if label.starts_with("-")
         || label.ends_with("-")
         || label.chars().next().map_or(false, is_combining_mark)
         || label.chars().any(|c| match *find_char(c) {
