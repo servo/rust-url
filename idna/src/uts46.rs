@@ -202,7 +202,7 @@ fn validate(label: &str, flags: Flags, errors: &mut Vec<Error>) {
         let mut chars = label.chars().skip(2);
         let third = chars.next();
         let fourth = chars.next();
-        (third, fourth) == (Some('-'), Some('-'))
+        !flags.relax_future_extension_validation && (third, fourth) == (Some('-'), Some('-'))
     } || label.starts_with("-")
         || label.ends_with("-")
         || label.chars().next().map_or(false, is_combining_mark)
@@ -252,6 +252,8 @@ pub struct Flags {
    pub use_std3_ascii_rules: bool,
    pub transitional_processing: bool,
    pub verify_dns_length: bool,
+   /// http://www.unicode.org/reports/tr46/#Validity_Criteria 'Some implementations appear to consider such extentions unlikely, and allow labels such as "r3---sn-apo3qvuoxuxbt-j5pe".'
+   pub relax_future_extension_validation: bool
 }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
