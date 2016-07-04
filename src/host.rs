@@ -7,7 +7,7 @@
 // except according to those terms.
 
 use std::cmp;
-use std::fmt::{self, Formatter, Write};
+use std::fmt::{self, Formatter};
 use std::io;
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
 use std::vec;
