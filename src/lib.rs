@@ -366,6 +366,53 @@ impl Url {
     ///
     /// Note: this return an opaque origin for `file:` URLs, which causes
     /// `url.origin() != url.origin()`.
+    ///
+    /// # Examples
+    ///
+    /// URL with `ftp` scheme:
+    ///
+    /// ```rust
+    /// use url::{Host, Origin, Url};
+    ///
+    /// let url = Url::parse("ftp://example.com/foo").unwrap();
+    /// assert_eq!(url.origin(),
+    ///            Origin::Tuple("ftp".into(),
+    ///                          Host::Domain("example.com".into()),
+    ///                          21));
+    /// ```
+    ///
+    /// URL with `blob` scheme:
+    ///
+    /// ```rust
+    /// use url::{Host, Origin, Url};
+    ///
+    /// let url = Url::parse("blob:https://example.com/foo").unwrap();
+    /// assert_eq!(url.origin(),
+    ///            Origin::Tuple("https".into(),
+    ///                          Host::Domain("example.com".into()),
+    ///                          443));
+    /// ```
+    ///
+    /// URL with `file` scheme:
+    ///
+    /// ```rust
+    /// use url::{Host, Origin, Url};
+    ///
+    /// let url = Url::parse("file:///tmp/foo").unwrap();
+    /// assert!(!url.origin().is_tuple());
+    ///
+    /// let other_url = Url::parse("file:///tmp/foo").unwrap();
+    /// assert!(url.origin() != other_url.origin());
+    /// ```
+    ///
+    /// URL with other scheme:
+    ///
+    /// ```rust
+    /// use url::{Host, Origin, Url};
+    ///
+    /// let url = Url::parse("foo:bar").unwrap();
+    /// assert!(!url.origin().is_tuple());
+    /// ```
     #[inline]
     pub fn origin(&self) -> Origin {
         origin::url_origin(self)
