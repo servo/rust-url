@@ -447,6 +447,18 @@ impl Url {
 
     /// Return the username for this URL (typically the empty string)
     /// as a percent-encoded ASCII string.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let url = Url::parse("ftp://rms@example.com").unwrap();
+    /// assert_eq!(url.username(), "rms");
+    ///
+    /// let url = Url::parse("https://example.com").unwrap();
+    /// assert_eq!(url.username(), "");
+    /// ```
     pub fn username(&self) -> &str {
         if self.has_authority() {
             self.slice(self.scheme_end + ("://".len() as u32)..self.username_end)
