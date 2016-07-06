@@ -423,6 +423,15 @@ impl Url {
     }
 
     /// Return the scheme of this URL, lower-cased, as an ASCII string without the ':' delimiter.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let url = Url::parse("file:///tmp/foo").unwrap();
+    /// assert_eq!(url.scheme(), "file");
+    /// ```
     #[inline]
     pub fn scheme(&self) -> &str {
         self.slice(..self.scheme_end)
