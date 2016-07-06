@@ -460,6 +460,9 @@ impl Url {
     /// let url = Url::parse("ftp://rms@example.com").unwrap();
     /// assert_eq!(url.username(), "rms");
     ///
+    /// let url = Url::parse("ftp://:secret123@example.com").unwrap();
+    /// assert_eq!(url.username(), "");
+    ///
     /// let url = Url::parse("https://example.com").unwrap();
     /// assert_eq!(url.username(), "");
     /// ```
