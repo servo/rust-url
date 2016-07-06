@@ -475,6 +475,24 @@ impl Url {
     }
 
     /// Return the password for this URL, if any, as a percent-encoded ASCII string.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let url = Url::parse("ftp://rms:secret123@example.com").unwrap();
+    /// assert_eq!(url.password(), Some("secret123"));
+    ///
+    /// let url = Url::parse("ftp://:secret123@example.com").unwrap();
+    /// assert_eq!(url.password(), Some("secret123"));
+    ///
+    /// let url = Url::parse("ftp://rms@example.com").unwrap();
+    /// assert_eq!(url.password(), None);
+    ///
+    /// let url = Url::parse("https://example.com").unwrap();
+    /// assert_eq!(url.password(), None);
+    /// ```
     pub fn password(&self) -> Option<&str> {
         // This ':' is not the one marking a port number since a host can not be empty.
         // (Except for file: URLs, which do not have port numbers.)
