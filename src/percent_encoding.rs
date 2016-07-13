@@ -162,7 +162,7 @@ pub fn utf8_percent_encode<E: EncodeSet>(input: &str, encode_set: E) -> PercentE
     percent_encode(input.as_bytes(), encode_set)
 }
 
-/// The return type of `percent_decode()`.
+/// The return type of `percent_encode()` and `utf8_percent_encode()`.
 #[derive(Clone)]
 pub struct PercentEncode<'a, E: EncodeSet> {
     bytes: &'a [u8],
