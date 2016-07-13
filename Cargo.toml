@@ -28,6 +28,7 @@ rustc-serialize = "0.3"
 [features]
 query_encoding = ["encoding"]
 heap_size = ["heapsize", "heapsize_plugin"]
+only_percent_decode_hostname_valid = []
 
 [dependencies]
 idna = { version = "0.1.0", path = "./idna" }

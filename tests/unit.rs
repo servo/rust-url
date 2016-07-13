@@ -268,3 +268,9 @@ fn issue_197() {
     assert_eq!(url, Url::parse("file:///").unwrap());
     url.path_segments_mut().unwrap().pop_if_empty();
 }
+
+#[test]
+#[cfg(feature = "only_percent_decode_hostname_valid")]
+fn test_percent_encoded_hostname() {
+    assert_eq!(Url::parse("http://example.com%0a%23.google.com/").unwrap().domain(), Some("example.com%0a%23.google.com"));
+}

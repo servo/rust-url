@@ -110,6 +110,14 @@ define_encode_set! {
     }
 }
 
+define_encode_set! {
+    /// This encode set is used to decide which characters are allowed in the hostname.
+    pub HOSTNAME_ENCODE_SET = [SIMPLE_ENCODE_SET] | {
+        ' ', '!', '"', '#', '$', '%', '&', '\'', '(', ')', '+', ',', '/', ':', ';',
+        '<', '=', '>', '?', '@', '[', '\\', ']', '^', '`', '{', '|', '}', '~'
+    }
+}
+
 /// Return the percent-encoding of the given bytes.
 ///
 /// This is unconditional, unlike `percent_encode()` which uses an encode set.
@@ -244,26 +252,44 @@ impl<'a, E: EncodeSet> From<PercentEncode<'a, E>> for Cow<'a, str> {
 #[inline]
 pub fn percent_decode<'a>(input: &'a [u8]) -> PercentDecode<'a> {
     PercentDecode {
-        bytes: input.iter()
+        bytes: input.iter(),
+        only_hostname_valid: false,
     }
+}
+
+#[cfg(feature = "only_percent_decode_hostname_valid")]
+pub fn percent_decode_hostname<'a>(input: &'a [u8]) -> PercentDecode<'a> {
+    PercentDecode {
+        bytes: input.iter(),
+        only_hostname_valid: true,
+    }
+}
+
+#[cfg(not(feature = "only_percent_decode_hostname_valid"))]
+pub fn percent_decode_hostname<'a>(input: &'a [u8]) -> PercentDecode<'a> {
+    percent_decode(input)
 }
 
 /// The return type of `percent_decode()`.
 #[derive(Clone)]
 pub struct PercentDecode<'a> {
     bytes: slice::Iter<'a, u8>,
+    only_hostname_valid: bool,
 }
 
-fn after_percent_sign(iter: &mut slice::Iter<u8>) -> Option<u8> {
+fn after_percent_sign(iter: &mut slice::Iter<u8>, only_hostname_valid: bool) -> Option<u8> {
     let initial_iter = iter.clone();
     let h = iter.next().and_then(|&b| (b as char).to_digit(16));
     let l = iter.next().and_then(|&b| (b as char).to_digit(16));
     if let (Some(h), Some(l)) = (h, l) {
-        Some(h as u8 * 0x10 + l as u8)
-    } else {
-        *iter = initial_iter;
-        None
+        let c = h as u8 * 0x10 + l as u8;
+        if !only_hostname_valid ||
+           !HOSTNAME_ENCODE_SET.contains(c) {
+            return Some(c);
+        }
     }
+    *iter = initial_iter;
+    return None
 }
 
 impl<'a> Iterator for PercentDecode<'a> {
@@ -272,7 +298,7 @@ impl<'a> Iterator for PercentDecode<'a> {
     fn next(&mut self) -> Option<u8> {
         self.bytes.next().map(|&byte| {
             if byte == b'%' {
-                after_percent_sign(&mut self.bytes).unwrap_or(byte)
+                after_percent_sign(&mut self.bytes, self.only_hostname_valid).unwrap_or(byte)
             } else {
                 byte
             }
@@ -299,13 +325,14 @@ impl<'a> PercentDecode<'a> {
     pub fn if_any(&self) -> Option<Vec<u8>> {
         let mut bytes_iter = self.bytes.clone();
         while bytes_iter.find(|&&b| b == b'%').is_some() {
-            if let Some(decoded_byte) = after_percent_sign(&mut bytes_iter) {
+            if let Some(decoded_byte) = after_percent_sign(&mut bytes_iter, self.only_hostname_valid) {
                 let initial_bytes = self.bytes.as_slice();
                 let unchanged_bytes_len = initial_bytes.len() - bytes_iter.len() - 3;
                 let mut decoded = initial_bytes[..unchanged_bytes_len].to_owned();
                 decoded.push(decoded_byte);
                 decoded.extend(PercentDecode {
-                    bytes: bytes_iter
+                    bytes: bytes_iter,
+                    only_hostname_valid: self.only_hostname_valid,
                 });
                 return Some(decoded)
             }

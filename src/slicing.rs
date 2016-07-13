@@ -8,6 +8,7 @@
 
 use std::ops::{Range, RangeFrom, RangeTo, RangeFull, Index};
 use Url;
+use std::mem;
 
 impl Index<RangeFull> for Url {
     type Output = str;
@@ -77,6 +78,7 @@ impl Index<Range<Position>> for Url {
 /// `BeforeScheme` and `AfterFragment` are always the start and end of the entire URL,
 /// so `&url[BeforeScheme..X]` is the same as `&url[..X]`
 /// and `&url[X..AfterFragment]` is the same as `&url[X..]`.
+#[repr(u32)]
 #[derive(Copy, Clone, Debug)]
 pub enum Position {
     BeforeScheme,
@@ -95,6 +97,14 @@ pub enum Position {
     AfterQuery,
     BeforeFragment,
     AfterFragment
+}
+
+impl From<u32> for Position {
+    fn from(f: u32) -> Self {
+        unsafe {
+            mem::transmute(f)
+        }
+    }
 }
 
 impl Url {
