@@ -1,6 +1,6 @@
 test:
 	cargo test --features "query_encoding serde rustc-serialize"
-	[ x$$TRAVIS_RUST_VERSION != xnightly ] || cargo test --features heap_size
+	[ x$$TRAVIS_RUST_VERSION != xnightly ] || cargo test --features heapsize
 
 doc:
 	cargo doc --features "query_encoding serde rustc-serialize"

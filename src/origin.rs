@@ -6,6 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+#[cfg(feature = "heapsize")] use heapsize::HeapSizeOf;
 use host::Host;
 use idna::domain_to_unicode;
 use parser::default_port;
@@ -34,13 +35,25 @@ pub fn url_origin(url: &Url) -> Origin {
 
 /// The origin of an URL
 #[derive(PartialEq, Eq, Clone, Debug)]
-#[cfg_attr(feature="heap_size", derive(HeapSizeOf))]
 pub enum Origin {
     /// A globally unique identifier
     Opaque(OpaqueOrigin),
 
     /// Consists of the URL's scheme, host and port
     Tuple(String, Host<String>, u16)
+}
+
+#[cfg(feature = "heapsize")]
+impl HeapSizeOf for Origin {
+    fn heap_size_of_children(&self) -> usize {
+        match *self {
+            Origin::Tuple(ref scheme, ref host, _) => {
+                scheme.heap_size_of_children() +
+                host.heap_size_of_children()
+            },
+            _ => 0,
+        }
+    }
 }
 
 
@@ -95,5 +108,7 @@ impl Origin {
 
 /// Opaque identifier for URLs that have file or other schemes
 #[derive(Eq, PartialEq, Clone, Debug)]
-#[cfg_attr(feature="heap_size", derive(HeapSizeOf))]
 pub struct OpaqueOrigin(usize);
+
+#[cfg(feature = "heapsize")]
+known_heap_size!(0, OpaqueOrigin);
