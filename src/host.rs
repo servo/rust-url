@@ -6,6 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+#[cfg(feature = "heapsize")] use heapsize::HeapSizeOf;
 use std::cmp;
 use std::fmt::{self, Formatter};
 use std::io;
@@ -16,13 +17,15 @@ use percent_encoding::percent_decode;
 use idna;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature="heap_size", derive(HeapSizeOf))]
 pub enum HostInternal {
     None,
     Domain,
     Ipv4(Ipv4Addr),
     Ipv6(Ipv6Addr),
 }
+
+#[cfg(feature = "heapsize")]
+known_heap_size!(0, HostInternal);
 
 impl<S> From<Host<S>> for HostInternal {
     fn from(host: Host<S>) -> HostInternal {
@@ -36,7 +39,6 @@ impl<S> From<Host<S>> for HostInternal {
 
 /// The host name of an URL.
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
-#[cfg_attr(feature="heap_size", derive(HeapSizeOf))]
 pub enum Host<S=String> {
     /// A DNS domain name, as '.' dot-separated labels.
     /// Non-ASCII labels are encoded in punycode per IDNA.
@@ -53,6 +55,16 @@ pub enum Host<S=String> {
     /// for IPv6 Address Text Representation*](https://tools.ietf.org/html/rfc5952):
     /// lowercase hexadecimal with maximal `::` compression.
     Ipv6(Ipv6Addr),
+}
+
+#[cfg(feature = "heapsize")]
+impl<S: HeapSizeOf> HeapSizeOf for Host<S> {
+    fn heap_size_of_children(&self) -> usize {
+        match *self {
+            Host::Domain(ref s) => s.heap_size_of_children(),
+            _ => 0,
+        }
+    }
 }
 
 impl<'a> Host<&'a str> {

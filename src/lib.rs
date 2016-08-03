@@ -112,17 +112,15 @@ let css_url = this_document.join("../main.css").unwrap();
 assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css")
 */
 
-#![cfg_attr(feature="heap_size", feature(plugin, custom_derive))]
-#![cfg_attr(feature="heap_size", plugin(heapsize_plugin))]
-
 #[cfg(feature="rustc-serialize")] extern crate rustc_serialize;
 #[macro_use] extern crate matches;
 #[cfg(feature="serde")] extern crate serde;
-#[cfg(feature="heap_size")] #[macro_use] extern crate heapsize;
+#[cfg(feature="heapsize")] #[macro_use] extern crate heapsize;
 
 pub extern crate idna;
 
 use encoding::EncodingOverride;
+#[cfg(feature = "heapsize")] use heapsize::HeapSizeOf;
 use host::HostInternal;
 use parser::{Parser, Context, SchemeType, to_u32};
 use percent_encoding::{PATH_SEGMENT_ENCODE_SET, USERINFO_ENCODE_SET,
@@ -156,7 +154,6 @@ pub mod quirks;
 
 /// A parsed URL record.
 #[derive(Clone)]
-#[cfg_attr(feature="heap_size", derive(HeapSizeOf))]
 pub struct Url {
     /// Syntax in pseudo-BNF:
     ///
@@ -179,6 +176,13 @@ pub struct Url {
     path_start: u32,  // Before initial '/', if any
     query_start: Option<u32>,  // Before '?', unlike Position::QueryStart
     fragment_start: Option<u32>,  // Before '#', unlike Position::FragmentStart
+}
+
+#[cfg(feature = "heapsize")]
+impl HeapSizeOf for Url {
+    fn heap_size_of_children(&self) -> usize {
+        self.serialization.heap_size_of_children()
+    }
 }
 
 /// Full configuration for the URL parser.
