@@ -368,7 +368,7 @@ impl Url {
 
     /// Return the origin of this URL (https://url.spec.whatwg.org/#origin)
     ///
-    /// Note: this return an opaque origin for `file:` URLs, which causes
+    /// Note: the return value is an opaque origin for `file:` URLs, which causes
     /// `url.origin() != url.origin()`.
     ///
     /// # Examples
