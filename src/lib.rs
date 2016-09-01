@@ -791,7 +791,11 @@ impl Url {
 
     fn take_after_path(&mut self) -> (u32, String) {
         match (self.query_start, self.fragment_start) {
-            (Some(i), _) | (None, Some(i)) => (i, self.slice(i..).to_owned()),
+            (Some(i), _) | (None, Some(i)) => {
+                let after_path = self.slice(i..).to_owned();
+                self.serialization.truncate(i as usize);
+                (i, after_path)
+            },
             (None, None) => (to_u32(self.serialization.len()).unwrap(), String::new())
         }
     }

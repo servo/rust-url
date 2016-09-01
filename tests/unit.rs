@@ -268,3 +268,23 @@ fn issue_197() {
     assert_eq!(url, Url::parse("file:///").unwrap());
     url.path_segments_mut().unwrap().pop_if_empty();
 }
+
+#[test]
+/// https://github.com/servo/rust-url/issues/222
+fn append_trailing_slash() {
+    let mut url: Url = "http://localhost:6767/foo/bar?a=b".parse().unwrap();
+    url.assert_invariants();
+    url.path_segments_mut().unwrap().push("");
+    url.assert_invariants();
+    assert_eq!(url.to_string(), "http://localhost:6767/foo/bar/?a=b");
+}
+
+#[test]
+/// https://github.com/servo/rust-url/issues/222
+fn append_empty_segment_then_mutate() {
+    let mut url: Url = "http://localhost:6767/foo/bar?a=b".parse().unwrap();
+    url.assert_invariants();
+    url.path_segments_mut().unwrap().push("").pop();
+    url.assert_invariants();
+    assert_eq!(url.to_string(), "http://localhost:6767/foo/bar?a=b");
+}
