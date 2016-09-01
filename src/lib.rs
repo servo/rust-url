@@ -789,20 +789,21 @@ impl Url {
         form_urlencoded::Serializer::for_suffix(query, query_start + "?".len())
     }
 
-    fn take_after_path(&mut self) -> (u32, String) {
+    fn take_after_path(&mut self) -> String {
         match (self.query_start, self.fragment_start) {
             (Some(i), _) | (None, Some(i)) => {
                 let after_path = self.slice(i..).to_owned();
                 self.serialization.truncate(i as usize);
-                (i, after_path)
+                after_path
             },
-            (None, None) => (to_u32(self.serialization.len()).unwrap(), String::new())
+            (None, None) => String::new(),
         }
     }
 
     /// Change this URL’s path.
     pub fn set_path(&mut self, mut path: &str) {
-        let (old_after_path_pos, after_path) = self.take_after_path();
+        let after_path = self.take_after_path();
+        let old_after_path_pos = to_u32(self.serialization.len()).unwrap();
         let cannot_be_a_base = self.cannot_be_a_base();
         let scheme_type = SchemeType::from(self.scheme());
         self.serialization.truncate(self.path_start as usize);
