@@ -261,12 +261,13 @@ fn issue_61() {
 }
 
 #[test]
+#[cfg(not(windows))]
 /// https://github.com/servo/rust-url/issues/197
 fn issue_197() {
-    let mut url = Url::from_file_path("/").unwrap();
+    let mut url = Url::from_file_path("/").expect("Failed to parse path");
     url.assert_invariants();
-    assert_eq!(url, Url::parse("file:///").unwrap());
-    url.path_segments_mut().unwrap().pop_if_empty();
+    assert_eq!(url, Url::parse("file:///").expect("Failed to parse path + protocol"));
+    url.path_segments_mut().expect("path_segments_mut").pop_if_empty();
 }
 
 #[test]

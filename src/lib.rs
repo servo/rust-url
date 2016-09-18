@@ -326,7 +326,7 @@ impl Url {
             } else {
                 assert_eq!(self.byte_at(self.host_end), b':');
                 let port_str = self.slice(self.host_end + 1..self.path_start);
-                assert_eq!(self.port, Some(port_str.parse::<u16>().unwrap()));
+                assert_eq!(self.port, Some(port_str.parse::<u16>().expect("Couldn't parse port?")));
             }
             assert_eq!(self.byte_at(self.path_start), b'/');
         } else {
@@ -350,7 +350,7 @@ impl Url {
             assert!(fragment_start > query_start);
         }
 
-        let other = Url::parse(self.as_str()).unwrap();
+        let other = Url::parse(self.as_str()).expect("Failed to parse myself?");
         assert_eq!(&self.serialization, &other.serialization);
         assert_eq!(self.scheme_end, other.scheme_end);
         assert_eq!(self.username_end, other.username_end);
