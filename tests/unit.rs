@@ -280,6 +280,18 @@ fn append_trailing_slash() {
 }
 
 #[test]
+/// https://github.com/servo/rust-url/issues/227
+fn extend_query_pairs_then_mutate() {
+    let mut url: Url = "http://localhost:6767/foo/bar".parse().unwrap();
+    url.query_pairs_mut().extend_pairs(vec![ ("auth", "my-token") ].into_iter());
+    url.assert_invariants();
+    assert_eq!(url.to_string(), "http://localhost:6767/foo/bar?auth=my-token");
+    url.path_segments_mut().unwrap().push("some_other_path");
+    url.assert_invariants();
+    assert_eq!(url.to_string(), "http://localhost:6767/foo/bar/some_other_path?auth=my-token");
+}
+
+#[test]
 /// https://github.com/servo/rust-url/issues/222
 fn append_empty_segment_then_mutate() {
     let mut url: Url = "http://localhost:6767/foo/bar?a=b".parse().unwrap();
