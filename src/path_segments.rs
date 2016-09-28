@@ -6,7 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use parser::{self, SchemeType};
+use parser::{self, SchemeType, to_u32};
 use std::str;
 use Url;
 
@@ -35,7 +35,8 @@ pub struct PathSegmentsMut<'a> {
 
 // Not re-exported outside the crate
 pub fn new(url: &mut Url) -> PathSegmentsMut {
-    let (old_after_path_position, after_path) = url.take_after_path();
+    let after_path = url.take_after_path();
+    let old_after_path_position = to_u32(url.serialization.len()).unwrap();
     debug_assert!(url.byte_at(url.path_start) == b'/');
     PathSegmentsMut {
         after_first_slash: url.path_start as usize + "/".len(),
