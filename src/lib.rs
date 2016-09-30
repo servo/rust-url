@@ -552,6 +552,18 @@ impl Url {
     }
 
     /// If this URL has a host and it is a domain name (not an IP address), return it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let url = Url::parse("https://127.0.0.1/").unwrap();
+    /// assert_eq!(url.domain(), None);
+    ///
+    /// let url = Url::parse("https://example.com/").unwrap();
+    /// assert_eq!(url.domain(), Some("example.com"));
+    /// ```
     pub fn domain(&self) -> Option<&str> {
         match self.host {
             HostInternal::Domain => Some(self.slice(self.host_start..self.host_end)),
