@@ -560,6 +560,18 @@ impl Url {
     }
 
     /// Return the port number for this URL, if any.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let url = Url::parse("https://example.com").unwrap();
+    /// assert_eq!(url.port(), None);
+    ///
+    /// let url = Url::parse("ssh://example.com:22").unwrap();
+    /// assert_eq!(url.port(), Some(22));
+    /// ```
     #[inline]
     pub fn port(&self) -> Option<u16> {
         self.port
