@@ -584,6 +584,21 @@ impl Url {
     ///
     /// For URLs in these schemes, this method always returns `Some(_)`.
     /// For other schemes, it is the same as `Url::port()`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let url = Url::parse("foo://example.com").unwrap();
+    /// assert_eq!(url.port_or_known_default(), None);
+    ///
+    /// let url = Url::parse("foo://example.com:1456").unwrap();
+    /// assert_eq!(url.port_or_known_default(), Some(1456));
+    ///
+    /// let url = Url::parse("https://example.com").unwrap();
+    /// assert_eq!(url.port_or_known_default(), Some(443));
+    /// ```
     #[inline]
     pub fn port_or_known_default(&self) -> Option<u16> {
         self.port.or_else(|| parser::default_port(self.scheme()))
