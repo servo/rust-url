@@ -824,7 +824,7 @@ impl Url {
 
     /// Return an object with methods to manipulate this URL’s path segments.
     ///
-    /// Return `Err(())` if this URl is cannot-be-a-base.
+    /// Return `Err(())` if this URL is cannot-be-a-base.
     pub fn path_segments_mut(&mut self) -> Result<PathSegmentsMut, ()> {
         if self.cannot_be_a_base() {
             Err(())
