@@ -314,7 +314,10 @@ impl Url {
             match self.host {
                 HostInternal::None => assert_eq!(host_str, ""),
                 HostInternal::Ipv4(address) => assert_eq!(host_str, address.to_string()),
-                HostInternal::Ipv6(address) => assert_eq!(host_str, format!("[{}]", address)),
+                HostInternal::Ipv6(address) => {
+                    let h: Host<String> = Host::Ipv6(address);
+                    assert_eq!(host_str, h.to_string())
+                }
                 HostInternal::Domain => {
                     if SchemeType::from(self.scheme()).is_special() {
                         assert!(!host_str.is_empty())
