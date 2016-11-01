@@ -555,6 +555,18 @@ impl Url {
     }
 
     /// If this URL has a host and it is a domain name (not an IP address), return it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let url = Url::parse("https://127.0.0.1/").unwrap();
+    /// assert_eq!(url.domain(), None);
+    ///
+    /// let url = Url::parse("https://example.com/").unwrap();
+    /// assert_eq!(url.domain(), Some("example.com"));
+    /// ```
     pub fn domain(&self) -> Option<&str> {
         match self.host {
             HostInternal::Domain => Some(self.slice(self.host_start..self.host_end)),
@@ -563,6 +575,18 @@ impl Url {
     }
 
     /// Return the port number for this URL, if any.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let url = Url::parse("https://example.com").unwrap();
+    /// assert_eq!(url.port(), None);
+    ///
+    /// let url = Url::parse("ssh://example.com:22").unwrap();
+    /// assert_eq!(url.port(), Some(22));
+    /// ```
     #[inline]
     pub fn port(&self) -> Option<u16> {
         self.port
@@ -575,6 +599,21 @@ impl Url {
     ///
     /// For URLs in these schemes, this method always returns `Some(_)`.
     /// For other schemes, it is the same as `Url::port()`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let url = Url::parse("foo://example.com").unwrap();
+    /// assert_eq!(url.port_or_known_default(), None);
+    ///
+    /// let url = Url::parse("foo://example.com:1456").unwrap();
+    /// assert_eq!(url.port_or_known_default(), Some(1456));
+    ///
+    /// let url = Url::parse("https://example.com").unwrap();
+    /// assert_eq!(url.port_or_known_default(), Some(443));
+    /// ```
     #[inline]
     pub fn port_or_known_default(&self) -> Option<u16> {
         self.port.or_else(|| parser::default_port(self.scheme()))
