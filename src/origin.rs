@@ -34,7 +34,7 @@ pub fn url_origin(url: &Url) -> Origin {
 }
 
 /// The origin of an URL
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug, Hash)]
 pub enum Origin {
     /// A globally unique identifier
     Opaque(OpaqueOrigin),
@@ -68,6 +68,27 @@ impl Origin {
     /// (as opposed to an opaque origin).
     pub fn is_tuple(&self) -> bool {
         matches!(*self, Origin::Tuple(..))
+    }
+
+    pub fn get_scheme(&self) -> Option<&String> {
+        match *self {
+            Origin::Tuple(ref scheme, _, _) => Some(scheme),
+            _ => None, 
+        }
+    }
+
+    pub fn get_effective_domain(&self) -> Option<&String> {
+        match *self {
+            Origin::Tuple(_, Host::Domain(ref d), _) => Some(d),
+            _ => None, 
+        }
+    }
+
+    pub fn get_port(&self) -> Option<u16> {
+        match *self {
+            Origin::Tuple(_, _, port) => Some(port),
+            _ => None, 
+        }
     }
 
     /// https://html.spec.whatwg.org/multipage/#ascii-serialisation-of-an-origin

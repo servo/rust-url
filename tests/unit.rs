@@ -13,7 +13,7 @@ extern crate url;
 use std::borrow::Cow;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::path::{Path, PathBuf};
-use url::{Host, Url, form_urlencoded};
+use url::{origin, Host, Url, form_urlencoded};
 
 macro_rules! assert_from_file_path {
     ($path: expr) => { assert_from_file_path!($path, $path) };
