@@ -271,6 +271,16 @@ impl Url {
     /// Return the serialization of this URL.
     ///
     /// This is fast since that serialization is already stored in the `Url` struct.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use url::Url;
+    ///
+    /// let url_str = "https://example.net/";
+    /// let url = Url::parse(url_str).unwrap();
+    /// assert_eq!(url.as_str(), url_str);
+    /// ```
     #[inline]
     pub fn as_str(&self) -> &str {
         &self.serialization
