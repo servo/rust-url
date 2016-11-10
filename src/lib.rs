@@ -234,6 +234,26 @@ impl Url {
     }
 
     /// Parse a string as an URL, with this URL as the base URL.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use url::Url;
+    ///
+    /// let url = Url::parse("https://example.net").unwrap();
+    /// let url = url.join("foo").unwrap();
+    /// assert_eq!(url.as_str(), "https://example.net/foo");
+    /// ```
+    ///
+    /// Trailing slashes are not preserved:
+    ///
+    /// ```rust
+    /// use url::Url;
+    ///
+    /// let url = Url::parse("https://example.net/foo/").unwrap();
+    /// let url = url.join("bar").unwrap();
+    /// assert_eq!(url.as_str(), "https://example.net/foo/bar");
+    /// ```
     #[inline]
     pub fn join(&self, input: &str) -> Result<Url, ::ParseError> {
         Url::options().base_url(Some(self)).parse(input)
