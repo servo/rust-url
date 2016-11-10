@@ -930,6 +930,20 @@ impl Url {
     ///
     /// If this URL is cannot-be-a-base, does not have a host, or has the `file` scheme;
     /// do nothing and return `Err`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("ssh://example.net:2048/").unwrap();
+    ///
+    /// url.set_port(Some(4096)).unwrap();
+    /// assert_eq!(url.as_str(), "ssh://example.net:4096/");
+    ///
+    /// url.set_port(None).unwrap();
+    /// assert_eq!(url.as_str(), "ssh://example.net/");
+    /// ```
     pub fn set_port(&mut self, mut port: Option<u16>) -> Result<(), ()> {
         if !self.has_host() || self.scheme() == "file" {
             return Err(())
