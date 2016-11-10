@@ -289,6 +289,16 @@ impl Url {
     /// Return the serialization of this URL.
     ///
     /// This consumes the `Url` and takes ownership of the `String` stored in it.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use url::Url;
+    ///
+    /// let url_str = "https://example.net/";
+    /// let url = Url::parse(url_str).unwrap();
+    /// assert_eq!(url.into_string(), url_str);
+    /// ```
     #[inline]
     pub fn into_string(self) -> String {
         self.serialization
