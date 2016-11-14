@@ -234,6 +234,26 @@ impl Url {
     }
 
     /// Parse a string as an URL, with this URL as the base URL.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use url::Url;
+    ///
+    /// let url = Url::parse("https://example.net").unwrap();
+    /// let url = url.join("foo").unwrap();
+    /// assert_eq!(url.as_str(), "https://example.net/foo");
+    /// ```
+    ///
+    /// Trailing slashes are not preserved:
+    ///
+    /// ```rust
+    /// use url::Url;
+    ///
+    /// let url = Url::parse("https://example.net/foo/").unwrap();
+    /// let url = url.join("bar").unwrap();
+    /// assert_eq!(url.as_str(), "https://example.net/foo/bar");
+    /// ```
     #[inline]
     pub fn join(&self, input: &str) -> Result<Url, ::ParseError> {
         Url::options().base_url(Some(self)).parse(input)
@@ -251,6 +271,16 @@ impl Url {
     /// Return the serialization of this URL.
     ///
     /// This is fast since that serialization is already stored in the `Url` struct.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use url::Url;
+    ///
+    /// let url_str = "https://example.net/";
+    /// let url = Url::parse(url_str).unwrap();
+    /// assert_eq!(url.as_str(), url_str);
+    /// ```
     #[inline]
     pub fn as_str(&self) -> &str {
         &self.serialization
@@ -259,6 +289,16 @@ impl Url {
     /// Return the serialization of this URL.
     ///
     /// This consumes the `Url` and takes ownership of the `String` stored in it.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use url::Url;
+    ///
+    /// let url_str = "https://example.net/";
+    /// let url = Url::parse(url_str).unwrap();
+    /// assert_eq!(url.into_string(), url_str);
+    /// ```
     #[inline]
     pub fn into_string(self) -> String {
         self.serialization
@@ -890,6 +930,20 @@ impl Url {
     ///
     /// If this URL is cannot-be-a-base, does not have a host, or has the `file` scheme;
     /// do nothing and return `Err`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("ssh://example.net:2048/").unwrap();
+    ///
+    /// url.set_port(Some(4096)).unwrap();
+    /// assert_eq!(url.as_str(), "ssh://example.net:4096/");
+    ///
+    /// url.set_port(None).unwrap();
+    /// assert_eq!(url.as_str(), "ssh://example.net/");
+    /// ```
     pub fn set_port(&mut self, mut port: Option<u16>) -> Result<(), ()> {
         if !self.has_host() || self.scheme() == "file" {
             return Err(())
