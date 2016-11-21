@@ -498,7 +498,7 @@ impl Url {
     /// as is typically the case of `data:` and `mailto:` URLs.
     #[inline]
     pub fn cannot_be_a_base(&self) -> bool {
-        self.byte_at(self.path_start) != b'/'
+        !self.slice(self.path_start..).starts_with('/')
     }
 
     /// Return the username for this URL (typically the empty string)
