@@ -51,6 +51,7 @@ pub fn domain_to_ascii(domain: &str) -> Result<String, uts46::Errors> {
         use_std3_ascii_rules: false,
         transitional_processing: true, // XXX: switch when Firefox does
         verify_dns_length: false,
+        relax_future_extension_validation: true
     })
 }
 
@@ -69,5 +70,6 @@ pub fn domain_to_unicode(domain: &str) -> (String, Result<(), uts46::Errors>) {
         // Unused:
         transitional_processing: true,
         verify_dns_length: false,
+        relax_future_extension_validation: true
     })
 }

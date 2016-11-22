@@ -202,6 +202,7 @@ fn host_serialization() {
 fn test_idna() {
     assert!("http://goșu.ro".parse::<Url>().is_ok());
     assert_eq!(Url::parse("http://☃.net/").unwrap().host(), Some(Host::Domain("xn--n3h.net")));
+    assert!("https://r2---sn-huoa-cvhl.googlevideo.com/crossdomain.xml".parse::<Url>().is_ok());
 }
 
 #[test]
