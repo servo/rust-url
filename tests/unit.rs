@@ -15,6 +15,12 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 use std::path::{Path, PathBuf};
 use url::{Host, Url, form_urlencoded};
 
+#[test]
+fn size() {
+    use std::mem::size_of;
+    assert_eq!(size_of::<Url>(), size_of::<Option<Url>>());
+}
+
 macro_rules! assert_from_file_path {
     ($path: expr) => { assert_from_file_path!($path, $path) };
     ($path: expr, $url_path: expr) => {{
@@ -272,6 +278,11 @@ fn issue_197() {
     url.assert_invariants();
     assert_eq!(url, Url::parse("file:///").expect("Failed to parse path + protocol"));
     url.path_segments_mut().expect("path_segments_mut").pop_if_empty();
+}
+
+#[test]
+fn issue_241() {
+    Url::parse("mailto:").unwrap().cannot_be_a_base();
 }
 
 #[test]
