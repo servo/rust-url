@@ -317,3 +317,19 @@ fn append_empty_segment_then_mutate() {
     url.assert_invariants();
     assert_eq!(url.to_string(), "http://localhost:6767/foo/bar?a=b");
 }
+
+#[test]
+/// https://github.com/servo/rust-url/issues/243
+fn test_set_host() {
+    let mut url = Url::parse("https://example.net/hello").unwrap();
+    url.set_host(Some("foo.com")).unwrap();
+    assert_eq!(url.as_str(), "https://foo.com/hello");
+    assert!(url.set_host(None).is_err());
+    assert_eq!(url.as_str(), "https://foo.com/hello");
+    assert!(url.set_host(Some("")).is_err());
+    assert_eq!(url.as_str(), "https://foo.com/hello");
+
+    let mut url = Url::parse("foobar://example.net/hello").unwrap();
+    url.set_host(None).unwrap();
+    assert_eq!(url.as_str(), "foobar:/hello");
+}
