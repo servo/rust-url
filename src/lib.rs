@@ -228,6 +228,14 @@ impl<'a> ParseOptions<'a> {
 
 impl Url {
     /// Parse an absolute URL from a string.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use url::Url;
+    ///
+    /// let url = Url::parse("https://example.net").unwrap();
+    /// ```
     #[inline]
     pub fn parse(input: &str) -> Result<Url, ::ParseError> {
         Url::options().parse(input)
