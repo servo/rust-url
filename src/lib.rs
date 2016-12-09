@@ -228,6 +228,14 @@ impl<'a> ParseOptions<'a> {
 
 impl Url {
     /// Parse an absolute URL from a string.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use url::Url;
+    ///
+    /// let url = Url::parse("https://example.net").unwrap();
+    /// ```
     #[inline]
     pub fn parse(input: &str) -> Result<Url, ::ParseError> {
         Url::options().parse(input)
@@ -485,6 +493,21 @@ impl Url {
     ///
     /// URLs that do *not* are either path-only like `unix:/run/foo.socket`
     /// or cannot-be-a-base like `data:text/plain,Stuff`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let url = Url::parse("ftp://rms@example.com").unwrap();
+    /// assert!(url.has_authority());
+    ///
+    /// let url = Url::parse("unix:/run/foo.socket").unwrap();
+    /// assert!(!url.has_authority());
+    ///
+    /// let url = Url::parse("data:text/plain,Stuff").unwrap();
+    /// assert!(!url.has_authority());
+    /// ```
     #[inline]
     pub fn has_authority(&self) -> bool {
         debug_assert!(self.byte_at(self.scheme_end) == b':');
@@ -496,6 +519,21 @@ impl Url {
     ///
     /// This is the case if the scheme and `:` delimiter are not followed by a `/` slash,
     /// as is typically the case of `data:` and `mailto:` URLs.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let url = Url::parse("ftp://rms@example.com").unwrap();
+    /// assert!(!url.cannot_be_a_base());
+    ///
+    /// let url = Url::parse("unix:/run/foo.socket").unwrap();
+    /// assert!(!url.cannot_be_a_base());
+    ///
+    /// let url = Url::parse("data:text/plain,Stuff").unwrap();
+    /// assert!(url.cannot_be_a_base());
+    /// ```
     #[inline]
     pub fn cannot_be_a_base(&self) -> bool {
         !self.slice(self.path_start..).starts_with('/')
@@ -557,6 +595,21 @@ impl Url {
     }
 
     /// Equivalent to `url.host().is_some()`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let url = Url::parse("ftp://rms@example.com").unwrap();
+    /// assert!(url.has_host());
+    ///
+    /// let url = Url::parse("unix:/run/foo.socket").unwrap();
+    /// assert!(!url.has_host());
+    ///
+    /// let url = Url::parse("data:text/plain,Stuff").unwrap();
+    /// assert!(!url.has_host());
+    /// ```
     pub fn has_host(&self) -> bool {
         !matches!(self.host, HostInternal::None)
     }
@@ -570,6 +623,24 @@ impl Url {
     /// don’t have a host.
     ///
     /// See also the `host` method.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let url = Url::parse("https://127.0.0.1/index.html").unwrap();
+    /// assert_eq!(url.host_str(), Some("127.0.0.1"));
+    ///
+    /// let url = Url::parse("ftp://rms@example.com").unwrap();
+    /// assert_eq!(url.host_str(), Some("example.com"));
+    ///
+    /// let url = Url::parse("unix:/run/foo.socket").unwrap();
+    /// assert_eq!(url.host_str(), None);
+    ///
+    /// let url = Url::parse("data:text/plain,Stuff").unwrap();
+    /// assert_eq!(url.host_str(), None);
+    /// ```
     pub fn host_str(&self) -> Option<&str> {
         if self.has_host() {
             Some(self.slice(self.host_start..self.host_end))
@@ -585,6 +656,24 @@ impl Url {
     /// don’t have a host.
     ///
     /// See also the `host_str` method.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let url = Url::parse("https://127.0.0.1/index.html").unwrap();
+    /// assert!(url.host().is_some());
+    ///
+    /// let url = Url::parse("ftp://rms@example.com").unwrap();
+    /// assert!(url.host().is_some());
+    ///
+    /// let url = Url::parse("unix:/run/foo.socket").unwrap();
+    /// assert!(url.host().is_none());
+    ///
+    /// let url = Url::parse("data:text/plain,Stuff").unwrap();
+    /// assert!(url.host().is_none());
+    /// ```
     pub fn host(&self) -> Option<Host<&str>> {
         match self.host {
             HostInternal::None => None,
