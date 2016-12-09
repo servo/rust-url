@@ -595,6 +595,21 @@ impl Url {
     }
 
     /// Equivalent to `url.host().is_some()`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let url = Url::parse("ftp://rms@example.com").unwrap();
+    /// assert!(url.has_host());
+    ///
+    /// let url = Url::parse("unix:/run/foo.socket").unwrap();
+    /// assert!(!url.has_host());
+    ///
+    /// let url = Url::parse("data:text/plain,Stuff").unwrap();
+    /// assert!(!url.has_host());
+    /// ```
     pub fn has_host(&self) -> bool {
         !matches!(self.host, HostInternal::None)
     }
