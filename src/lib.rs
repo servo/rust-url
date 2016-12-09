@@ -519,6 +519,21 @@ impl Url {
     ///
     /// This is the case if the scheme and `:` delimiter are not followed by a `/` slash,
     /// as is typically the case of `data:` and `mailto:` URLs.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let url = Url::parse("ftp://rms@example.com").unwrap();
+    /// assert!(!url.cannot_be_a_base());
+    ///
+    /// let url = Url::parse("unix:/run/foo.socket").unwrap();
+    /// assert!(!url.cannot_be_a_base());
+    ///
+    /// let url = Url::parse("data:text/plain,Stuff").unwrap();
+    /// assert!(url.cannot_be_a_base());
+    /// ```
     #[inline]
     pub fn cannot_be_a_base(&self) -> bool {
         !self.slice(self.path_start..).starts_with('/')
