@@ -623,6 +623,24 @@ impl Url {
     /// don’t have a host.
     ///
     /// See also the `host` method.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let url = Url::parse("https://127.0.0.1/index.html").unwrap();
+    /// assert_eq!(url.host_str(), Some("127.0.0.1"));
+    ///
+    /// let url = Url::parse("ftp://rms@example.com").unwrap();
+    /// assert_eq!(url.host_str(), Some("example.com"));
+    ///
+    /// let url = Url::parse("unix:/run/foo.socket").unwrap();
+    /// assert_eq!(url.host_str(), None);
+    ///
+    /// let url = Url::parse("data:text/plain,Stuff").unwrap();
+    /// assert_eq!(url.host_str(), None);
+    /// ```
     pub fn host_str(&self) -> Option<&str> {
         if self.has_host() {
             Some(self.slice(self.host_start..self.host_end))
