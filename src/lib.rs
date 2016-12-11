@@ -1517,7 +1517,7 @@ impl serde::Deserialize for Url {
     }
 }
 
-#[cfg(unix)]
+#[cfg(any(unix, target_os = "redox"))]
 fn path_to_file_url_segments(path: &Path, serialization: &mut String) -> Result<(), ()> {
     use std::os::unix::prelude::OsStrExt;
     if !path.is_absolute() {
@@ -1577,7 +1577,7 @@ fn path_to_file_url_segments_windows(path: &Path, serialization: &mut String) ->
     Ok(())
 }
 
-#[cfg(unix)]
+#[cfg(any(unix, target_os = "redox"))]
 fn file_url_segments_to_pathbuf(segments: str::Split<char>) -> Result<PathBuf, ()> {
     use std::ffi::OsStr;
     use std::os::unix::prelude::OsStrExt;
