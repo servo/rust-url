@@ -312,17 +312,23 @@ impl Url {
         self.serialization
     }
 
+    #[doc(hidden)]
+    pub fn assert_invariants(&self) {
+        self.assert_invariants_result().unwrap()
+    }
+
     /// For internal testing, not part of the public API.
     ///
     /// Methods of the `Url` struct assume a number of invariants.
     /// This checks each of these invariants and panic if one is not met.
     /// This is for testing rust-url itself.
     #[doc(hidden)]
-    pub fn assert_invariants(&self) {
+    pub fn assert_invariants_result(&self) -> Result<(), String> {
         macro_rules! assert {
             ($x: expr) => {
                 if !$x {
-                    panic!("!( {} ) for URL {:?}", stringify!($x), self.serialization)
+                    return Err(format!("!( {} ) for URL {:?}",
+                                       stringify!($x), self.serialization))
                 }
             }
         }
@@ -333,8 +339,9 @@ impl Url {
                     let a = $a;
                     let b = $b;
                     if a != b {
-                        panic!("{:?} != {:?} ({} != {}) for URL {:?}",
-                               a, b, stringify!($a), stringify!($b), self.serialization)
+                        return Err(format!("{:?} != {:?} ({} != {}) for URL {:?}",
+                                           a, b, stringify!($a), stringify!($b),
+                                           self.serialization))
                     }
                 }
             }
@@ -415,6 +422,7 @@ impl Url {
         assert_eq!(self.path_start, other.path_start);
         assert_eq!(self.query_start, other.query_start);
         assert_eq!(self.fragment_start, other.fragment_start);
+        Ok(())
     }
 
     /// Return the origin of this URL (https://url.spec.whatwg.org/#origin)
@@ -1506,9 +1514,19 @@ impl rustc_serialize::Decodable for Url {
 ///
 /// This implementation is only available if the `serde` Cargo feature is enabled.
 #[cfg(feature="serde")]
+#[deny(unused)]
 impl serde::Serialize for Url {
     fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: serde::Serializer {
-        format!("{}", self).serialize(serializer)
+        // Destructuring first lets us ensure that adding or removing fields forces this method
+        // to be updated
+        let Url { ref serialization, ref scheme_end,
+                  ref username_end, ref host_start,
+                  ref host_end, ref host, ref port,
+                  ref path_start, ref query_start,
+                  ref fragment_start} = *self;
+        (serialization, scheme_end, username_end,
+         host_start, host_end, host, port, path_start,
+         query_start, fragment_start).serialize(serializer)
     }
 }
 
@@ -1516,10 +1534,31 @@ impl serde::Serialize for Url {
 ///
 /// This implementation is only available if the `serde` Cargo feature is enabled.
 #[cfg(feature="serde")]
+#[deny(unused)]
 impl serde::Deserialize for Url {
     fn deserialize<D>(deserializer: &mut D) -> Result<Url, D::Error> where D: serde::Deserializer {
-        let string_representation: String = try!(serde::Deserialize::deserialize(deserializer));
-        Ok(Url::parse(&string_representation).unwrap())
+        use serde::{Deserialize, Error};
+        let (serialization, scheme_end, username_end,
+         host_start, host_end, host, port, path_start,
+         query_start, fragment_start) = Deserialize::deserialize(deserializer)?;
+        let url = Url {
+            serialization: serialization,
+            scheme_end: scheme_end,
+            username_end: username_end,
+            host_start: host_start,
+            host_end: host_end,
+            host: host,
+            port: port,
+            path_start: path_start,
+            query_start: query_start,
+            fragment_start: fragment_start
+        };
+        #[cfg(debug_assertions)] {
+            if let Err(s) = url.assert_invariants_result() {
+                return Err(Error::invalid_value(&s))
+            }
+        }
+        Ok(url)
     }
 }
 
