@@ -24,6 +24,8 @@ test = false
 [dev-dependencies]
 rustc-test = "0.1"
 rustc-serialize = "0.3"
+serde = "0.8.20"
+bincode = {version = "0.6.0", features = ["serde"] }
 
 [features]
 query_encoding = ["encoding"]
@@ -35,4 +37,4 @@ heapsize = {version = ">=0.1.1, <0.4", optional = true}
 idna = { version = "0.1.0", path = "./idna" }
 matches = "0.1"
 rustc-serialize = {version = "0.3", optional = true}
-serde = {version = ">=0.6.1, <0.9", optional = true}
+serde = {version = "0.8.20", optional = true}
