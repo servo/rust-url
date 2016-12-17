@@ -318,11 +318,12 @@ impl Url {
     /// This checks each of these invariants and panic if one is not met.
     /// This is for testing rust-url itself.
     #[doc(hidden)]
-    pub fn assert_invariants(&self) {
+    pub fn check_invariants(&self) -> Result<(), String> {
         macro_rules! assert {
             ($x: expr) => {
                 if !$x {
-                    panic!("!( {} ) for URL {:?}", stringify!($x), self.serialization)
+                    return Err(format!("!( {} ) for URL {:?}",
+                                       stringify!($x), self.serialization))
                 }
             }
         }
@@ -333,8 +334,9 @@ impl Url {
                     let a = $a;
                     let b = $b;
                     if a != b {
-                        panic!("{:?} != {:?} ({} != {}) for URL {:?}",
-                               a, b, stringify!($a), stringify!($b), self.serialization)
+                        return Err(format!("{:?} != {:?} ({} != {}) for URL {:?}",
+                                           a, b, stringify!($a), stringify!($b),
+                                           self.serialization))
                     }
                 }
             }
@@ -415,6 +417,7 @@ impl Url {
         assert_eq!(self.path_start, other.path_start);
         assert_eq!(self.query_start, other.query_start);
         assert_eq!(self.fragment_start, other.fragment_start);
+        Ok(())
     }
 
     /// Return the origin of this URL (https://url.spec.whatwg.org/#origin)
@@ -1340,6 +1343,60 @@ impl Url {
         }
         Ok(url)
     }
+
+    /// Serialize with Serde using the internal representation of the `Url` struct.
+    ///
+    /// The corresponding `deserialize_internal` method sacrifices some invariant-checking
+    /// for speed, compared to the `Deserialize` trait impl.
+    ///
+    /// This method is only available if the `serde` Cargo feature is enabled.
+    #[cfg(feature = "serde")]
+    #[deny(unused)]
+    pub fn serialize_internal<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: serde::Serializer {
+        use serde::Serialize;
+        // Destructuring first lets us ensure that adding or removing fields forces this method
+        // to be updated
+        let Url { ref serialization, ref scheme_end,
+                  ref username_end, ref host_start,
+                  ref host_end, ref host, ref port,
+                  ref path_start, ref query_start,
+                  ref fragment_start} = *self;
+        (serialization, scheme_end, username_end,
+         host_start, host_end, host, port, path_start,
+         query_start, fragment_start).serialize(serializer)
+    }
+
+    /// Serialize with Serde using the internal representation of the `Url` struct.
+    ///
+    /// The corresponding `deserialize_internal` method sacrifices some invariant-checking
+    /// for speed, compared to the `Deserialize` trait impl.
+    ///
+    /// This method is only available if the `serde` Cargo feature is enabled.
+    #[cfg(feature = "serde")]
+    #[deny(unused)]
+    pub fn deserialize_internal<D>(deserializer: &mut D) -> Result<Self, D::Error> where D: serde::Deserializer {
+        use serde::{Deserialize, Error};
+        let (serialization, scheme_end, username_end,
+             host_start, host_end, host, port, path_start,
+             query_start, fragment_start) = try!(Deserialize::deserialize(deserializer));
+        let url = Url {
+            serialization: serialization,
+            scheme_end: scheme_end,
+            username_end: username_end,
+            host_start: host_start,
+            host_end: host_end,
+            host: host,
+            port: port,
+            path_start: path_start,
+            query_start: query_start,
+            fragment_start: fragment_start
+        };
+        if cfg!(debug_assertions) {
+            try!(url.check_invariants().map_err(|ref reason| Error::invalid_value(&reason)))
+        }
+        Ok(url)
+    }
+
 
     /// Assuming the URL is in the `file` scheme or similar,
     /// convert its path to an absolute `std::path::Path`.
