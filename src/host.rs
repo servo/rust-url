@@ -16,52 +16,10 @@ use parser::{ParseResult, ParseError};
 use percent_encoding::percent_decode;
 use idna;
 
-#[cfg(feature="serde")]
-use serde;
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum HostInternal {
-    None,
-    Domain,
-    Ipv4(Ipv4Addr),
-    Ipv6(Ipv6Addr),
-}
+include!("codegen/host.rs");
 
 #[cfg(feature = "heapsize")]
 known_heap_size!(0, HostInternal);
-
-#[cfg(feature="serde")]
-impl serde::Serialize for HostInternal {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: serde::Serializer {
-        match *self {
-            HostInternal::None => 0u8.serialize(serializer),
-            HostInternal::Domain => 1u8.serialize(serializer),
-            HostInternal::Ipv4(addr) => {
-                2u8.serialize(serializer)?;
-                addr.serialize(serializer)
-            }
-            HostInternal::Ipv6(addr) => {
-                3u8.serialize(serializer)?;
-                addr.serialize(serializer)
-            }
-        }
-    }
-}
-
-#[cfg(feature="serde")]
-impl serde::Deserialize for HostInternal {
-    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error> where D: serde::Deserializer {
-        use serde::{Deserialize, Error};
-        let discr: u8 = Deserialize::deserialize(deserializer)?;
-        match discr {
-            0 => Ok(HostInternal::None),
-            1 => Ok(HostInternal::Domain),
-            2 => Ok(HostInternal::Ipv4(Deserialize::deserialize(deserializer)?)),
-            3 => Ok(HostInternal::Ipv6(Deserialize::deserialize(deserializer)?)),
-            _ => Err(D::Error::unknown_variant("Unknown variant")),
-        }
-    }
-}
 
 impl<S> From<Host<S>> for HostInternal {
     fn from(host: Host<S>) -> HostInternal {

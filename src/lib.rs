@@ -152,31 +152,7 @@ pub mod form_urlencoded;
 pub mod percent_encoding;
 pub mod quirks;
 
-/// A parsed URL record.
-#[derive(Clone)]
-pub struct Url {
-    /// Syntax in pseudo-BNF:
-    ///
-    ///   url = scheme ":" [ hierarchical | non-hierarchical ] [ "?" query ]? [ "#" fragment ]?
-    ///   non-hierarchical = non-hierarchical-path
-    ///   non-hierarchical-path = /* Does not start with "/" */
-    ///   hierarchical = authority? hierarchical-path
-    ///   authority = "//" userinfo? host [ ":" port ]?
-    ///   userinfo = username [ ":" password ]? "@"
-    ///   hierarchical-path = [ "/" path-segment ]+
-    serialization: String,
-
-    // Components
-    scheme_end: u32,  // Before ':'
-    username_end: u32,  // Before ':' (if a password is given) or '@' (if not)
-    host_start: u32,
-    host_end: u32,
-    host: HostInternal,
-    port: Option<u16>,
-    path_start: u32,  // Before initial '/', if any
-    query_start: Option<u32>,  // Before '?', unlike Position::QueryStart
-    fragment_start: Option<u32>,  // Before '#', unlike Position::FragmentStart
-}
+include!("codegen/url.rs");
 
 #[cfg(feature = "heapsize")]
 impl HeapSizeOf for Url {
@@ -1507,70 +1483,6 @@ impl rustc_serialize::Decodable for Url {
         Url::parse(&*try!(decoder.read_str())).map_err(|error| {
             decoder.error(&format!("URL parsing error: {}", error))
         })
-    }
-}
-
-/// Serializes this URL into a `serde` stream.
-///
-/// This implementation is only available if the `serde` Cargo feature is enabled.
-#[cfg(feature="serde")]
-#[deny(unused)]
-impl serde::Serialize for Url {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: serde::Serializer {
-        let Url { ref serialization, ref scheme_end,
-                  ref username_end, ref host_start,
-                  ref host_end, ref host, ref port,
-                  ref path_start, ref query_start,
-                  ref fragment_start} = *self;
-        serialization.serialize(serializer)?;
-        scheme_end.serialize(serializer)?;
-        username_end.serialize(serializer)?;
-        host_start.serialize(serializer)?;
-        host_end.serialize(serializer)?;
-        host.serialize(serializer)?;
-        port.serialize(serializer)?;
-        path_start.serialize(serializer)?;
-        query_start.serialize(serializer)?;
-        fragment_start.serialize(serializer)
-    }
-}
-
-/// Deserializes this URL from a `serde` stream.
-///
-/// This implementation is only available if the `serde` Cargo feature is enabled.
-#[cfg(feature="serde")]
-#[deny(unused)]
-impl serde::Deserialize for Url {
-    fn deserialize<D>(deserializer: &mut D) -> Result<Url, D::Error> where D: serde::Deserializer {
-        use serde::{Deserialize, Error};
-        let serialization = Deserialize::deserialize(deserializer)?;
-        let scheme_end = Deserialize::deserialize(deserializer)?;
-        let username_end = Deserialize::deserialize(deserializer)?;
-        let host_start = Deserialize::deserialize(deserializer)?;
-        let host_end = Deserialize::deserialize(deserializer)?;
-        let host = Deserialize::deserialize(deserializer)?;
-        let port = Deserialize::deserialize(deserializer)?;
-        let path_start = Deserialize::deserialize(deserializer)?;
-        let query_start = Deserialize::deserialize(deserializer)?;
-        let fragment_start = Deserialize::deserialize(deserializer)?;
-        let url = Url {
-            serialization: serialization,
-            scheme_end: scheme_end,
-            username_end: username_end,
-            host_start: host_start,
-            host_end: host_end,
-            host: host,
-            port: port,
-            path_start: path_start,
-            query_start: query_start,
-            fragment_start: fragment_start
-        };
-        #[cfg(debug_assertions)] {
-            if let Err(s) = url.assert_invariants_result() {
-                return Err(Error::invalid_value(&s))
-            }
-        }
-        Ok(url)
     }
 }
 
