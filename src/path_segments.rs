@@ -181,7 +181,7 @@ impl<'a> PathSegmentsMut<'a> {
     /// For internal testing, not part of the public API.
     #[doc(hidden)]
     pub fn assert_url_invariants(&mut self) -> &mut Self {
-        self.url.assert_invariants();
+        self.url.check_invariants();
         self
     }
 }
