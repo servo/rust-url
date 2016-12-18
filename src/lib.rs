@@ -1510,13 +1510,11 @@ impl rustc_serialize::Decodable for Url {
     }
 }
 
-/// Serializes this URL into a `serde` stream.
-///
-/// This implementation is only available if the `serde` Cargo feature is enabled.
 #[cfg(feature="serde")]
-#[deny(unused)]
-impl serde::Serialize for Url {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: serde::Serializer {
+impl Url {
+    /// Serialize the URL efficiently, for use with IPC
+    pub fn serialize_efficient<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: serde::Serializer {
+        use serde::Serialize;
         // Destructuring first lets us ensure that adding or removing fields forces this method
         // to be updated
         let Url { ref serialization, ref scheme_end,
@@ -1528,15 +1526,16 @@ impl serde::Serialize for Url {
          host_start, host_end, host, port, path_start,
          query_start, fragment_start).serialize(serializer)
     }
-}
 
-/// Deserializes this URL from a `serde` stream.
-///
-/// This implementation is only available if the `serde` Cargo feature is enabled.
-#[cfg(feature="serde")]
-#[deny(unused)]
-impl serde::Deserialize for Url {
-    fn deserialize<D>(deserializer: &mut D) -> Result<Url, D::Error> where D: serde::Deserializer {
+    /// Deserialize the URL efficiently, without re-parsing
+    ///
+    /// Deserializer must be known to contain the output of serialize_efficient
+    ///
+    /// Cannot cause memory unsafety if used incorrectly, but may cause security issues.
+    /// Only use with trusted input.
+    pub fn deserialize_efficient<D>(deserializer: &mut D)
+        -> Result<Url, D::Error>
+        where D: serde::Deserializer {
         use serde::{Deserialize, Error};
         let (serialization, scheme_end, username_end,
          host_start, host_end, host, port, path_start,
@@ -1559,6 +1558,28 @@ impl serde::Deserialize for Url {
             }
         }
         Ok(url)
+    }
+}
+/// Serializes this URL into a `serde` stream.
+///
+/// This implementation is only available if the `serde` Cargo feature is enabled.
+#[cfg(feature="serde")]
+#[deny(unused)]
+impl serde::Serialize for Url {
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: serde::Serializer {
+        format!("{}", self).serialize(serializer)
+    }
+}
+
+/// Deserializes this URL from a `serde` stream.
+///
+/// This implementation is only available if the `serde` Cargo feature is enabled.
+#[cfg(feature="serde")]
+#[deny(unused)]
+impl serde::Deserialize for Url {
+    fn deserialize<D>(deserializer: &mut D) -> Result<Url, D::Error> where D: serde::Deserializer {
+        let string_representation: String = try!(serde::Deserialize::deserialize(deserializer));
+        Ok(Url::parse(&string_representation).unwrap())
     }
 }
 

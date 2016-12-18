@@ -22,9 +22,15 @@ fn assert_invariants(url: &Url) {
     url.assert_invariants();
     #[cfg(feature="serde")] {
         use bincode::SizeLimit;
-        use bincode::serde::{deserialize, serialize};
-        let bytes = serialize(url, SizeLimit::Infinite).unwrap();
-        let new_url: Url = deserialize(&bytes).unwrap();
+        use bincode::serde::{Deserializer, Serializer};
+        let mut write = Vec::<u8>::new();
+        {
+            let mut serializer = Serializer::new(&mut write);
+            url.serialize_efficient(&mut serializer).unwrap();
+        }
+        let mut read = &*write;
+        let mut deserializer = Deserializer::new(&mut read, SizeLimit::Infinite);
+        let new_url = Url::deserialize_efficient(&mut deserializer).unwrap();
         assert_eq!(url, &new_url);
     }
 }
