@@ -1513,7 +1513,7 @@ impl rustc_serialize::Decodable for Url {
 #[cfg(feature="serde")]
 impl Url {
     /// Serialize the URL efficiently, for use with IPC
-    pub fn serialize_efficient<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: serde::Serializer {
+    pub fn serialize_unsafe<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: serde::Serializer {
         use serde::Serialize;
         // Destructuring first lets us ensure that adding or removing fields forces this method
         // to be updated
@@ -1529,11 +1529,11 @@ impl Url {
 
     /// Deserialize the URL efficiently, without re-parsing
     ///
-    /// Deserializer must be known to contain the output of serialize_efficient
+    /// Deserializer must be known to contain the output of serialize_unsafe
     ///
     /// Cannot cause memory unsafety if used incorrectly, but may cause security issues.
     /// Only use with trusted input.
-    pub fn deserialize_efficient<D>(deserializer: &mut D)
+    pub fn deserialize_unsafe<D>(deserializer: &mut D)
         -> Result<Url, D::Error>
         where D: serde::Deserializer {
         use serde::{Deserialize, Error};
@@ -1552,7 +1552,7 @@ impl Url {
             query_start: query_start,
             fragment_start: fragment_start
         };
-        #[cfg(debug_assertions)] {
+        if cfg!(debug_assertions) {
             if let Err(s) = url.assert_invariants_result() {
                 return Err(Error::invalid_value(&s))
             }

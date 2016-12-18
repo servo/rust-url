@@ -26,11 +26,11 @@ fn assert_invariants(url: &Url) {
         let mut write = Vec::<u8>::new();
         {
             let mut serializer = Serializer::new(&mut write);
-            url.serialize_efficient(&mut serializer).unwrap();
+            url.serialize_unsafe(&mut serializer).unwrap();
         }
         let mut read = &*write;
         let mut deserializer = Deserializer::new(&mut read, SizeLimit::Infinite);
-        let new_url = Url::deserialize_efficient(&mut deserializer).unwrap();
+        let new_url = Url::deserialize_unsafe(&mut deserializer).unwrap();
         assert_eq!(url, &new_url);
     }
 }
