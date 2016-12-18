@@ -56,6 +56,13 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
                     // for these contexts
                     return;
                 }
+                if to_ascii == "[V2]" {
+                    // Everybody ignores V2
+                    // https://github.com/servo/rust-url/pull/240
+                    // https://github.com/whatwg/url/issues/53#issuecomment-181528158
+                    // http://www.unicode.org/review/pri317/
+                    return;
+                }
                 let res = result.ok();
                 assert!(res == None, "Expected error. result: {} | original: {} | source: {}",
                         res.unwrap(), original, source);

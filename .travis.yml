@@ -3,6 +3,8 @@ rust:
   - nightly
   - beta
   - stable
-script: make test
+script:
+  - make test
+  - cd idna && cargo test
 notifications:
   webhooks: http://build.servo.org:54856/travis
