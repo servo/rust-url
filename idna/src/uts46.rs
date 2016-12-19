@@ -224,10 +224,12 @@ fn processing(domain: &str, flags: Flags, errors: &mut Vec<Error>) -> String {
     }
     let normalized: String = mapped.nfc().collect();
     let mut validated = String::new();
+    let mut first = true;
     for label in normalized.split('.') {
-        if validated.len() > 0 {
+        if !first {
             validated.push('.');
         }
+        first = false;
         if label.starts_with("xn--") {
             match punycode::decode_to_string(&label["xn--".len()..]) {
                 Some(decoded_label) => {
@@ -273,10 +275,12 @@ pub struct Errors(Vec<Error>);
 pub fn to_ascii(domain: &str, flags: Flags) -> Result<String, Errors> {
     let mut errors = Vec::new();
     let mut result = String::new();
+    let mut first = true;
     for label in processing(domain, flags, &mut errors).split('.') {
-        if result.len() > 0 {
+        if !first {
             result.push('.');
         }
+        first = false;
         if label.is_ascii() {
             result.push_str(label);
         } else {

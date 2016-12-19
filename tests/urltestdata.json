@@ -4373,5 +4373,22 @@
     "search": "?qux",
     "searchParams": "",
     "hash": "#foo%08bar"
+  },
+  "# Correct handling of empty domain segments",
+  {
+    "input": "http://../",
+    "base": "about:blank",
+    "href": "http://../",
+    "origin": "http://..",
+    "protocol": "http:",
+    "username": "",
+    "password": "",
+    "host": "..",
+    "hostname": "..",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "searchParams": "",
+    "hash": ""
   }
 ]
