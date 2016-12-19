@@ -4373,5 +4373,22 @@
     "search": "?qux",
     "searchParams": "",
     "hash": "#foo%08bar"
+  },
+  "# IPv6 compression",
+  {
+    "input": "http://[fe80:cd00::cde:1257:0:211e:729c]/",
+    "base": "about:blank",
+    "href": "http://[fe80:cd00::cde:1257:0:211e:729c]/",
+    "origin": "http://[fe80:cd00::cde:1257:0:211e:729c]",
+    "protocol": "http:",
+    "username": "",
+    "password": "",
+    "host": "[fe80:cd00::cde:1257:0:211e:729c]",
+    "hostname": "[fe80:cd00::cde:1257:0:211e:729c]",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "searchParams": "",
+    "hash": ""
   }
 ]
