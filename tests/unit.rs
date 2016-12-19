@@ -123,14 +123,15 @@ fn issue_124() {
 
 #[test]
 fn test_equality() {
-    use std::hash::{Hash, Hasher, SipHasher};
+    use std::hash::{Hash, Hasher};
+    use std::collections::hash_map::DefaultHasher;
 
     fn check_eq(a: &Url, b: &Url) {
         assert_eq!(a, b);
 
-        let mut h1 = SipHasher::new();
+        let mut h1 = DefaultHasher::new();
         a.hash(&mut h1);
-        let mut h2 = SipHasher::new();
+        let mut h2 = DefaultHasher::new();
         b.hash(&mut h2);
         assert_eq!(h1.finish(), h2.finish());
     }
