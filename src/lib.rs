@@ -152,31 +152,7 @@ pub mod form_urlencoded;
 pub mod percent_encoding;
 pub mod quirks;
 
-/// A parsed URL record.
-#[derive(Clone)]
-pub struct Url {
-    /// Syntax in pseudo-BNF:
-    ///
-    ///   url = scheme ":" [ hierarchical | non-hierarchical ] [ "?" query ]? [ "#" fragment ]?
-    ///   non-hierarchical = non-hierarchical-path
-    ///   non-hierarchical-path = /* Does not start with "/" */
-    ///   hierarchical = authority? hierarchical-path
-    ///   authority = "//" userinfo? host [ ":" port ]?
-    ///   userinfo = username [ ":" password ]? "@"
-    ///   hierarchical-path = [ "/" path-segment ]+
-    serialization: String,
-
-    // Components
-    scheme_end: u32,  // Before ':'
-    username_end: u32,  // Before ':' (if a password is given) or '@' (if not)
-    host_start: u32,
-    host_end: u32,
-    host: HostInternal,
-    port: Option<u16>,
-    path_start: u32,  // Before initial '/', if any
-    query_start: Option<u32>,  // Before '?', unlike Position::QueryStart
-    fragment_start: Option<u32>,  // Before '#', unlike Position::FragmentStart
-}
+include!("codegen/url.rs");
 
 #[cfg(feature = "heapsize")]
 impl HeapSizeOf for Url {
@@ -312,17 +288,23 @@ impl Url {
         self.serialization
     }
 
+    #[doc(hidden)]
+    pub fn assert_invariants(&self) {
+        self.assert_invariants_result().unwrap()
+    }
+
     /// For internal testing, not part of the public API.
     ///
     /// Methods of the `Url` struct assume a number of invariants.
     /// This checks each of these invariants and panic if one is not met.
     /// This is for testing rust-url itself.
     #[doc(hidden)]
-    pub fn assert_invariants(&self) {
+    pub fn assert_invariants_result(&self) -> Result<(), String> {
         macro_rules! assert {
             ($x: expr) => {
                 if !$x {
-                    panic!("!( {} ) for URL {:?}", stringify!($x), self.serialization)
+                    return Err(format!("!( {} ) for URL {:?}",
+                                       stringify!($x), self.serialization))
                 }
             }
         }
@@ -333,8 +315,9 @@ impl Url {
                     let a = $a;
                     let b = $b;
                     if a != b {
-                        panic!("{:?} != {:?} ({} != {}) for URL {:?}",
-                               a, b, stringify!($a), stringify!($b), self.serialization)
+                        return Err(format!("{:?} != {:?} ({} != {}) for URL {:?}",
+                                           a, b, stringify!($a), stringify!($b),
+                                           self.serialization))
                     }
                 }
             }
@@ -415,6 +398,7 @@ impl Url {
         assert_eq!(self.path_start, other.path_start);
         assert_eq!(self.query_start, other.query_start);
         assert_eq!(self.fragment_start, other.fragment_start);
+        Ok(())
     }
 
     /// Return the origin of this URL (https://url.spec.whatwg.org/#origin)
@@ -1499,27 +1483,6 @@ impl rustc_serialize::Decodable for Url {
         Url::parse(&*try!(decoder.read_str())).map_err(|error| {
             decoder.error(&format!("URL parsing error: {}", error))
         })
-    }
-}
-
-/// Serializes this URL into a `serde` stream.
-///
-/// This implementation is only available if the `serde` Cargo feature is enabled.
-#[cfg(feature="serde")]
-impl serde::Serialize for Url {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: serde::Serializer {
-        format!("{}", self).serialize(serializer)
-    }
-}
-
-/// Deserializes this URL from a `serde` stream.
-///
-/// This implementation is only available if the `serde` Cargo feature is enabled.
-#[cfg(feature="serde")]
-impl serde::Deserialize for Url {
-    fn deserialize<D>(deserializer: &mut D) -> Result<Url, D::Error> where D: serde::Deserializer {
-        let string_representation: String = try!(serde::Deserialize::deserialize(deserializer));
-        Ok(Url::parse(&string_representation).unwrap())
     }
 }
 

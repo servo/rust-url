@@ -1,0 +1,30 @@
+// WARNING: Do not modify this file if it is `url.rs`.
+//
+// Instead, modify `url.rs.in` and rerun the `serde-code-generator`.
+
+/// A parsed URL record.
+#[derive(Clone)]
+#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+pub struct Url {
+    /// Syntax in pseudo-BNF:
+    ///
+    ///   url = scheme ":" [ hierarchical | non-hierarchical ] [ "?" query ]? [ "#" fragment ]?
+    ///   non-hierarchical = non-hierarchical-path
+    ///   non-hierarchical-path = /* Does not start with "/" */
+    ///   hierarchical = authority? hierarchical-path
+    ///   authority = "//" userinfo? host [ ":" port ]?
+    ///   userinfo = username [ ":" password ]? "@"
+    ///   hierarchical-path = [ "/" path-segment ]+
+    serialization: String,
+
+    // Components
+    scheme_end: u32,  // Before ':'
+    username_end: u32,  // Before ':' (if a password is given) or '@' (if not)
+    host_start: u32,
+    host_end: u32,
+    host: HostInternal,
+    port: Option<u16>,
+    path_start: u32,  // Before initial '/', if any
+    query_start: Option<u32>,  // Before '?', unlike Position::QueryStart
+    fragment_start: Option<u32>,  // Before '#', unlike Position::FragmentStart
+}

@@ -16,13 +16,7 @@ use parser::{ParseResult, ParseError};
 use percent_encoding::percent_decode;
 use idna;
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum HostInternal {
-    None,
-    Domain,
-    Ipv4(Ipv4Addr),
-    Ipv6(Ipv6Addr),
-}
+include!("codegen/host.rs");
 
 #[cfg(feature = "heapsize")]
 known_heap_size!(0, HostInternal);
