@@ -30,10 +30,12 @@ rustc-serialize = "0.3"
 
 [features]
 query_encoding = ["encoding"]
+query_encoding_rs = ["encoding_rs"]
 heap_size = ["heapsize"]
 
 [dependencies]
 encoding = {version = "0.2", optional = true}
+encoding_rs = {version = "0.3.1", optional = true}
 heapsize = {version = ">=0.1.1, <0.4", optional = true}
 idna = { version = "0.1.0", path = "./idna" }
 matches = "0.1"
