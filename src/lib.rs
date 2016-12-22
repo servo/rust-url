@@ -126,6 +126,7 @@ use parser::{Parser, Context, SchemeType, to_u32};
 use percent_encoding::{PATH_SEGMENT_ENCODE_SET, USERINFO_ENCODE_SET,
                        percent_encode, percent_decode, utf8_percent_encode};
 use std::cmp;
+use std::error::Error;
 use std::fmt::{self, Write};
 use std::hash;
 use std::io;
@@ -1508,7 +1509,7 @@ impl rustc_serialize::Decodable for Url {
 #[cfg(feature="serde")]
 impl serde::Serialize for Url {
     fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: serde::Serializer {
-        format!("{}", self).serialize(serializer)
+        serializer.serialize_str(self.as_str())
     }
 }
 
@@ -1519,7 +1520,9 @@ impl serde::Serialize for Url {
 impl serde::Deserialize for Url {
     fn deserialize<D>(deserializer: &mut D) -> Result<Url, D::Error> where D: serde::Deserializer {
         let string_representation: String = try!(serde::Deserialize::deserialize(deserializer));
-        Ok(Url::parse(&string_representation).unwrap())
+        Url::parse(&string_representation).map_err(|err| {
+            serde::Error::invalid_value(err.description())
+        })
     }
 }
 
