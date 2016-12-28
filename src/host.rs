@@ -11,6 +11,7 @@ use std::cmp;
 use std::fmt::{self, Formatter};
 use std::io;
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
+use std::str::FromStr;
 use std::vec;
 use parser::{ParseResult, ParseError};
 use percent_encoding::percent_decode;
@@ -120,7 +121,7 @@ impl<S: AsRef<str>> fmt::Display for Host<S> {
 
 /// This mostly exists because coherence rules don’t allow us to implement
 /// `ToSocketAddrs for (Host<S>, u16)`.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct HostAndPort<S=String> {
     pub host: Host<S>,
     pub port: u16,
@@ -133,6 +134,29 @@ impl<'a> HostAndPort<&'a str> {
             host: self.host.to_owned(),
             port: self.port
         }
+    }
+}
+
+impl FromStr for HostAndPort {
+    type Err = ParseError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // uses rfind because there can be colons in ipv6 addresses
+        let split_idx = match s.rfind(':') {
+            Some(idx) => idx,
+            None => return Err(ParseError::HostAndPortWithoutPort),
+        };
+        let (host_str, port_str) = s.split_at(split_idx);
+        let host = try!(Host::parse(host_str));
+        if port_str.len() == 0 {
+            return Err(ParseError::InvalidPort);
+        }
+        let port_str = &port_str[1..]; // to remove the :
+        let port: u16 = try!(port_str.parse()
+            .map_err(|_| ParseError::InvalidPort));
+        Ok(HostAndPort {
+            host: host,
+            port: port,
+        })
     }
 }
 
