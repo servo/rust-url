@@ -206,6 +206,7 @@ fn write_ipv6(addr: &Ipv6Addr, f: &mut Formatter) -> fmt::Result {
     Ok(())
 }
 
+// https://url.spec.whatwg.org/#concept-ipv6-serializer step 2 and 3
 fn longest_zero_sequence(pieces: &[u16; 8]) -> (isize, isize) {
     let mut longest = -1;
     let mut longest_length = -1;
@@ -232,7 +233,13 @@ fn longest_zero_sequence(pieces: &[u16; 8]) -> (isize, isize) {
         }
     }
     finish_sequence!(8);
-    (longest, longest + longest_length)
+    // https://url.spec.whatwg.org/#concept-ipv6-serializer
+    // step 3: ignore lone zeroes
+    if longest_length < 2 {
+        (-1, -2)
+    } else {
+        (longest, longest + longest_length)
+    }
 }
 
 /// https://url.spec.whatwg.org/#ipv4-number-parser
