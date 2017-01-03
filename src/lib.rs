@@ -813,6 +813,26 @@ impl Url {
     ///
     /// When `Some` is returned, the iterator always contains at least one string
     /// (which may be empty).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let url = Url::parse("https://example.com/foo/bar").unwrap();
+    /// let mut path_segments = url.path_segments().unwrap();
+    /// assert_eq!(path_segments.next(), Some("foo"));
+    /// assert_eq!(path_segments.next(), Some("bar"));
+    /// assert_eq!(path_segments.next(), None);
+    ///
+    /// let url = Url::parse("https://example.com").unwrap();
+    /// let mut path_segments = url.path_segments().unwrap();
+    /// assert_eq!(path_segments.next(), Some(""));
+    /// assert_eq!(path_segments.next(), None);
+    ///
+    /// let url = Url::parse("data:text/plain,HelloWorld").unwrap();
+    /// assert!(url.path_segments().is_none());
+    /// ```
     pub fn path_segments(&self) -> Option<str::Split<char>> {
         let path = self.path();
         if path.starts_with('/') {
