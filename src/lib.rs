@@ -126,7 +126,7 @@ use parser::{Parser, Context, SchemeType, to_u32};
 use percent_encoding::{PATH_SEGMENT_ENCODE_SET, USERINFO_ENCODE_SET,
                        percent_encode, percent_decode, utf8_percent_encode};
 use std::cmp;
-use std::error::Error;
+#[cfg(feature = "serde")] use std::error::Error;
 use std::fmt::{self, Write};
 use std::hash;
 use std::io;
