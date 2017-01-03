@@ -1319,6 +1319,25 @@ impl Url {
     ///
     /// This returns `Err` if the given path is not absolute or,
     /// on Windows, if the prefix is not a disk prefix (e.g. `C:`).
+    ///
+    /// # Examples
+    ///
+    /// On Unix-like platforms:
+    ///
+    /// ```
+    /// # if cfg!(unix) {
+    /// use url::Url;
+    ///
+    /// let url = Url::from_file_path("/tmp/foo.txt").unwrap();
+    /// assert_eq!(url.as_str(), "file:///tmp/foo.txt");
+    ///
+    /// let url = Url::from_file_path("../foo.txt");
+    /// assert!(url.is_err());
+    ///
+    /// let url = Url::from_file_path("https://google.com/");
+    /// assert!(url.is_err());
+    /// # }
+    /// ```
     pub fn from_file_path<P: AsRef<Path>>(path: P) -> Result<Url, ()> {
         let mut serialization = "file://".to_owned();
         let path_start = serialization.len() as u32;
