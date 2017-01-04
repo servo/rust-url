@@ -1057,6 +1057,20 @@ impl Url {
     /// url.set_port(None).unwrap();
     /// assert_eq!(url.as_str(), "ssh://example.net/");
     /// ```
+    ///
+    /// Cannot set port for cannot-be-a-base URLs:
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("mailto:rms@example.net").unwrap();
+    ///
+    /// let result = url.set_port(Some(80));
+    /// assert!(result.is_err());
+    ///
+    /// let result = url.set_port(None);
+    /// assert!(result.is_err());
+    /// ```
     pub fn set_port(&mut self, mut port: Option<u16>) -> Result<(), ()> {
         if !self.has_host() || self.scheme() == "file" {
             return Err(())
