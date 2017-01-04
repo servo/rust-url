@@ -694,6 +694,9 @@ impl Url {
     /// let url = Url::parse("https://127.0.0.1/").unwrap();
     /// assert_eq!(url.domain(), None);
     ///
+    /// let url = Url::parse("mailto:rms@example.net").unwrap();
+    /// assert_eq!(url.domain(), None);
+    ///
     /// let url = Url::parse("https://example.com/").unwrap();
     /// assert_eq!(url.domain(), Some("example.com"));
     /// ```
@@ -1054,6 +1057,20 @@ impl Url {
     /// url.set_port(None).unwrap();
     /// assert_eq!(url.as_str(), "ssh://example.net/");
     /// ```
+    ///
+    /// Cannot set port for cannot-be-a-base URLs:
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("mailto:rms@example.net").unwrap();
+    ///
+    /// let result = url.set_port(Some(80));
+    /// assert!(result.is_err());
+    ///
+    /// let result = url.set_port(None);
+    /// assert!(result.is_err());
+    /// ```
     pub fn set_port(&mut self, mut port: Option<u16>) -> Result<(), ()> {
         if !self.has_host() || self.scheme() == "file" {
             return Err(())
@@ -1102,6 +1119,57 @@ impl Url {
     ///
     /// Removing the host (calling this with `None`)
     /// will also remove any username, password, and port number.
+    ///
+    /// # Examples
+    ///
+    /// Change host:
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("https://example.net").unwrap();
+    /// let result = url.set_host(Some("rust-lang.org"));
+    /// assert!(result.is_ok());
+    /// assert_eq!(url.as_str(), "https://rust-lang.org/");
+    /// ```
+    ///
+    /// Remove host:
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("foo://example.net").unwrap();
+    /// let result = url.set_host(None);
+    /// assert!(result.is_ok());
+    /// assert_eq!(url.as_str(), "foo:/");
+    /// ```
+    ///
+    /// Cannot remove host for 'special' schemes (e.g. `http`):
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("https://example.net").unwrap();
+    /// let result = url.set_host(None);
+    /// assert!(result.is_err());
+    /// assert_eq!(url.as_str(), "https://example.net/");
+    /// ```
+    ///
+    /// Cannot change or remove host for cannot-be-a-base URLs:
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("mailto:rms@example.net").unwrap();
+    ///
+    /// let result = url.set_host(Some("rust-lang.org"));
+    /// assert!(result.is_err());
+    /// assert_eq!(url.as_str(), "mailto:rms@example.net");
+    ///
+    /// let result = url.set_host(None);
+    /// assert!(result.is_err());
+    /// assert_eq!(url.as_str(), "mailto:rms@example.net");
+    /// ```
     pub fn set_host(&mut self, host: Option<&str>) -> Result<(), ParseError> {
         if self.cannot_be_a_base() {
             return Err(ParseError::SetHostOnCannotBeABaseUrl)
@@ -1288,6 +1356,42 @@ impl Url {
     /// * The new scheme is not in `[a-zA-Z][a-zA-Z0-9+.-]+`
     /// * This URL is cannot-be-a-base and the new scheme is one of
     ///   `http`, `https`, `ws`, `wss`, `ftp`, or `gopher`
+    ///
+    /// # Examples
+    ///
+    /// Change the URL’s scheme from `https` to `foo`:
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("https://example.net").unwrap();
+    /// let result = url.set_scheme("foo");
+    /// assert_eq!(url.as_str(), "foo://example.net/");
+    /// assert!(result.is_ok());
+    /// ```
+    /// 
+    ///
+    /// Cannot change URL’s scheme from `https` to `foõ`:
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("https://example.net").unwrap();
+    /// let result = url.set_scheme("foõ");
+    /// assert_eq!(url.as_str(), "https://example.net/");
+    /// assert!(result.is_err());
+    /// ```
+    ///
+    /// Cannot change URL’s scheme from `mailto` (cannot-be-a-base) to `https`:
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("mailto:rms@example.net").unwrap();
+    /// let result = url.set_scheme("https");
+    /// assert_eq!(url.as_str(), "mailto:rms@example.net");
+    /// assert!(result.is_err());
+    /// ```
     pub fn set_scheme(&mut self, scheme: &str) -> Result<(), ()> {
         let mut parser = Parser::for_setter(String::new());
         let remaining = try!(parser.parse_scheme(parser::Input::new(scheme)));
@@ -1319,6 +1423,25 @@ impl Url {
     ///
     /// This returns `Err` if the given path is not absolute or,
     /// on Windows, if the prefix is not a disk prefix (e.g. `C:`).
+    ///
+    /// # Examples
+    ///
+    /// On Unix-like platforms:
+    ///
+    /// ```
+    /// # if cfg!(unix) {
+    /// use url::Url;
+    ///
+    /// let url = Url::from_file_path("/tmp/foo.txt").unwrap();
+    /// assert_eq!(url.as_str(), "file:///tmp/foo.txt");
+    ///
+    /// let url = Url::from_file_path("../foo.txt");
+    /// assert!(url.is_err());
+    ///
+    /// let url = Url::from_file_path("https://google.com/");
+    /// assert!(url.is_err());
+    /// # }
+    /// ```
     pub fn from_file_path<P: AsRef<Path>>(path: P) -> Result<Url, ()> {
         let mut serialization = "file://".to_owned();
         let path_start = serialization.len() as u32;
