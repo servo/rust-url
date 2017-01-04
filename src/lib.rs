@@ -694,6 +694,9 @@ impl Url {
     /// let url = Url::parse("https://127.0.0.1/").unwrap();
     /// assert_eq!(url.domain(), None);
     ///
+    /// let url = Url::parse("mailto:rms@example.net").unwrap();
+    /// assert_eq!(url.domain(), None);
+    ///
     /// let url = Url::parse("https://example.com/").unwrap();
     /// assert_eq!(url.domain(), Some("example.com"));
     /// ```
