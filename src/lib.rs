@@ -1119,6 +1119,57 @@ impl Url {
     ///
     /// Removing the host (calling this with `None`)
     /// will also remove any username, password, and port number.
+    ///
+    /// # Examples
+    ///
+    /// Change host:
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("https://example.net").unwrap();
+    /// let result = url.set_host(Some("rust-lang.org"));
+    /// assert!(result.is_ok());
+    /// assert_eq!(url.as_str(), "https://rust-lang.org/");
+    /// ```
+    ///
+    /// Remove host:
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("foo://example.net").unwrap();
+    /// let result = url.set_host(None);
+    /// assert!(result.is_ok());
+    /// assert_eq!(url.as_str(), "foo:/");
+    /// ```
+    ///
+    /// Cannot remove host for 'special' schemes (e.g. `http`):
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("https://example.net").unwrap();
+    /// let result = url.set_host(None);
+    /// assert!(result.is_err());
+    /// assert_eq!(url.as_str(), "https://example.net/");
+    /// ```
+    ///
+    /// Cannot change or remove host for cannot-be-a-base URLs:
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("mailto:rms@example.net").unwrap();
+    ///
+    /// let result = url.set_host(Some("rust-lang.org"));
+    /// assert!(result.is_err());
+    /// assert_eq!(url.as_str(), "mailto:rms@example.net");
+    ///
+    /// let result = url.set_host(None);
+    /// assert!(result.is_err());
+    /// assert_eq!(url.as_str(), "mailto:rms@example.net");
+    /// ```
     pub fn set_host(&mut self, host: Option<&str>) -> Result<(), ParseError> {
         if self.cannot_be_a_base() {
             return Err(ParseError::SetHostOnCannotBeABaseUrl)
