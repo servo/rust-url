@@ -1288,6 +1288,42 @@ impl Url {
     /// * The new scheme is not in `[a-zA-Z][a-zA-Z0-9+.-]+`
     /// * This URL is cannot-be-a-base and the new scheme is one of
     ///   `http`, `https`, `ws`, `wss`, `ftp`, or `gopher`
+    ///
+    /// # Examples
+    ///
+    /// Change the URL’s scheme from `https` to `foo`:
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("https://example.net").unwrap();
+    /// let result = url.set_scheme("foo");
+    /// assert_eq!(url.as_str(), "foo://example.net/");
+    /// assert!(result.is_ok());
+    /// ```
+    /// 
+    ///
+    /// Cannot change URL’s scheme from `https` to `foõ`:
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("https://example.net").unwrap();
+    /// let result = url.set_scheme("foõ");
+    /// assert_eq!(url.as_str(), "https://example.net/");
+    /// assert!(result.is_err());
+    /// ```
+    ///
+    /// Cannot change URL’s scheme from `mailto` (cannot-be-a-base) to `https`:
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("mailto:rms@example.net").unwrap();
+    /// let result = url.set_scheme("https");
+    /// assert_eq!(url.as_str(), "mailto:rms@example.net");
+    /// assert!(result.is_err());
+    /// ```
     pub fn set_scheme(&mut self, scheme: &str) -> Result<(), ()> {
         let mut parser = Parser::for_setter(String::new());
         let remaining = try!(parser.parse_scheme(parser::Input::new(scheme)));
