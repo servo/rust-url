@@ -125,6 +125,7 @@ use host::HostInternal;
 use parser::{Parser, Context, SchemeType, to_u32};
 use percent_encoding::{PATH_SEGMENT_ENCODE_SET, USERINFO_ENCODE_SET,
                        percent_encode, percent_decode, utf8_percent_encode};
+use std::borrow::Borrow;
 use std::cmp;
 #[cfg(feature = "serde")] use std::error::Error;
 use std::fmt::{self, Write};
@@ -240,6 +241,34 @@ impl Url {
     #[inline]
     pub fn parse(input: &str) -> Result<Url, ::ParseError> {
         Url::options().parse(input)
+    }
+
+    /// Parse an absolute URL from a string and add params to its query string.
+    ///
+    /// Existing params are not removed.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use url::Url;
+    ///
+    /// let url = Url::parse_with_params("https://example.net?dont=clobberme",
+    ///                                  &[("lang", "rust"), ("browser", "servo")]);
+    /// ```
+    #[inline]
+    pub fn parse_with_params<I, K, V>(input: &str, iter: I) -> Result<Url, ::ParseError>
+        where I: IntoIterator,
+              I::Item: Borrow<(K, V)>,
+              K: AsRef<str>,
+              V: AsRef<str>
+    {
+        let mut url = Url::options().parse(input);
+
+        if let Ok(ref mut url) = url {
+            url.query_pairs_mut().extend_pairs(iter);
+        }
+
+        url
     }
 
     /// Parse a string as an URL, with this URL as the base URL.
@@ -1369,7 +1398,7 @@ impl Url {
     /// assert_eq!(url.as_str(), "foo://example.net/");
     /// assert!(result.is_ok());
     /// ```
-    /// 
+    ///
     ///
     /// Cannot change URL’s scheme from `https` to `foõ`:
     ///
