@@ -1,0 +1,12 @@
+// WARNING: Do not modify this file if it is `host.rs`.
+//
+// Instead, modify `host.rs.in` and rerun the `serde-code-generator`.
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+pub enum HostInternal {
+    None,
+    Domain,
+    Ipv4(Ipv4Addr),
+    Ipv6(Ipv6Addr),
+}

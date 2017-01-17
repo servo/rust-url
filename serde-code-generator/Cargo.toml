@@ -1,0 +1,7 @@
+[package]
+name = "serde-code-generator"
+version = "0.1.0"
+authors = ["Erick Tryzelaar <erick.tryzelaar@gmail.com>"]
+
+[dependencies]
+serde_codegen = { version = "^0.8" }

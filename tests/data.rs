@@ -8,12 +8,32 @@
 
 //! Data-driven tests
 
+extern crate bincode;
 extern crate rustc_serialize;
+#[cfg(feature="serde")]
+extern crate serde;
 extern crate test;
 extern crate url;
 
 use rustc_serialize::json::{self, Json};
 use url::{Url, quirks};
+
+fn assert_invariants(url: &Url) {
+    url.assert_invariants();
+    #[cfg(feature="serde")] {
+        use bincode::SizeLimit;
+        use bincode::serde::{Deserializer, Serializer};
+        let mut write = Vec::<u8>::new();
+        {
+            let mut serializer = Serializer::new(&mut write);
+            url.serialize_unsafe(&mut serializer).unwrap();
+        }
+        let mut read = &*write;
+        let mut deserializer = Deserializer::new(&mut read, SizeLimit::Infinite);
+        let new_url = Url::deserialize_unsafe(&mut deserializer).unwrap();
+        assert_eq!(url, &new_url);
+    }
+}
 
 
 fn run_parsing(input: String, base: String, expected: Result<ExpectedAttributes, ()>) {
@@ -28,7 +48,7 @@ fn run_parsing(input: String, base: String, expected: Result<ExpectedAttributes,
         (Ok(_), Err(())) => panic!("Expected a parse error for URL {:?}", input),
     };
 
-    url.assert_invariants();
+    assert_invariants(&url);
 
     macro_rules! assert_eq {
         ($expected: expr, $got: expr) => {
@@ -144,11 +164,11 @@ fn collect_setters<F>(add_test: &mut F) where F: FnMut(String, test::TestFn) {
                 let mut expected = test.take("expected").unwrap();
                 add_test(name, test::TestFn::dyn_test_fn(move || {
                     let mut url = Url::parse(&href).unwrap();
-                    url.assert_invariants();
+                    assert_invariants(&url);
                     let _ = quirks::$setter(&mut url, &new_value);
                     assert_attributes!(url, expected,
                         href protocol username password host hostname port pathname search hash);
-                    url.assert_invariants();
+                    assert_invariants(&url);
                 }))
             }
         }}
