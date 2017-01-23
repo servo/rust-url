@@ -27,6 +27,38 @@ pub enum HostInternal {
 #[cfg(feature = "heapsize")]
 known_heap_size!(0, HostInternal);
 
+#[cfg(feature="serde")]
+impl ::serde::Serialize for HostInternal {
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: ::serde::Serializer {
+        // This doesn’t use `derive` because that involves
+        // large dependencies (that take a long time to build), and
+        // either Macros 1.1 which are not stable yet or a cumbersome build script.
+        //
+        // Implementing `Serializer` correctly for an enum is tricky,
+        // so let’s use existing enums that already do.
+        use std::net::IpAddr;
+        match *self {
+            HostInternal::None => None,
+            HostInternal::Domain => Some(None),
+            HostInternal::Ipv4(addr) => Some(Some(IpAddr::V4(addr))),
+            HostInternal::Ipv6(addr) => Some(Some(IpAddr::V6(addr))),
+        }.serialize(serializer)
+    }
+}
+
+#[cfg(feature="serde")]
+impl ::serde::Deserialize for HostInternal {
+    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error> where D: ::serde::Deserializer {
+        use std::net::IpAddr;
+        Ok(match try!(::serde::Deserialize::deserialize(deserializer)) {
+            None => HostInternal::None,
+            Some(None) => HostInternal::Domain,
+            Some(Some(IpAddr::V4(addr))) => HostInternal::Ipv4(addr),
+            Some(Some(IpAddr::V6(addr))) => HostInternal::Ipv6(addr),
+        })
+    }
+}
+
 impl<S> From<Host<S>> for HostInternal {
     fn from(host: Host<S>) -> HostInternal {
         match host {
