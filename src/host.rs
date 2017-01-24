@@ -89,6 +89,30 @@ pub enum Host<S=String> {
     Ipv6(Ipv6Addr),
 }
 
+#[cfg(feature="serde")]
+impl<S: ::serde::Serialize>  ::serde::Serialize for Host<S> {
+    fn serialize<R>(&self, serializer: &mut R) -> Result<(), R::Error> where R: ::serde::Serializer {
+        use std::net::IpAddr;
+        match *self {
+            Host::Domain(ref s) => Ok(s),
+            Host::Ipv4(addr) => Err(IpAddr::V4(addr)),
+            Host::Ipv6(addr) => Err(IpAddr::V6(addr)),
+        }.serialize(serializer)
+    }
+}
+
+#[cfg(feature="serde")]
+impl<S: ::serde::Deserialize> ::serde::Deserialize for Host<S> {
+    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error> where D: ::serde::Deserializer {
+        use std::net::IpAddr;
+        Ok(match try!(::serde::Deserialize::deserialize(deserializer)) {
+            Ok(s) => Host::Domain(s),
+            Err(IpAddr::V4(addr)) => Host::Ipv4(addr),
+            Err(IpAddr::V6(addr)) => Host::Ipv6(addr),
+        })
+    }
+}
+
 #[cfg(feature = "heapsize")]
 impl<S: HeapSizeOf> HeapSizeOf for Host<S> {
     fn heap_size_of_children(&self) -> usize {
