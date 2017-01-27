@@ -1,0 +1,22 @@
+[package]
+
+name = "url_serde"
+version = "0.1.0"
+authors = ["The rust-url developers"]
+
+description = "Serde support for URL types"
+documentation = "http://servo.github.io/rust-url/url/index.html"
+repository = "https://github.com/servo/rust-url"
+readme = "README.md"
+keywords = ["url", "serde"]
+license = "MIT/Apache-2.0"
+
+[dependencies]
+serde = ">=0.9, <0.10"
+url = "1.0.0"
+
+[dev-dependencies]
+serde_json = ">=0.9, <0.10"
+
+[lib]
+doctest = false
