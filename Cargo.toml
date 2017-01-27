@@ -12,7 +12,7 @@ keywords = ["url", "parser"]
 license = "MIT/Apache-2.0"
 
 [workspace]
-members = [".", "idna"]
+members = [".", "idna", "url_serde"]
 
 [[test]]
 name = "unit"
