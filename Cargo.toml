@@ -5,7 +5,7 @@ version = "1.4.0"
 authors = ["The rust-url developers"]
 
 description = "URL library for Rust, based on the WHATWG URL Standard"
-documentation = "http://servo.github.io/rust-url/url/index.html"
+documentation = "https://docs.rs/url"
 repository = "https://github.com/servo/rust-url"
 readme = "README.md"
 keywords = ["url", "parser"]
