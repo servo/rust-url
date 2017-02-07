@@ -53,6 +53,7 @@ extern crate url;
 
 use std::cmp::PartialEq;
 use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::ops::{Deref, DerefMut};
 use std::error::Error;
 use serde::{Deserialize, Serialize, Serializer, Deserializer};
@@ -135,10 +136,13 @@ impl Deserialize for De<Url> {
 
 
 /// A convenience wrapper to be used as a type parameter, for example when
-/// a `Vec<T>` need to be passed to serde.
-#[derive(Clone, PartialEq)]
+/// a `Vec<T>` or an `HashMap<K, V>` need to be passed to serde.
+#[derive(Clone, Eq, Hash, PartialEq)]
 pub struct Serde<T>(pub T)
     where De<T>: Deserialize, for<'a> Ser<'a, T>: Serialize;
+
+/// A convenience type alias for Serde<Url>.
+pub type SerdeUrl = Serde<Url>;
 
 impl<T> Serde<T>
 where De<T>: Deserialize, for<'a> Ser<'a, T>: Serialize
