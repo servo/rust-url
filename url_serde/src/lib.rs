@@ -51,9 +51,12 @@ ipc::channel::<Serde<Url>>()
 extern crate serde;
 extern crate url;
 
+#[cfg(test)]
+#[macro_use]
+extern crate serde_derive;
+
 use std::cmp::PartialEq;
 use std::fmt;
-use std::hash::{Hash, Hasher};
 use std::ops::{Deref, DerefMut};
 use std::error::Error;
 use serde::{Deserialize, Serialize, Serializer, Deserializer};
@@ -91,6 +94,18 @@ impl<'a, T> Ser<'a, T> where Ser<'a, T>: Serialize {
 impl<'a> Serialize for Ser<'a, Url> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
         serializer.serialize_str(self.0.as_str())
+    }
+}
+
+
+/// Serializes this Option<URL> into a `serde` stream.
+impl<'a> Serialize for Ser<'a, Option<Url>> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+        if let Some(url) = self.0.as_ref() {
+            serializer.serialize_some(url.as_str())
+        } else {
+            serializer.serialize_none()
+        }
     }
 }
 
@@ -134,6 +149,21 @@ impl Deserialize for De<Url> {
     }
 }
 
+
+/// Deserializes this Option<URL> from a `serde` stream.
+impl Deserialize for De<Option<Url>> {
+    fn deserialize<D>(deserializer: D) -> Result<De<Option<Url>>, D::Error> where D: Deserializer {
+        let option_representation: Option<String> = Deserialize::deserialize(deserializer)?;
+        if let Some(s) = option_representation {
+            return Url::parse(&s)
+                .map(Some)
+                .map(De)
+                .map_err(|err| {serde::de::Error::custom(err.description())});
+        }
+        Ok(De(None))
+
+    }
+}
 
 /// A convenience wrapper to be used as a type parameter, for example when
 /// a `Vec<T>` or an `HashMap<K, V>` need to be passed to serde.
@@ -216,4 +246,96 @@ fn test_ser_de_url() {
     let s = serde_json::to_string(&Ser::new(&url)).unwrap();
     let new_url: Url = serde_json::from_str(&s).map(De::into_inner).unwrap();
     assert_eq!(url, new_url);
+}
+
+
+#[test]
+fn test_derive_deserialize_with_for_url() {
+    extern crate serde_json;
+
+    #[derive(Deserialize, Debug, Eq, PartialEq)]
+    struct Test {
+        #[serde(deserialize_with = "deserialize", rename = "_url_")]
+        url: Url
+    }
+
+    let url_str = "http://www.test.com/foo/bar?$param=bazz";
+
+    let expected = Test {
+        url: Url::parse(url_str).unwrap()
+    };
+    let json_string = format!(r#"{{"_url_": "{}"}}"#, url_str);
+    let got: Test = serde_json::from_str(&json_string).unwrap();
+    assert_eq!(expected, got);
+
+}
+
+#[test]
+fn test_derive_deserialize_with_for_option_url() {
+    extern crate serde_json;
+
+    #[derive(Deserialize, Debug, Eq, PartialEq)]
+    struct Test {
+        #[serde(deserialize_with = "deserialize", rename = "_url_")]
+        url: Option<Url>
+    }
+
+    let url_str = "http://www.test.com/foo/bar?$param=bazz";
+
+    let expected = Test {
+        url: Some(Url::parse(url_str).unwrap())
+    };
+    let json_string = format!(r#"{{"_url_": "{}"}}"#, url_str);
+    let got: Test = serde_json::from_str(&json_string).unwrap();
+    assert_eq!(expected, got);
+
+    let expected = Test {
+        url: None
+    };
+    let json_string = r#"{"_url_": null}"#;
+    let got: Test = serde_json::from_str(&json_string).unwrap();
+    assert_eq!(expected, got);
+}
+
+
+#[test]
+fn test_derive_serialize_with_for_url() {
+    extern crate serde_json;
+
+    #[derive(Serialize, Debug, Eq, PartialEq)]
+    struct Test {
+        #[serde(serialize_with = "serialize", rename = "_url_")]
+        url: Url
+    }
+
+    let url_str = "http://www.test.com/foo/bar?$param=bazz";
+
+    let expected = format!(r#"{{"_url_":"{}"}}"#, url_str);
+    let input = Test {url: Url::parse(url_str).unwrap()};
+    let got = serde_json::to_string(&input).unwrap();
+    assert_eq!(expected, got);
+}
+
+
+#[test]
+fn test_derive_serialize_with_for_option_url() {
+    extern crate serde_json;
+
+    #[derive(Serialize, Debug, Eq, PartialEq)]
+    struct Test {
+        #[serde(serialize_with = "serialize", rename = "_url_")]
+        url: Option<Url>
+    }
+
+    let url_str = "http://www.test.com/foo/bar?$param=bazz";
+
+    let expected = format!(r#"{{"_url_":"{}"}}"#, url_str);
+    let input = Test {url: Some(Url::parse(url_str).unwrap())};
+    let got = serde_json::to_string(&input).unwrap();
+    assert_eq!(expected, got);
+
+    let expected = format!(r#"{{"_url_":null}}"#);
+    let input = Test {url: None};
+    let got = serde_json::to_string(&input).unwrap();
+    assert_eq!(expected, got);
 }
