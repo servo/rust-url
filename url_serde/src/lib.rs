@@ -1,3 +1,11 @@
+// Copyright 2017 The rust-url developers.
+//
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
+
 /*!
 
 This crate provides wrappers and convenience functions to make rust-url
@@ -49,19 +57,18 @@ ipc::channel::<Serde<Url>>()
 #![deny(unsafe_code)]
 
 extern crate serde;
+#[cfg(test)] #[macro_use] extern crate serde_derive;
+#[cfg(test)] extern crate serde_json;
 extern crate url;
 
-#[cfg(test)]
-#[macro_use]
-extern crate serde_derive;
-
-use std::cmp::PartialEq;
-use std::fmt;
-use std::ops::{Deref, DerefMut};
-use std::error::Error;
 use serde::{Deserialize, Serialize, Serializer, Deserializer};
-use url::{Url};
-
+use std::cmp::PartialEq;
+use std::error::Error;
+use std::fmt;
+use std::io::Write;
+use std::ops::{Deref, DerefMut};
+use std::str;
+use url::{Url, Host};
 
 /// Serialises `value` with a given serializer.
 ///
@@ -89,14 +96,12 @@ impl<'a, T> Ser<'a, T> where Ser<'a, T>: Serialize {
     }
 }
 
-
 /// Serializes this URL into a `serde` stream.
 impl<'a> Serialize for Ser<'a, Url> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
         serializer.serialize_str(self.0.as_str())
     }
 }
-
 
 /// Serializes this Option<URL> into a `serde` stream.
 impl<'a> Serialize for Ser<'a, Option<Url>> {
@@ -109,6 +114,42 @@ impl<'a> Serialize for Ser<'a, Option<Url>> {
     }
 }
 
+impl<'a, String> Serialize for Ser<'a, Host<String>> where String: AsRef<str> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+        match *self.0 {
+            Host::Domain(ref s) => serializer.serialize_str(s.as_ref()),
+            Host::Ipv4(_) | Host::Ipv6(_) => {
+                // max("101.102.103.104".len(),
+                //     "[1000:1002:1003:1004:1005:1006:101.102.103.104]".len())
+                const MAX_LEN: usize = 47;
+                let mut buffer = [0; MAX_LEN];
+                serializer.serialize_str(display_into_buffer(&self.0, &mut buffer))
+            }
+        }
+    }
+}
+
+/// Like .to_string(), but doesn’t allocate memory for a `String`.
+///
+/// Panics if `buffer` is too small.
+fn display_into_buffer<'a, T: fmt::Display>(value: &T, buffer: &'a mut [u8]) -> &'a str {
+    let remaining_len;
+    {
+        let mut remaining = &mut *buffer;
+        write!(remaining, "{}", value).unwrap();
+        remaining_len = remaining.len()
+    }
+    let written_len = buffer.len() - remaining_len;
+    let written = &buffer[..written_len];
+
+    // write! only provides std::fmt::Formatter to Display implementations,
+    // which has methods write_str and write_char but no method to write arbitrary bytes.
+    // Therefore, `written` is well-formed in UTF-8.
+    #[allow(unsafe_code)]
+    unsafe {
+        str::from_utf8_unchecked(written)
+    }
+}
 
 /// Deserialises a `T` value with a given deserializer.
 ///
@@ -119,7 +160,6 @@ pub fn deserialize<T, D>(deserializer: D) -> Result<T, D::Error>
 {
     De::deserialize(deserializer).map(De::into_inner)
 }
-
 
 /// A wrapper to deserialize `rust-url` types.
 ///
@@ -138,10 +178,9 @@ impl<T> De<T> where De<T>: serde::Deserialize {
     }
 }
 
-
 /// Deserializes this URL from a `serde` stream.
 impl Deserialize for De<Url> {
-    fn deserialize<D>(deserializer: D) -> Result<De<Url>, D::Error> where D: Deserializer {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer {
         let string_representation: String = Deserialize::deserialize(deserializer)?;
         Url::parse(&string_representation).map(De).map_err(|err| {
             serde::de::Error::custom(err.description())
@@ -149,10 +188,9 @@ impl Deserialize for De<Url> {
     }
 }
 
-
 /// Deserializes this Option<URL> from a `serde` stream.
 impl Deserialize for De<Option<Url>> {
-    fn deserialize<D>(deserializer: D) -> Result<De<Option<Url>>, D::Error> where D: Deserializer {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer {
         let option_representation: Option<String> = Deserialize::deserialize(deserializer)?;
         if let Some(s) = option_representation {
             return Url::parse(&s)
@@ -162,6 +200,15 @@ impl Deserialize for De<Option<Url>> {
         }
         Ok(De(None))
 
+    }
+}
+
+impl Deserialize for De<Host> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer {
+        let string_representation: String = Deserialize::deserialize(deserializer)?;
+        Host::parse(&string_representation).map(De).map_err(|err| {
+            serde::de::Error::custom(err.description())
+        })
     }
 }
 
@@ -238,21 +285,16 @@ where De<T>: Deserialize, for<'a> Ser<'a, T>: Serialize
     }
 }
 
-
 #[test]
 fn test_ser_de_url() {
-    extern crate serde_json;
     let url = Url::parse("http://www.test.com/foo/bar?$param=bazz").unwrap();
     let s = serde_json::to_string(&Ser::new(&url)).unwrap();
     let new_url: Url = serde_json::from_str(&s).map(De::into_inner).unwrap();
     assert_eq!(url, new_url);
 }
 
-
 #[test]
 fn test_derive_deserialize_with_for_url() {
-    extern crate serde_json;
-
     #[derive(Deserialize, Debug, Eq, PartialEq)]
     struct Test {
         #[serde(deserialize_with = "deserialize", rename = "_url_")]
@@ -272,8 +314,6 @@ fn test_derive_deserialize_with_for_url() {
 
 #[test]
 fn test_derive_deserialize_with_for_option_url() {
-    extern crate serde_json;
-
     #[derive(Deserialize, Debug, Eq, PartialEq)]
     struct Test {
         #[serde(deserialize_with = "deserialize", rename = "_url_")]
@@ -297,11 +337,8 @@ fn test_derive_deserialize_with_for_option_url() {
     assert_eq!(expected, got);
 }
 
-
 #[test]
 fn test_derive_serialize_with_for_url() {
-    extern crate serde_json;
-
     #[derive(Serialize, Debug, Eq, PartialEq)]
     struct Test {
         #[serde(serialize_with = "serialize", rename = "_url_")]
@@ -316,11 +353,8 @@ fn test_derive_serialize_with_for_url() {
     assert_eq!(expected, got);
 }
 
-
 #[test]
 fn test_derive_serialize_with_for_option_url() {
-    extern crate serde_json;
-
     #[derive(Serialize, Debug, Eq, PartialEq)]
     struct Test {
         #[serde(serialize_with = "serialize", rename = "_url_")]
@@ -338,4 +372,17 @@ fn test_derive_serialize_with_for_option_url() {
     let input = Test {url: None};
     let got = serde_json::to_string(&input).unwrap();
     assert_eq!(expected, got);
+}
+
+#[test]
+fn test_host() {
+    for host in &[
+        Host::Domain("foo.com".to_owned()),
+        Host::Ipv4("127.0.0.1".parse().unwrap()),
+        Host::Ipv6("::1".parse().unwrap()),
+    ] {
+        let json = serde_json::to_string(&Ser(host)).unwrap();
+        let de: De<Host> = serde_json::from_str(&json).unwrap();
+        assert_eq!(de.into_inner(), *host)
+    }
 }
