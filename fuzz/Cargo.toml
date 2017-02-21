@@ -1,0 +1,15 @@
+
+[package]
+name = "url-fuzz"
+version = "0.0.1"
+authors = ["Automatically generated"]
+
+[dependencies.url]
+path = ".."
+
+[[bin]]
+name = "parse"
+path = "fuzzers/parse.rs"
+
+[workspace]
+members = ["."]
