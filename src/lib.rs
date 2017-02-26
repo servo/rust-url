@@ -19,21 +19,6 @@ To use it in your project, add this to your `Cargo.toml` file:
 git = "https://github.com/servo/rust-url"
 ```
 
-Supporting encodings other than UTF-8 in query strings is an optional feature
-that requires [rust-encoding](https://github.com/lifthrasiir/rust-encoding)
-and is off by default.
-You can enable it with
-[Cargo’s *features* mechanism](http://doc.crates.io/manifest.html#the-[features]-section):
-
-```Cargo
-[dependencies.url]
-git = "https://github.com/servo/rust-url"
-features = ["query_encoding"]
-```
-
-… or by passing `--cfg 'feature="query_encoding"'` to rustc.
-
-
 # URL parsing and data structures
 
 First, URL parsing may fail for various reasons and therefore returns a `Result`.
@@ -204,6 +189,11 @@ impl<'a> ParseOptions<'a> {
 
     /// Override the character encoding of query strings.
     /// This is a legacy concept only relevant for HTML.
+    ///
+    /// `EncodingRef` is defined in [rust-encoding](https://github.com/lifthrasiir/rust-encoding).
+    ///
+    /// This method is only available if the `query_encoding`
+    /// [feature](http://doc.crates.io/manifest.html#the-features-section]) is enabled.
     #[cfg(feature = "query_encoding")]
     pub fn encoding_override(mut self, new: Option<encoding::EncodingRef>) -> Self {
         self.encoding_override = EncodingOverride::from_opt_encoding(new).to_output_encoding();
