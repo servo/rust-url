@@ -11,13 +11,6 @@
 rust-url is an implementation of the [URL Standard](http://url.spec.whatwg.org/)
 for the [Rust](http://rust-lang.org/) programming language.
 
-It builds with [Cargo](http://crates.io/).
-To use it in your project, add this to your `Cargo.toml` file:
-
-```Cargo
-[dependencies.url]
-git = "https://github.com/servo/rust-url"
-```
 
 # URL parsing and data structures
 
