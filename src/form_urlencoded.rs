@@ -40,14 +40,15 @@ pub fn parse(input: &[u8]) -> Parse {
 ///
 /// Use `parse(input.as_bytes())` to parse a `&str` string.
 ///
-/// This function is only available if the `query_encoding` Cargo feature is enabled.
+/// This function is only available if either the `query_encoding` or the
+/// `query_encoding_rs` Cargo feature is enabled.
 ///
 /// Arguments:
 ///
 /// * `encoding_override`: The character encoding each name and values is decoded as
 ///    after percent-decoding. Defaults to UTF-8.
 /// * `use_charset`: The *use _charset_ flag*. If in doubt, set to `false`.
-#[cfg(feature = "query_encoding")]
+#[cfg(any(feature = "query_encoding", feature = "query_encoding_rs"))]
 pub fn parse_with_encoding<'a>(input: &'a [u8],
                                encoding_override: Option<::encoding::EncodingRef>,
                                use_charset: bool)
@@ -279,7 +280,7 @@ impl<T: Target> Serializer<T> {
     }
 
     /// Set the character encoding to be used for names and values before percent-encoding.
-    #[cfg(feature = "query_encoding")]
+    #[cfg(any(feature = "query_encoding", feature = "query_encoding_rs"))]
     pub fn encoding_override(&mut self, new: Option<::encoding::EncodingRef>) -> &mut Self {
         self.encoding = EncodingOverride::from_opt_encoding(new).to_output_encoding();
         self
@@ -317,7 +318,7 @@ impl<T: Target> Serializer<T> {
     /// (See the `encoding_override()` method.)
     ///
     /// Panics if called after `.finish()`.
-    #[cfg(feature = "query_encoding")]
+    #[cfg(any(feature = "query_encoding", feature = "query_encoding_rs"))]
     pub fn append_charset(&mut self) -> &mut Self {
         {
             let string = string(&mut self.target);
