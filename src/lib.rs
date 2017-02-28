@@ -1438,7 +1438,7 @@ impl Url {
     /// Convert a file name as `std::path::Path` into an URL in the `file` scheme.
     ///
     /// This returns `Err` if the given path is not absolute or,
-    /// on Windows, if the prefix is not a disk prefix (e.g. `C:`).
+    /// on Windows, if the prefix is not a disk prefix (e.g. `C:`) or a UNC prefix (`\\`).
     ///
     /// # Examples
     ///
@@ -1460,17 +1460,24 @@ impl Url {
     /// ```
     pub fn from_file_path<P: AsRef<Path>>(path: P) -> Result<Url, ()> {
         let mut serialization = "file://".to_owned();
-        let path_start = serialization.len() as u32;
+        let host_start = serialization.len() as u32;
         path_to_file_url_segments(path.as_ref(), &mut serialization)?;
+
+        let host_end = if serialization.starts_with("file:///") {
+            host_start
+        } else {
+            host_start + serialization[host_start as usize ..].find('/').unwrap_or(0) as u32
+        };
+
         Ok(Url {
             serialization: serialization,
             scheme_end: "file".len() as u32,
-            username_end: path_start,
-            host_start: path_start,
-            host_end: path_start,
-            host: HostInternal::None,
+            username_end: host_start,
+            host_start: host_start,
+            host_end: host_end,
+            host: if host_start == host_end { HostInternal::None } else { HostInternal::Domain },
             port: None,
-            path_start: path_start,
+            path_start: host_end,
             query_start: None,
             fragment_start: None,
         })
@@ -1479,7 +1486,7 @@ impl Url {
     /// Convert a directory name as `std::path::Path` into an URL in the `file` scheme.
     ///
     /// This returns `Err` if the given path is not absolute or,
-    /// on Windows, if the prefix is not a disk prefix (e.g. `C:`).
+    /// on Windows, if the prefix is not a disk prefix (e.g. `C:`) or a UNC prefix (`\\`).
     ///
     /// Compared to `from_file_path`, this ensure that URL’s the path has a trailing slash
     /// so that the entire path is considered when using this URL as a base URL.
@@ -1573,12 +1580,23 @@ impl Url {
     /// (That is, if the percent-decoded path contains a NUL byte or,
     /// for a Windows path, is not UTF-8.)
     #[inline]
+    #[cfg(not(windows))]
     pub fn to_file_path(&self) -> Result<PathBuf, ()> {
         // FIXME: Figure out what to do w.r.t host.
         if matches!(self.host(), None | Some(Host::Domain("localhost"))) {
             if let Some(segments) = self.path_segments() {
                 return file_url_segments_to_pathbuf(segments)
             }
+        }
+        Err(())
+    }
+
+    #[inline]
+    #[cfg(windows)]
+    pub fn to_file_path(&self) -> Result<PathBuf, ()> {
+        if let Some(segments) = self.path_segments() {
+            let host = &self.serialization[self.host_start as usize .. self.host_end as usize];
+            return file_url_segments_to_pathbuf_windows(host, segments);
         }
         Err(())
     }
@@ -1773,21 +1791,24 @@ fn path_to_file_url_segments_windows(path: &Path, serialization: &mut String) ->
         return Err(())
     }
     let mut components = path.components();
-    let disk = match components.next() {
+
+    match components.next() {
         Some(Component::Prefix(ref p)) => match p.kind() {
-            Prefix::Disk(byte) => byte,
-            Prefix::VerbatimDisk(byte) => byte,
-            _ => return Err(()),
+            Prefix::Disk(letter) | Prefix::VerbatimDisk(letter) => {
+                serialization.push('/');
+                serialization.push(letter as char);
+                serialization.push(':');
+            },
+            Prefix::UNC(server, share) | Prefix::VerbatimUNC(server, share) => {
+                serialization.push_str(try!(server.to_str().ok_or(())));
+                serialization.push('/');
+                serialization.push_str(try!(share.to_str().ok_or(())));
+            },
+            _ => return Err(())
         },
 
-        // FIXME: do something with UNC and other prefixes?
         _ => return Err(())
-    };
-
-    // Start with the prefix, e.g. "C:"
-    serialization.push('/');
-    serialization.push(disk as char);
-    serialization.push(':');
+    }
 
     for component in components {
         if component == Component::RootDir { continue }
@@ -1817,38 +1838,38 @@ fn file_url_segments_to_pathbuf(segments: str::Split<char>) -> Result<PathBuf, (
     Ok(path)
 }
 
-#[cfg(windows)]
-fn file_url_segments_to_pathbuf(segments: str::Split<char>) -> Result<PathBuf, ()> {
-    file_url_segments_to_pathbuf_windows(segments)
-}
-
 // Build this unconditionally to alleviate https://github.com/servo/rust-url/issues/102
 #[cfg_attr(not(windows), allow(dead_code))]
-fn file_url_segments_to_pathbuf_windows(mut segments: str::Split<char>) -> Result<PathBuf, ()> {
-    let first = segments.next().ok_or(())?;
+fn file_url_segments_to_pathbuf_windows(host: &str, mut segments: str::Split<char>) -> Result<PathBuf, ()> {
 
-    let mut string = match first.len() {
-        2 => {
-            if !first.starts_with(parser::ascii_alpha) || first.as_bytes()[1] != b':' {
-                return Err(())
-            }
+    let mut string = if !host.is_empty() {
+        r"\\".to_owned() + host
+    } else {
+        let first = segments.next().ok_or(())?;
 
-            first.to_owned()
-        },
+        match first.len() {
+            2 => {
+                if !first.starts_with(parser::ascii_alpha) || first.as_bytes()[1] != b':' {
+                    return Err(())
+                }
 
-        4 => {
-            if !first.starts_with(parser::ascii_alpha) {
-                return Err(())
-            }
-            let bytes = first.as_bytes();
-            if bytes[1] != b'%' || bytes[2] != b'3' || (bytes[3] != b'a' && bytes[3] != b'A') {
-                return Err(())
-            }
+                first.to_owned()
+            },
 
-            first[0..1].to_owned() + ":"
-        },
+            4 => {
+                if !first.starts_with(parser::ascii_alpha) {
+                    return Err(())
+                }
+                let bytes = first.as_bytes();
+                if bytes[1] != b'%' || bytes[2] != b'3' || (bytes[3] != b'a' && bytes[3] != b'A') {
+                    return Err(())
+                }
 
-        _ => return Err(()),
+                first[0..1].to_owned() + ":"
+            },
+
+            _ => return Err(()),
+        }
     };
 
     for segment in segments {
