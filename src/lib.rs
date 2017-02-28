@@ -1574,28 +1574,23 @@ impl Url {
     /// let path = url.to_file_path();
     /// ```
     ///
-    /// Returns `Err` if the host is neither empty nor `"localhost"`,
+    /// Returns `Err` if the host is neither empty nor `"localhost"` (except on Windows, where
+    /// `file:` URLs may have a non-local host),
     /// or if `Path::new_opt()` returns `None`.
     /// (That is, if the percent-decoded path contains a NUL byte or,
     /// for a Windows path, is not UTF-8.)
     #[inline]
-    #[cfg(not(windows))]
-    pub fn to_file_path(&self) -> Result<PathBuf, ()> {
-        // FIXME: Figure out what to do w.r.t host.
-        if matches!(self.host(), None | Some(Host::Domain("localhost"))) {
-            if let Some(segments) = self.path_segments() {
-                return file_url_segments_to_pathbuf(segments)
-            }
-        }
-        Err(())
-    }
-
-    #[inline]
-    #[cfg(windows)]
     pub fn to_file_path(&self) -> Result<PathBuf, ()> {
         if let Some(segments) = self.path_segments() {
-            let host = &self.serialization[self.host_start as usize .. self.host_end as usize];
-            return file_url_segments_to_pathbuf_windows(host, segments);
+            let host = match self.host() {
+                None | Some(Host::Domain("localhost")) => None,
+                Some(_) if cfg!(windows) && self.scheme() == "file" => {
+                    Some(&self.serialization[self.host_start as usize .. self.host_end as usize])
+                },
+                _ => return Err(())
+            };
+
+            return file_url_segments_to_pathbuf(host, segments);
         }
         Err(())
     }
@@ -1820,10 +1815,14 @@ fn path_to_file_url_segments_windows(path: &Path, serialization: &mut String) ->
 }
 
 #[cfg(any(unix, target_os = "redox"))]
-fn file_url_segments_to_pathbuf(segments: str::Split<char>) -> Result<PathBuf, ()> {
+fn file_url_segments_to_pathbuf(host: Option<&str>, segments: str::Split<char>) -> Result<PathBuf, ()> {
     use std::ffi::OsStr;
     use std::os::unix::prelude::OsStrExt;
     use std::path::PathBuf;
+
+    if host.is_some() {
+        return Err(());
+    }
 
     let mut bytes = Vec::new();
     for segment in segments {
@@ -1837,11 +1836,16 @@ fn file_url_segments_to_pathbuf(segments: str::Split<char>) -> Result<PathBuf, (
     Ok(path)
 }
 
+#[cfg(windows)]
+fn file_url_segments_to_pathbuf(host: Option<&str>, segments: str::Split<char>) -> Result<PathBuf, ()> {
+    file_url_segments_to_pathbuf_windows(host, segments)
+}
+
 // Build this unconditionally to alleviate https://github.com/servo/rust-url/issues/102
 #[cfg_attr(not(windows), allow(dead_code))]
-fn file_url_segments_to_pathbuf_windows(host: &str, mut segments: str::Split<char>) -> Result<PathBuf, ()> {
+fn file_url_segments_to_pathbuf_windows(host: Option<&str>, mut segments: str::Split<char>) -> Result<PathBuf, ()> {
 
-    let mut string = if !host.is_empty() {
+    let mut string = if let Some(host) = host {
         r"\\".to_owned() + host
     } else {
         let first = try!(segments.next().ok_or(()));
