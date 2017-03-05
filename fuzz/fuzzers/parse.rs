@@ -1,6 +1,6 @@
 #![no_main]
 
-extern crate fuzzer_sys;
+extern crate libfuzzer_sys;
 
 extern crate url;
 use std::slice;
