@@ -257,7 +257,7 @@ impl Url {
     /// Parse a string as an URL, with this URL as the base URL.
     ///
     /// Note: a trailing slash is significant.
-    /// Without at, the last path component is considered to be a “file” name
+    /// Without it, the last path component is considered to be a “file” name
     /// to be removed to get at the “directory” that is used as the base:
     ///
     /// # Examples
