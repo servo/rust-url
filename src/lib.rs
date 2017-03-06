@@ -256,24 +256,22 @@ impl Url {
 
     /// Parse a string as an URL, with this URL as the base URL.
     ///
+    /// Note: a trailing slash is significant.
+    /// Without at, the last path component is considered to be a “file” name
+    /// to be removed to get at the “directory” that is used as the base:
+    ///
     /// # Examples
     ///
     /// ```rust
     /// use url::Url;
     ///
-    /// let url = Url::parse("https://example.net").unwrap();
-    /// let url = url.join("foo").unwrap();
-    /// assert_eq!(url.as_str(), "https://example.net/foo");
-    /// ```
+    /// let base = Url::parse("https://example.net/a/b.html").unwrap();
+    /// let url = base.join("c.png").unwrap();
+    /// assert_eq!(url.as_str(), "https://example.net/a/c.png");  // Not /a/b.html/c.png
     ///
-    /// Trailing slashes are not preserved:
-    ///
-    /// ```rust
-    /// use url::Url;
-    ///
-    /// let url = Url::parse("https://example.net/foo/").unwrap();
-    /// let url = url.join("bar").unwrap();
-    /// assert_eq!(url.as_str(), "https://example.net/foo/bar");
+    /// let base = Url::parse("https://example.net/a/b/").unwrap();
+    /// let url = base.join("c.png").unwrap();
+    /// assert_eq!(url.as_str(), "https://example.net/a/b/c.png");
     /// ```
     #[inline]
     pub fn join(&self, input: &str) -> Result<Url, ::ParseError> {
