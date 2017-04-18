@@ -25,7 +25,7 @@ pub fn url_origin(url: &Url) -> Origin {
         },
         "ftp" | "gopher" | "http" | "https" | "ws" | "wss" => {
             Origin::Tuple(scheme.to_owned(), url.host().unwrap().to_owned(),
-                url.port_or_known_default().unwrap())
+                          url.port_or_known_default().unwrap(), None)
         },
         // TODO: Figure out what to do if the scheme is a file
         "file" => Origin::new_opaque(),
@@ -39,8 +39,9 @@ pub enum Origin {
     /// A globally unique identifier
     Opaque(OpaqueOrigin),
 
-    /// Consists of the URL's scheme, host and port
-    Tuple(String, Host<String>, u16)
+    /// Consists of the URL's scheme, host and port, and an optional domain
+    /// https://html.spec.whatwg.org/multipage/browsers.html#concept-origin-tuple
+    Tuple(String, Host<String>, u16, Option<String>)
 }
 
 #[cfg(feature = "heapsize")]
@@ -74,7 +75,7 @@ impl Origin {
     pub fn ascii_serialization(&self) -> String {
         match *self {
             Origin::Opaque(_) => "null".to_owned(),
-            Origin::Tuple(ref scheme, ref host, port) => {
+            Origin::Tuple(ref scheme, ref host, port, _) => {
                 if default_port(scheme) == Some(port) {
                     format!("{}://{}", scheme, host)
                 } else {
@@ -88,7 +89,7 @@ impl Origin {
     pub fn unicode_serialization(&self) -> String {
         match *self {
             Origin::Opaque(_) => "null".to_owned(),
-            Origin::Tuple(ref scheme, ref host, port) => {
+            Origin::Tuple(ref scheme, ref host, port, _) => {
                 let host = match *host {
                     Host::Domain(ref domain) => {
                         let (domain, _errors) = domain_to_unicode(domain);
@@ -102,6 +103,27 @@ impl Origin {
                     format!("{}://{}:{}", scheme, host, port)
                 }
             }
+        }
+    }
+
+    /// https://html.spec.whatwg.org/multipage/browsers.html#same-origin
+    pub fn same_origin(&self, other: &Origin) -> bool {
+        self == other
+    }
+
+    /// https://html.spec.whatwg.org/multipage/browsers.html#same-origin
+    pub fn same_origin_domain(&self, other: &Origin) -> bool {
+        match (self, other) {
+            (&Origin::Opaque(ref o1), &Origin::Opaque(ref o2)) => o1 == o2,
+            (&Origin::Tuple(ref s1, _, _, ref d1),
+             &Origin::Tuple(ref s2, _, _, ref d2)) => {
+                match (d1, d2) {
+                    (&Some(ref d1), &Some(ref d2)) => s1 == s2 && d1 == d2,
+                    (&None, &None) => self == other,
+                    _ => false,
+                }
+            }
+            _ => false,
         }
     }
 }
