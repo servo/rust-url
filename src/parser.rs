@@ -737,8 +737,8 @@ impl<'a> Parser<'a> {
         Ok((host_end, host.into(), port, remaining))
     }
 
-    pub fn parse_host<'i>(mut input: Input<'i>, scheme_type: SchemeType)
-                             -> ParseResult<(Host<String>, Input<'i>)> {
+    pub fn parse_host(mut input: Input, scheme_type: SchemeType)
+                             -> ParseResult<(Host<String>, Input)> {
         // Undo the Input abstraction here to avoid allocating in the common case
         // where the host part of the input does not contain any tab or newline
         let input_str = input.chars.as_str();
@@ -831,9 +831,9 @@ impl<'a> Parser<'a> {
         Ok((true, host, remaining))
     }
 
-    pub fn parse_port<'i, P>(mut input: Input<'i>, default_port: P,
+    pub fn parse_port<P>(mut input: Input, default_port: P,
                                 context: Context)
-                                -> ParseResult<(Option<u16>, Input<'i>)>
+                                -> ParseResult<(Option<u16>, Input)>
                                 where P: Fn() -> Option<u16> {
         let mut port: u32 = 0;
         let mut has_any_digit = false;
