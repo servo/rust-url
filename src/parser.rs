@@ -878,7 +878,7 @@ impl<'a> Parser<'a> {
                           path_start: usize, mut input: Input<'i>)
                           -> Input<'i> {
         // Relative path state
-        debug_assert!(self.serialization.ends_with("/"));
+        debug_assert!(self.serialization.ends_with('/'));
         loop {
             let segment_start = self.serialization.len();
             let mut ends_with_slash = false;
@@ -926,7 +926,7 @@ impl<'a> Parser<'a> {
                     debug_assert!(self.serialization.as_bytes()[segment_start - 1] == b'/');
                     self.serialization.truncate(segment_start - 1);  // Truncate "/.."
                     self.pop_path(scheme_type, path_start);
-                    if !self.serialization[path_start..].ends_with("/") {
+                    if !self.serialization[path_start..].ends_with('/') {
                         self.serialization.push('/')
                     }
                 },
