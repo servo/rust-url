@@ -477,9 +477,7 @@ fn parse_ipv6addr(input: &str) -> ParseResult<Ipv6Addr> {
             let mut swaps = piece_pointer - compress_pointer;
             piece_pointer = 7;
             while swaps > 0 {
-                let tmp = pieces[piece_pointer];
-                pieces[piece_pointer] = pieces[compress_pointer + swaps - 1];
-                pieces[compress_pointer + swaps - 1] = tmp;
+                pieces.swap(piece_pointer, compress_pointer + swaps - 1);
                 swaps -= 1;
                 piece_pointer -= 1;
             }

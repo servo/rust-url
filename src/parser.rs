@@ -209,7 +209,7 @@ impl<F: FnMut(char) -> bool> Pattern for F {
 impl<'i> Iterator for Input<'i> {
     type Item = char;
     fn next(&mut self) -> Option<char> {
-        self.chars.by_ref().filter(|&c| !matches!(c, '\t' | '\n' | '\r')).next()
+        self.chars.by_ref().find(|&c| !matches!(c, '\t' | '\n' | '\r'))
     }
 }
 
