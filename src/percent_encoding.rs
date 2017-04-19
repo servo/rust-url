@@ -298,7 +298,7 @@ impl<'a> PercentDecode<'a> {
     /// If the percent-decoding is different from the input, return it as a new bytes vector.
     pub fn if_any(&self) -> Option<Vec<u8>> {
         let mut bytes_iter = self.bytes.clone();
-        while bytes_iter.find(|&&b| b == b'%').is_some() {
+        while bytes_iter.any(|&b| b == b'%') {
             if let Some(decoded_byte) = after_percent_sign(&mut bytes_iter) {
                 let initial_bytes = self.bytes.as_slice();
                 let unchanged_bytes_len = initial_bytes.len() - bytes_iter.len() - 3;

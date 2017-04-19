@@ -163,12 +163,12 @@ fn test_equality() {
     // Different scheme
     let a: Url = url("http://example.com/");
     let b: Url = url("https://example.com/");
-    assert!(a != b);
+    assert_ne!(a, b);
 
     // Different host
     let a: Url = url("http://foo.com/");
     let b: Url = url("http://bar.com/");
-    assert!(a != b);
+    assert_ne!(a, b);
 
     // Missing path, automatically substituted. Semantically the same.
     let a: Url = url("http://foo.com");
