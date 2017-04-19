@@ -314,7 +314,7 @@ fn parse_ipv4number(mut input: &str) -> Result<u32, ()> {
     if input.starts_with('+') {
         return Err(())
     }
-    match u32::from_str_radix(&input, r) {
+    match u32::from_str_radix(input, r) {
         Ok(number) => Ok(number),
         Err(_) => Err(()),
     }

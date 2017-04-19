@@ -855,7 +855,7 @@ impl<'a> Parser<'a> {
         if !has_any_digit || opt_port == default_port() {
             opt_port = None;
         }
-        return Ok((opt_port, input))
+        Ok((opt_port, input))
     }
 
     pub fn parse_path_start<'i>(&mut self, scheme_type: SchemeType, has_host: &mut bool,
@@ -1031,7 +1031,7 @@ impl<'a> Parser<'a> {
                 }
             }
             None => return Ok((None, None)),
-            _ => panic!("Programming error. parse_query_and_fragment() called without ? or # {:?}")
+            _ => panic!("Programming error. parse_query_and_fragment() called without ? or #")
         }
 
         let fragment_start = try!(to_u32(self.serialization.len()));
