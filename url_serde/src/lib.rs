@@ -22,8 +22,7 @@ Use the serde attributes `deserialize_with` and `serialize_with`.
 ```
 #[derive(serde::Serialize, serde::Deserialize)]
 struct MyStruct {
-    #[serde(deserialize_with = "url_serde::deserialize",
-    serialize_with = "url_serde::serialize")]
+    #[serde(with = "url_serde")]
     url: Url,
 }
 ```
@@ -155,8 +154,8 @@ fn display_into_buffer<'a, T: fmt::Display>(value: &T, buffer: &'a mut [u8]) -> 
 ///
 /// This is useful to deserialize Url types used in structure fields or
 /// tuple members with `#[serde(deserialize_with = "url_serde::deserialize")]`.
-pub fn deserialize<T, D>(deserializer: D) -> Result<T, D::Error>
-    where D: Deserializer, De<T>: Deserialize
+pub fn deserialize<'de, T, D>(deserializer: D) -> Result<T, D::Error>
+    where D: Deserializer<'de>, De<T>: Deserialize<'de>
 {
     De::deserialize(deserializer).map(De::into_inner)
 }
@@ -170,7 +169,7 @@ pub fn deserialize<T, D>(deserializer: D) -> Result<T, D::Error>
 #[derive(Debug)]
 pub struct De<T>(T);
 
-impl<T> De<T> where De<T>: serde::Deserialize {
+impl<'de, T> De<T> where De<T>: serde::Deserialize<'de> {
     /// Consumes this wrapper, returning the deserialized value.
     #[inline(always)]
     pub fn into_inner(self) -> T {
@@ -179,8 +178,8 @@ impl<T> De<T> where De<T>: serde::Deserialize {
 }
 
 /// Deserializes this URL from a `serde` stream.
-impl Deserialize for De<Url> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer {
+impl<'de> Deserialize<'de> for De<Url> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
         let string_representation: String = Deserialize::deserialize(deserializer)?;
         Url::parse(&string_representation).map(De).map_err(|err| {
             serde::de::Error::custom(err.description())
@@ -189,8 +188,8 @@ impl Deserialize for De<Url> {
 }
 
 /// Deserializes this Option<URL> from a `serde` stream.
-impl Deserialize for De<Option<Url>> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer {
+impl<'de> Deserialize<'de> for De<Option<Url>> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
         let option_representation: Option<String> = Deserialize::deserialize(deserializer)?;
         if let Some(s) = option_representation {
             return Url::parse(&s)
@@ -203,8 +202,8 @@ impl Deserialize for De<Option<Url>> {
     }
 }
 
-impl Deserialize for De<Host> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer {
+impl<'de> Deserialize<'de> for De<Host> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
         let string_representation: String = Deserialize::deserialize(deserializer)?;
         Host::parse(&string_representation).map(De).map_err(|err| {
             serde::de::Error::custom(err.description())
@@ -215,14 +214,13 @@ impl Deserialize for De<Host> {
 /// A convenience wrapper to be used as a type parameter, for example when
 /// a `Vec<T>` or an `HashMap<K, V>` need to be passed to serde.
 #[derive(Clone, Eq, Hash, PartialEq)]
-pub struct Serde<T>(pub T)
-    where De<T>: Deserialize, for<'a> Ser<'a, T>: Serialize;
+pub struct Serde<T>(pub T);
 
 /// A convenience type alias for Serde<Url>.
 pub type SerdeUrl = Serde<Url>;
 
-impl<T> Serde<T>
-where De<T>: Deserialize, for<'a> Ser<'a, T>: Serialize
+impl<'de, T> Serde<T>
+where De<T>: Deserialize<'de>, for<'a> Ser<'a, T>: Serialize
 {
     /// Consumes this wrapper, returning the inner value.
     #[inline(always)]
@@ -231,16 +229,16 @@ where De<T>: Deserialize, for<'a> Ser<'a, T>: Serialize
     }
 }
 
-impl<T> fmt::Debug for Serde<T>
-where T: fmt::Debug, De<T>: Deserialize, for<'a> Ser<'a, T>: Serialize
+impl<'de, T> fmt::Debug for Serde<T>
+where T: fmt::Debug, De<T>: Deserialize<'de>, for<'a> Ser<'a, T>: Serialize
 {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         self.0.fmt(formatter)
     }
 }
 
-impl<T> Deref for Serde<T>
-where De<T>: Deserialize, for<'a> Ser<'a, T>: Serialize
+impl<'de, T> Deref for Serde<T>
+where De<T>: Deserialize<'de>, for<'a> Ser<'a, T>: Serialize
 {
     type Target = T;
 
@@ -249,34 +247,34 @@ where De<T>: Deserialize, for<'a> Ser<'a, T>: Serialize
     }
 }
 
-impl<T> DerefMut for Serde<T>
-where De<T>: Deserialize, for<'a> Ser<'a, T>: Serialize
+impl<'de, T> DerefMut for Serde<T>
+where De<T>: Deserialize<'de>, for<'a> Ser<'a, T>: Serialize
 {
     fn deref_mut(&mut self) -> &mut T {
         &mut self.0
     }
 }
 
-impl<T: PartialEq> PartialEq<T> for Serde<T>
-where De<T>: Deserialize, for<'a> Ser<'a, T>: Serialize
+impl<'de, T: PartialEq> PartialEq<T> for Serde<T>
+where De<T>: Deserialize<'de>, for<'a> Ser<'a, T>: Serialize
 {
     fn eq(&self, other: &T) -> bool {
         self.0 == *other
     }
 }
 
-impl<T> Deserialize for Serde<T>
-where De<T>: Deserialize, for<'a> Ser<'a, T>: Serialize
+impl<'de, T> Deserialize<'de> for Serde<T>
+where De<T>: Deserialize<'de>, for<'a> Ser<'a, T>: Serialize
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer
+        where D: Deserializer<'de>
     {
         De::deserialize(deserializer).map(De::into_inner).map(Serde)
     }
 }
 
-impl<T> Serialize for Serde<T>
-where De<T>: Deserialize, for<'a> Ser<'a, T>: Serialize
+impl<'de, T> Serialize for Serde<T>
+where De<T>: Deserialize<'de>, for<'a> Ser<'a, T>: Serialize
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where S: Serializer
@@ -372,6 +370,30 @@ fn test_derive_serialize_with_for_option_url() {
     let input = Test {url: None};
     let got = serde_json::to_string(&input).unwrap();
     assert_eq!(expected, got);
+}
+
+#[test]
+fn test_derive_with_for_url() {
+    #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
+    struct Test {
+        #[serde(with = "self", rename = "_url_")]
+        url: Url
+    }
+
+    let url_str = "http://www.test.com/foo/bar?$param=bazz";
+    let json_string = format!(r#"{{"_url_":"{}"}}"#, url_str);
+
+    // test deserialization
+    let expected = Test {
+        url: Url::parse(url_str).unwrap()
+    };
+    let got: Test = serde_json::from_str(&json_string).unwrap();
+    assert_eq!(expected, got);
+
+    // test serialization
+    let input = Test {url: Url::parse(url_str).unwrap()};
+    let got = serde_json::to_string(&input).unwrap();
+    assert_eq!(json_string, got);
 }
 
 #[test]
