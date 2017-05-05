@@ -90,6 +90,8 @@ let css_url = this_document.join("../main.css").unwrap();
 assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css")
 */
 
+#![doc(html_root_url = "https://docs.rs/url/1.4.0")]
+
 #[cfg(feature="rustc-serialize")] extern crate rustc_serialize;
 #[macro_use] extern crate matches;
 #[cfg(feature="serde")] extern crate serde;
