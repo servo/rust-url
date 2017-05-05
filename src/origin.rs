@@ -34,7 +34,7 @@ pub fn url_origin(url: &Url) -> Origin {
 }
 
 /// The origin of an URL
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum Origin {
     /// A globally unique identifier
     Opaque(OpaqueOrigin),
@@ -107,7 +107,7 @@ impl Origin {
 }
 
 /// Opaque identifier for URLs that have file or other schemes
-#[derive(Eq, PartialEq, Clone, Debug)]
+#[derive(Eq, PartialEq, Hash, Clone, Debug)]
 pub struct OpaqueOrigin(usize);
 
 #[cfg(feature = "heapsize")]
