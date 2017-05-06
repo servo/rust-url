@@ -92,7 +92,8 @@ assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css")
 
 #[cfg(feature="rustc-serialize")] extern crate rustc_serialize;
 #[macro_use] extern crate matches;
-#[cfg(feature="serde")] extern crate serde;
+#[cfg(feature="serde")] extern crate legacy_serde;
+#[cfg(feature="serde1")] extern crate serde1;
 #[cfg(feature="heapsize")] #[macro_use] extern crate heapsize;
 
 pub extern crate idna;
@@ -105,7 +106,6 @@ use percent_encoding::{PATH_SEGMENT_ENCODE_SET, USERINFO_ENCODE_SET,
                        percent_encode, percent_decode, utf8_percent_encode};
 use std::borrow::Borrow;
 use std::cmp;
-#[cfg(feature = "serde")] use std::error::Error;
 use std::fmt::{self, Write};
 use std::hash;
 use std::io;
@@ -127,6 +127,11 @@ mod origin;
 mod path_segments;
 mod parser;
 mod slicing;
+
+#[cfg(feature = "serde1")]
+mod serde;
+#[cfg(feature = "serde")]
+mod legacy;
 
 pub mod form_urlencoded;
 pub mod percent_encoding;
@@ -1506,8 +1511,8 @@ impl Url {
     /// This method is only available if the `serde` Cargo feature is enabled.
     #[cfg(feature = "serde")]
     #[deny(unused)]
-    pub fn serialize_internal<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: serde::Serializer {
-        use serde::Serialize;
+    pub fn serialize_internal<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: legacy_serde::Serializer {
+        use legacy_serde::Serialize;
         // Destructuring first lets us ensure that adding or removing fields forces this method
         // to be updated
         let Url { ref serialization, ref scheme_end,
@@ -1528,8 +1533,8 @@ impl Url {
     /// This method is only available if the `serde` Cargo feature is enabled.
     #[cfg(feature = "serde")]
     #[deny(unused)]
-    pub fn deserialize_internal<D>(deserializer: &mut D) -> Result<Self, D::Error> where D: serde::Deserializer {
-        use serde::{Deserialize, Error};
+    pub fn deserialize_internal<D>(deserializer: &mut D) -> Result<Self, D::Error> where D: legacy_serde::Deserializer {
+        use legacy_serde::{Deserialize, Error};
         let (serialization, scheme_end, username_end,
              host_start, host_end, host, port, path_start,
              query_start, fragment_start) = try!(Deserialize::deserialize(deserializer));
@@ -1709,29 +1714,6 @@ impl rustc_serialize::Decodable for Url {
     fn decode<D: rustc_serialize::Decoder>(decoder: &mut D) -> Result<Url, D::Error> {
         Url::parse(&*try!(decoder.read_str())).map_err(|error| {
             decoder.error(&format!("URL parsing error: {}", error))
-        })
-    }
-}
-
-/// Serializes this URL into a `serde` stream.
-///
-/// This implementation is only available if the `serde` Cargo feature is enabled.
-#[cfg(feature="serde")]
-impl serde::Serialize for Url {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: serde::Serializer {
-        serializer.serialize_str(self.as_str())
-    }
-}
-
-/// Deserializes this URL from a `serde` stream.
-///
-/// This implementation is only available if the `serde` Cargo feature is enabled.
-#[cfg(feature="serde")]
-impl serde::Deserialize for Url {
-    fn deserialize<D>(deserializer: &mut D) -> Result<Url, D::Error> where D: serde::Deserializer {
-        let string_representation: String = try!(serde::Deserialize::deserialize(deserializer));
-        Url::parse(&string_representation).map_err(|err| {
-            serde::Error::invalid_value(err.description())
         })
     }
 }
