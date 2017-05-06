@@ -1506,7 +1506,7 @@ impl Url {
     /// This method is only available if the `serde` Cargo feature is enabled.
     #[cfg(feature = "serde")]
     #[deny(unused)]
-    pub fn serialize_internal<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: serde::Serializer {
+    pub fn serialize_internal<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
         use serde::Serialize;
         // Destructuring first lets us ensure that adding or removing fields forces this method
         // to be updated
@@ -1528,8 +1528,10 @@ impl Url {
     /// This method is only available if the `serde` Cargo feature is enabled.
     #[cfg(feature = "serde")]
     #[deny(unused)]
-    pub fn deserialize_internal<D>(deserializer: &mut D) -> Result<Self, D::Error> where D: serde::Deserializer {
-        use serde::{Deserialize, Error};
+    pub fn deserialize_internal<'de, D>(deserializer: D) -> Result<Self, D::Error>
+        where D: serde::Deserializer<'de>
+    {
+        use serde::de::{Deserialize, Error};
         let (serialization, scheme_end, username_end,
              host_start, host_end, host, port, path_start,
              query_start, fragment_start) = try!(Deserialize::deserialize(deserializer));
@@ -1546,7 +1548,7 @@ impl Url {
             fragment_start: fragment_start
         };
         if cfg!(debug_assertions) {
-            try!(url.check_invariants().map_err(|ref reason| Error::invalid_value(&reason)))
+            try!(url.check_invariants().map_err(|ref reason| Error::custom(&reason)))
         }
         Ok(url)
     }
@@ -1718,7 +1720,7 @@ impl rustc_serialize::Decodable for Url {
 /// This implementation is only available if the `serde` Cargo feature is enabled.
 #[cfg(feature="serde")]
 impl serde::Serialize for Url {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: serde::Serializer {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
         serializer.serialize_str(self.as_str())
     }
 }
@@ -1727,11 +1729,13 @@ impl serde::Serialize for Url {
 ///
 /// This implementation is only available if the `serde` Cargo feature is enabled.
 #[cfg(feature="serde")]
-impl serde::Deserialize for Url {
-    fn deserialize<D>(deserializer: &mut D) -> Result<Url, D::Error> where D: serde::Deserializer {
+impl<'de> serde::Deserialize<'de> for Url {
+    fn deserialize<D>(deserializer: D) -> Result<Url, D::Error>
+        where D: serde::Deserializer<'de>
+    {
         let string_representation: String = try!(serde::Deserialize::deserialize(deserializer));
         Url::parse(&string_representation).map_err(|err| {
-            serde::Error::invalid_value(err.description())
+            serde::de::Error::custom(err.description())
         })
     }
 }
