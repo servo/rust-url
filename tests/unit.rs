@@ -13,7 +13,7 @@ extern crate url;
 use std::borrow::Cow;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::path::{Path, PathBuf};
-use url::{Host, Url, form_urlencoded};
+use url::{Host, HostAndPort, Url, form_urlencoded};
 
 #[test]
 fn size() {
@@ -252,6 +252,30 @@ fn test_form_serialize() {
         .append_pair("foo", "#")
         .finish();
     assert_eq!(encoded, "foo=%C3%A9%26&bar=&foo=%23");
+}
+
+#[test]
+fn host_and_port_display() {
+    let data = [
+        (HostAndPort{ host: Host::Domain("www.mozilla.org"), port: 80}, "www.mozilla.org:80"),
+        (
+            HostAndPort{ host: Host::Ipv4(Ipv4Addr::new(1, 35, 33, 49)), port: 65535 },
+            "1.35.33.49:65535"
+        ),
+        (
+            HostAndPort{
+                host: Host::Ipv6(Ipv6Addr::new(
+                    0x2001, 0x0db8, 0x85a3, 0x08d3, 0x1319, 0x8a2e, 0x0370, 0x7344
+                )),
+                port: 1337
+            },
+            "[2001:db8:85a3:8d3:1319:8a2e:370:7344]:1337"
+        )
+    ];
+
+    for &(ref input, result) in &data {
+        assert_eq!(format!("{}", input), result)
+    }
 }
 
 #[test]

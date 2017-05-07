@@ -192,6 +192,15 @@ impl<'a> HostAndPort<&'a str> {
     }
 }
 
+impl<S: AsRef<str>> fmt::Display for HostAndPort<S> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        try!(self.host.fmt(f));
+        try!(f.write_str(":"));
+        self.port.fmt(f)
+    }
+}
+
+
 impl<S: AsRef<str>> ToSocketAddrs for HostAndPort<S> {
     type Iter = SocketAddrs;
 
