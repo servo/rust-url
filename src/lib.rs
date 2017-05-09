@@ -124,13 +124,13 @@ pub use parser::ParseError;
 pub use slicing::Position;
 
 mod encoding;
-mod host;
 mod origin;
 mod path_segments;
 mod parser;
 mod slicing;
 
 pub mod form_urlencoded;
+pub mod host;
 pub mod percent_encoding;
 pub mod quirks;
 
