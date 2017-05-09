@@ -14,7 +14,7 @@ use punycode;
 use std::ascii::AsciiExt;
 use unicode_normalization::UnicodeNormalization;
 use unicode_normalization::char::is_combining_mark;
-use unicode_bidi::{BidiClass, bidi_class};
+use unicode_bidi::{BidiClass, get_bidi_class};
 
 include!("uts46_mapping_table.rs");
 
@@ -100,7 +100,7 @@ fn map_char(codepoint: char, flags: Flags, output: &mut String, errors: &mut Vec
 fn passes_bidi(label: &str, transitional_processing: bool) -> bool {
     let mut chars = label.chars();
     let class = match chars.next() {
-        Some(c) => bidi_class(c),
+        Some(c) => get_bidi_class(c),
         None => return true, // empty string
     };
 
@@ -113,7 +113,7 @@ fn passes_bidi(label: &str, transitional_processing: bool) -> bool {
         loop {
             match chars.next() {
                 Some(c) => {
-                    let c = bidi_class(c);
+                    let c = get_bidi_class(c);
                     if !matches!(c, BidiClass::L | BidiClass::EN |
                                     BidiClass::ES | BidiClass::CS |
                                     BidiClass::ET | BidiClass::ON |
@@ -130,7 +130,7 @@ fn passes_bidi(label: &str, transitional_processing: bool) -> bool {
         let mut last = rev_chars.next();
         loop { // must end in L or EN followed by 0 or more NSM
             match last {
-                Some(c) if bidi_class(c) == BidiClass::NSM => {
+                Some(c) if get_bidi_class(c) == BidiClass::NSM => {
                     last = rev_chars.next();
                     continue;
                 }
@@ -140,8 +140,8 @@ fn passes_bidi(label: &str, transitional_processing: bool) -> bool {
 
         // TODO: does not pass for àˇ.\u05D0
         // match last {
-        //     Some(c) if bidi_class(c) == BidiClass::L
-        //             || bidi_class(c) == BidiClass::EN => {},
+        //     Some(c) if get_bidi_class(c) == BidiClass::L
+        //             || get_bidi_class(c) == BidiClass::EN => {},
         //     Some(c) => { return false; },
         //     _ => {}
         // }
@@ -154,7 +154,7 @@ fn passes_bidi(label: &str, transitional_processing: bool) -> bool {
         loop {
             match chars.next() {
                 Some(c) => {
-                    let char_class = bidi_class(c);
+                    let char_class = get_bidi_class(c);
 
                     if char_class == BidiClass::EN {
                         found_en = true;
@@ -179,7 +179,7 @@ fn passes_bidi(label: &str, transitional_processing: bool) -> bool {
         let mut last = rev_chars.next();
         loop { // must end in L or EN followed by 0 or more NSM
             match last {
-                Some(c) if bidi_class(c) == BidiClass::NSM => {
+                Some(c) if get_bidi_class(c) == BidiClass::NSM => {
                     last = rev_chars.next();
                     continue;
                 }
@@ -187,7 +187,7 @@ fn passes_bidi(label: &str, transitional_processing: bool) -> bool {
             }
         }
         match last {
-            Some(c) if matches!(bidi_class(c), BidiClass::R | BidiClass::AL |
+            Some(c) if matches!(get_bidi_class(c), BidiClass::R | BidiClass::AL |
                                                BidiClass::EN | BidiClass::AN) => {},
             _ => { return false; }
         }
