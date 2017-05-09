@@ -166,8 +166,8 @@ impl<S: AsRef<str>> fmt::Display for Host<S> {
             Host::Domain(ref domain) => domain.as_ref().fmt(f),
             Host::Ipv4(ref addr) => addr.fmt(f),
             Host::Ipv6(ref addr) => {
-                f.write_str("[")?;
-                write_ipv6(addr, f)?;
+                try!(f.write_str("["));
+                try!(write_ipv6(addr, f));
                 f.write_str("]")
             }
         }
