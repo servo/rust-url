@@ -210,7 +210,7 @@ impl<'a, E: EncodeSet> Iterator for PercentEncode<'a, E> {
 impl<'a, E: EncodeSet> fmt::Display for PercentEncode<'a, E> {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         for c in (*self).clone() {
-            try!(formatter.write_str(c))
+            formatter.write_str(c)?
         }
         Ok(())
     }

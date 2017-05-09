@@ -20,7 +20,7 @@ impl Serialize for Url {
 /// This implementation is only available if the `serde` Cargo feature is enabled.
 impl Deserialize for Url {
     fn deserialize<D>(deserializer: &mut D) -> Result<Url, D::Error> where D: Deserializer {
-        let string_representation: String = try!(Deserialize::deserialize(deserializer));
+        let string_representation: String = Deserialize::deserialize(deserializer)?;
         Url::parse(&string_representation).map_err(|err| {
             de::Error::invalid_value(err.description())
         })
@@ -48,7 +48,7 @@ impl Serialize for HostInternal {
 impl Deserialize for HostInternal {
     fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error> where D: Deserializer {
         use std::net::IpAddr;
-        Ok(match try!(Deserialize::deserialize(deserializer)) {
+        Ok(match Deserialize::deserialize(deserializer)? {
             None => HostInternal::None,
             Some(None) => HostInternal::Domain,
             Some(Some(IpAddr::V4(addr))) => HostInternal::Ipv4(addr),
@@ -71,7 +71,7 @@ impl<S: Serialize>  Serialize for Host<S> {
 impl<S: Deserialize> Deserialize for Host<S> {
     fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error> where D: Deserializer {
         use std::net::IpAddr;
-        Ok(match try!(Deserialize::deserialize(deserializer)) {
+        Ok(match Deserialize::deserialize(deserializer)? {
             Ok(s) => Host::Domain(s),
             Err(IpAddr::V4(addr)) => Host::Ipv4(addr),
             Err(IpAddr::V6(addr)) => Host::Ipv6(addr),

@@ -20,7 +20,7 @@ impl<'de> Deserialize<'de> for Url {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where D: Deserializer<'de>
     {
-        let s = try!(String::deserialize(deserializer));
+        let s = String::deserialize(deserializer)?;
         s.parse().map_err(Error::custom)
     }
 }
@@ -161,7 +161,7 @@ impl<'de> Deserialize<'de> for HostInternal {
             fn visit_enum<A>(self, data: A) -> Result<Self::Value, A::Error>
                 where A: EnumAccess<'de>
             {
-                match try!(data.variant()) {
+                match data.variant()? {
                     (Variant::None, variant) => {
                         variant.unit_variant().map(|()| HostInternal::None)
                     }
@@ -313,7 +313,7 @@ impl<'de, S> Deserialize<'de> for Host<S>
             fn visit_enum<A>(self, data: A) -> Result<Self::Value, A::Error>
                 where A: EnumAccess<'de>
             {
-                match try!(data.variant()) {
+                match data.variant()? {
                     (Variant::Domain, variant) => {
                         variant.newtype_variant().map(Host::Domain)
                     }

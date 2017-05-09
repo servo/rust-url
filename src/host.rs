@@ -90,13 +90,13 @@ impl Host<String> {
             return parse_ipv6addr(&input[1..input.len() - 1]).map(Host::Ipv6)
         }
         let domain = percent_decode(input.as_bytes()).decode_utf8_lossy();
-        let domain = try!(idna::domain_to_ascii(&domain));
+        let domain = idna::domain_to_ascii(&domain)?;
         if domain.find(|c| matches!(c,
             '\0' | '\t' | '\n' | '\r' | ' ' | '#' | '%' | '/' | ':' | '?' | '@' | '[' | '\\' | ']'
         )).is_some() {
             return Err(ParseError::InvalidDomainCharacter)
         }
-        if let Some(address) = try!(parse_ipv4addr(&domain)) {
+        if let Some(address) = parse_ipv4addr(&domain)? {
             Ok(Host::Ipv4(address))
         } else {
             Ok(Host::Domain(domain.into()))
@@ -110,8 +110,8 @@ impl<S: AsRef<str>> fmt::Display for Host<S> {
             Host::Domain(ref domain) => domain.as_ref().fmt(f),
             Host::Ipv4(ref addr) => addr.fmt(f),
             Host::Ipv6(ref addr) => {
-                try!(f.write_str("["));
-                try!(write_ipv6(addr, f));
+                f.write_str("[")?;
+                write_ipv6(addr, f)?;
                 f.write_str("]")
             }
         }
@@ -144,7 +144,7 @@ impl<S: AsRef<str>> ToSocketAddrs for HostAndPort<S> {
         match self.host {
             Host::Domain(ref domain) => Ok(SocketAddrs {
                 // FIXME: use std::net::lookup_host when it’s stable.
-                state: SocketAddrsState::Domain(try!((domain.as_ref(), port).to_socket_addrs()))
+                state: SocketAddrsState::Domain((domain.as_ref(), port).to_socket_addrs()?)
             }),
             Host::Ipv4(address) => Ok(SocketAddrs {
                 state: SocketAddrsState::One(SocketAddr::V4(SocketAddrV4::new(address, port)))
@@ -187,9 +187,9 @@ fn write_ipv6(addr: &Ipv6Addr, f: &mut Formatter) -> fmt::Result {
     let mut i = 0;
     while i < 8 {
         if i == compress_start {
-            try!(f.write_str(":"));
+            f.write_str(":")?;
             if i == 0 {
-                try!(f.write_str(":"));
+                f.write_str(":")?;
             }
             if compress_end < 8 {
                 i = compress_end;
@@ -197,9 +197,9 @@ fn write_ipv6(addr: &Ipv6Addr, f: &mut Formatter) -> fmt::Result {
                 break;
             }
         }
-        try!(write!(f, "{:x}", segments[i as usize]));
+        write!(f, "{:x}", segments[i as usize])?;
         if i < 7 {
-            try!(f.write_str(":"));
+            f.write_str(":")?;
         }
         i += 1;
     }
