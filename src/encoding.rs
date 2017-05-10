@@ -19,7 +19,7 @@ use std::borrow::Cow;
 #[cfg(feature = "query_encoding")] pub use self::encoding::types::EncodingRef;
 
 #[cfg(feature = "query_encoding")]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 pub struct EncodingOverride {
     /// `None` means UTF-8.
     encoding: Option<EncodingRef>
@@ -89,6 +89,16 @@ impl EncodingOverride {
     }
 }
 
+#[cfg(feature = "query_encoding")]
+impl Debug for EncodingOverride {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "EncodingOverride {{ encoding: ")?;
+        match self.encoding {
+            Some(_) => write!(f, "Some(EncodingOverride) }}"),
+            None => write!(f, "None }}")
+        }
+    }
+}
 
 #[cfg(not(feature = "query_encoding"))]
 #[derive(Copy, Clone, Debug)]
