@@ -13,6 +13,7 @@
 #[cfg(feature = "query_encoding")] extern crate encoding;
 
 use std::borrow::Cow;
+#[cfg(feature = "query_encoding")] use std::fmt::{self, Write, Debug, Formatter};
 
 #[cfg(feature = "query_encoding")] use self::encoding::types::{DecoderTrap, EncoderTrap};
 #[cfg(feature = "query_encoding")] use self::encoding::label::encoding_from_whatwg_label;
