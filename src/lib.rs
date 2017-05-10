@@ -90,6 +90,8 @@ let css_url = this_document.join("../main.css").unwrap();
 assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css")
 */
 
+#![doc(html_root_url = "https://docs.rs/url/1.4.0")]
+
 #[cfg(feature="rustc-serialize")] extern crate rustc_serialize;
 #[macro_use] extern crate matches;
 #[cfg(feature="serde")] extern crate serde;
@@ -781,7 +783,7 @@ impl Url {
     /// # use std::io;
     ///
     /// fn connect(url: &Url) -> io::Result<TcpStream> {
-    ///     TcpStream::connect(try!(url.with_default_port(default_port)))
+    ///     TcpStream::connect(url.with_default_port(default_port)?)
     /// }
     ///
     /// fn default_port(url: &Url) -> Result<u16, ()> {
@@ -797,13 +799,13 @@ impl Url {
     pub fn with_default_port<F>(&self, f: F) -> io::Result<HostAndPort<&str>>
     where F: FnOnce(&Url) -> Result<u16, ()> {
         Ok(HostAndPort {
-            host: try!(self.host()
-                           .ok_or(())
-                           .or_else(|()| io_error("URL has no host"))),
-            port: try!(self.port_or_known_default()
-                           .ok_or(())
-                           .or_else(|()| f(self))
-                           .or_else(|()| io_error("URL has no port number")))
+            host: self.host()
+                      .ok_or(())
+                      .or_else(|()| io_error("URL has no host"))?,
+            port: self.port_or_known_default()
+                      .ok_or(())
+                      .or_else(|()| f(self))
+                      .or_else(|()| io_error("URL has no port number"))?
         })
     }
 
@@ -1192,7 +1194,7 @@ impl Url {
             if host == "" && SchemeType::from(self.scheme()).is_special() {
                 return Err(ParseError::EmptyHost);
             }
-            self.set_host_internal(try!(Host::parse(host)), None)
+            self.set_host_internal(Host::parse(host)?, None)
         } else if self.has_host() {
             if SchemeType::from(self.scheme()).is_special() {
                 return Err(ParseError::EmptyHost)
@@ -1407,7 +1409,7 @@ impl Url {
     /// ```
     pub fn set_scheme(&mut self, scheme: &str) -> Result<(), ()> {
         let mut parser = Parser::for_setter(String::new());
-        let remaining = try!(parser.parse_scheme(parser::Input::new(scheme)));
+        let remaining = parser.parse_scheme(parser::Input::new(scheme))?;
         if !remaining.is_empty() ||
                 (!self.has_host() && SchemeType::from(&parser.serialization).is_special()) {
             return Err(())
@@ -1458,7 +1460,7 @@ impl Url {
     pub fn from_file_path<P: AsRef<Path>>(path: P) -> Result<Url, ()> {
         let mut serialization = "file://".to_owned();
         let path_start = serialization.len() as u32;
-        try!(path_to_file_url_segments(path.as_ref(), &mut serialization));
+        path_to_file_url_segments(path.as_ref(), &mut serialization)?;
         Ok(Url {
             serialization: serialization,
             scheme_end: "file".len() as u32,
@@ -1491,7 +1493,7 @@ impl Url {
     /// Note that `std::path` does not consider trailing slashes significant
     /// and usually does not include them (e.g. in `Path::parent()`).
     pub fn from_directory_path<P: AsRef<Path>>(path: P) -> Result<Url, ()> {
-        let mut url = try!(Url::from_file_path(path));
+        let mut url = Url::from_file_path(path)?;
         if !url.serialization.ends_with('/') {
             url.serialization.push('/')
         }
@@ -1532,7 +1534,7 @@ impl Url {
         use serde::{Deserialize, Error};
         let (serialization, scheme_end, username_end,
              host_start, host_end, host, port, path_start,
-             query_start, fragment_start) = try!(Deserialize::deserialize(deserializer));
+             query_start, fragment_start) = Deserialize::deserialize(deserializer)?;
         let url = Url {
             serialization: serialization,
             scheme_end: scheme_end,
@@ -1546,7 +1548,7 @@ impl Url {
             fragment_start: fragment_start
         };
         if cfg!(debug_assertions) {
-            try!(url.check_invariants().map_err(|ref reason| Error::invalid_value(&reason)))
+            url.check_invariants().map_err(|ref reason| Error::invalid_value(&reason))?
         }
         Ok(url)
     }
@@ -1598,7 +1600,7 @@ impl ToSocketAddrs for Url {
     type Iter = SocketAddrs;
 
     fn to_socket_addrs(&self) -> io::Result<Self::Iter> {
-        try!(self.with_default_port(|_| Err(()))).to_socket_addrs()
+        self.with_default_port(|_| Err(()))?.to_socket_addrs()
     }
 }
 
@@ -1707,7 +1709,7 @@ impl rustc_serialize::Encodable for Url {
 #[cfg(feature="rustc-serialize")]
 impl rustc_serialize::Decodable for Url {
     fn decode<D: rustc_serialize::Decoder>(decoder: &mut D) -> Result<Url, D::Error> {
-        Url::parse(&*try!(decoder.read_str())).map_err(|error| {
+        Url::parse(&*decoder.read_str()?).map_err(|error| {
             decoder.error(&format!("URL parsing error: {}", error))
         })
     }
@@ -1729,7 +1731,7 @@ impl serde::Serialize for Url {
 #[cfg(feature="serde")]
 impl serde::Deserialize for Url {
     fn deserialize<D>(deserializer: &mut D) -> Result<Url, D::Error> where D: serde::Deserializer {
-        let string_representation: String = try!(serde::Deserialize::deserialize(deserializer));
+        let string_representation: String = serde::Deserialize::deserialize(deserializer)?;
         Url::parse(&string_representation).map_err(|err| {
             serde::Error::invalid_value(err.description())
         })
@@ -1789,7 +1791,7 @@ fn path_to_file_url_segments_windows(path: &Path, serialization: &mut String) ->
     for component in components {
         if component == Component::RootDir { continue }
         // FIXME: somehow work with non-unicode?
-        let component = try!(component.as_os_str().to_str().ok_or(()));
+        let component = component.as_os_str().to_str().ok_or(())?;
         serialization.push('/');
         serialization.extend(percent_encode(component.as_bytes(), PATH_SEGMENT_ENCODE_SET));
     }
@@ -1822,7 +1824,7 @@ fn file_url_segments_to_pathbuf(segments: str::Split<char>) -> Result<PathBuf, (
 // Build this unconditionally to alleviate https://github.com/servo/rust-url/issues/102
 #[cfg_attr(not(windows), allow(dead_code))]
 fn file_url_segments_to_pathbuf_windows(mut segments: str::Split<char>) -> Result<PathBuf, ()> {
-    let first = try!(segments.next().ok_or(()));
+    let first = segments.next().ok_or(())?;
 
     let mut string = match first.len() {
         2 => {

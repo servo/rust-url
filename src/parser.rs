@@ -307,7 +307,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_with_scheme(mut self, input: Input) -> ParseResult<Url> {
-        let scheme_end = try!(to_u32(self.serialization.len()));
+        let scheme_end = to_u32(self.serialization.len())?;
         let scheme_type = SchemeType::from(&self.serialization);
         self.serialization.push(':');
         match scheme_type {
@@ -350,7 +350,7 @@ impl<'a> Parser<'a> {
             return self.after_double_slash(input, scheme_type, scheme_end)
         }
         // Anarchist URL (no authority)
-        let path_start = try!(to_u32(self.serialization.len()));
+        let path_start = to_u32(self.serialization.len())?;
         let username_end = path_start;
         let host_start = path_start;
         let host_end = path_start;
@@ -413,7 +413,7 @@ impl<'a> Parser<'a> {
                     };
                     self.serialization.push_str(before_query);
                     let (query_start, fragment_start) =
-                        try!(self.parse_query_and_fragment(base_url.scheme_end, input));
+                        self.parse_query_and_fragment(base_url.scheme_end, input)?;
                     Ok(Url {
                         serialization: self.serialization,
                         query_start: query_start,
@@ -425,7 +425,7 @@ impl<'a> Parser<'a> {
                     let scheme_end = "file".len() as u32;
                     let path_start = "file://".len() as u32;
                     let (query_start, fragment_start) =
-                        try!(self.parse_query_and_fragment(scheme_end, input));
+                        self.parse_query_and_fragment(scheme_end, input)?;
                     Ok(Url {
                         serialization: self.serialization,
                         scheme_end: scheme_end,
@@ -474,8 +474,8 @@ impl<'a> Parser<'a> {
                     let scheme_end = "file".len() as u32;
                     let host_start = "file://".len() as u32;
                     let (path_start, host, remaining) =
-                        try!(self.parse_file_host(input_after_next_char));
-                    let host_end = try!(to_u32(self.serialization.len()));
+                        self.parse_file_host(input_after_next_char)?;
+                    let host_end = to_u32(self.serialization.len())?;
                     let mut has_host = !matches!(host, HostInternal::None);
                     let remaining = if path_start {
                         self.parse_path_start(SchemeType::File, &mut has_host, remaining)
@@ -486,7 +486,7 @@ impl<'a> Parser<'a> {
                     };
                     // FIXME: deal with has_host
                     let (query_start, fragment_start) =
-                        try!(self.parse_query_and_fragment(scheme_end, remaining));
+                        self.parse_query_and_fragment(scheme_end, remaining)?;
                     Ok(Url {
                         serialization: self.serialization,
                         scheme_end: scheme_end,
@@ -514,7 +514,7 @@ impl<'a> Parser<'a> {
                     let remaining = self.parse_path(
                         SchemeType::File, &mut false, path_start, input_after_first_char);
                     let (query_start, fragment_start) =
-                        try!(self.parse_query_and_fragment(scheme_end, remaining));
+                        self.parse_query_and_fragment(scheme_end, remaining)?;
                     let path_start = path_start as u32;
                     Ok(Url {
                         serialization: self.serialization,
@@ -554,7 +554,7 @@ impl<'a> Parser<'a> {
                     let remaining = self.parse_path(
                         SchemeType::File, &mut false, path_start, input);
                     let (query_start, fragment_start) =
-                        try!(self.parse_query_and_fragment(scheme_end, remaining));
+                        self.parse_query_and_fragment(scheme_end, remaining)?;
                     let path_start = path_start as u32;
                     Ok(Url {
                         serialization: self.serialization,
@@ -601,7 +601,7 @@ impl<'a> Parser<'a> {
                 };
                 self.serialization.push_str(before_query);
                 let (query_start, fragment_start) =
-                    try!(self.parse_query_and_fragment(base_url.scheme_end, input));
+                    self.parse_query_and_fragment(base_url.scheme_end, input)?;
                 Ok(Url {
                     serialization: self.serialization,
                     query_start: query_start,
@@ -654,13 +654,13 @@ impl<'a> Parser<'a> {
         self.serialization.push('/');
         self.serialization.push('/');
         // authority state
-        let (username_end, remaining) = try!(self.parse_userinfo(input, scheme_type));
+        let (username_end, remaining) = self.parse_userinfo(input, scheme_type)?;
         // host state
-        let host_start = try!(to_u32(self.serialization.len()));
+        let host_start = to_u32(self.serialization.len())?;
         let (host_end, host, port, remaining) =
-            try!(self.parse_host_and_port(remaining, scheme_end, scheme_type));
+            self.parse_host_and_port(remaining, scheme_end, scheme_type)?;
         // path state
-        let path_start = try!(to_u32(self.serialization.len()));
+        let path_start = to_u32(self.serialization.len())?;
         let remaining = self.parse_path_start(
             scheme_type, &mut true, remaining);
         self.with_query_and_fragment(scheme_end, username_end, host_start,
@@ -692,8 +692,8 @@ impl<'a> Parser<'a> {
             char_count += 1;
         }
         let (mut userinfo_char_count, remaining) = match last_at {
-            None => return Ok((try!(to_u32(self.serialization.len())), input)),
-            Some((0, remaining)) => return Ok((try!(to_u32(self.serialization.len())), remaining)),
+            None => return Ok((to_u32(self.serialization.len())?, input)),
+            Some((0, remaining)) => return Ok((to_u32(self.serialization.len())?, remaining)),
             Some(x) => x
         };
 
@@ -703,7 +703,7 @@ impl<'a> Parser<'a> {
             userinfo_char_count -= 1;
             if c == ':' && username_end.is_none() {
                 // Start parsing password
-                username_end = Some(try!(to_u32(self.serialization.len())));
+                username_end = Some(to_u32(self.serialization.len())?);
                 self.serialization.push(':');
             } else {
                 self.check_url_code_point(c, &input);
@@ -712,7 +712,7 @@ impl<'a> Parser<'a> {
         }
         let username_end = match username_end {
             Some(i) => i,
-            None => try!(to_u32(self.serialization.len())),
+            None => to_u32(self.serialization.len())?,
         };
         self.serialization.push('@');
         Ok((username_end, remaining))
@@ -721,13 +721,12 @@ impl<'a> Parser<'a> {
     fn parse_host_and_port<'i>(&mut self, input: Input<'i>,
                                    scheme_end: u32, scheme_type: SchemeType)
                                    -> ParseResult<(u32, HostInternal, Option<u16>, Input<'i>)> {
-        let (host, remaining) = try!(
-            Parser::parse_host(input, scheme_type));
+        let (host, remaining) = Parser::parse_host(input, scheme_type)?;
         write!(&mut self.serialization, "{}", host).unwrap();
-        let host_end = try!(to_u32(self.serialization.len()));
+        let host_end = to_u32(self.serialization.len())?;
         let (port, remaining) = if let Some(remaining) = remaining.split_prefix(':') {
             let scheme = || default_port(&self.serialization[..scheme_end as usize]);
-            try!(Parser::parse_port(remaining, scheme, self.context))
+            Parser::parse_port(remaining, scheme, self.context)?
         } else {
             (None, remaining)
         };
@@ -781,7 +780,7 @@ impl<'a> Parser<'a> {
         if scheme_type.is_special() && host_str.is_empty() {
             return Err(ParseError::EmptyHost)
         }
-        let host = try!(Host::parse(host_str));
+        let host = Host::parse(host_str)?;
         Ok((host, input))
     }
 
@@ -820,7 +819,7 @@ impl<'a> Parser<'a> {
         let host = if host_str.is_empty() {
             HostInternal::None
         } else {
-            match try!(Host::parse(host_str)) {
+            match Host::parse(host_str)? {
                 Host::Domain(ref d) if d == "localhost" => HostInternal::None,
                 host => {
                     write!(&mut self.serialization, "{}", host).unwrap();
@@ -999,7 +998,7 @@ impl<'a> Parser<'a> {
                                port: Option<u16>, path_start: u32, remaining: Input)
                                -> ParseResult<Url> {
         let (query_start, fragment_start) =
-            try!(self.parse_query_and_fragment(scheme_end, remaining));
+            self.parse_query_and_fragment(scheme_end, remaining)?;
         Ok(Url {
             serialization: self.serialization,
             scheme_end: scheme_end,
@@ -1021,7 +1020,7 @@ impl<'a> Parser<'a> {
         match input.next() {
             Some('#') => {}
             Some('?') => {
-                query_start = Some(try!(to_u32(self.serialization.len())));
+                query_start = Some(to_u32(self.serialization.len())?);
                 self.serialization.push('?');
                 let remaining = self.parse_query(scheme_end, input);
                 if let Some(remaining) = remaining {
@@ -1034,7 +1033,7 @@ impl<'a> Parser<'a> {
             _ => panic!("Programming error. parse_query_and_fragment() called without ? or # {:?}")
         }
 
-        let fragment_start = try!(to_u32(self.serialization.len()));
+        let fragment_start = to_u32(self.serialization.len())?;
         self.serialization.push('#');
         self.parse_fragment(input);
         Ok((query_start, Some(fragment_start)))
@@ -1077,7 +1076,7 @@ impl<'a> Parser<'a> {
         self.parse_fragment(input);
         Ok(Url {
             serialization: self.serialization,
-            fragment_start: Some(try!(to_u32(before_fragment.len()))),
+            fragment_start: Some(to_u32(before_fragment.len())?),
             ..*base_url
         })
     }
