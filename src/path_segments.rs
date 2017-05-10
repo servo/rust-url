@@ -26,6 +26,7 @@ use Url;
 /// url.path_segments_mut().unwrap().pop().push("img").push("2/100%.png");
 /// assert_eq!(url.as_str(), "http://example.net/foo/img/2%2F100%25.png");
 /// ```
+#[derive(Debug)]
 pub struct PathSegmentsMut<'a> {
     url: &'a mut Url,
     after_first_slash: usize,
