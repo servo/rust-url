@@ -19,26 +19,14 @@ use Url;
 ///
 /// ```rust
 /// use url::Url;
-/// use std::error::Error;
-/// use std::fmt;
-///
-/// #[derive(Debug)]
-/// struct CannotBeBaseError;
-/// impl fmt::Display for CannotBeBaseError {
-///     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-///         f.write_str(self.description())
-///     }
-/// }
-/// impl Error for CannotBeBaseError {
-///     fn description(&self) -> &str { "cannot be a base" }
-/// }
+/// # use std::error::Error;
 ///
 /// # fn run() -> Result<(), Box<Error>> {
 /// let mut url = Url::parse("mailto:me@example.com")?;
 /// assert!(url.path_segments_mut().is_err());
 ///
 /// let mut url = Url::parse("http://example.net/foo/index.html")?;
-/// url.path_segments_mut().map_err(|_| CannotBeBaseError)?
+/// url.path_segments_mut().map_err(|_| "cannot be base")?
 ///     .pop().push("img").push("2/100%.png");
 /// assert_eq!(url.as_str(), "http://example.net/foo/img/2%2F100%25.png");
 /// # Ok(())
@@ -79,23 +67,11 @@ impl<'a> PathSegmentsMut<'a> {
     ///
     /// ```rust
     /// use url::Url;
-    /// use std::error::Error;
-    /// use std::fmt;
-    ///
-    /// #[derive(Debug)]
-    /// struct CannotBeBaseError;
-    /// impl fmt::Display for CannotBeBaseError {
-    ///     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    ///         f.write_str(self.description())
-    ///     }
-    /// }
-    /// impl Error for CannotBeBaseError {
-    ///     fn description(&self) -> &str { "cannot be a base" }
-    /// }
+    /// # use std::error::Error;
     ///
     /// # fn run() -> Result<(), Box<Error>> {
     /// let mut url = Url::parse("https://github.com/servo/rust-url/")?;
-    /// url.path_segments_mut().map_err(|_| CannotBeBaseError)?
+    /// url.path_segments_mut().map_err(|_| "cannot be base")?
     ///     .clear().push("logout");
     /// assert_eq!(url.as_str(), "https://github.com/logout");
     /// # Ok(())
@@ -117,29 +93,17 @@ impl<'a> PathSegmentsMut<'a> {
     /// Example:
     ///
     /// ```rust
-    /// # use url::{Url, ParseError};
-    /// use std::error::Error;
-    /// use std::fmt;
-    ///
-    /// #[derive(Debug)]
-    /// struct CannotBeBaseError;
-    /// impl fmt::Display for CannotBeBaseError {
-    ///     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    ///         f.write_str(self.description())
-    ///     }
-    /// }
-    /// impl Error for CannotBeBaseError {
-    ///     fn description(&self) -> &str { "cannot be a base" }
-    /// }
+    /// use url::Url;
+    /// # use std::error::Error;
     ///
     /// # fn run() -> Result<(), Box<Error>> {
     /// let mut url = Url::parse("https://github.com/servo/rust-url/")?;
-    /// url.path_segments_mut().map_err(|_| CannotBeBaseError)?
+    /// url.path_segments_mut().map_err(|_| "cannot be base")?
     ///     .push("pulls");
     /// assert_eq!(url.as_str(), "https://github.com/servo/rust-url//pulls");
     ///
     /// let mut url = Url::parse("https://github.com/servo/rust-url/")?;
-    /// url.path_segments_mut().map_err(|_| CannotBeBaseError)?
+    /// url.path_segments_mut().map_err(|_| "cannot be base")?
     ///     .pop_if_empty().push("pulls");
     /// assert_eq!(url.as_str(), "https://github.com/servo/rust-url/pulls");
     /// # Ok(())
@@ -194,26 +158,14 @@ impl<'a> PathSegmentsMut<'a> {
     ///
     /// ```rust
     /// use url::Url;
-    /// use std::error::Error;
-    /// use std::fmt;
-    ///
-    /// #[derive(Debug)]
-    /// struct CannotBeBaseError;
-    /// impl fmt::Display for CannotBeBaseError {
-    ///     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    ///         f.write_str(self.description())
-    ///     }
-    /// }
-    /// impl Error for CannotBeBaseError {
-    ///     fn description(&self) -> &str { "cannot be a base" }
-    /// }
+    /// # use std::error::Error;
     ///
     /// # fn run() -> Result<(), Box<Error>> {
     /// let mut url = Url::parse("https://github.com/")?;
     /// let org = "servo";
     /// let repo = "rust-url";
     /// let issue_number = "188";
-    /// url.path_segments_mut().map_err(|_| CannotBeBaseError)?
+    /// url.path_segments_mut().map_err(|_| "cannot be base")?
     ///     .extend(&[org, repo, "issues", issue_number]);
     /// assert_eq!(url.as_str(), "https://github.com/servo/rust-url/issues/188");
     /// # Ok(())
@@ -225,23 +177,11 @@ impl<'a> PathSegmentsMut<'a> {
     ///
     /// ```rust
     /// use url::Url;
-    /// use std::error::Error;
-    /// use std::fmt;
-    ///
-    /// #[derive(Debug)]
-    /// struct CannotBeBaseError;
-    /// impl fmt::Display for CannotBeBaseError {
-    ///     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    ///         f.write_str(self.description())
-    ///     }
-    /// }
-    /// impl Error for CannotBeBaseError {
-    ///     fn description(&self) -> &str { "cannot be a base" }
-    /// }
+    /// # use std::error::Error;
     ///
     /// # fn run() -> Result<(), Box<Error>> {
     /// let mut url = Url::parse("https://github.com/servo")?;
-    /// url.path_segments_mut().map_err(|_| CannotBeBaseError)?
+    /// url.path_segments_mut().map_err(|_| "cannot be base")?
     ///     .extend(&["..", "rust-url", ".", "pulls"]);
     /// assert_eq!(url.as_str(), "https://github.com/servo/rust-url/pulls");
     /// # Ok(())
