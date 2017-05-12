@@ -95,7 +95,7 @@ impl Debug for EncodingOverride {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "EncodingOverride {{ encoding: ")?;
         match self.encoding {
-            Some(_) => write!(f, "Some(EncodingOverride) }}"),
+            Some(e) => write!(f, "{} }}", e.name()),
             None => write!(f, "None }}")
         }
     }
