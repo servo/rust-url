@@ -58,7 +58,7 @@ pub trait EncodeSet: Clone {
 macro_rules! define_encode_set {
     ($(#[$attr: meta])* pub $name: ident = [$base_set: expr] | {$($ch: pat),*}) => {
         $(#[$attr])*
-        #[derive(Copy, Clone)]
+        #[derive(Copy, Clone, Debug)]
         #[allow(non_camel_case_types)]
         pub struct $name;
 
