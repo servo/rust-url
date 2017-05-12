@@ -870,9 +870,8 @@ impl Url {
     /// # use url::Url;
     /// # use std::net::TcpStream;
     /// # use std::io;
-    ///
     /// fn connect(url: &Url) -> io::Result<TcpStream> {
-    ///     TcpStream::connect(try!(url.with_default_port(default_port)))
+    ///     TcpStream::connect(url.with_default_port(default_port)?)
     /// }
     ///
     /// fn default_port(url: &Url) -> Result<u16, ()> {
@@ -925,17 +924,29 @@ impl Url {
     ///
     /// ```
     /// use url::Url;
-    /// # use url::ParseError;
+    /// use std::error::Error;
+    /// use std::fmt;
     ///
-    /// # fn run() -> Result<(), ParseError> {
+    /// #[derive(Debug)]
+    /// struct CannotBeBaseError;
+    /// impl fmt::Display for CannotBeBaseError {
+    ///     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    ///         f.write_str(self.description())
+    ///     }
+    /// }
+    /// impl Error for CannotBeBaseError {
+    ///     fn description(&self) -> &str { "cannot be a base" }
+    /// }
+    ///
+    /// # fn run() -> Result<(), Box<Error>> {
     /// let url = Url::parse("https://example.com/foo/bar")?;
-    /// let mut path_segments = url.path_segments().expect("not a cannot-be-a-base URL");
+    /// let mut path_segments = url.path_segments().ok_or_else(|| CannotBeBaseError)?;
     /// assert_eq!(path_segments.next(), Some("foo"));
     /// assert_eq!(path_segments.next(), Some("bar"));
     /// assert_eq!(path_segments.next(), None);
     ///
     /// let url = Url::parse("https://example.com")?;
-    /// let mut path_segments = url.path_segments().expect("not a cannot-be-a-base URL");
+    /// let mut path_segments = url.path_segments().ok_or_else(|| CannotBeBaseError)?;
     /// assert_eq!(path_segments.next(), Some(""));
     /// assert_eq!(path_segments.next(), None);
     ///
@@ -1160,15 +1171,27 @@ impl Url {
     ///
     /// ```
     /// use url::Url;
-    /// # use url::ParseError;
+    /// use std::error::Error;
+    /// use std::fmt;
     ///
-    /// # fn run() -> Result<(), ParseError> {
+    /// #[derive(Debug)]
+    /// struct CannotBeBaseError;
+    /// impl fmt::Display for CannotBeBaseError {
+    ///     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    ///         f.write_str(self.description())
+    ///     }
+    /// }
+    /// impl Error for CannotBeBaseError {
+    ///     fn description(&self) -> &str { "cannot be a base" }
+    /// }
+    ///
+    /// # fn run() -> Result<(), Box<Error>> {
     /// let mut url = Url::parse("ssh://example.net:2048/")?;
     ///
-    /// url.set_port(Some(4096)).expect("not a cannot-be-a-base URL");
+    /// url.set_port(Some(4096)).map_err(|_| CannotBeBaseError)?;
     /// assert_eq!(url.as_str(), "ssh://example.net:4096/");
     ///
-    /// url.set_port(None).expect("not a cannot-be-a-base URL");
+    /// url.set_port(None).map_err(|_| CannotBeBaseError)?;
     /// assert_eq!(url.as_str(), "ssh://example.net/");
     /// # Ok(())
     /// # }
