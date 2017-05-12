@@ -374,6 +374,13 @@ fn test_set_host() {
     assert_eq!(url.as_str(), "foobar:/hello");
 }
 
+#[test]
+// https://github.com/servo/rust-url/issues/166
+fn test_leading_dots() {
+    assert_eq!(Host::parse(".org").unwrap(), Host::Domain(".org".to_owned()));
+    assert_eq!(Url::parse("file://./foo").unwrap().domain(), Some("."));
+}
+
 // This is testing that the macro produces buildable code when invoked
 // inside both a module and a function
 #[test]
