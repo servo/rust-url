@@ -237,10 +237,12 @@ fn processing(domain: &str, flags: Flags, errors: &mut Vec<Error>) -> String {
     }
     let normalized: String = mapped.nfc().collect();
     let mut validated = String::new();
+    let mut first = true;
     for label in normalized.split('.') {
-        if validated.len() > 0 {
+        if !first {
             validated.push('.');
         }
+        first = false;
         if label.starts_with("xn--") {
             match punycode::decode_to_string(&label["xn--".len()..]) {
                 Some(decoded_label) => {
@@ -266,13 +268,14 @@ pub struct Flags {
 }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
-enum Error {
+pub enum Error {
     PunycodeError,
     ValidityCriteria,
     DissallowedByStd3AsciiRules,
     DissallowedMappedInStd3,
     DissallowedCharacter,
     TooLongForDns,
+    TooShortForDns,
 }
 
 /// Errors recorded during UTS #46 processing.
@@ -282,14 +285,22 @@ enum Error {
 #[derive(Debug)]
 pub struct Errors(Vec<Error>);
 
+impl PartialEq<Vec<Error>> for Errors {
+    fn eq(&self, other: &Vec<Error>) -> bool {
+        self.0 == *other
+    }
+}
+
 /// http://www.unicode.org/reports/tr46/#ToASCII
 pub fn to_ascii(domain: &str, flags: Flags) -> Result<String, Errors> {
     let mut errors = Vec::new();
     let mut result = String::new();
+    let mut first = true;
     for label in processing(domain, flags, &mut errors).split('.') {
-        if result.len() > 0 {
+        if !first {
             result.push('.');
         }
+        first = false;
         if label.is_ascii() {
             result.push_str(label);
         } else {
@@ -305,8 +316,10 @@ pub fn to_ascii(domain: &str, flags: Flags) -> Result<String, Errors> {
 
     if flags.verify_dns_length {
         let domain = if result.ends_with(".") { &result[..result.len()-1]  } else { &*result };
-        if domain.len() < 1 || domain.len() > 253 ||
-                domain.split('.').any(|label| label.len() < 1 || label.len() > 63) {
+        if domain.len() < 1 || domain.split('.').any(|label| label.len() < 1) {
+            errors.push(Error::TooShortForDns)
+        }
+        if domain.len() > 253 || domain.split('.').any(|label| label.len() > 63) {
             errors.push(Error::TooLongForDns)
         }
     }
