@@ -281,6 +281,17 @@ impl Url {
     }
 
     /// Return a default `ParseOptions` that can fully configure the URL parser.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use url::Url;
+    ///
+    /// let parse_options = Url::options();
+    /// let base = parse_options.parse("https://example.net/api/").unwrap();
+    /// let url = base.join("versions.json").unwrap();
+    /// assert_eq!(url.as_str(), "https://example.net/api/versions.json");
+    /// ```
     pub fn options<'a>() -> ParseOptions<'a> {
         ParseOptions {
             base_url: None,
@@ -813,6 +824,20 @@ impl Url {
     /// For cannot-be-a-base URLs, this is an arbitrary string that doesn’t start with '/'.
     /// For other URLs, this starts with a '/' slash
     /// and continues with slash-separated path segments.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use url::Url;
+    ///
+    /// let url = Url::parse("https://example.com/api/versions?page=2").unwrap();
+    ///
+    /// assert_eq!(url.path(), "/api/versions");
+    ///
+    /// let url = Url::parse("https://example.com").unwrap();
+    ///
+    /// assert_eq!(url.path(), "/");
+    /// ```
     pub fn path(&self) -> &str {
         match (self.query_start, self.fragment_start) {
             (None, None) => self.slice(self.path_start..),
@@ -861,6 +886,20 @@ impl Url {
     }
 
     /// Return this URL’s query string, if any, as a percent-encoded ASCII string.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use url::Url;
+    ///
+    /// let url = Url::parse("https://example.com/products?page=2").unwrap();
+    /// let query = url.query();
+    /// assert_eq!(query, Some("page=2"));
+    ///
+    /// let url = Url::parse("https://example.com/products").unwrap();
+    /// let query = url.query();
+    /// assert!(query.is_none());
+    /// ```
     pub fn query(&self) -> Option<&str> {
         match (self.query_start, self.fragment_start) {
             (None, _) => None,
@@ -877,6 +916,21 @@ impl Url {
 
     /// Parse the URL’s query string, if any, as `application/x-www-form-urlencoded`
     /// and return an iterator of (key, value) pairs.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::borrow::Cow;
+    ///
+    /// use url::Url;
+    ///
+    /// let url = Url::parse("https://example.com/products?page=2&sort=desc").unwrap();
+    /// let mut pairs = url.query_pairs();
+    ///
+    /// assert_eq!(pairs.count(), 2);
+    ///
+    /// assert_eq!(pairs.next(), Some((Cow::Borrowed("page"), Cow::Borrowed("2"))));
+    /// assert_eq!(pairs.next(), Some((Cow::Borrowed("sort"), Cow::Borrowed("desc"))));
     #[inline]
     pub fn query_pairs(&self) -> form_urlencoded::Parse {
         form_urlencoded::parse(self.query().unwrap_or("").as_bytes())
@@ -901,6 +955,23 @@ impl Url {
     }
 
     /// Change this URL’s fragment identifier.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("https://example.com/data.csv").unwrap();
+    /// {
+    ///     url.set_fragment(Some("cell=4,1-6,2"));
+    /// }
+    /// assert_eq!(url.fragment(), Some("cell=4,1-6,2"));
+    ///
+    /// {
+    ///     url.set_fragment(None);
+    /// }
+    /// assert!(url.fragment().is_none());
+    ///
     pub fn set_fragment(&mut self, fragment: Option<&str>) {
         // Remove any previous fragment
         if let Some(start) = self.fragment_start {
@@ -936,6 +1007,18 @@ impl Url {
     }
 
     /// Change this URL’s query string.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("https://example.com/products").unwrap();
+    /// {
+    ///     url.set_query(Some("page=2"));
+    /// }
+    /// assert_eq!(url.query(), Some("page=2"));
+    /// ```
     pub fn set_query(&mut self, query: Option<&str>) {
         let fragment = self.take_fragment();
 
@@ -1011,6 +1094,24 @@ impl Url {
     }
 
     /// Change this URL’s path.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("https://example.com").unwrap();
+    /// {
+    ///     url.set_path("api/comments");
+    /// }
+    /// assert_eq!(url.path(), "/api/comments");
+    ///
+    /// let mut url = Url::parse("https://example.com/api").unwrap();
+    /// {
+    ///     url.set_path("data/report.csv");
+    /// }
+    /// assert_eq!(url.path(), "/data/report.csv");
+    /// ```
     pub fn set_path(&mut self, mut path: &str) {
         let after_path = self.take_after_path();
         let old_after_path_pos = to_u32(self.serialization.len()).unwrap();
@@ -1255,6 +1356,22 @@ impl Url {
     /// If this URL is cannot-be-a-base, do nothing and return `Err`.
     ///
     /// Compared to `Url::set_host`, this skips the host parser.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("http://example.com").unwrap();
+    /// {
+    ///     url.set_ip_host("127.0.0.1".parse().unwrap());
+    /// }
+    /// assert_eq!(url.host_str(), Some("127.0.0.1"));
+    ///
+    /// let mut url = Url::parse("mailto:rms@example.com").unwrap();
+    /// let result = url.set_ip_host("127.0.0.1".parse().unwrap());
+    /// assert!(result.is_err());
+    /// ```
     pub fn set_ip_host(&mut self, address: IpAddr) -> Result<(), ()> {
         if self.cannot_be_a_base() {
             return Err(())
@@ -1271,6 +1388,25 @@ impl Url {
     /// Change this URL’s password.
     ///
     /// If this URL is cannot-be-a-base or does not have a host, do nothing and return `Err`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("mailto:rmz@example.com").unwrap();
+    /// let result = url.set_password(Some("secret_password"));
+    /// assert!(result.is_err());
+    ///
+    /// let mut url = Url::parse("ftp://user1:secret1@example.com").unwrap();
+    /// let result = url.set_password(Some("secret_password"));
+    /// assert_eq!(url.password(), Some("secret_password"));
+    ///
+    /// let mut url = Url::parse("ftp://user2:@example.com").unwrap();
+    /// let result = url.set_password(Some("secret2"));
+    /// assert!(result.is_ok());
+    /// assert_eq!(url.password(), Some("secret2"));
+    /// ```
     pub fn set_password(&mut self, password: Option<&str>) -> Result<(), ()> {
         if !self.has_host() {
             return Err(())
@@ -1320,6 +1456,20 @@ impl Url {
     /// Change this URL’s username.
     ///
     /// If this URL is cannot-be-a-base or does not have a host, do nothing and return `Err`.
+    /// # Examples
+    ///
+    /// ```rust
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("mailto:rmz@example.com").unwrap();
+    /// let result = url.set_username("user1");
+    /// assert!(result.is_err());
+    ///
+    /// let mut url = Url::parse("ftp://:secre1@example.com").unwrap();
+    /// let result = url.set_username("user1");
+    /// assert!(result.is_ok());
+    /// assert_eq!(url.username(), "user1");
+    /// ```
     pub fn set_username(&mut self, username: &str) -> Result<(), ()> {
         if !self.has_host() {
             return Err(())
