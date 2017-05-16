@@ -176,7 +176,7 @@ impl<S: AsRef<str>> fmt::Display for Host<S> {
 
 /// This mostly exists because coherence rules don’t allow us to implement
 /// `ToSocketAddrs for (Host<S>, u16)`.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct HostAndPort<S=String> {
     pub host: Host<S>,
     pub port: u16,
@@ -211,6 +211,16 @@ impl<S: AsRef<str>> ToSocketAddrs for HostAndPort<S> {
         }
     }
 }
+
+impl<S: AsRef<str>> fmt::Display for HostAndPort<S> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        use std::fmt::Write;
+        self.host.fmt(f)?;
+        f.write_char(':')?;
+        self.port.fmt(f)
+    }
+}
+
 
 /// Socket addresses for an URL.
 pub struct SocketAddrs {

@@ -14,7 +14,7 @@ extern crate url;
 use std::borrow::Cow;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::path::{Path, PathBuf};
-use url::{Host, Url, form_urlencoded};
+use url::{Host, HostAndPort, Url, form_urlencoded};
 
 #[test]
 fn size() {
@@ -195,6 +195,22 @@ fn host() {
     assert_host("http://2..2.3", Host::Domain("2..2.3"));
     assert!(Url::parse("http://42.0x1232131").is_err());
     assert!(Url::parse("http://192.168.0.257").is_err());
+}
+
+#[test]
+fn host_and_port() {
+    assert_eq!("www.mozilla.org:443", &format!("{}", HostAndPort {
+        host: Host::Domain("www.mozilla.org"),
+        port: 443
+    }));
+    assert_eq!("127.0.0.1:9000", &format!("{}", HostAndPort::<&str> {
+        host: Host::Ipv4(Ipv4Addr::new(127, 0, 0, 1)),
+        port: 9000
+    }));
+    assert_eq!("[::1]:80", &format!("{}", HostAndPort::<&str> {
+        host: Host::Ipv6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)),
+        port: 80
+    }));
 }
 
 #[test]
