@@ -47,6 +47,7 @@ assert!(issue_list_url.fragment() == None);
 assert!(!issue_list_url.cannot_be_a_base());
 # Ok(())
 # }
+# run().unwrap();
 ```
 
 Some URLs are said to be *cannot-be-a-base*:
@@ -68,6 +69,7 @@ assert!(data_url.query() == Some("World"));
 assert!(data_url.fragment() == Some(""));
 # Ok(())
 # }
+# run().unwrap();
 ```
 
 
@@ -99,6 +101,7 @@ let css_url = this_document.join("../main.css")?;
 assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css");
 # Ok(())
 # }
+# run().unwrap();
 */
 
 #[cfg(feature="rustc-serialize")] extern crate rustc_serialize;
@@ -235,6 +238,7 @@ impl Url {
     /// let url = Url::parse("https://example.net")?;
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     #[inline]
     pub fn parse(input: &str) -> Result<Url, ::ParseError> {
@@ -256,6 +260,7 @@ impl Url {
     ///                                  &[("lang", "rust"), ("browser", "servo")])?;
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     #[inline]
     pub fn parse_with_params<I, K, V>(input: &str, iter: I) -> Result<Url, ::ParseError>
@@ -295,6 +300,7 @@ impl Url {
     /// assert_eq!(url.as_str(), "https://example.net/a/b/c.png");
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     #[inline]
     pub fn join(&self, input: &str) -> Result<Url, ::ParseError> {
@@ -326,6 +332,7 @@ impl Url {
     /// assert_eq!(url.as_str(), url_str);
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     #[inline]
     pub fn as_str(&self) -> &str {
@@ -348,6 +355,7 @@ impl Url {
     /// assert_eq!(url.into_string(), url_str);
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     #[inline]
     pub fn into_string(self) -> String {
@@ -483,6 +491,7 @@ impl Url {
     ///                          21));
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     ///
     /// URL with `blob` scheme:
@@ -499,6 +508,7 @@ impl Url {
     ///                          443));
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     ///
     /// URL with `file` scheme:
@@ -515,6 +525,7 @@ impl Url {
     /// assert!(url.origin() != other_url.origin());
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     ///
     /// URL with other scheme:
@@ -528,6 +539,7 @@ impl Url {
     /// assert!(!url.origin().is_tuple());
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     #[inline]
     pub fn origin(&self) -> Origin {
@@ -547,6 +559,7 @@ impl Url {
     /// assert_eq!(url.scheme(), "file");
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     #[inline]
     pub fn scheme(&self) -> &str {
@@ -576,6 +589,7 @@ impl Url {
     /// assert!(!url.has_authority());
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     #[inline]
     pub fn has_authority(&self) -> bool {
@@ -606,6 +620,7 @@ impl Url {
     /// assert!(url.cannot_be_a_base());
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     #[inline]
     pub fn cannot_be_a_base(&self) -> bool {
@@ -632,6 +647,7 @@ impl Url {
     /// assert_eq!(url.username(), "");
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     pub fn username(&self) -> &str {
         if self.has_authority() {
@@ -663,6 +679,7 @@ impl Url {
     /// assert_eq!(url.password(), None);
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     pub fn password(&self) -> Option<&str> {
         // This ':' is not the one marking a port number since a host can not be empty.
@@ -694,6 +711,7 @@ impl Url {
     /// assert!(!url.has_host());
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     pub fn has_host(&self) -> bool {
         !matches!(self.host, HostInternal::None)
@@ -729,6 +747,7 @@ impl Url {
     /// assert_eq!(url.host_str(), None);
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     pub fn host_str(&self) -> Option<&str> {
         if self.has_host() {
@@ -766,6 +785,7 @@ impl Url {
     /// assert!(url.host().is_none());
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     pub fn host(&self) -> Option<Host<&str>> {
         match self.host {
@@ -795,6 +815,7 @@ impl Url {
     /// assert_eq!(url.domain(), Some("example.com"));
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     pub fn domain(&self) -> Option<&str> {
         match self.host {
@@ -819,6 +840,7 @@ impl Url {
     /// assert_eq!(url.port(), Some(22));
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     #[inline]
     pub fn port(&self) -> Option<u16> {
@@ -850,6 +872,7 @@ impl Url {
     /// assert_eq!(url.port_or_known_default(), Some(443));
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     #[inline]
     pub fn port_or_known_default(&self) -> Option<u16> {
@@ -942,6 +965,7 @@ impl Url {
     /// assert!(url.path_segments().is_none());
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     pub fn path_segments(&self) -> Option<str::Split<char>> {
         let path = self.path();
@@ -1072,6 +1096,7 @@ impl Url {
     ///            "https://example.net/?foo=bar+%26+baz&saisons=%C3%89t%C3%A9%2Bhiver#nav");
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     ///
     /// Note: `url.query_pairs_mut().clear();` is equivalent to `url.set_query(Some(""))`,
@@ -1171,6 +1196,7 @@ impl Url {
     /// assert_eq!(url.as_str(), "ssh://example.net/");
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     ///
     /// Cannot set port for cannot-be-a-base URLs:
@@ -1189,6 +1215,7 @@ impl Url {
     /// assert!(result.is_err());
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     pub fn set_port(&mut self, mut port: Option<u16>) -> Result<(), ()> {
         if !self.has_host() || self.scheme() == "file" {
@@ -1254,6 +1281,7 @@ impl Url {
     /// assert_eq!(url.as_str(), "https://rust-lang.org/");
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     ///
     /// Remove host:
@@ -1269,6 +1297,7 @@ impl Url {
     /// assert_eq!(url.as_str(), "foo:/");
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     ///
     /// Cannot remove host for 'special' schemes (e.g. `http`):
@@ -1284,6 +1313,7 @@ impl Url {
     /// assert_eq!(url.as_str(), "https://example.net/");
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     ///
     /// Cannot change or remove host for cannot-be-a-base URLs:
@@ -1304,6 +1334,7 @@ impl Url {
     /// assert_eq!(url.as_str(), "mailto:rms@example.net");
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     pub fn set_host(&mut self, host: Option<&str>) -> Result<(), ParseError> {
         if self.cannot_be_a_base() {
@@ -1507,6 +1538,7 @@ impl Url {
     /// assert!(result.is_ok());
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     ///
     ///
@@ -1523,6 +1555,7 @@ impl Url {
     /// assert!(result.is_err());
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     ///
     /// Cannot change URL’s scheme from `mailto` (cannot-be-a-base) to `https`:
@@ -1538,6 +1571,7 @@ impl Url {
     /// assert!(result.is_err());
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     pub fn set_scheme(&mut self, scheme: &str) -> Result<(), ()> {
         let mut parser = Parser::for_setter(String::new());
@@ -1590,6 +1624,7 @@ impl Url {
     /// assert!(url.is_err());
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// # }
     /// ```
     pub fn from_file_path<P: AsRef<Path>>(path: P) -> Result<Url, ()> {

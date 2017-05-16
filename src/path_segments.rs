@@ -31,6 +31,7 @@ use Url;
 /// assert_eq!(url.as_str(), "http://example.net/foo/img/2%2F100%25.png");
 /// # Ok(())
 /// # }
+/// # run().unwrap();
 /// ```
 pub struct PathSegmentsMut<'a> {
     url: &'a mut Url,
@@ -76,6 +77,7 @@ impl<'a> PathSegmentsMut<'a> {
     /// assert_eq!(url.as_str(), "https://github.com/logout");
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     pub fn clear(&mut self) -> &mut Self {
         self.url.serialization.truncate(self.after_first_slash);
@@ -108,6 +110,7 @@ impl<'a> PathSegmentsMut<'a> {
     /// assert_eq!(url.as_str(), "https://github.com/servo/rust-url/pulls");
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     pub fn pop_if_empty(&mut self) -> &mut Self {
         if self.url.serialization[self.after_first_slash..].ends_with('/') {
@@ -170,6 +173,7 @@ impl<'a> PathSegmentsMut<'a> {
     /// assert_eq!(url.as_str(), "https://github.com/servo/rust-url/issues/188");
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     ///
     /// In order to make sure that parsing the serialization of an URL gives the same URL,
@@ -186,6 +190,7 @@ impl<'a> PathSegmentsMut<'a> {
     /// assert_eq!(url.as_str(), "https://github.com/servo/rust-url/pulls");
     /// # Ok(())
     /// # }
+    /// # run().unwrap();
     /// ```
     pub fn extend<I>(&mut self, segments: I) -> &mut Self
     where I: IntoIterator, I::Item: AsRef<str> {
