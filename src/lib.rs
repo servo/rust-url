@@ -1368,6 +1368,7 @@ impl Url {
     /// Change this URL’s scheme.
     ///
     /// Do nothing and return `Err` if:
+    ///
     /// * The new scheme is not in `[a-zA-Z][a-zA-Z0-9+.-]+`
     /// * This URL is cannot-be-a-base and the new scheme is one of
     ///   `http`, `https`, `ws`, `wss`, `ftp`, or `gopher`
