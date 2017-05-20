@@ -209,7 +209,7 @@ impl<F: FnMut(char) -> bool> Pattern for F {
 impl<'i> Iterator for Input<'i> {
     type Item = char;
     fn next(&mut self) -> Option<char> {
-        self.chars.by_ref().filter(|&c| !matches!(c, '\t' | '\n' | '\r')).next()
+        self.chars.by_ref().find(|&c| !matches!(c, '\t' | '\n' | '\r'))
     }
 }
 
@@ -736,8 +736,8 @@ impl<'a> Parser<'a> {
         Ok((host_end, host.into(), port, remaining))
     }
 
-    pub fn parse_host<'i>(mut input: Input<'i>, scheme_type: SchemeType)
-                             -> ParseResult<(Host<String>, Input<'i>)> {
+    pub fn parse_host(mut input: Input, scheme_type: SchemeType)
+                             -> ParseResult<(Host<String>, Input)> {
         // Undo the Input abstraction here to avoid allocating in the common case
         // where the host part of the input does not contain any tab or newline
         let input_str = input.chars.as_str();
@@ -830,9 +830,9 @@ impl<'a> Parser<'a> {
         Ok((true, host, remaining))
     }
 
-    pub fn parse_port<'i, P>(mut input: Input<'i>, default_port: P,
+    pub fn parse_port<P>(mut input: Input, default_port: P,
                                 context: Context)
-                                -> ParseResult<(Option<u16>, Input<'i>)>
+                                -> ParseResult<(Option<u16>, Input)>
                                 where P: Fn() -> Option<u16> {
         let mut port: u32 = 0;
         let mut has_any_digit = false;
@@ -854,7 +854,7 @@ impl<'a> Parser<'a> {
         if !has_any_digit || opt_port == default_port() {
             opt_port = None;
         }
-        return Ok((opt_port, input))
+        Ok((opt_port, input))
     }
 
     pub fn parse_path_start<'i>(&mut self, scheme_type: SchemeType, has_host: &mut bool,
@@ -878,7 +878,7 @@ impl<'a> Parser<'a> {
                           path_start: usize, mut input: Input<'i>)
                           -> Input<'i> {
         // Relative path state
-        debug_assert!(self.serialization.ends_with("/"));
+        debug_assert!(self.serialization.ends_with('/'));
         loop {
             let segment_start = self.serialization.len();
             let mut ends_with_slash = false;
@@ -926,7 +926,7 @@ impl<'a> Parser<'a> {
                     debug_assert!(self.serialization.as_bytes()[segment_start - 1] == b'/');
                     self.serialization.truncate(segment_start - 1);  // Truncate "/.."
                     self.pop_path(scheme_type, path_start);
-                    if !self.serialization[path_start..].ends_with("/") {
+                    if !self.serialization[path_start..].ends_with('/') {
                         self.serialization.push('/')
                     }
                 },
@@ -1030,7 +1030,7 @@ impl<'a> Parser<'a> {
                 }
             }
             None => return Ok((None, None)),
-            _ => panic!("Programming error. parse_query_and_fragment() called without ? or # {:?}")
+            _ => panic!("Programming error. parse_query_and_fragment() called without ? or #")
         }
 
         let fragment_start = to_u32(self.serialization.len())?;
