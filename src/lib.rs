@@ -267,13 +267,17 @@ impl Url {
     /// ```rust
     /// use url::Url;
     ///
-    /// let base = Url::parse("https://example.net/a/b.html").unwrap();
-    /// let url = base.join("c.png").unwrap();
+    /// fn foo() -> Result<(), url::ParseError> {
+    /// let base = Url::parse("https://example.net/a/b.html")?;
+    /// let url = base.join("c.png")?;
     /// assert_eq!(url.as_str(), "https://example.net/a/c.png");  // Not /a/b.html/c.png
     ///
-    /// let base = Url::parse("https://example.net/a/b/").unwrap();
-    /// let url = base.join("c.png").unwrap();
+    /// let base = Url::parse("https://example.net/a/b/")?;
+    /// let url = base.join("c.png")?;
     /// assert_eq!(url.as_str(), "https://example.net/a/b/c.png");
+    ///
+    /// Ok(())
+    /// }
     /// ```
     #[inline]
     pub fn join(&self, input: &str) -> Result<Url, ::ParseError> {
