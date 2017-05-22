@@ -58,7 +58,7 @@ ipc::channel::<Serde<Url>>()
 extern crate serde;
 #[cfg(test)] #[macro_use] extern crate serde_derive;
 #[cfg(test)] extern crate serde_json;
-extern crate url;
+#[macro_use] extern crate url;
 
 use serde::{Deserialize, Serialize, Serializer, Deserializer};
 use std::cmp::PartialEq;
@@ -69,6 +69,10 @@ use std::ops::{Deref, DerefMut};
 use std::str;
 use url::{Url, Host};
 
+define_encode_set! {
+    /// This encode set is used in the URL parser for query strings.
+    pub QUERY_ENCODE_SET = [::url::percent_encoding::SIMPLE_ENCODE_SET] | {' ', '"', '#', '<', '>'}
+}
 /// Serialises `value` with a given serializer.
 ///
 /// This is useful to serialize `rust-url` types used in structure fields or
