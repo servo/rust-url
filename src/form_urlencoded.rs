@@ -121,7 +121,7 @@ fn decode(input: &[u8], encoding: EncodingOverride) -> Cow<str> {
 }
 
 /// Replace b'+' with b' '
-fn replace_plus<'a>(input: &'a [u8]) -> Cow<'a, [u8]> {
+fn replace_plus(input: &[u8]) -> Cow<[u8]> {
     match input.iter().position(|&b| b == b'+') {
         None => Cow::Borrowed(input),
         Some(first_position) => {
