@@ -372,3 +372,21 @@ fn define_encode_set_scopes() {
 
     m::test();
 }
+
+#[cfg(windows)]
+#[test]
+fn test_windows_unc_path() {
+    let url = Url::from_file_path(Path::new(r"\\host\share\path\file.txt")).unwrap();
+    assert_eq!(url.as_str(), "file://host/share/path/file.txt");
+
+    let path = url.to_file_path().unwrap();
+    assert_eq!(path.to_str(), Some(r"\\host\share\path\file.txt"));
+
+    // Another way to write these:
+    let url = Url::from_file_path(Path::new(r"\\?\UNC\host\share\path\file.txt")).unwrap();
+    assert_eq!(url.as_str(), "file://host/share/path/file.txt");
+
+    // Paths starting with "\\.\" (Local Device Paths) are intentionally not supported.
+    let url = Url::from_file_path(Path::new(r"\\.\some\path\file.txt"));
+    assert!(url.is_err());
+}
