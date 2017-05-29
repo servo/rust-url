@@ -685,7 +685,7 @@ impl<'a> Parser<'a> {
                     }
                     last_at = Some((char_count, remaining.clone()))
                 },
-                '/' | '?' | '#' => break,
+                '/' => break,
                 '\\' if scheme_type.is_special() => break,
                 _ => (),
             }
