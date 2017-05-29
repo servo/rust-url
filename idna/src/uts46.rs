@@ -12,11 +12,15 @@
 use self::Mapping::*;
 use punycode;
 use std::ascii::AsciiExt;
+use unicode_bidi::{BidiClass, bidi_class};
 use unicode_normalization::UnicodeNormalization;
 use unicode_normalization::char::is_combining_mark;
-use unicode_bidi::{BidiClass, bidi_class};
 
 include!("uts46_mapping_table.rs");
+
+
+pub static PUNYCODE_PREFIX: &'static str = "xn--";
+
 
 #[derive(Debug)]
 struct StringTableSlice {
@@ -97,138 +101,177 @@ fn map_char(codepoint: char, flags: Flags, output: &mut String, errors: &mut Vec
 }
 
 // http://tools.ietf.org/html/rfc5893#section-2
-fn passes_bidi(label: &str, transitional_processing: bool) -> bool {
+fn passes_bidi(label: &str, is_bidi_domain: bool) -> bool {
+    // Rule 0: Bidi Rules apply to Bidi Domain Names: a name with at least one RTL label.  A label
+    // is RTL if it contains at least one character of bidi class R, AL or AN.
+    if !is_bidi_domain {
+        return true;
+    }
+
     let mut chars = label.chars();
-    let class = match chars.next() {
+    let first_char_class = match chars.next() {
         Some(c) => bidi_class(c),
         None => return true, // empty string
     };
 
-    if class == BidiClass::L
-       || (class == BidiClass::ON && transitional_processing) // starts with \u200D
-       || (class == BidiClass::ES && transitional_processing) // hack: 1.35.+33.49
-       || class == BidiClass::EN // hack: starts with number 0à.\u05D0
-    {
+    match first_char_class {
         // LTR label
-        // Rule 5
-        loop {
-            match chars.next() {
-                Some(c) => {
-                    let class = bidi_class(c);
-                    if !matches!(class,
-                                 BidiClass::L | BidiClass::EN |
-                                 BidiClass::ES | BidiClass::CS |
-                                 BidiClass::ET | BidiClass::ON |
-                                 BidiClass::BN | BidiClass::NSM
-                     ) {
-                        return false;
-                    }
-                },
-                None => { break; },
+        BidiClass::L => {
+            // Rule 5
+            loop {
+                match chars.next() {
+                    Some(c) => {
+                        if !matches!(bidi_class(c),
+                                     BidiClass::L | BidiClass::EN |
+                                     BidiClass::ES | BidiClass::CS |
+                                     BidiClass::ET | BidiClass::ON |
+                                     BidiClass::BN | BidiClass::NSM
+                                    ) {
+                            return false;
+                        }
+                    },
+                    None => { break; },
+                }
             }
-        }
 
-        // Rule 6
-        // must end in L or EN followed by 0 or more NSM
-        let mut rev_chars = label.chars().rev();
-        let mut last_non_nsm = rev_chars.next();
-        loop {
+            // Rule 6
+            // must end in L or EN followed by 0 or more NSM
+            let mut rev_chars = label.chars().rev();
+            let mut last_non_nsm = rev_chars.next();
+            loop {
+                match last_non_nsm {
+                    Some(c) if bidi_class(c) == BidiClass::NSM => {
+                        last_non_nsm = rev_chars.next();
+                        continue;
+                    }
+                    _ => { break; },
+                }
+            }
             match last_non_nsm {
-                Some(c) if bidi_class(c) == BidiClass::NSM => {
-                    last_non_nsm = rev_chars.next();
-                    continue;
-                }
-                _ => { break; },
-            }
-        }
-        match last_non_nsm {
-            Some(c) if bidi_class(c) == BidiClass::L
+                Some(c) if bidi_class(c) == BidiClass::L
                     || bidi_class(c) == BidiClass::EN => {},
-            Some(_) => { return false; },
-            _ => {}
-        }
+                Some(_) => { return false; },
+                _ => {}
+            }
 
-    } else if class == BidiClass::R || class == BidiClass::AL {
+        } 
+
         // RTL label
-        let mut found_en = false;
-        let mut found_an = false;
+        BidiClass::R | BidiClass::AL => {
+            let mut found_en = false;
+            let mut found_an = false;
 
-        // Rule 2
-        loop {
-            match chars.next() {
-                Some(c) => {
-                    let char_class = bidi_class(c);
+            // Rule 2
+            loop {
+                match chars.next() {
+                    Some(c) => {
+                        let char_class = bidi_class(c);
 
-                    if char_class == BidiClass::EN {
-                        found_en = true;
-                    }
-                    if char_class == BidiClass::AN {
-                        found_an = true;
-                    }
+                        if char_class == BidiClass::EN {
+                            found_en = true;
+                        }
+                        if char_class == BidiClass::AN {
+                            found_an = true;
+                        }
 
-                    if !matches!(char_class, BidiClass::R | BidiClass::AL |
-                                             BidiClass::AN | BidiClass::EN |
-                                             BidiClass::ES | BidiClass::CS |
-                                             BidiClass::ET | BidiClass::ON |
-                                             BidiClass::BN | BidiClass::NSM) {
-                        return false;
-                    }
-                },
-                None => { break; },
-            }
-        }
-        // Rule 3
-        let mut rev_chars = label.chars().rev();
-        let mut last = rev_chars.next();
-        loop { // must end in L or EN followed by 0 or more NSM
-            match last {
-                Some(c) if bidi_class(c) == BidiClass::NSM => {
-                    last = rev_chars.next();
-                    continue;
+                        if !matches!(char_class, BidiClass::R | BidiClass::AL |
+                                     BidiClass::AN | BidiClass::EN |
+                                     BidiClass::ES | BidiClass::CS |
+                                     BidiClass::ET | BidiClass::ON |
+                                     BidiClass::BN | BidiClass::NSM) {
+                            return false;
+                        }
+                    },
+                    None => { break; },
                 }
-                _ => { break; },
+            }
+            // Rule 3
+            let mut rev_chars = label.chars().rev();
+            let mut last = rev_chars.next();
+            loop { // must end in L or EN followed by 0 or more NSM
+                match last {
+                    Some(c) if bidi_class(c) == BidiClass::NSM => {
+                        last = rev_chars.next();
+                        continue;
+                    }
+                    _ => { break; },
+                }
+            }
+            match last {
+                Some(c) if matches!(bidi_class(c), BidiClass::R | BidiClass::AL |
+                                    BidiClass::EN | BidiClass::AN) => {},
+                _ => { return false; }
+            }
+
+            // Rule 4
+            if found_an && found_en {
+                return false;
             }
         }
-        match last {
-            Some(c) if matches!(bidi_class(c), BidiClass::R | BidiClass::AL |
-                                               BidiClass::EN | BidiClass::AN) => {},
-            _ => { return false; }
-        }
 
-        // Rule 4
-        if found_an && found_en {
+        // Rule 1: Should start with L or R/AL
+        _ => {
             return false;
         }
-    } else {
-        // Rule 2: Should start with L or R/AL
-        return false;
     }
 
     return true;
 }
 
 /// http://www.unicode.org/reports/tr46/#Validity_Criteria
-fn validate(label: &str, flags: Flags, errors: &mut Vec<Error>) {
-    if label.nfc().ne(label.chars()) {
+fn validate(label: &str, is_bidi_domain: bool, flags: Flags, errors: &mut Vec<Error>) {
+    let first_char = label.chars().next();
+    if first_char == None {
+        // Empty string, pass
+    }
+
+    // V1: Must be in NFC form.
+    else if label.nfc().ne(label.chars()) {
         errors.push(Error::ValidityCriteria);
     }
 
-    // Can not contain '.' since the input is from .split('.')
-    // Spec says that the label must not contain a HYPHEN-MINUS character in both the
+    // V2: No U+002D HYPHEN-MINUS in both third and fourth positions.
+    //
+    // NOTE: Spec says that the label must not contain a HYPHEN-MINUS character in both the
     // third and fourth positions. But nobody follows this criteria. See the spec issue below:
     // https://github.com/whatwg/url/issues/53
-    if label.starts_with("-")
-        || label.ends_with("-")
-        || label.chars().next().map_or(false, is_combining_mark)
-        || label.chars().any(|c| match *find_char(c) {
-            Mapping::Valid => false,
-            Mapping::Deviation(_) => flags.transitional_processing,
-            Mapping::DisallowedStd3Valid => flags.use_std3_ascii_rules,
-            _ => true,
-        })
-        || !passes_bidi(label, flags.transitional_processing)
+    //
+    // TODO: Add *CheckHyphens* flag.
+
+    // V3: neither begin nor end with a U+002D HYPHEN-MINUS
+    else if label.starts_with("-") || label.ends_with("-") {
+        errors.push(Error::ValidityCriteria);
+    }
+
+    // V4: not contain a U+002E FULL STOP
+    //
+    // Here, label can't contain '.' since the input is from .split('.')
+
+    // V5: not begin with a GC=Mark
+    else if is_combining_mark(first_char.unwrap()) {
+        errors.push(Error::ValidityCriteria);
+    }
+
+    // V6: Check against Mapping Table
+    else if label.chars().any(|c| match *find_char(c) {
+        Mapping::Valid => false,
+        Mapping::Deviation(_) => flags.transitional_processing,
+        Mapping::DisallowedStd3Valid => flags.use_std3_ascii_rules,
+        _ => true,
+    }) {
+        errors.push(Error::ValidityCriteria);
+    }
+
+    // V7: ContextJ rules
+    //
+    // TODO: Implement rules and add *CheckJoiners* flag.
+
+    // V8: Bidi rules
+    //
+    // TODO: Add *CheckBidi* flag
+    else if !passes_bidi(label, is_bidi_domain)
     {
-        errors.push(Error::ValidityCriteria)
+        errors.push(Error::ValidityCriteria);
     }
 }
 
@@ -239,6 +282,33 @@ fn processing(domain: &str, flags: Flags, errors: &mut Vec<Error>) -> String {
         map_char(c, flags, &mut mapped, errors)
     }
     let normalized: String = mapped.nfc().collect();
+
+    // Find out if it's a Bidi Domain Name
+    //
+    // First, check for literal bidi chars
+    let mut is_bidi_domain = domain.chars().any(|c|
+        matches!(bidi_class(c), BidiClass::R | BidiClass::AL | BidiClass::AN)
+    );
+    if !is_bidi_domain {
+        // Then check for punycode-encoded bidi chars
+        for label in normalized.split('.') {
+            if label.starts_with(PUNYCODE_PREFIX) {
+                match punycode::decode_to_string(&label[PUNYCODE_PREFIX.len()..]) {
+                    Some(decoded_label) => {
+                        if decoded_label.chars().any(|c|
+                            matches!(bidi_class(c), BidiClass::R | BidiClass::AL | BidiClass::AN)
+                        ) {
+                            is_bidi_domain = true;
+                        }
+                    }
+                    None => {
+                        is_bidi_domain = true;
+                    }
+                }
+            }
+        }
+    }
+
     let mut validated = String::new();
     let mut first = true;
     for label in normalized.split('.') {
@@ -246,17 +316,17 @@ fn processing(domain: &str, flags: Flags, errors: &mut Vec<Error>) -> String {
             validated.push('.');
         }
         first = false;
-        if label.starts_with("xn--") {
-            match punycode::decode_to_string(&label["xn--".len()..]) {
+        if label.starts_with(PUNYCODE_PREFIX) {
+            match punycode::decode_to_string(&label[PUNYCODE_PREFIX.len()..]) {
                 Some(decoded_label) => {
                     let flags = Flags { transitional_processing: false, ..flags };
-                    validate(&decoded_label, flags, errors);
+                    validate(&decoded_label, is_bidi_domain, flags, errors);
                     validated.push_str(&decoded_label)
                 }
                 None => errors.push(Error::PunycodeError)
             }
         } else {
-            validate(label, flags, errors);
+            validate(label, is_bidi_domain, flags, errors);
             validated.push_str(label)
         }
     }
@@ -303,7 +373,7 @@ pub fn to_ascii(domain: &str, flags: Flags) -> Result<String, Errors> {
         } else {
             match punycode::encode_str(label) {
                 Some(x) => {
-                    result.push_str("xn--");
+                    result.push_str(PUNYCODE_PREFIX);
                     result.push_str(&x);
                 },
                 None => errors.push(Error::PunycodeError)
@@ -340,4 +410,43 @@ pub fn to_unicode(domain: &str, mut flags: Flags) -> (String, Result<(), Errors>
         Err(Errors(errors))
     };
     (domain, errors)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn _to_ascii(domain: &str) -> Result<String, Errors> {
+        to_ascii(domain, Flags {
+            transitional_processing: false,
+            use_std3_ascii_rules: true,
+            verify_dns_length: true,
+        })
+    }
+
+    #[test]
+    fn test_v5() {
+        // IdnaTest:784 蔏｡𑰺
+        assert!(is_combining_mark('\u{11C3A}'));
+        assert!(_to_ascii("\u{11C3A}").is_err());
+        assert!(_to_ascii("\u{850f}.\u{11C3A}").is_err());
+        assert!(_to_ascii("\u{850f}\u{ff61}\u{11C3A}").is_err());
+    }
+
+    #[test]
+    fn test_v8_bidi_rules() {
+        assert_eq!(_to_ascii("abc").unwrap(), "abc");
+        assert_eq!(_to_ascii("123").unwrap(), "123");
+        assert_eq!(_to_ascii("אבּג").unwrap(), "xn--kdb3bdf");
+        assert_eq!(_to_ascii("ابج").unwrap(), "xn--mgbcm");
+        assert_eq!(_to_ascii("abc.ابج").unwrap(), "abc.xn--mgbcm");
+        assert_eq!(_to_ascii("אבּג.ابج").unwrap(), "xn--kdb3bdf.xn--mgbcm");
+
+        // Bidi domain names cannot start with digits
+        assert!(_to_ascii("0a.\u{05D0}").is_err());
+        assert!(_to_ascii("0à.\u{05D0}").is_err());
+
+        // Bidi chars may be punycode-encoded
+        assert!(_to_ascii("xn--0ca24w").is_err());
+    }
 }
