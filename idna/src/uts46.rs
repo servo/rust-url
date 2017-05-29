@@ -108,16 +108,19 @@ fn passes_bidi(label: &str, transitional_processing: bool) -> bool {
        || (class == BidiClass::ON && transitional_processing) // starts with \u200D
        || (class == BidiClass::ES && transitional_processing) // hack: 1.35.+33.49
        || class == BidiClass::EN // hack: starts with number 0à.\u05D0
-    { // LTR
+    {
+        // LTR label
         // Rule 5
         loop {
             match chars.next() {
                 Some(c) => {
-                    let c = bidi_class(c);
-                    if !matches!(c, BidiClass::L | BidiClass::EN |
-                                    BidiClass::ES | BidiClass::CS |
-                                    BidiClass::ET | BidiClass::ON |
-                                    BidiClass::BN | BidiClass::NSM) {
+                    let class = bidi_class(c);
+                    if !matches!(class,
+                                 BidiClass::L | BidiClass::EN |
+                                 BidiClass::ES | BidiClass::CS |
+                                 BidiClass::ET | BidiClass::ON |
+                                 BidiClass::BN | BidiClass::NSM
+                     ) {
                         return false;
                     }
                 },
@@ -126,27 +129,27 @@ fn passes_bidi(label: &str, transitional_processing: bool) -> bool {
         }
 
         // Rule 6
+        // must end in L or EN followed by 0 or more NSM
         let mut rev_chars = label.chars().rev();
-        let mut last = rev_chars.next();
-        loop { // must end in L or EN followed by 0 or more NSM
-            match last {
+        let mut last_non_nsm = rev_chars.next();
+        loop {
+            match last_non_nsm {
                 Some(c) if bidi_class(c) == BidiClass::NSM => {
-                    last = rev_chars.next();
+                    last_non_nsm = rev_chars.next();
                     continue;
                 }
                 _ => { break; },
             }
         }
+        match last_non_nsm {
+            Some(c) if bidi_class(c) == BidiClass::L
+                    || bidi_class(c) == BidiClass::EN => {},
+            Some(_) => { return false; },
+            _ => {}
+        }
 
-        // TODO: does not pass for àˇ.\u05D0
-        // match last {
-        //     Some(c) if bidi_class(c) == BidiClass::L
-        //             || bidi_class(c) == BidiClass::EN => {},
-        //     Some(c) => { return false; },
-        //     _ => {}
-        // }
-
-    } else if class == BidiClass::R || class == BidiClass::AL { // RTL
+    } else if class == BidiClass::R || class == BidiClass::AL {
+        // RTL label
         let mut found_en = false;
         let mut found_an = false;
 
