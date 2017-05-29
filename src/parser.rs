@@ -16,7 +16,7 @@ use encoding::EncodingOverride;
 use host::{Host, HostInternal};
 use percent_encoding::{
     utf8_percent_encode, percent_encode,
-    SIMPLE_ENCODE_SET, DEFAULT_ENCODE_SET, USERINFO_ENCODE_SET, QUERY_ENCODE_SET,
+    SIMPLE_ENCODE_SET, DEFAULT_ENCODE_SET, QUERY_ENCODE_SET,
     PATH_SEGMENT_ENCODE_SET
 };
 
@@ -685,7 +685,7 @@ impl<'a> Parser<'a> {
                     }
                     last_at = Some((char_count, remaining.clone()))
                 },
-                '/' | '?' | '#' => break,
+                '/' => break,
                 '\\' if scheme_type.is_special() => break,
                 _ => (),
             }
@@ -707,7 +707,7 @@ impl<'a> Parser<'a> {
                 self.serialization.push(':');
             } else {
                 self.check_url_code_point(c, &input);
-                self.serialization.extend(utf8_percent_encode(utf8_c, USERINFO_ENCODE_SET));
+                self.serialization.extend((*utf8_c).chars().last());
             }
         }
         let username_end = match username_end {
