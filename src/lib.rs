@@ -112,6 +112,7 @@ assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css");
 #[cfg(feature="heapsize")] #[macro_use] extern crate heapsize;
 
 pub extern crate idna;
+pub extern crate percent_encoding;
 
 use encoding::EncodingOverride;
 #[cfg(feature = "heapsize")] use heapsize::HeapSizeOf;
@@ -145,7 +146,6 @@ mod parser;
 mod slicing;
 
 pub mod form_urlencoded;
-pub mod percent_encoding;
 pub mod quirks;
 
 /// A parsed URL record.
@@ -2101,5 +2101,50 @@ pub struct UrlQuery<'a> {
 impl<'a> Drop for UrlQuery<'a> {
     fn drop(&mut self) {
         self.url.restore_already_parsed_fragment(self.fragment.take())
+    }
+}
+
+
+/// Define a new struct
+/// that implements the [`EncodeSet`](percent_encoding/trait.EncodeSet.html) trait,
+/// for use in [`percent_decode()`](percent_encoding/fn.percent_encode.html)
+/// and related functions.
+///
+/// Parameters are characters to include in the set in addition to those of the base set.
+/// See [encode sets specification](http://url.spec.whatwg.org/#simple-encode-set).
+///
+/// Example
+/// =======
+///
+/// ```rust
+/// #[macro_use] extern crate url;
+/// use url::percent_encoding::{utf8_percent_encode, SIMPLE_ENCODE_SET};
+/// define_encode_set! {
+///     /// This encode set is used in the URL parser for query strings.
+///     pub QUERY_ENCODE_SET = [SIMPLE_ENCODE_SET] | {' ', '"', '#', '<', '>'}
+/// }
+/// # fn main() {
+/// assert_eq!(utf8_percent_encode("foo bar", QUERY_ENCODE_SET).collect::<String>(), "foo%20bar");
+/// # }
+/// ```
+#[macro_export]
+macro_rules! define_encode_set {
+    ($(#[$attr: meta])* pub $name: ident = [$base_set: expr] | {$($ch: pat),*}) => {
+        $(#[$attr])*
+        #[derive(Copy, Clone)]
+        #[allow(non_camel_case_types)]
+        pub struct $name;
+
+        impl $crate::percent_encoding::EncodeSet for $name {
+            #[inline]
+            fn contains(&self, byte: u8) -> bool {
+                match byte as char {
+                    $(
+                        $ch => true,
+                    )*
+                    _ => $base_set.contains(byte)
+                }
+            }
+        }
     }
 }
