@@ -18,7 +18,7 @@ travis-ci = { repository = "servo/rust-url" }
 appveyor = { repository = "servo/rust-url" }
 
 [workspace]
-members = [".", "idna", "url_serde"]
+members = [".", "idna", "percent_encoding", "url_serde"]
 
 [[test]]
 name = "unit"
@@ -44,5 +44,6 @@ encoding = {version = "0.2", optional = true}
 heapsize = {version = ">=0.1.1, <0.4", optional = true}
 idna = { version = "0.1.0", path = "./idna" }
 matches = "0.1"
+percent_encoding = { version = "1.0.0", path = "./percent_encoding" }
 rustc-serialize = {version = "0.3", optional = true}
 serde = {version = ">=0.6.1, <0.9", optional = true}
