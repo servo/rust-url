@@ -372,3 +372,45 @@ fn define_encode_set_scopes() {
 
     m::test();
 }
+
+#[test]
+/// https://github.com/servo/rust-url/issues/302
+fn test_origin_hash() {
+    use std::hash::{Hash,Hasher};
+    use std::collections::hash_map::DefaultHasher;
+
+    fn hash<T: Hash>(value: &T) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        value.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    let origin = &Url::parse("http://example.net/").unwrap().origin();
+
+    let origins_to_compare = [
+        Url::parse("http://example.net:80/").unwrap().origin(),
+        Url::parse("http://example.net:81/").unwrap().origin(),
+        Url::parse("http://example.net").unwrap().origin(),
+        Url::parse("http://example.net/hello").unwrap().origin(),
+        Url::parse("https://example.net").unwrap().origin(),
+        Url::parse("ftp://example.net").unwrap().origin(),
+        Url::parse("file://example.net").unwrap().origin(),
+        Url::parse("http://user@example.net/").unwrap().origin(),
+        Url::parse("http://user:pass@example.net/").unwrap().origin(),
+    ];
+
+    for origin_to_compare in &origins_to_compare {
+        if origin == origin_to_compare {
+            assert_eq!(hash(origin), hash(origin_to_compare));
+        } else {
+            assert_ne!(hash(origin), hash(origin_to_compare));
+        }
+    }
+
+    let opaque_origin = Url::parse("file://example.net").unwrap().origin();
+    let same_opaque_origin = Url::parse("file://example.net").unwrap().origin();
+    let other_opaque_origin = Url::parse("file://other").unwrap().origin();
+
+    assert_ne!(hash(&opaque_origin), hash(&same_opaque_origin));
+    assert_ne!(hash(&opaque_origin), hash(&other_opaque_origin));
+}
