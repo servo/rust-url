@@ -14,7 +14,7 @@ extern crate url;
 use std::borrow::Cow;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::path::{Path, PathBuf};
-use url::{Host, Url, form_urlencoded};
+use url::{Host, Url, form_urlencoded, HostAndPort, ParseError};
 
 #[test]
 fn size() {
@@ -253,6 +253,43 @@ fn test_form_serialize() {
         .append_pair("foo", "#")
         .finish();
     assert_eq!(encoded, "foo=%C3%A9%26&bar=&foo=%23");
+}
+
+#[test]
+fn test_hostandport_from_str() {
+    use std::str::FromStr;
+    let cases: Vec<(&str, HostAndPort<_>)> = vec![
+        ("localhost:1234", HostAndPort { host: Host::Domain("localhost"), port: 1234 }),
+        ("192.168.0.1:54321", HostAndPort {
+            host: Host::Ipv4(Ipv4Addr::new(192, 168, 0, 1)),
+            port: 54321,
+        }),
+        ("[::1]:9999", HostAndPort {
+            host: Host::Ipv6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)),
+            port: 9999,
+        }),
+        (":0", HostAndPort {
+            host: Host::Domain(""),
+            port: 0,
+        }),
+    ];
+
+    for (s, expected_result) in cases {
+        let result: HostAndPort = s.parse().unwrap();
+        assert_eq!(result, expected_result.to_owned());
+    }
+
+    let error_cases: Vec<(&str, ParseError)> = vec![
+        ("localhost", ParseError::HostAndPortWithoutPort),
+        ("localhost:", ParseError::InvalidPort),
+        ("hello:world", ParseError::InvalidPort),
+        ("hello::8", ParseError::InvalidDomainCharacter),
+    ];
+
+    for (s, expected_error) in error_cases {
+        let error = HostAndPort::from_str(s).unwrap_err();
+        assert_eq!(error, expected_error);
+    }
 }
 
 #[test]
