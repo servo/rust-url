@@ -882,7 +882,7 @@ impl Url {
         form_urlencoded::parse(self.query().unwrap_or("").as_bytes())
     }
 
-    /// Return this URL’s fragment identifier, if any.
+    /// Return this URL’s fragment identifier (the portion of the URL after the #), if any.
     ///
     /// **Note:** the parser did *not* percent-encode this component,
     /// but the input may have been percent-encoded already.
