@@ -84,6 +84,16 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
                 return;
             }
 
+            if let Err(ref errors) = result {
+                if errors.eq(&vec![uts46::Error::TooShortForDns]) {
+                    // Conformant implementations may produce error where test file has strings.
+                    // Test file drop all leading dots (leading empty labels), in contrast to spec.
+                    // So, we allo TooShortForDns failers on test cases.
+                    // https://github.com/servo/rust-url/issues/166
+                    return;
+                }
+            }
+
             assert!(result.is_ok(), "Couldn't parse {} | original: {} | error: {:?}",
                     source, original, result.err());
             let output = result.ok().unwrap();
