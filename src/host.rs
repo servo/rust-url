@@ -212,6 +212,14 @@ impl<S: AsRef<str>> ToSocketAddrs for HostAndPort<S> {
     }
 }
 
+impl<S: AsRef<str>> fmt::Display for HostAndPort<S> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        self.host.fmt(f)?;
+        f.write_str(":")?;
+        self.port.fmt(f)
+    }
+}
+
 /// Socket addresses for an URL.
 pub struct SocketAddrs {
     state: SocketAddrsState
