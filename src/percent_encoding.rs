@@ -77,6 +77,9 @@ macro_rules! define_encode_set {
 }
 
 /// This encode set is used for the path of cannot-be-a-base URLs.
+/// Contains all of the ASCII control character range, DEL and the 8-bit range outside of ASCII –
+/// that is, all byte values outsife of ASCII and all graphically unrepresentatble characters inside
+/// of ASCII.
 #[derive(Copy, Clone)]
 #[allow(non_camel_case_types)]
 pub struct SIMPLE_ENCODE_SET;
@@ -90,23 +93,48 @@ impl EncodeSet for SIMPLE_ENCODE_SET {
 
 define_encode_set! {
     /// This encode set is used in the URL parser for query strings.
+    /// Contains the `SIMPLE_ENCODE_SET` and additionally characters SPACE, `"`, `#`, `<` and `>`.
     pub QUERY_ENCODE_SET = [SIMPLE_ENCODE_SET] | {' ', '"', '#', '<', '>'}
 }
 
 define_encode_set! {
     /// This encode set is used for path components.
+    /// Contains the `QUERY_ENCODE_SET` and additionally characters `` ` ``, `?`, `{` and `}`.
     pub DEFAULT_ENCODE_SET = [QUERY_ENCODE_SET] | {'`', '?', '{', '}'}
 }
 
 define_encode_set! {
-    /// This encode set is used for on '/'-separated path segment
+    /// This encode set is used for on `/`-separated path segment
+    /// Contains the `DEFAULT_ENCODE_SET` and additionally characters `%`, `/`.
     pub PATH_SEGMENT_ENCODE_SET = [DEFAULT_ENCODE_SET] | {'%', '/'}
 }
 
 define_encode_set! {
     /// This encode set is used for username and password.
+    /// Contains the `DEFAULT_ENCODE_SET` and additionally characters `/`, `:`, `;`, `=`, `@`, `[`,
+    /// `\`, `]`, `^` and `|`. Unlike `PATH_SEGMENT_ENCODE_SET`, doesn't contain character `%`.
     pub USERINFO_ENCODE_SET = [DEFAULT_ENCODE_SET] | {
         '/', ':', ';', '=', '@', '[', '\\', ']', '^', '|'
+    }
+}
+
+define_encode_set! {
+    /// This encode set encodes all the reserved URL delimiters defined in
+    /// [RFC3986](https://tools.ietf.org/html/rfc3986#section-2.2). Contains the `SIMPLE_ENCODE_SET`
+    /// and additionally characters `:`, `/`, `?`, `#`, `[`, `]`, `@`, `!`, `$`, `&`, `` ` ``, `(`,
+    /// `)`, `*`, `+`, `,`, `;`, `=`
+    pub RESERVED_ENCODE_SET = [SIMPLE_ENCODE_SET] | {
+        ':', '/', '?', '#', '[', ']', '@', '!', '$', '&', '\'', '(', ')', '*', '+', ',', ';', '='
+    }
+}
+
+define_encode_set! {
+    /// This encode set encodes all characters expect the unreserved characters defined in
+    /// [RFC3986](https://tools.ietf.org/html/rfc3986#section-2.3). Contains all expect characters
+    /// expect alphanumeric characters, `-`, `.`, `_` and `~`.
+    pub STRICT_ENCODE_SET = [SIMPLE_ENCODE_SET] | {
+        ' ', '!', '"', '#', '$', '%', '&', '\'', '(', ')', '*', '+', ',', '/', ':', ';', '<', '=',
+        '>', '?', '@', '[', '\\', ']', '^', '`', '{', '|', '}'
     }
 }
 
