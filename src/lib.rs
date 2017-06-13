@@ -26,10 +26,11 @@ Let’s parse a valid URL and look at its components.
 
 ```
 use url::{Url, Host};
-
+# use url::ParseError;
+# fn run() -> Result<(), ParseError> {
 let issue_list_url = Url::parse(
     "https://github.com/rust-lang/rust/issues?labels=E-easy&state=open"
-).unwrap();
+)?;
 
 
 assert!(issue_list_url.scheme() == "https");
@@ -44,6 +45,9 @@ assert!(issue_list_url.path_segments().map(|c| c.collect::<Vec<_>>()) ==
 assert!(issue_list_url.query() == Some("labels=E-easy&state=open"));
 assert!(issue_list_url.fragment() == None);
 assert!(!issue_list_url.cannot_be_a_base());
+# Ok(())
+# }
+# run().unwrap();
 ```
 
 Some URLs are said to be *cannot-be-a-base*:
@@ -52,8 +56,10 @@ and their "path" is an arbitrary string rather than slash-separated segments:
 
 ```
 use url::Url;
+# use url::ParseError;
 
-let data_url = Url::parse("data:text/plain,Hello?World#").unwrap();
+# fn run() -> Result<(), ParseError> {
+let data_url = Url::parse("data:text/plain,Hello?World#")?;
 
 assert!(data_url.cannot_be_a_base());
 assert!(data_url.scheme() == "data");
@@ -61,6 +67,9 @@ assert!(data_url.path() == "text/plain,Hello");
 assert!(data_url.path_segments().is_none());
 assert!(data_url.query() == Some("World"));
 assert!(data_url.fragment() == Some(""));
+# Ok(())
+# }
+# run().unwrap();
 ```
 
 
@@ -84,10 +93,15 @@ Use the `join` method on an `Url` to use it as a base URL:
 
 ```
 use url::Url;
+# use url::ParseError;
 
-let this_document = Url::parse("http://servo.github.io/rust-url/url/index.html").unwrap();
-let css_url = this_document.join("../main.css").unwrap();
-assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css")
+# fn run() -> Result<(), ParseError> {
+let this_document = Url::parse("http://servo.github.io/rust-url/url/index.html")?;
+let css_url = this_document.join("../main.css")?;
+assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css");
+# Ok(())
+# }
+# run().unwrap();
 */
 
 #![doc(html_root_url = "https://docs.rs/url/1.5.1")]
@@ -220,8 +234,13 @@ impl Url {
     ///
     /// ```rust
     /// use url::Url;
+    /// # use url::ParseError;
     ///
-    /// let url = Url::parse("https://example.net").unwrap();
+    /// # fn run() -> Result<(), ParseError> {
+    /// let url = Url::parse("https://example.net")?;
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     #[inline]
     pub fn parse(input: &str) -> Result<Url, ::ParseError> {
@@ -236,9 +255,14 @@ impl Url {
     ///
     /// ```rust
     /// use url::Url;
+    /// # use url::ParseError;
     ///
+    /// # fn run() -> Result<(), ParseError> {
     /// let url = Url::parse_with_params("https://example.net?dont=clobberme",
-    ///                                  &[("lang", "rust"), ("browser", "servo")]);
+    ///                                  &[("lang", "rust"), ("browser", "servo")])?;
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     #[inline]
     pub fn parse_with_params<I, K, V>(input: &str, iter: I) -> Result<Url, ::ParseError>
@@ -266,14 +290,19 @@ impl Url {
     ///
     /// ```rust
     /// use url::Url;
-    ///
-    /// let base = Url::parse("https://example.net/a/b.html").unwrap();
-    /// let url = base.join("c.png").unwrap();
+    /// # use url::ParseError;
+    /// 
+    /// # fn run() -> Result<(), ParseError> {
+    /// let base = Url::parse("https://example.net/a/b.html")?;
+    /// let url = base.join("c.png")?;
     /// assert_eq!(url.as_str(), "https://example.net/a/c.png");  // Not /a/b.html/c.png
     ///
-    /// let base = Url::parse("https://example.net/a/b/").unwrap();
-    /// let url = base.join("c.png").unwrap();
+    /// let base = Url::parse("https://example.net/a/b/")?;
+    /// let url = base.join("c.png")?;
     /// assert_eq!(url.as_str(), "https://example.net/a/b/c.png");
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     #[inline]
     pub fn join(&self, input: &str) -> Result<Url, ::ParseError> {
@@ -297,10 +326,15 @@ impl Url {
     ///
     /// ```rust
     /// use url::Url;
+    /// # use url::ParseError;
     ///
+    /// # fn run() -> Result<(), ParseError> {
     /// let url_str = "https://example.net/";
-    /// let url = Url::parse(url_str).unwrap();
+    /// let url = Url::parse(url_str)?;
     /// assert_eq!(url.as_str(), url_str);
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     #[inline]
     pub fn as_str(&self) -> &str {
@@ -315,10 +349,15 @@ impl Url {
     ///
     /// ```rust
     /// use url::Url;
+    /// # use url::ParseError;
     ///
+    /// # fn run() -> Result<(), ParseError> {
     /// let url_str = "https://example.net/";
-    /// let url = Url::parse(url_str).unwrap();
+    /// let url = Url::parse(url_str)?;
     /// assert_eq!(url.into_string(), url_str);
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     #[inline]
     pub fn into_string(self) -> String {
@@ -444,45 +483,65 @@ impl Url {
     ///
     /// ```rust
     /// use url::{Host, Origin, Url};
+    /// # use url::ParseError;
     ///
-    /// let url = Url::parse("ftp://example.com/foo").unwrap();
+    /// # fn run() -> Result<(), ParseError> {
+    /// let url = Url::parse("ftp://example.com/foo")?;
     /// assert_eq!(url.origin(),
     ///            Origin::Tuple("ftp".into(),
     ///                          Host::Domain("example.com".into()),
     ///                          21));
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     ///
     /// URL with `blob` scheme:
     ///
     /// ```rust
     /// use url::{Host, Origin, Url};
+    /// # use url::ParseError;
     ///
-    /// let url = Url::parse("blob:https://example.com/foo").unwrap();
+    /// # fn run() -> Result<(), ParseError> {
+    /// let url = Url::parse("blob:https://example.com/foo")?;
     /// assert_eq!(url.origin(),
     ///            Origin::Tuple("https".into(),
     ///                          Host::Domain("example.com".into()),
     ///                          443));
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     ///
     /// URL with `file` scheme:
     ///
     /// ```rust
     /// use url::{Host, Origin, Url};
+    /// # use url::ParseError;
     ///
-    /// let url = Url::parse("file:///tmp/foo").unwrap();
+    /// # fn run() -> Result<(), ParseError> {
+    /// let url = Url::parse("file:///tmp/foo")?;
     /// assert!(!url.origin().is_tuple());
     ///
-    /// let other_url = Url::parse("file:///tmp/foo").unwrap();
+    /// let other_url = Url::parse("file:///tmp/foo")?;
     /// assert!(url.origin() != other_url.origin());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     ///
     /// URL with other scheme:
     ///
     /// ```rust
     /// use url::{Host, Origin, Url};
+    /// # use url::ParseError;
     ///
-    /// let url = Url::parse("foo:bar").unwrap();
+    /// # fn run() -> Result<(), ParseError> {
+    /// let url = Url::parse("foo:bar")?;
     /// assert!(!url.origin().is_tuple());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     #[inline]
     pub fn origin(&self) -> Origin {
@@ -495,9 +554,14 @@ impl Url {
     ///
     /// ```
     /// use url::Url;
+    /// # use url::ParseError;
     ///
-    /// let url = Url::parse("file:///tmp/foo").unwrap();
+    /// # fn run() -> Result<(), ParseError> {
+    /// let url = Url::parse("file:///tmp/foo")?;
     /// assert_eq!(url.scheme(), "file");
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     #[inline]
     pub fn scheme(&self) -> &str {
@@ -514,15 +578,20 @@ impl Url {
     ///
     /// ```
     /// use url::Url;
+    /// # use url::ParseError;
     ///
-    /// let url = Url::parse("ftp://rms@example.com").unwrap();
+    /// # fn run() -> Result<(), ParseError> {
+    /// let url = Url::parse("ftp://rms@example.com")?;
     /// assert!(url.has_authority());
     ///
-    /// let url = Url::parse("unix:/run/foo.socket").unwrap();
+    /// let url = Url::parse("unix:/run/foo.socket")?;
     /// assert!(!url.has_authority());
     ///
-    /// let url = Url::parse("data:text/plain,Stuff").unwrap();
+    /// let url = Url::parse("data:text/plain,Stuff")?;
     /// assert!(!url.has_authority());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     #[inline]
     pub fn has_authority(&self) -> bool {
@@ -540,15 +609,20 @@ impl Url {
     ///
     /// ```
     /// use url::Url;
+    /// # use url::ParseError;
     ///
-    /// let url = Url::parse("ftp://rms@example.com").unwrap();
+    /// # fn run() -> Result<(), ParseError> {
+    /// let url = Url::parse("ftp://rms@example.com")?;
     /// assert!(!url.cannot_be_a_base());
     ///
-    /// let url = Url::parse("unix:/run/foo.socket").unwrap();
+    /// let url = Url::parse("unix:/run/foo.socket")?;
     /// assert!(!url.cannot_be_a_base());
     ///
-    /// let url = Url::parse("data:text/plain,Stuff").unwrap();
+    /// let url = Url::parse("data:text/plain,Stuff")?;
     /// assert!(url.cannot_be_a_base());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     #[inline]
     pub fn cannot_be_a_base(&self) -> bool {
@@ -562,15 +636,20 @@ impl Url {
     ///
     /// ```
     /// use url::Url;
+    /// # use url::ParseError;
     ///
-    /// let url = Url::parse("ftp://rms@example.com").unwrap();
+    /// # fn run() -> Result<(), ParseError> {
+    /// let url = Url::parse("ftp://rms@example.com")?;
     /// assert_eq!(url.username(), "rms");
     ///
-    /// let url = Url::parse("ftp://:secret123@example.com").unwrap();
+    /// let url = Url::parse("ftp://:secret123@example.com")?;
     /// assert_eq!(url.username(), "");
     ///
-    /// let url = Url::parse("https://example.com").unwrap();
+    /// let url = Url::parse("https://example.com")?;
     /// assert_eq!(url.username(), "");
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     pub fn username(&self) -> &str {
         if self.has_authority() {
@@ -586,18 +665,23 @@ impl Url {
     ///
     /// ```
     /// use url::Url;
+    /// # use url::ParseError;
     ///
-    /// let url = Url::parse("ftp://rms:secret123@example.com").unwrap();
+    /// # fn run() -> Result<(), ParseError> {
+    /// let url = Url::parse("ftp://rms:secret123@example.com")?;
     /// assert_eq!(url.password(), Some("secret123"));
     ///
-    /// let url = Url::parse("ftp://:secret123@example.com").unwrap();
+    /// let url = Url::parse("ftp://:secret123@example.com")?;
     /// assert_eq!(url.password(), Some("secret123"));
     ///
-    /// let url = Url::parse("ftp://rms@example.com").unwrap();
+    /// let url = Url::parse("ftp://rms@example.com")?;
     /// assert_eq!(url.password(), None);
     ///
-    /// let url = Url::parse("https://example.com").unwrap();
+    /// let url = Url::parse("https://example.com")?;
     /// assert_eq!(url.password(), None);
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     pub fn password(&self) -> Option<&str> {
         // This ':' is not the one marking a port number since a host can not be empty.
@@ -616,15 +700,20 @@ impl Url {
     ///
     /// ```
     /// use url::Url;
+    /// # use url::ParseError;
     ///
-    /// let url = Url::parse("ftp://rms@example.com").unwrap();
+    /// # fn run() -> Result<(), ParseError> {
+    /// let url = Url::parse("ftp://rms@example.com")?;
     /// assert!(url.has_host());
     ///
-    /// let url = Url::parse("unix:/run/foo.socket").unwrap();
+    /// let url = Url::parse("unix:/run/foo.socket")?;
     /// assert!(!url.has_host());
     ///
-    /// let url = Url::parse("data:text/plain,Stuff").unwrap();
+    /// let url = Url::parse("data:text/plain,Stuff")?;
     /// assert!(!url.has_host());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     pub fn has_host(&self) -> bool {
         !matches!(self.host, HostInternal::None)
@@ -644,18 +733,23 @@ impl Url {
     ///
     /// ```
     /// use url::Url;
+    /// # use url::ParseError;
     ///
-    /// let url = Url::parse("https://127.0.0.1/index.html").unwrap();
+    /// # fn run() -> Result<(), ParseError> {
+    /// let url = Url::parse("https://127.0.0.1/index.html")?;
     /// assert_eq!(url.host_str(), Some("127.0.0.1"));
     ///
-    /// let url = Url::parse("ftp://rms@example.com").unwrap();
+    /// let url = Url::parse("ftp://rms@example.com")?;
     /// assert_eq!(url.host_str(), Some("example.com"));
     ///
-    /// let url = Url::parse("unix:/run/foo.socket").unwrap();
+    /// let url = Url::parse("unix:/run/foo.socket")?;
     /// assert_eq!(url.host_str(), None);
     ///
-    /// let url = Url::parse("data:text/plain,Stuff").unwrap();
+    /// let url = Url::parse("data:text/plain,Stuff")?;
     /// assert_eq!(url.host_str(), None);
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     pub fn host_str(&self) -> Option<&str> {
         if self.has_host() {
@@ -677,18 +771,23 @@ impl Url {
     ///
     /// ```
     /// use url::Url;
+    /// # use url::ParseError;
     ///
-    /// let url = Url::parse("https://127.0.0.1/index.html").unwrap();
+    /// # fn run() -> Result<(), ParseError> {
+    /// let url = Url::parse("https://127.0.0.1/index.html")?;
     /// assert!(url.host().is_some());
     ///
-    /// let url = Url::parse("ftp://rms@example.com").unwrap();
+    /// let url = Url::parse("ftp://rms@example.com")?;
     /// assert!(url.host().is_some());
     ///
-    /// let url = Url::parse("unix:/run/foo.socket").unwrap();
+    /// let url = Url::parse("unix:/run/foo.socket")?;
     /// assert!(url.host().is_none());
     ///
-    /// let url = Url::parse("data:text/plain,Stuff").unwrap();
+    /// let url = Url::parse("data:text/plain,Stuff")?;
     /// assert!(url.host().is_none());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     pub fn host(&self) -> Option<Host<&str>> {
         match self.host {
@@ -705,15 +804,20 @@ impl Url {
     ///
     /// ```
     /// use url::Url;
+    /// # use url::ParseError;
     ///
-    /// let url = Url::parse("https://127.0.0.1/").unwrap();
+    /// # fn run() -> Result<(), ParseError> {
+    /// let url = Url::parse("https://127.0.0.1/")?;
     /// assert_eq!(url.domain(), None);
     ///
-    /// let url = Url::parse("mailto:rms@example.net").unwrap();
+    /// let url = Url::parse("mailto:rms@example.net")?;
     /// assert_eq!(url.domain(), None);
     ///
-    /// let url = Url::parse("https://example.com/").unwrap();
+    /// let url = Url::parse("https://example.com/")?;
     /// assert_eq!(url.domain(), Some("example.com"));
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     pub fn domain(&self) -> Option<&str> {
         match self.host {
@@ -728,12 +832,17 @@ impl Url {
     ///
     /// ```
     /// use url::Url;
+    /// # use url::ParseError;
     ///
-    /// let url = Url::parse("https://example.com").unwrap();
+    /// # fn run() -> Result<(), ParseError> {
+    /// let url = Url::parse("https://example.com")?;
     /// assert_eq!(url.port(), None);
     ///
-    /// let url = Url::parse("ssh://example.com:22").unwrap();
+    /// let url = Url::parse("ssh://example.com:22")?;
     /// assert_eq!(url.port(), Some(22));
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     #[inline]
     pub fn port(&self) -> Option<u16> {
@@ -752,15 +861,20 @@ impl Url {
     ///
     /// ```
     /// use url::Url;
+    /// # use url::ParseError;
     ///
-    /// let url = Url::parse("foo://example.com").unwrap();
+    /// # fn run() -> Result<(), ParseError> {
+    /// let url = Url::parse("foo://example.com")?;
     /// assert_eq!(url.port_or_known_default(), None);
     ///
-    /// let url = Url::parse("foo://example.com:1456").unwrap();
+    /// let url = Url::parse("foo://example.com:1456")?;
     /// assert_eq!(url.port_or_known_default(), Some(1456));
     ///
-    /// let url = Url::parse("https://example.com").unwrap();
+    /// let url = Url::parse("https://example.com")?;
     /// assert_eq!(url.port_or_known_default(), Some(443));
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     #[inline]
     pub fn port_or_known_default(&self) -> Option<u16> {
@@ -781,7 +895,6 @@ impl Url {
     /// # use url::Url;
     /// # use std::net::TcpStream;
     /// # use std::io;
-    ///
     /// fn connect(url: &Url) -> io::Result<TcpStream> {
     ///     TcpStream::connect(url.with_default_port(default_port)?)
     /// }
@@ -836,20 +949,25 @@ impl Url {
     ///
     /// ```
     /// use url::Url;
+    /// # use std::error::Error;
     ///
-    /// let url = Url::parse("https://example.com/foo/bar").unwrap();
-    /// let mut path_segments = url.path_segments().unwrap();
+    /// # fn run() -> Result<(), Box<Error>> {
+    /// let url = Url::parse("https://example.com/foo/bar")?;
+    /// let mut path_segments = url.path_segments().ok_or_else(|| "cannot be base")?;
     /// assert_eq!(path_segments.next(), Some("foo"));
     /// assert_eq!(path_segments.next(), Some("bar"));
     /// assert_eq!(path_segments.next(), None);
     ///
-    /// let url = Url::parse("https://example.com").unwrap();
-    /// let mut path_segments = url.path_segments().unwrap();
+    /// let url = Url::parse("https://example.com")?;
+    /// let mut path_segments = url.path_segments().ok_or_else(|| "cannot be base")?;
     /// assert_eq!(path_segments.next(), Some(""));
     /// assert_eq!(path_segments.next(), None);
     ///
-    /// let url = Url::parse("data:text/plain,HelloWorld").unwrap();
+    /// let url = Url::parse("data:text/plain,HelloWorld")?;
     /// assert!(url.path_segments().is_none());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     pub fn path_segments(&self) -> Option<str::Split<char>> {
         let path = self.path();
@@ -961,8 +1079,10 @@ impl Url {
     /// The return value has a method-chaining API:
     ///
     /// ```rust
-    /// # use url::Url;
-    /// let mut url = Url::parse("https://example.net?lang=fr#nav").unwrap();
+    /// # use url::{Url, ParseError};
+    ///
+    /// # fn run() -> Result<(), ParseError> {
+    /// let mut url = Url::parse("https://example.net?lang=fr#nav")?;
     /// assert_eq!(url.query(), Some("lang=fr"));
     ///
     /// url.query_pairs_mut().append_pair("foo", "bar");
@@ -976,6 +1096,9 @@ impl Url {
     /// assert_eq!(url.query(), Some("foo=bar+%26+baz&saisons=%C3%89t%C3%A9%2Bhiver"));
     /// assert_eq!(url.as_str(),
     ///            "https://example.net/?foo=bar+%26+baz&saisons=%C3%89t%C3%A9%2Bhiver#nav");
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     ///
     /// Note: `url.query_pairs_mut().clear();` is equivalent to `url.set_query(Some(""))`,
@@ -1063,28 +1186,38 @@ impl Url {
     ///
     /// ```
     /// use url::Url;
+    /// # use std::error::Error;
     ///
-    /// let mut url = Url::parse("ssh://example.net:2048/").unwrap();
+    /// # fn run() -> Result<(), Box<Error>> {
+    /// let mut url = Url::parse("ssh://example.net:2048/")?;
     ///
-    /// url.set_port(Some(4096)).unwrap();
+    /// url.set_port(Some(4096)).map_err(|_| "cannot be base")?;
     /// assert_eq!(url.as_str(), "ssh://example.net:4096/");
     ///
-    /// url.set_port(None).unwrap();
+    /// url.set_port(None).map_err(|_| "cannot be base")?;
     /// assert_eq!(url.as_str(), "ssh://example.net/");
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     ///
     /// Cannot set port for cannot-be-a-base URLs:
     ///
     /// ```
     /// use url::Url;
+    /// # use url::ParseError;
     ///
-    /// let mut url = Url::parse("mailto:rms@example.net").unwrap();
+    /// # fn run() -> Result<(), ParseError> {
+    /// let mut url = Url::parse("mailto:rms@example.net")?;
     ///
     /// let result = url.set_port(Some(80));
     /// assert!(result.is_err());
     ///
     /// let result = url.set_port(None);
     /// assert!(result.is_err());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     pub fn set_port(&mut self, mut port: Option<u16>) -> Result<(), ()> {
         if !self.has_host() || self.scheme() == "file" {
@@ -1141,41 +1274,58 @@ impl Url {
     ///
     /// ```
     /// use url::Url;
+    /// # use url::ParseError;
     ///
-    /// let mut url = Url::parse("https://example.net").unwrap();
+    /// # fn run() -> Result<(), ParseError> {
+    /// let mut url = Url::parse("https://example.net")?;
     /// let result = url.set_host(Some("rust-lang.org"));
     /// assert!(result.is_ok());
     /// assert_eq!(url.as_str(), "https://rust-lang.org/");
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     ///
     /// Remove host:
     ///
     /// ```
     /// use url::Url;
-    ///
-    /// let mut url = Url::parse("foo://example.net").unwrap();
+    /// # use url::ParseError;
+    /// 
+    /// # fn run() -> Result<(), ParseError> {
+    /// let mut url = Url::parse("foo://example.net")?;
     /// let result = url.set_host(None);
     /// assert!(result.is_ok());
     /// assert_eq!(url.as_str(), "foo:/");
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     ///
     /// Cannot remove host for 'special' schemes (e.g. `http`):
     ///
     /// ```
     /// use url::Url;
-    ///
-    /// let mut url = Url::parse("https://example.net").unwrap();
+    /// # use url::ParseError;
+    /// 
+    /// # fn run() -> Result<(), ParseError> {
+    /// let mut url = Url::parse("https://example.net")?;
     /// let result = url.set_host(None);
     /// assert!(result.is_err());
     /// assert_eq!(url.as_str(), "https://example.net/");
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     ///
     /// Cannot change or remove host for cannot-be-a-base URLs:
     ///
     /// ```
     /// use url::Url;
-    ///
-    /// let mut url = Url::parse("mailto:rms@example.net").unwrap();
+    /// # use url::ParseError;
+    /// 
+    /// # fn run() -> Result<(), ParseError> {
+    /// let mut url = Url::parse("mailto:rms@example.net")?;
     ///
     /// let result = url.set_host(Some("rust-lang.org"));
     /// assert!(result.is_err());
@@ -1184,6 +1334,9 @@ impl Url {
     /// let result = url.set_host(None);
     /// assert!(result.is_err());
     /// assert_eq!(url.as_str(), "mailto:rms@example.net");
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     pub fn set_host(&mut self, host: Option<&str>) -> Result<(), ParseError> {
         if self.cannot_be_a_base() {
@@ -1379,11 +1532,16 @@ impl Url {
     ///
     /// ```
     /// use url::Url;
-    ///
-    /// let mut url = Url::parse("https://example.net").unwrap();
+    /// # use url::ParseError;
+    /// 
+    /// # fn run() -> Result<(), ParseError> {
+    /// let mut url = Url::parse("https://example.net")?;
     /// let result = url.set_scheme("foo");
     /// assert_eq!(url.as_str(), "foo://example.net/");
     /// assert!(result.is_ok());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     ///
     ///
@@ -1391,22 +1549,32 @@ impl Url {
     ///
     /// ```
     /// use url::Url;
-    ///
-    /// let mut url = Url::parse("https://example.net").unwrap();
+    /// # use url::ParseError;
+    /// 
+    /// # fn run() -> Result<(), ParseError> {
+    /// let mut url = Url::parse("https://example.net")?;
     /// let result = url.set_scheme("foõ");
     /// assert_eq!(url.as_str(), "https://example.net/");
     /// assert!(result.is_err());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     ///
     /// Cannot change URL’s scheme from `mailto` (cannot-be-a-base) to `https`:
     ///
     /// ```
     /// use url::Url;
-    ///
-    /// let mut url = Url::parse("mailto:rms@example.net").unwrap();
+    /// # use url::ParseError;
+    /// 
+    /// # fn run() -> Result<(), ParseError> {
+    /// let mut url = Url::parse("mailto:rms@example.net")?;
     /// let result = url.set_scheme("https");
     /// assert_eq!(url.as_str(), "mailto:rms@example.net");
     /// assert!(result.is_err());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// ```
     pub fn set_scheme(&mut self, scheme: &str) -> Result<(), ()> {
         let mut parser = Parser::for_setter(String::new());
@@ -1447,8 +1615,9 @@ impl Url {
     /// ```
     /// # if cfg!(unix) {
     /// use url::Url;
-    ///
-    /// let url = Url::from_file_path("/tmp/foo.txt").unwrap();
+    /// 
+    /// # fn run() -> Result<(), ()> {
+    /// let url = Url::from_file_path("/tmp/foo.txt")?;
     /// assert_eq!(url.as_str(), "file:///tmp/foo.txt");
     ///
     /// let url = Url::from_file_path("../foo.txt");
@@ -1456,6 +1625,9 @@ impl Url {
     ///
     /// let url = Url::from_file_path("https://google.com/");
     /// assert!(url.is_err());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
     /// # }
     /// ```
     pub fn from_file_path<P: AsRef<Path>>(path: P) -> Result<Url, ()> {
