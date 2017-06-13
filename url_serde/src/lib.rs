@@ -22,7 +22,7 @@ Use the serde attributes `deserialize_with` and `serialize_with`.
 ```
 #[derive(serde::Serialize, serde::Deserialize)]
 struct MyStruct {
-    #[serde(with = "url_serde")]
+    #[serde(serialize_with = "serialize")]
     url: Url,
 }
 ```
