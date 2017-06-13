@@ -1002,6 +1002,15 @@ impl Url {
 
     /// Return this URL’s fragment identifier, if any.
     ///
+    /// A fragment is the part of the URL after the `#` symbol.
+    /// The fragment is optional and, if present, contains a fragment identifier
+    /// that identifies a secondary resource, such as a section heading
+    /// of a document.
+    ///
+    /// In HTML, the fragment identifier is usually the id attribute of a an element
+    /// that is scrolled to on load. Browsers typically will not send the fragment portion
+    /// of a URL to the server.
+    ///
     /// **Note:** the parser did *not* percent-encode this component,
     /// but the input may have been percent-encoded already.
     pub fn fragment(&self) -> Option<&str> {
