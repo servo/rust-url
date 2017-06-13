@@ -1785,22 +1785,24 @@ fn path_to_file_url_segments_windows(path: &Path, serialization: &mut String)
     let mut components = path.components();
 
     let host_end;
-    let host;
+    let host_internal;
     match components.next() {
         Some(Component::Prefix(ref p)) => match p.kind() {
             Prefix::Disk(letter) | Prefix::VerbatimDisk(letter) => {
                 host_end = to_u32(serialization.len()).unwrap();
-                host = HostInternal::None;
+                host_internal = HostInternal::None;
                 serialization.push('/');
                 serialization.push(letter as char);
                 serialization.push(':');
             },
             Prefix::UNC(server, share) | Prefix::VerbatimUNC(server, share) => {
-                serialization.push_str(server.to_str().ok_or(())?);
+                let host = Host::parse(server.to_str().ok_or(())?).map_err(|_| ())?;
+                write!(serialization, "{}", host).unwrap();
                 host_end = to_u32(serialization.len()).unwrap();
-                host = HostInternal::Domain;  // FIXME: Can this be an IP address?
+                host_internal = host.into();
                 serialization.push('/');
-                serialization.push_str(share.to_str().ok_or(())?);
+                let share = share.to_str().ok_or(())?;
+                serialization.extend(percent_encode(share.as_bytes(), PATH_SEGMENT_ENCODE_SET));
             },
             _ => return Err(())
         },
@@ -1815,7 +1817,7 @@ fn path_to_file_url_segments_windows(path: &Path, serialization: &mut String)
         serialization.push('/');
         serialization.extend(percent_encode(component.as_bytes(), PATH_SEGMENT_ENCODE_SET));
     }
-    Ok((host_end, host))
+    Ok((host_end, host_internal))
 }
 
 #[cfg(any(unix, target_os = "redox"))]
