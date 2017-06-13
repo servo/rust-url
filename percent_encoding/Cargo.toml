@@ -1,5 +1,5 @@
 [package]
-name = "percent_encoding"
+name = "percent-encoding"
 version = "1.0.0"
 authors = ["The rust-url developers"]
 description = "Percent encoding and decoding"
