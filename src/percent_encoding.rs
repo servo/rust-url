@@ -15,10 +15,10 @@
 //! becomes percent encoded.  A simple example can be seen when the space literal is replaced with
 //! `%20`.
 //!
-//! Percent encoding is further complicated by the fact that different parts of the URI have
+//! Percent encoding is further complicated by the fact that different parts of an URL have
 //! different encoding requirements.  In order to support the variety of encoding requirements,
-//! `url::percent_encoding` includes encoding sets that are defined in [IETF RFC 3986][rfc] and
-//! updated through the [Living Standard][living].
+//! `url::percent_encoding` includes different *encode sets*.
+//! See [URL Standard](https://url.spec.whatwg.org/#percent-encoded-bytes) for details.
 //!
 //! [`url::percent_encoding::EncodeSet`](trait.EncodeSet.html) Trait allows a sequence of bytes
 //! to be converted to a percent encoded sequence of bytes stripped of particular reserved
@@ -36,8 +36,6 @@
 //! println!("{}", utf8_percent_encode("foo bar?", QUERY_ENCODE_SET).collect::<String>());
 //! # }
 //! ```
-//! [rfc]:https://tools.ietf.org/html/rfc3986
-//! [living]:https://url.spec.whatwg.org
 
 use encoding;
 use std::ascii::AsciiExt;
