@@ -27,13 +27,9 @@
 //! # Examples
 //!
 //! ```
-//! extern crate url;
-//! use url::percent_encoding::{utf8_percent_encode, QUERY_ENCODE_SET};
+//! use url::percent_encoding::{utf8_percent_encode, DEFAULT_ENCODE_SET};
 //!
-//! //prints "foo%20bar%3F"
-//! # fn main() {
-//! println!("{}", utf8_percent_encode("foo bar?", QUERY_ENCODE_SET).collect::<String>());
-//! # }
+//! assert_eq!(utf8_percent_encode("foo bar?", DEFAULT_ENCODE_SET).to_string(), "foo%20bar%3F");
 //! ```
 
 use encoding;
@@ -168,16 +164,10 @@ define_encode_set! {
 /// # Examples
 ///
 /// ```
-/// extern crate url;
 /// use url::percent_encoding::percent_encode_byte;
 ///
-/// //prints %66%6F%6F%20%62%61%72
-/// # fn main() {
-/// let sample = b"foo bar";
-/// for character in sample {
-///   print!("{}", percent_encode_byte(*character));
-/// }
-/// # }
+/// assert_eq!("foo bar".bytes().map(percent_encode_byte).collect::<String>(),
+///            "%66%6F%6F%20%62%61%72");
 /// ```
 pub fn percent_encode_byte(byte: u8) -> &'static str {
     let index = usize::from(byte) * 3;
@@ -216,13 +206,9 @@ pub fn percent_encode_byte(byte: u8) -> &'static str {
 /// # Examples
 ///
 /// ```
-/// extern crate url;
 /// use url::percent_encoding::{percent_encode, DEFAULT_ENCODE_SET};
 ///
-/// //prints foo%20bar%3F
-/// # fn main() {
-/// println!("{}", percent_encode(b"foo bar?", DEFAULT_ENCODE_SET).collect::<String>());
-/// # }
+/// assert_eq!(percent_encode(b"foo bar?", DEFAULT_ENCODE_SET).to_string(), "foo%20bar%3F");
 /// ```
 #[inline]
 pub fn percent_encode<E: EncodeSet>(input: &[u8], encode_set: E) -> PercentEncode<E> {
@@ -239,13 +225,9 @@ pub fn percent_encode<E: EncodeSet>(input: &[u8], encode_set: E) -> PercentEncod
 /// # Examples
 ///
 /// ```
-/// extern crate url;
-/// use url::percent_encoding::{utf8_percent_encode, QUERY_ENCODE_SET};
+/// use url::percent_encoding::{utf8_percent_encode, DEFAULT_ENCODE_SET};
 ///
-/// //prints "foo%20bar%3F"
-/// # fn main() {
-/// println!("{}", utf8_percent_encode("foo bar?", QUERY_ENCODE_SET).collect::<String>());
-/// # }
+/// assert_eq!(utf8_percent_encode("foo bar?", DEFAULT_ENCODE_SET).to_string(), "foo%20bar%3F");
 /// ```
 #[inline]
 pub fn utf8_percent_encode<E: EncodeSet>(input: &str, encode_set: E) -> PercentEncode<E> {
@@ -335,17 +317,9 @@ impl<'a, E: EncodeSet> From<PercentEncode<'a, E>> for Cow<'a, str> {
 /// # Examples
 ///
 /// ```
-/// extern crate url;
 /// use url::percent_encoding::percent_decode;
 ///
-/// //prints "foo bar?"
-/// # fn run() -> Result<(), std::str::Utf8Error> {
-/// println!("{}", percent_decode(b"foo%20bar%3F").decode_utf8()?);
-/// # Ok( () )
-/// # }
-/// # fn main()  {
-/// #     run().unwrap();
-/// # }
+/// assert_eq!(percent_decode(b"foo%20bar%3F").decode_utf8().unwrap(), "foo bar?");
 /// ```
 #[inline]
 pub fn percent_decode(input: &[u8]) -> PercentDecode {
