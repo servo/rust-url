@@ -1461,21 +1461,14 @@ impl Url {
     pub fn from_file_path<P: AsRef<Path>>(path: P) -> Result<Url, ()> {
         let mut serialization = "file://".to_owned();
         let host_start = serialization.len() as u32;
-        path_to_file_url_segments(path.as_ref(), &mut serialization)?;
-
-        let host_end = if serialization.starts_with("file:///") {
-            host_start
-        } else {
-            host_start + serialization[host_start as usize ..].find('/').unwrap_or(0) as u32
-        };
-
+        let (host_end, host) = path_to_file_url_segments(path.as_ref(), &mut serialization)?;
         Ok(Url {
             serialization: serialization,
             scheme_end: "file".len() as u32,
             username_end: host_start,
             host_start: host_start,
             host_end: host_end,
-            host: if host_start == host_end { HostInternal::None } else { HostInternal::Domain },
+            host: host,
             port: None,
             path_start: host_end,
             query_start: None,
@@ -1753,11 +1746,13 @@ impl serde::Deserialize for Url {
 }
 
 #[cfg(any(unix, target_os = "redox"))]
-fn path_to_file_url_segments(path: &Path, serialization: &mut String) -> Result<(), ()> {
+fn path_to_file_url_segments(path: &Path, serialization: &mut String)
+                             -> Result<(u32, HostInternal), ()> {
     use std::os::unix::prelude::OsStrExt;
     if !path.is_absolute() {
         return Err(())
     }
+    let host_end = to_u32(serialization.len()).unwrap();
     let mut empty = true;
     // skip the root component
     for component in path.components().skip(1) {
@@ -1770,34 +1765,42 @@ fn path_to_file_url_segments(path: &Path, serialization: &mut String) -> Result<
         // An URL’s path must not be empty.
         serialization.push('/');
     }
-    Ok(())
+    Ok((host_end, HostInternal::None))
 }
 
 #[cfg(windows)]
-fn path_to_file_url_segments(path: &Path, serialization: &mut String) -> Result<(), ()> {
+fn path_to_file_url_segments(path: &Path, serialization: &mut String)
+                             -> Result<(u32, HostInternal), ()> {
     path_to_file_url_segments_windows(path, serialization)
 }
 
 // Build this unconditionally to alleviate https://github.com/servo/rust-url/issues/102
 #[cfg_attr(not(windows), allow(dead_code))]
-fn path_to_file_url_segments_windows(path: &Path, serialization: &mut String) -> Result<(), ()> {
+fn path_to_file_url_segments_windows(path: &Path, serialization: &mut String)
+                                     -> Result<(u32, HostInternal), ()> {
     use std::path::{Prefix, Component};
     if !path.is_absolute() {
         return Err(())
     }
     let mut components = path.components();
 
+    let host_end;
+    let host;
     match components.next() {
         Some(Component::Prefix(ref p)) => match p.kind() {
             Prefix::Disk(letter) | Prefix::VerbatimDisk(letter) => {
+                host_end = to_u32(serialization.len()).unwrap();
+                host = HostInternal::None;
                 serialization.push('/');
                 serialization.push(letter as char);
                 serialization.push(':');
             },
             Prefix::UNC(server, share) | Prefix::VerbatimUNC(server, share) => {
-                serialization.push_str(try!(server.to_str().ok_or(())));
+                serialization.push_str(server.to_str().ok_or(())?);
+                host_end = to_u32(serialization.len()).unwrap();
+                host = HostInternal::Domain;  // FIXME: Can this be an IP address?
                 serialization.push('/');
-                serialization.push_str(try!(share.to_str().ok_or(())));
+                serialization.push_str(share.to_str().ok_or(())?);
             },
             _ => return Err(())
         },
@@ -1812,7 +1815,7 @@ fn path_to_file_url_segments_windows(path: &Path, serialization: &mut String) ->
         serialization.push('/');
         serialization.extend(percent_encode(component.as_bytes(), PATH_SEGMENT_ENCODE_SET));
     }
-    Ok(())
+    Ok((host_end, host))
 }
 
 #[cfg(any(unix, target_os = "redox"))]
