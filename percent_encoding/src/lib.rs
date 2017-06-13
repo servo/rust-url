@@ -6,7 +6,6 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use encoding;
 use std::ascii::AsciiExt;
 use std::borrow::Cow;
 use std::fmt;
@@ -44,8 +43,8 @@ pub trait EncodeSet: Clone {
 /// =======
 ///
 /// ```rust
-/// #[macro_use] extern crate url;
-/// use url::percent_encoding::{utf8_percent_encode, SIMPLE_ENCODE_SET};
+/// #[macro_use] extern crate percent_encoding;
+/// use percent_encoding::{utf8_percent_encode, SIMPLE_ENCODE_SET};
 /// define_encode_set! {
 ///     /// This encode set is used in the URL parser for query strings.
 ///     pub QUERY_ENCODE_SET = [SIMPLE_ENCODE_SET] | {' ', '"', '#', '<', '>'}
@@ -62,7 +61,7 @@ macro_rules! define_encode_set {
         #[allow(non_camel_case_types)]
         pub struct $name;
 
-        impl $crate::percent_encoding::EncodeSet for $name {
+        impl $crate::EncodeSet for $name {
             #[inline]
             fn contains(&self, byte: u8) -> bool {
                 match byte as char {
@@ -339,6 +338,25 @@ impl<'a> PercentDecode<'a> {
     /// Invalid UTF-8 percent-encoded byte sequences will be replaced � U+FFFD,
     /// the replacement character.
     pub fn decode_utf8_lossy(self) -> Cow<'a, str> {
-        encoding::decode_utf8_lossy(self.clone().into())
+        decode_utf8_lossy(self.clone().into())
     }
 }
+
+fn decode_utf8_lossy(input: Cow<[u8]>) -> Cow<str> {
+    match input {
+        Cow::Borrowed(bytes) => String::from_utf8_lossy(bytes),
+        Cow::Owned(bytes) => {
+            let raw_utf8: *const [u8];
+            match String::from_utf8_lossy(&bytes) {
+                Cow::Borrowed(utf8) => raw_utf8 = utf8.as_bytes(),
+                Cow::Owned(s) => return s.into(),
+            }
+            // from_utf8_lossy returned a borrow of `bytes` unchanged.
+            debug_assert!(raw_utf8 == &*bytes as *const [u8]);
+            // Reuse the existing `Vec` allocation.
+            unsafe { String::from_utf8_unchecked(bytes) }.into()
+        }
+    }
+}
+
+
