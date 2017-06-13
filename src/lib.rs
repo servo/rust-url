@@ -1002,6 +1002,9 @@ impl Url {
 
     /// Return this URL’s fragment identifier, if any.
     ///
+    /// A fragment is the part of a url following the `#` symbol,
+    /// which is used to identify a location in the document.
+    ///
     /// **Note:** the parser did *not* percent-encode this component,
     /// but the input may have been percent-encoded already.
     pub fn fragment(&self) -> Option<&str> {
