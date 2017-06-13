@@ -122,7 +122,7 @@ use percent_encoding::{PATH_SEGMENT_ENCODE_SET, USERINFO_ENCODE_SET,
 use std::borrow::Borrow;
 use std::cmp;
 #[cfg(feature = "serde")] use std::error::Error;
-use std::fmt::{self, Write};
+use std::fmt::{self, Write, Debug, Formatter};
 use std::hash;
 use std::io;
 use std::mem;
@@ -224,6 +224,16 @@ impl<'a> ParseOptions<'a> {
             log_syntax_violation: self.log_syntax_violation,
             context: Context::UrlParser,
         }.parse_url(input)
+    }
+}
+
+impl<'a> Debug for ParseOptions<'a> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "ParseOptions {{ base_url: {:?}, encoding_override: {:?}, log_syntax_violation: ", self.base_url, self.encoding_override)?;
+        match self.log_syntax_violation {
+            Some(_) => write!(f, "Some(Fn(&'static str)) }}"),
+            None => write!(f, "None }}")
+        }
     }
 }
 
@@ -2082,6 +2092,7 @@ fn io_error<T>(reason: &str) -> io::Result<T> {
 }
 
 /// Implementation detail of `Url::query_pairs_mut`. Typically not used directly.
+#[derive(Debug)]
 pub struct UrlQuery<'a> {
     url: &'a mut Url,
     fragment: Option<String>,

@@ -176,7 +176,7 @@ impl<S: AsRef<str>> fmt::Display for Host<S> {
 
 /// This mostly exists because coherence rules don’t allow us to implement
 /// `ToSocketAddrs for (Host<S>, u16)`.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct HostAndPort<S=String> {
     pub host: Host<S>,
     pub port: u16,
@@ -222,10 +222,12 @@ impl<S: AsRef<str>> ToSocketAddrs for HostAndPort<S> {
 }
 
 /// Socket addresses for an URL.
+#[derive(Debug)]
 pub struct SocketAddrs {
     state: SocketAddrsState
 }
 
+#[derive(Debug)]
 enum SocketAddrsState {
     Domain(vec::IntoIter<SocketAddr>),
     One(SocketAddr),

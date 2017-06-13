@@ -58,7 +58,7 @@ pub trait EncodeSet: Clone {
 macro_rules! define_encode_set {
     ($(#[$attr: meta])* pub $name: ident = [$base_set: expr] | {$($ch: pat),*}) => {
         $(#[$attr])*
-        #[derive(Copy, Clone)]
+        #[derive(Copy, Clone, Debug)]
         #[allow(non_camel_case_types)]
         pub struct $name;
 
@@ -77,7 +77,7 @@ macro_rules! define_encode_set {
 }
 
 /// This encode set is used for the path of cannot-be-a-base URLs.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 #[allow(non_camel_case_types)]
 pub struct SIMPLE_ENCODE_SET;
 
@@ -163,7 +163,7 @@ pub fn utf8_percent_encode<E: EncodeSet>(input: &str, encode_set: E) -> PercentE
 }
 
 /// The return type of `percent_encode()` and `utf8_percent_encode()`.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PercentEncode<'a, E: EncodeSet> {
     bytes: &'a [u8],
     encode_set: E,
@@ -249,7 +249,7 @@ pub fn percent_decode(input: &[u8]) -> PercentDecode {
 }
 
 /// The return type of `percent_decode()`.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PercentDecode<'a> {
     bytes: slice::Iter<'a, u8>,
 }
