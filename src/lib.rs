@@ -90,7 +90,7 @@ let css_url = this_document.join("../main.css").unwrap();
 assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css")
 */
 
-#![doc(html_root_url = "https://docs.rs/url/1.4.0")]
+#![doc(html_root_url = "https://docs.rs/url/1.5.1")]
 
 #[cfg(feature="rustc-serialize")] extern crate rustc_serialize;
 #[macro_use] extern crate matches;
@@ -1438,7 +1438,7 @@ impl Url {
     /// Convert a file name as `std::path::Path` into an URL in the `file` scheme.
     ///
     /// This returns `Err` if the given path is not absolute or,
-    /// on Windows, if the prefix is not a disk prefix (e.g. `C:`).
+    /// on Windows, if the prefix is not a disk prefix (e.g. `C:`) or a UNC prefix (`\\`).
     ///
     /// # Examples
     ///
@@ -1460,17 +1460,17 @@ impl Url {
     /// ```
     pub fn from_file_path<P: AsRef<Path>>(path: P) -> Result<Url, ()> {
         let mut serialization = "file://".to_owned();
-        let path_start = serialization.len() as u32;
-        path_to_file_url_segments(path.as_ref(), &mut serialization)?;
+        let host_start = serialization.len() as u32;
+        let (host_end, host) = path_to_file_url_segments(path.as_ref(), &mut serialization)?;
         Ok(Url {
             serialization: serialization,
             scheme_end: "file".len() as u32,
-            username_end: path_start,
-            host_start: path_start,
-            host_end: path_start,
-            host: HostInternal::None,
+            username_end: host_start,
+            host_start: host_start,
+            host_end: host_end,
+            host: host,
             port: None,
-            path_start: path_start,
+            path_start: host_end,
             query_start: None,
             fragment_start: None,
         })
@@ -1479,7 +1479,7 @@ impl Url {
     /// Convert a directory name as `std::path::Path` into an URL in the `file` scheme.
     ///
     /// This returns `Err` if the given path is not absolute or,
-    /// on Windows, if the prefix is not a disk prefix (e.g. `C:`).
+    /// on Windows, if the prefix is not a disk prefix (e.g. `C:`) or a UNC prefix (`\\`).
     ///
     /// Compared to `from_file_path`, this ensure that URL’s the path has a trailing slash
     /// so that the entire path is considered when using this URL as a base URL.
@@ -1568,17 +1568,23 @@ impl Url {
     /// let path = url.to_file_path();
     /// ```
     ///
-    /// Returns `Err` if the host is neither empty nor `"localhost"`,
+    /// Returns `Err` if the host is neither empty nor `"localhost"` (except on Windows, where
+    /// `file:` URLs may have a non-local host),
     /// or if `Path::new_opt()` returns `None`.
     /// (That is, if the percent-decoded path contains a NUL byte or,
     /// for a Windows path, is not UTF-8.)
     #[inline]
     pub fn to_file_path(&self) -> Result<PathBuf, ()> {
-        // FIXME: Figure out what to do w.r.t host.
-        if matches!(self.host(), None | Some(Host::Domain("localhost"))) {
-            if let Some(segments) = self.path_segments() {
-                return file_url_segments_to_pathbuf(segments)
-            }
+        if let Some(segments) = self.path_segments() {
+            let host = match self.host() {
+                None | Some(Host::Domain("localhost")) => None,
+                Some(_) if cfg!(windows) && self.scheme() == "file" => {
+                    Some(&self.serialization[self.host_start as usize .. self.host_end as usize])
+                },
+                _ => return Err(())
+            };
+
+            return file_url_segments_to_pathbuf(host, segments);
         }
         Err(())
     }
@@ -1740,11 +1746,13 @@ impl serde::Deserialize for Url {
 }
 
 #[cfg(any(unix, target_os = "redox"))]
-fn path_to_file_url_segments(path: &Path, serialization: &mut String) -> Result<(), ()> {
+fn path_to_file_url_segments(path: &Path, serialization: &mut String)
+                             -> Result<(u32, HostInternal), ()> {
     use std::os::unix::prelude::OsStrExt;
     if !path.is_absolute() {
         return Err(())
     }
+    let host_end = to_u32(serialization.len()).unwrap();
     let mut empty = true;
     // skip the root component
     for component in path.components().skip(1) {
@@ -1757,37 +1765,50 @@ fn path_to_file_url_segments(path: &Path, serialization: &mut String) -> Result<
         // An URL’s path must not be empty.
         serialization.push('/');
     }
-    Ok(())
+    Ok((host_end, HostInternal::None))
 }
 
 #[cfg(windows)]
-fn path_to_file_url_segments(path: &Path, serialization: &mut String) -> Result<(), ()> {
+fn path_to_file_url_segments(path: &Path, serialization: &mut String)
+                             -> Result<(u32, HostInternal), ()> {
     path_to_file_url_segments_windows(path, serialization)
 }
 
 // Build this unconditionally to alleviate https://github.com/servo/rust-url/issues/102
 #[cfg_attr(not(windows), allow(dead_code))]
-fn path_to_file_url_segments_windows(path: &Path, serialization: &mut String) -> Result<(), ()> {
+fn path_to_file_url_segments_windows(path: &Path, serialization: &mut String)
+                                     -> Result<(u32, HostInternal), ()> {
     use std::path::{Prefix, Component};
     if !path.is_absolute() {
         return Err(())
     }
     let mut components = path.components();
-    let disk = match components.next() {
+
+    let host_end;
+    let host_internal;
+    match components.next() {
         Some(Component::Prefix(ref p)) => match p.kind() {
-            Prefix::Disk(byte) => byte,
-            Prefix::VerbatimDisk(byte) => byte,
-            _ => return Err(()),
+            Prefix::Disk(letter) | Prefix::VerbatimDisk(letter) => {
+                host_end = to_u32(serialization.len()).unwrap();
+                host_internal = HostInternal::None;
+                serialization.push('/');
+                serialization.push(letter as char);
+                serialization.push(':');
+            },
+            Prefix::UNC(server, share) | Prefix::VerbatimUNC(server, share) => {
+                let host = Host::parse(server.to_str().ok_or(())?).map_err(|_| ())?;
+                write!(serialization, "{}", host).unwrap();
+                host_end = to_u32(serialization.len()).unwrap();
+                host_internal = host.into();
+                serialization.push('/');
+                let share = share.to_str().ok_or(())?;
+                serialization.extend(percent_encode(share.as_bytes(), PATH_SEGMENT_ENCODE_SET));
+            },
+            _ => return Err(())
         },
 
-        // FIXME: do something with UNC and other prefixes?
         _ => return Err(())
-    };
-
-    // Start with the prefix, e.g. "C:"
-    serialization.push('/');
-    serialization.push(disk as char);
-    serialization.push(':');
+    }
 
     for component in components {
         if component == Component::RootDir { continue }
@@ -1796,14 +1817,18 @@ fn path_to_file_url_segments_windows(path: &Path, serialization: &mut String) ->
         serialization.push('/');
         serialization.extend(percent_encode(component.as_bytes(), PATH_SEGMENT_ENCODE_SET));
     }
-    Ok(())
+    Ok((host_end, host_internal))
 }
 
 #[cfg(any(unix, target_os = "redox"))]
-fn file_url_segments_to_pathbuf(segments: str::Split<char>) -> Result<PathBuf, ()> {
+fn file_url_segments_to_pathbuf(host: Option<&str>, segments: str::Split<char>) -> Result<PathBuf, ()> {
     use std::ffi::OsStr;
     use std::os::unix::prelude::OsStrExt;
     use std::path::PathBuf;
+
+    if host.is_some() {
+        return Err(());
+    }
 
     let mut bytes = Vec::new();
     for segment in segments {
@@ -1818,37 +1843,42 @@ fn file_url_segments_to_pathbuf(segments: str::Split<char>) -> Result<PathBuf, (
 }
 
 #[cfg(windows)]
-fn file_url_segments_to_pathbuf(segments: str::Split<char>) -> Result<PathBuf, ()> {
-    file_url_segments_to_pathbuf_windows(segments)
+fn file_url_segments_to_pathbuf(host: Option<&str>, segments: str::Split<char>) -> Result<PathBuf, ()> {
+    file_url_segments_to_pathbuf_windows(host, segments)
 }
 
 // Build this unconditionally to alleviate https://github.com/servo/rust-url/issues/102
 #[cfg_attr(not(windows), allow(dead_code))]
-fn file_url_segments_to_pathbuf_windows(mut segments: str::Split<char>) -> Result<PathBuf, ()> {
-    let first = segments.next().ok_or(())?;
+fn file_url_segments_to_pathbuf_windows(host: Option<&str>, mut segments: str::Split<char>) -> Result<PathBuf, ()> {
 
-    let mut string = match first.len() {
-        2 => {
-            if !first.starts_with(parser::ascii_alpha) || first.as_bytes()[1] != b':' {
-                return Err(())
-            }
+    let mut string = if let Some(host) = host {
+        r"\\".to_owned() + host
+    } else {
+        let first = segments.next().ok_or(())?;
 
-            first.to_owned()
-        },
+        match first.len() {
+            2 => {
+                if !first.starts_with(parser::ascii_alpha) || first.as_bytes()[1] != b':' {
+                    return Err(())
+                }
 
-        4 => {
-            if !first.starts_with(parser::ascii_alpha) {
-                return Err(())
-            }
-            let bytes = first.as_bytes();
-            if bytes[1] != b'%' || bytes[2] != b'3' || (bytes[3] != b'a' && bytes[3] != b'A') {
-                return Err(())
-            }
+                first.to_owned()
+            },
 
-            first[0..1].to_owned() + ":"
-        },
+            4 => {
+                if !first.starts_with(parser::ascii_alpha) {
+                    return Err(())
+                }
+                let bytes = first.as_bytes();
+                if bytes[1] != b'%' || bytes[2] != b'3' || (bytes[3] != b'a' && bytes[3] != b'A') {
+                    return Err(())
+                }
 
-        _ => return Err(()),
+                first[0..1].to_owned() + ":"
+            },
+
+            _ => return Err(()),
+        }
     };
 
     for segment in segments {

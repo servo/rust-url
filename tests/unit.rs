@@ -414,3 +414,30 @@ fn test_origin_hash() {
     assert_ne!(hash(&opaque_origin), hash(&same_opaque_origin));
     assert_ne!(hash(&opaque_origin), hash(&other_opaque_origin));
 }
+
+#[test]
+fn test_windows_unc_path() {
+    if !cfg!(windows) {
+        return
+    }
+
+    let url = Url::from_file_path(Path::new(r"\\host\share\path\file.txt")).unwrap();
+    assert_eq!(url.as_str(), "file://host/share/path/file.txt");
+
+    let url = Url::from_file_path(Path::new(r"\\höst\share\path\file.txt")).unwrap();
+    assert_eq!(url.as_str(), "file://xn--hst-sna/share/path/file.txt");
+
+    let url = Url::from_file_path(Path::new(r"\\192.168.0.1\share\path\file.txt")).unwrap();
+    assert_eq!(url.host(), Some(Host::Ipv4(Ipv4Addr::new(192, 168, 0, 1))));
+
+    let path = url.to_file_path().unwrap();
+    assert_eq!(path.to_str(), Some(r"\\192.168.0.1\share\path\file.txt"));
+
+    // Another way to write these:
+    let url = Url::from_file_path(Path::new(r"\\?\UNC\host\share\path\file.txt")).unwrap();
+    assert_eq!(url.as_str(), "file://host/share/path/file.txt");
+
+    // Paths starting with "\\.\" (Local Device Paths) are intentionally not supported.
+    let url = Url::from_file_path(Path::new(r"\\.\some\path\file.txt"));
+    assert!(url.is_err());
+}
