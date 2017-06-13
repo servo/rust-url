@@ -20,10 +20,9 @@
 //! `url::percent_encoding` includes different *encode sets*.
 //! See [URL Standard](https://url.spec.whatwg.org/#percent-encoded-bytes) for details.
 //!
-//! [`url::percent_encoding::EncodeSet`](trait.EncodeSet.html) Trait allows a sequence of bytes
-//! to be converted to a percent encoded sequence of bytes stripped of particular reserved
-//! characters.  This trait is applied to the `*_ENCODE_SET` structs.  If your application requires
-//! custom set of Encoding, see [`define_encode_set!`](../macro.define_encode_set!.html) macro.
+//! This module provides some `*_ENCODE_SET` constants.
+//! If a different set is required, it can be created with
+//! the [`define_encode_set!`](../macro.define_encode_set!.html) macro.
 //!
 //! # Examples
 //!
