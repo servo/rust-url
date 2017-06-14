@@ -146,7 +146,7 @@ mod parser;
 mod slicing;
 
 pub mod form_urlencoded;
-pub mod quirks;
+#[doc(hidden)] pub mod quirks;
 
 /// A parsed URL record.
 #[derive(Clone)]
