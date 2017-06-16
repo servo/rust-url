@@ -53,6 +53,8 @@ def strtab_slice(s):
 def rust_slice(s):
     return "(StringTableSlice { byte_start: %d, byte_len: %d })" % s
 
+ranges = []
+
 for line in txt:
     # remove comments
     line, _, _ = line.partition('#')
@@ -66,12 +68,17 @@ for line in txt:
     if not last:
         last = first
     mapping = fields[1].strip().replace('_', ' ').title().replace(' ', '')
+    unicode_str = None
     if len(fields) > 2:
         if fields[2].strip():
             unicode_str = u''.join(char(c) for c in fields[2].strip().split(' '))
-            mapping += rust_slice(strtab_slice(unicode_str))
         elif mapping == "Deviation":
-            mapping += rust_slice(strtab_slice(''))
+            unicode_str = u''
+    ranges.append((first, last, mapping, unicode_str))
+
+for (first, last, mapping, unicode_str) in ranges:
+    if unicode_str is not None:
+        mapping += rust_slice(strtab_slice(unicode_str))
     print("    Range { from: '%s', to: '%s', mapping: %s }," % (escape_char(char(first)),
                                                                 escape_char(char(last)),
                                                                 mapping))
