@@ -12,6 +12,7 @@
 use self::Mapping::*;
 use punycode;
 use std::ascii::AsciiExt;
+use std::cmp::Ordering::{Equal, Less, Greater};
 use unicode_normalization::UnicodeNormalization;
 use unicode_normalization::char::is_combining_mark;
 use unicode_bidi::{BidiClass, bidi_class};
@@ -49,20 +50,16 @@ struct Range {
 }
 
 fn find_char(codepoint: char) -> &'static Mapping {
-    let mut min = 0;
-    let mut max = TABLE.len() - 1;
-    while max > min {
-        let mid = (min + max) >> 1;
-        if codepoint > TABLE[mid].to {
-           min = mid;
-        } else if codepoint < TABLE[mid].from {
-            max = mid;
+    let r = TABLE.binary_search_by(|ref range| {
+        if codepoint > range.to {
+            Less
+        } else if codepoint < range.from {
+            Greater
         } else {
-            min = mid;
-            max = mid;
+            Equal
         }
-    }
-    &TABLE[min].mapping
+    });
+    r.ok().map(|i| &TABLE[i].mapping).unwrap()
 }
 
 fn map_char(codepoint: char, flags: Flags, output: &mut String, errors: &mut Vec<Error>) {
