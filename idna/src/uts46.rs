@@ -21,17 +21,22 @@ include!("uts46_mapping_table.rs");
 
 #[derive(Debug)]
 struct StringTableSlice {
-    byte_start: u16,
-    byte_len: u16,
+    // Store these as separate fields so the structure will have an
+    // alignment of 1 and thus pack better into the Mapping enum, below.
+    byte_start_lo: u8,
+    byte_start_hi: u8,
+    byte_len: u8,
 }
 
 fn decode_slice(slice: &StringTableSlice) -> &'static str {
-    let start = slice.byte_start as usize;
+    let lo = slice.byte_start_lo as usize;
+    let hi = slice.byte_start_hi as usize;
+    let start = (hi << 8) | lo;
     let len = slice.byte_len as usize;
     &STRING_TABLE[start..(start + len)]
 }
 
-#[repr(u16)]
+#[repr(u8)]
 #[derive(Debug)]
 enum Mapping {
     Valid,

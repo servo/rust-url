@@ -51,7 +51,13 @@ def strtab_slice(s):
         return c
 
 def rust_slice(s):
-    return "(StringTableSlice { byte_start: %d, byte_len: %d })" % s
+    start = s[0]
+    length = s[1]
+    start_lo = start & 0xff
+    start_hi = start >> 8
+    assert length <= 255
+    assert start_hi <= 255
+    return "(StringTableSlice { byte_start_lo: %d, byte_start_hi: %d, byte_len: %d })" % (start_lo, start_hi, length)
 
 ranges = []
 
