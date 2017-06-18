@@ -301,7 +301,7 @@ impl Url {
     /// ```rust
     /// use url::Url;
     /// # use url::ParseError;
-    /// 
+    ///
     /// # fn run() -> Result<(), ParseError> {
     /// let base = Url::parse("https://example.net/a/b.html")?;
     /// let url = base.join("c.png")?;
@@ -727,6 +727,28 @@ impl Url {
     /// ```
     pub fn has_host(&self) -> bool {
         !matches!(self.host, HostInternal::None)
+    }
+
+    /// Equivalent to `url.port().is_some()`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use url::Url;
+    /// # use url::ParseError;
+    ///
+    /// # fn run() -> Result<(), ParseError> {
+    /// let url = Url::parse("http://example.com:8080")?;
+    /// assert!(url.has_port());
+    ///
+    /// let url = Url::parse("file:///tmp/something")?;
+    /// assert!(!url.has_port());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
+    /// ```
+    pub fn has_port(&self) -> bool {
+        self.port.is_some()
     }
 
     /// Return the string representation of the host (domain or IP address) for this URL, if any.
@@ -1310,7 +1332,7 @@ impl Url {
     /// ```
     /// use url::Url;
     /// # use url::ParseError;
-    /// 
+    ///
     /// # fn run() -> Result<(), ParseError> {
     /// let mut url = Url::parse("foo://example.net")?;
     /// let result = url.set_host(None);
@@ -1326,7 +1348,7 @@ impl Url {
     /// ```
     /// use url::Url;
     /// # use url::ParseError;
-    /// 
+    ///
     /// # fn run() -> Result<(), ParseError> {
     /// let mut url = Url::parse("https://example.net")?;
     /// let result = url.set_host(None);
@@ -1342,7 +1364,7 @@ impl Url {
     /// ```
     /// use url::Url;
     /// # use url::ParseError;
-    /// 
+    ///
     /// # fn run() -> Result<(), ParseError> {
     /// let mut url = Url::parse("mailto:rms@example.net")?;
     ///
@@ -1552,7 +1574,7 @@ impl Url {
     /// ```
     /// use url::Url;
     /// # use url::ParseError;
-    /// 
+    ///
     /// # fn run() -> Result<(), ParseError> {
     /// let mut url = Url::parse("https://example.net")?;
     /// let result = url.set_scheme("foo");
@@ -1569,7 +1591,7 @@ impl Url {
     /// ```
     /// use url::Url;
     /// # use url::ParseError;
-    /// 
+    ///
     /// # fn run() -> Result<(), ParseError> {
     /// let mut url = Url::parse("https://example.net")?;
     /// let result = url.set_scheme("foõ");
@@ -1585,7 +1607,7 @@ impl Url {
     /// ```
     /// use url::Url;
     /// # use url::ParseError;
-    /// 
+    ///
     /// # fn run() -> Result<(), ParseError> {
     /// let mut url = Url::parse("mailto:rms@example.net")?;
     /// let result = url.set_scheme("https");
@@ -1598,8 +1620,8 @@ impl Url {
     pub fn set_scheme(&mut self, scheme: &str) -> Result<(), ()> {
         let mut parser = Parser::for_setter(String::new());
         let remaining = parser.parse_scheme(parser::Input::new(scheme))?;
-        if !remaining.is_empty() ||
-                (!self.has_host() && SchemeType::from(&parser.serialization).is_special()) {
+        if !(remaining.is_empty() &&
+                self.can_use_scheme(&parser.serialization)) {
             return Err(())
         }
         let old_scheme_end = self.scheme_end;
@@ -1622,6 +1644,14 @@ impl Url {
         Ok(())
     }
 
+    fn can_use_scheme(&self, scheme: &str) -> bool {
+        match SchemeType::from(scheme) {
+            SchemeType::File => !(self.has_host() || self.has_port()),
+            SchemeType::SpecialNotFile => self.has_host(),
+            SchemeType::NotSpecial => true
+        }
+    }
+
     /// Convert a file name as `std::path::Path` into an URL in the `file` scheme.
     ///
     /// This returns `Err` if the given path is not absolute or,
@@ -1634,7 +1664,7 @@ impl Url {
     /// ```
     /// # if cfg!(unix) {
     /// use url::Url;
-    /// 
+    ///
     /// # fn run() -> Result<(), ()> {
     /// let url = Url::from_file_path("/tmp/foo.txt")?;
     /// assert_eq!(url.as_str(), "file:///tmp/foo.txt");

@@ -327,6 +327,13 @@ fn issue_241() {
 }
 
 #[test]
+fn issue_278() {
+    let mut url: Url = "http://localhost:6767/foo/bar".parse().unwrap();
+    assert_eq!(url.to_string(), "http://localhost:6767/foo/bar");
+    assert_eq!(url.set_scheme("file"), Err(()));
+}
+
+#[test]
 /// https://github.com/servo/rust-url/issues/222
 fn append_trailing_slash() {
     let mut url: Url = "http://localhost:6767/foo/bar?a=b".parse().unwrap();
