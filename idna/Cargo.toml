@@ -14,6 +14,9 @@ test = false
 name = "tests"
 harness = false
 
+[[test]]
+name = "unit"
+
 [dev-dependencies]
 rustc-test = "0.1"
 rustc-serialize = "0.3"
