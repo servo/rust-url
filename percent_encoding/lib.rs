@@ -1,3 +1,4 @@
+
 // Copyright 2013-2016 The rust-url developers.
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
