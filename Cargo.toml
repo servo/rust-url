@@ -31,7 +31,7 @@ harness = false
 test = false
 
 [dev-dependencies]
-rustc-test = "0.1"
+rustc-test = "0.2"
 rustc-serialize = "0.3"
 serde_json = ">=0.6.1, <0.9"
 
