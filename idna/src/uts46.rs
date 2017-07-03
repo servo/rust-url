@@ -357,7 +357,7 @@ enum Error {
 ///
 /// This is opaque for now, only indicating the presence of at least one error.
 /// More details may be exposed in the future.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Errors(Vec<Error>);
 
 /// http://www.unicode.org/reports/tr46/#ToASCII
