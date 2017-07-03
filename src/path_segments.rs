@@ -214,4 +214,30 @@ impl<'a> PathSegmentsMut<'a> {
         });
         self
     }
+
+    /// Returns the URL reference the PathSegmentsMut was constructed with.
+    ///
+    /// Example:
+    ///
+    /// ```rust
+    /// use url::Url;
+    /// # use std::error::Error;
+    ///
+    /// # fn run() -> Result<(), Box<Error>> {
+    /// let mut url = Url::parse("https://github.com/servo/rust-url/issues/363")?;
+    /// url.path_segments_mut()
+    ///    .map_err(|_| "cannot be base")?
+    ///    .clear()
+    ///    .finish()
+    ///    .query_pairs_mut()
+    ///    // ...
+    ///    .finish();
+    /// assert_eq!(url.as_str(), "https://github.com/");
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
+    /// ```
+    pub fn finish(&mut self) -> &mut ::Url {
+        self.url
+    }
 }
