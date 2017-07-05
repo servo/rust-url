@@ -10,7 +10,3 @@ license = "MIT/Apache-2.0"
 doctest = false
 test = false
 path = "lib.rs"
-
-[dev-dependencies]
-rustc-test = "0.1"
-rustc-serialize = "0.3"
