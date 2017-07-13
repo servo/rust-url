@@ -252,6 +252,13 @@ impl Url {
     /// # }
     /// # run().unwrap();
     /// ```
+    /// 
+    /// # Errors
+    ///
+    /// If the function can not parse an absolute URL from the given string,
+    /// a [`ParseError`] variant will be returned.
+    ///
+    /// [`ParseError`]: enum.ParseError.html
     #[inline]
     pub fn parse(input: &str) -> Result<Url, ::ParseError> {
         Url::options().parse(input)
