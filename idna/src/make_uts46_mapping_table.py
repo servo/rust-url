@@ -101,7 +101,7 @@ for (k, g) in grouped_ranges:
         continue
     # Assert that nothing in the group has an associated unicode string.
     for g in group:
-        if len(g[3]) > 2:
+        if g[3] is not None and len(g[3]) > 2:
             assert not g[3][2].strip()
     # Assert that consecutive members of the group don't leave gaps in
     # the codepoint space.
