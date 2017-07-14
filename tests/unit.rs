@@ -331,7 +331,7 @@ fn issue_241() {
 fn append_trailing_slash() {
     let mut url: Url = "http://localhost:6767/foo/bar?a=b".parse().unwrap();
     url.check_invariants().unwrap();
-    url.path_segments_mut().unwrap().push("");
+    url.path_segments_mut().unwrap().push("").finish();
     url.check_invariants().unwrap();
     assert_eq!(url.to_string(), "http://localhost:6767/foo/bar/?a=b");
 }
@@ -343,7 +343,7 @@ fn extend_query_pairs_then_mutate() {
     url.query_pairs_mut().extend_pairs(vec![ ("auth", "my-token") ].into_iter());
     url.check_invariants().unwrap();
     assert_eq!(url.to_string(), "http://localhost:6767/foo/bar?auth=my-token");
-    url.path_segments_mut().unwrap().push("some_other_path");
+    url.path_segments_mut().unwrap().push("some_other_path").finish();
     url.check_invariants().unwrap();
     assert_eq!(url.to_string(), "http://localhost:6767/foo/bar/some_other_path?auth=my-token");
 }
@@ -353,7 +353,7 @@ fn extend_query_pairs_then_mutate() {
 fn append_empty_segment_then_mutate() {
     let mut url: Url = "http://localhost:6767/foo/bar?a=b".parse().unwrap();
     url.check_invariants().unwrap();
-    url.path_segments_mut().unwrap().push("").pop();
+    url.path_segments_mut().unwrap().push("").pop().finish();
     url.check_invariants().unwrap();
     assert_eq!(url.to_string(), "http://localhost:6767/foo/bar?a=b");
 }
@@ -450,6 +450,22 @@ fn test_origin_hash() {
 
     assert_ne!(hash(&opaque_origin), hash(&same_opaque_origin));
     assert_ne!(hash(&opaque_origin), hash(&other_opaque_origin));
+}
+
+#[test]
+// https://github.com/servo/rust-url/issues/363
+fn chain_path_segments_query_pair() {
+    let mut url = Url::parse("https://github.com/servo/rust-url/issues/363").unwrap();
+
+    url.path_segments_mut()
+       .expect("path_segments_mut")
+       .clear()
+       .finish()
+       .query_pairs_mut()
+       .finish();
+
+    /// The ? at the end is added by query_pairs_mut
+    assert_eq!(url.as_str(), "https://github.com/?");
 }
 
 #[test]

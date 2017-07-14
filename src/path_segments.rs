@@ -63,7 +63,7 @@ impl<'a> Drop for PathSegmentsMut<'a> {
 impl<'a> PathSegmentsMut<'a> {
     /// Remove all segments in the path, leaving the minimal `url.path() == "/"`.
     ///
-    /// Returns `&mut Self` so that method calls can be chained.
+    /// Returns `mut Self` so that method calls can be chained.
     ///
     /// Example:
     ///
@@ -80,7 +80,7 @@ impl<'a> PathSegmentsMut<'a> {
     /// # }
     /// # run().unwrap();
     /// ```
-    pub fn clear(&mut self) -> &mut Self {
+    pub fn clear(mut self) -> Self {
         self.url.serialization.truncate(self.after_first_slash);
         self
     }
@@ -91,7 +91,7 @@ impl<'a> PathSegmentsMut<'a> {
     /// In other words, remove one path trailing slash, if any,
     /// unless it is also the initial slash (so this does nothing if `url.path() == "/")`.
     ///
-    /// Returns `&mut Self` so that method calls can be chained.
+    /// Returns `mut Self` so that method calls can be chained.
     ///
     /// Example:
     ///
@@ -113,7 +113,7 @@ impl<'a> PathSegmentsMut<'a> {
     /// # }
     /// # run().unwrap();
     /// ```
-    pub fn pop_if_empty(&mut self) -> &mut Self {
+    pub fn pop_if_empty(mut self) -> Self {
         if self.url.serialization[self.after_first_slash..].ends_with('/') {
             self.url.serialization.pop();
         }
@@ -124,8 +124,8 @@ impl<'a> PathSegmentsMut<'a> {
     ///
     /// If the path only has one segment, make it empty such that `url.path() == "/"`.
     ///
-    /// Returns `&mut Self` so that method calls can be chained.
-    pub fn pop(&mut self) -> &mut Self {
+    /// Returns `mut Self` so that method calls can be chained.
+    pub fn pop(mut self) -> Self {
         let last_slash = self.url.serialization[self.after_first_slash..].rfind('/').unwrap_or(0);
         self.url.serialization.truncate(self.after_first_slash + last_slash);
         self
@@ -135,8 +135,9 @@ impl<'a> PathSegmentsMut<'a> {
     ///
     /// See the documentation for `.extend()`.
     ///
-    /// Returns `&mut Self` so that method calls can be chained.
-    pub fn push(&mut self, segment: &str) -> &mut Self {
+    /// Returns `mut Self` so that method calls can be chained.
+    #[allow(unused_mut)]
+    pub fn push(mut self, segment: &str) -> Self {
         self.extend(Some(segment))
     }
 
@@ -156,7 +157,7 @@ impl<'a> PathSegmentsMut<'a> {
     ///
     /// To obtain a behavior similar to `Url::join`, call `.pop()` unconditionally first.
     ///
-    /// Returns `&mut Self` so that method calls can be chained.
+    /// Returns `mut Self` so that method calls can be chained.
     ///
     /// Example:
     ///
@@ -193,7 +194,7 @@ impl<'a> PathSegmentsMut<'a> {
     /// # }
     /// # run().unwrap();
     /// ```
-    pub fn extend<I>(&mut self, segments: I) -> &mut Self
+    pub fn extend<I>(mut self, segments: I) -> Self
     where I: IntoIterator, I::Item: AsRef<str> {
         let scheme_type = SchemeType::from(self.url.scheme());
         let path_start = self.url.path_start as usize;
@@ -228,16 +229,13 @@ impl<'a> PathSegmentsMut<'a> {
     /// url.path_segments_mut()
     ///    .map_err(|_| "cannot be base")?
     ///    .clear()
-    ///    .finish()
-    ///    .query_pairs_mut()
-    ///    // ...
     ///    .finish();
     /// assert_eq!(url.as_str(), "https://github.com/");
     /// # Ok(())
     /// # }
     /// # run().unwrap();
     /// ```
-    pub fn finish(&mut self) -> &mut ::Url {
+    pub fn finish(self) -> &'a mut ::Url {
         self.url
     }
 }
