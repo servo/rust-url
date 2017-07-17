@@ -281,6 +281,13 @@ impl Url {
     /// # }
     /// # run().unwrap();
     /// ```
+    ///
+    /// # Errors
+    ///
+    /// If the function can not parse an absolute URL from the given string,
+    /// a [`ParseError`] variant will be returned.
+    ///
+    /// [`ParseError`]: enum.ParseError.html
     #[inline]
     pub fn parse_with_params<I, K, V>(input: &str, iter: I) -> Result<Url, ::ParseError>
         where I: IntoIterator,
@@ -321,6 +328,13 @@ impl Url {
     /// # }
     /// # run().unwrap();
     /// ```
+    ///
+    /// # Errors
+    ///
+    /// If the function can not parse an URL from the given string 
+    /// with this URL as the base URL, a [`ParseError`] variant will be returned.
+    ///
+    /// [`ParseError`]: enum.ParseError.html
     #[inline]
     pub fn join(&self, input: &str) -> Result<Url, ::ParseError> {
         Url::options().base_url(Some(self)).parse(input)
@@ -1455,9 +1469,6 @@ impl Url {
 
     /// Change this URL’s host.
     ///
-    /// If this URL is cannot-be-a-base or there is an error parsing the given `host`,
-    /// do nothing and return `Err`.
-    ///
     /// Removing the host (calling this with `None`)
     /// will also remove any username, password, and port number.
     ///
@@ -1531,6 +1542,13 @@ impl Url {
     /// # }
     /// # run().unwrap();
     /// ```
+    ///
+    /// # Errors
+    ///
+    /// If this URL is cannot-be-a-base or there is an error parsing the given `host`,
+    /// a [`ParseError`] variant will be returned.
+    ///
+    /// [`ParseError`]: enum.ParseError.html
     pub fn set_host(&mut self, host: Option<&str>) -> Result<(), ParseError> {
         if self.cannot_be_a_base() {
             return Err(ParseError::SetHostOnCannotBeABaseUrl)
