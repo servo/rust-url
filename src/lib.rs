@@ -1762,11 +1762,11 @@ impl Url {
     /// use url::{Url, ParseError};
     ///
     /// # fn run() -> Result<(), ParseError> {
-    /// let mut url = Url::parse("ftp://:secre1@example.com")?;
+    /// let mut url = Url::parse("ftp://:secre1@example.com/")?;
     /// let result = url.set_username("user1");
     /// assert!(result.is_ok());
     /// assert_eq!(url.username(), "user1");
-    /// assert_eq!(url.as_str(), "ftp://user1:secre1@example.com");
+    /// assert_eq!(url.as_str(), "ftp://user1:secre1@example.com/");
     /// # Ok(())
     /// # }
     /// # run().unwrap();
