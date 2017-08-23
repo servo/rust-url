@@ -1757,6 +1757,7 @@ impl Url {
     /// ```
     ///
     /// Setup username to user1
+    ///
     /// ```rust
     /// use url::{Url, ParseError};
     ///
