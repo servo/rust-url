@@ -23,7 +23,7 @@ include!("uts46_mapping_table.rs");
 pub static PUNYCODE_PREFIX: &'static str = "xn--";
 
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 struct StringTableSlice {
     // Store these as separate fields so the structure will have an
     // alignment of 1 and thus pack better into the Mapping enum, below.
@@ -41,7 +41,7 @@ fn decode_slice(slice: &StringTableSlice) -> &'static str {
 }
 
 #[repr(u8)]
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 enum Mapping {
     Valid,
     Ignored,
@@ -52,6 +52,7 @@ enum Mapping {
     DisallowedStd3Mapped(StringTableSlice),
 }
 
+#[derive(Clone, Copy)]
 struct Range {
     from: char,
     to: char,
