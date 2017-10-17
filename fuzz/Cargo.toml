@@ -15,7 +15,7 @@ git = "https://github.com/rust-fuzz/libfuzzer-sys.git"
 
 [[bin]]
 name = "parse"
-path = "fuzzers/parse.rs"
+path = "fuzz_targets/parse.rs"
 
 [workspace]
 members = ["."]
