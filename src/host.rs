@@ -137,7 +137,7 @@ impl<'a> Host<&'a str> {
 impl Host<String> {
     /// Parse a host: either an IPv6 address in [] square brackets, or a domain.
     ///
-    /// https://url.spec.whatwg.org/#host-parsing
+    /// <https://url.spec.whatwg.org/#host-parsing>
     pub fn parse(input: &str) -> Result<Self, ParseError> {
         if input.starts_with('[') {
             if !input.ends_with(']') {
@@ -309,7 +309,7 @@ fn longest_zero_sequence(pieces: &[u16; 8]) -> (isize, isize) {
     }
 }
 
-/// https://url.spec.whatwg.org/#ipv4-number-parser
+/// <https://url.spec.whatwg.org/#ipv4-number-parser>
 fn parse_ipv4number(mut input: &str) -> Result<u32, ()> {
     let mut r = 10;
     if input.starts_with("0x") || input.starts_with("0X") {
@@ -331,7 +331,7 @@ fn parse_ipv4number(mut input: &str) -> Result<u32, ()> {
     }
 }
 
-/// https://url.spec.whatwg.org/#concept-ipv4-parser
+/// <https://url.spec.whatwg.org/#concept-ipv4-parser>
 fn parse_ipv4addr(input: &str) -> ParseResult<Option<Ipv4Addr>> {
     if input.is_empty() {
         return Ok(None)
@@ -368,7 +368,7 @@ fn parse_ipv4addr(input: &str) -> ParseResult<Option<Ipv4Addr>> {
     Ok(Some(Ipv4Addr::from(ipv4)))
 }
 
-/// https://url.spec.whatwg.org/#concept-ipv6-parser
+/// <https://url.spec.whatwg.org/#concept-ipv6-parser>
 fn parse_ipv6addr(input: &str) -> ParseResult<Ipv6Addr> {
     let input = input.as_bytes();
     let len = input.len();
