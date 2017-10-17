@@ -521,7 +521,7 @@ impl Url {
         Ok(())
     }
 
-    /// Return the origin of this URL (https://url.spec.whatwg.org/#origin)
+    /// Return the origin of this URL (<https://url.spec.whatwg.org/#origin>)
     ///
     /// Note: this returns an opaque origin for `file:` URLs, which causes
     /// `url.origin() != url.origin()`.
