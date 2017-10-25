@@ -13,7 +13,7 @@ use std::io;
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
 use std::vec;
 use parser::{ParseResult, ParseError};
-use percent_encoding::percent_decode;
+use percent_encoding::{percent_decode, utf8_percent_encode, SIMPLE_ENCODE_SET};
 use idna;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -157,6 +157,17 @@ impl Host<String> {
         } else {
             Ok(Host::Domain(domain.into()))
         }
+    }
+
+    // <https://url.spec.whatwg.org/#concept-opaque-host-parser>
+    pub fn parse_opaque(input: &str) -> Result<Self, ParseError> {
+        if input.find(|c| matches!(c,
+            '\0' | '\t' | '\n' | '\r' | ' ' | '#' | '/' | ':' | '?' | '@' | '[' | '\\' | ']'
+        )).is_some() {
+            return Err(ParseError::InvalidDomainCharacter)
+        }
+        let s = utf8_percent_encode(input, SIMPLE_ENCODE_SET).to_string();
+        Ok(Host::Domain(s))
     }
 }
 

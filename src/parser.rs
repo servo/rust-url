@@ -783,6 +783,10 @@ impl<'a> Parser<'a> {
         if scheme_type.is_special() && host_str.is_empty() {
             return Err(ParseError::EmptyHost)
         }
+        if !scheme_type.is_special() {
+            let host = Host::parse_opaque(host_str)?;
+            return Ok((host, input));
+        }
         let host = Host::parse(host_str)?;
         Ok((host, input))
     }
