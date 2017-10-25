@@ -64,7 +64,7 @@ pub fn parse_with_encoding<'a>(input: &'a [u8],
         for sequence in input.split(|&b| b == b'&') {
             // No '+' in "_charset_" to replace with ' '.
             if sequence.starts_with(b"_charset_=") {
-                let value = unsafe { &sequence.get_unchecked(b"_charset_=".len()..) };
+                let value = &sequence[b"_charset_=".len()..];
                 // Skip replacing '+' with ' ' in value since no encoding label contains either:
                 // https://encoding.spec.whatwg.org/#names-and-labels
                 if let Some(e) = EncodingOverride::lookup(value) {
@@ -126,12 +126,10 @@ fn replace_plus(input: &[u8]) -> Cow<[u8]> {
         None => Cow::Borrowed(input),
         Some(first_position) => {
             let mut replaced = input.to_owned();
-            unsafe {
-                *replaced.get_unchecked_mut(first_position) = b' ';
-                for byte in replaced.get_unchecked_mut(first_position + 1..) {
-                    if *byte == b'+' {
-                        *byte = b' ';
-                    }
+            replaced[first_position] = b' ';
+            for byte in &mut replaced[first_position + 1..] {
+                if *byte == b'+' {
+                    *byte = b' ';
                 }
             }
             Cow::Owned(replaced)
