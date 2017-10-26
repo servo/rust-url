@@ -161,6 +161,12 @@ impl Host<String> {
 
     // <https://url.spec.whatwg.org/#concept-opaque-host-parser>
     pub fn parse_opaque(input: &str) -> Result<Self, ParseError> {
+        if input.starts_with('[') {
+            if !input.ends_with(']') {
+                return Err(ParseError::InvalidIpv6Address)
+            }
+            return parse_ipv6addr(&input[1..input.len() - 1]).map(Host::Ipv6)
+        }
         if input.find(|c| matches!(c,
             '\0' | '\t' | '\n' | '\r' | ' ' | '#' | '/' | ':' | '?' | '@' | '[' | '\\' | ']'
         )).is_some() {
