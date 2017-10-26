@@ -1558,7 +1558,11 @@ impl Url {
             if host == "" && SchemeType::from(self.scheme()).is_special() {
                 return Err(ParseError::EmptyHost);
             }
-            self.set_host_internal(Host::parse(host)?, None)
+            if SchemeType::from(self.scheme()).is_special() {
+                self.set_host_internal(Host::parse(host)?, None)
+            } else {
+                self.set_host_internal(Host::parse_opaque(host)?, None)
+            }
         } else if self.has_host() {
             if SchemeType::from(self.scheme()).is_special() {
                 return Err(ParseError::EmptyHost)
