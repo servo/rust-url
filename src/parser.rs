@@ -701,14 +701,23 @@ impl<'a> Parser<'a> {
         };
 
         let mut username_end = None;
+        let mut has_password = false;
+        let mut has_username = false;
         while userinfo_char_count > 0 {
             let (c, utf8_c) = input.next_utf8().unwrap();
             userinfo_char_count -= 1;
             if c == ':' && username_end.is_none() {
                 // Start parsing password
                 username_end = Some(to_u32(self.serialization.len())?);
-                self.serialization.push(':');
+                // We don't add a colon if the password is empty
+                if userinfo_char_count > 0 {
+                    self.serialization.push(':');
+                    has_password = true;
+                }
             } else {
+                if !has_password {
+                    has_username = true;
+                }
                 self.check_url_code_point(c, &input);
                 self.serialization.extend(utf8_percent_encode(utf8_c, USERINFO_ENCODE_SET));
             }
@@ -717,7 +726,9 @@ impl<'a> Parser<'a> {
             Some(i) => i,
             None => to_u32(self.serialization.len())?,
         };
-        self.serialization.push('@');
+        if has_username || has_password {
+            self.serialization.push('@');
+        }
         Ok((username_end, remaining))
     }
 

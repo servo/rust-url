@@ -221,7 +221,7 @@ fn test_serialization() {
         ("http://example.com/", "http://example.com/"),
         ("http://addslash.com", "http://addslash.com/"),
         ("http://@emptyuser.com/", "http://emptyuser.com/"),
-        ("http://:@emptypass.com/", "http://:@emptypass.com/"),
+        ("http://:@emptypass.com/", "http://emptypass.com/"),
         ("http://user@user.com/", "http://user@user.com/"),
         ("http://user:pass@userpass.com/", "http://user:pass@userpass.com/"),
         ("http://slashquery.com/path/?q=something", "http://slashquery.com/path/?q=something"),
