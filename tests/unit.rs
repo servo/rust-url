@@ -382,6 +382,11 @@ fn test_set_host() {
     let mut url = Url::parse("foobar://example.net/hello").unwrap();
     url.set_host(None).unwrap();
     assert_eq!(url.as_str(), "foobar:/hello");
+
+    let mut url = Url::parse("foo://ș").unwrap();
+    assert_eq!(url.as_str(), "foo://%C8%99/");
+    url.set_host(Some("goșu.ro")).unwrap();
+    assert_eq!(url.as_str(), "foo://go%C8%99u.ro/");
 }
 
 #[test]

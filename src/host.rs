@@ -13,7 +13,7 @@ use std::io;
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
 use std::vec;
 use parser::{ParseResult, ParseError};
-use percent_encoding::percent_decode;
+use percent_encoding::{percent_decode, utf8_percent_encode, SIMPLE_ENCODE_SET};
 use idna;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -73,7 +73,9 @@ impl<S> From<Host<S>> for HostInternal {
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum Host<S=String> {
     /// A DNS domain name, as '.' dot-separated labels.
-    /// Non-ASCII labels are encoded in punycode per IDNA.
+    /// Non-ASCII labels are encoded in punycode per IDNA if this is the host of
+    /// a special URL, or percent encoded for non-special URLs. Hosts for
+    /// non-special URLs are also called opaque hosts.
     Domain(S),
 
     /// An IPv4 address.
@@ -157,6 +159,23 @@ impl Host<String> {
         } else {
             Ok(Host::Domain(domain.into()))
         }
+    }
+
+    // <https://url.spec.whatwg.org/#concept-opaque-host-parser>
+    pub fn parse_opaque(input: &str) -> Result<Self, ParseError> {
+        if input.starts_with('[') {
+            if !input.ends_with(']') {
+                return Err(ParseError::InvalidIpv6Address)
+            }
+            return parse_ipv6addr(&input[1..input.len() - 1]).map(Host::Ipv6)
+        }
+        if input.find(|c| matches!(c,
+            '\0' | '\t' | '\n' | '\r' | ' ' | '#' | '/' | ':' | '?' | '@' | '[' | '\\' | ']'
+        )).is_some() {
+            return Err(ParseError::InvalidDomainCharacter)
+        }
+        let s = utf8_percent_encode(input, SIMPLE_ENCODE_SET).to_string();
+        Ok(Host::Domain(s))
     }
 }
 
