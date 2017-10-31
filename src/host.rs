@@ -73,7 +73,9 @@ impl<S> From<Host<S>> for HostInternal {
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum Host<S=String> {
     /// A DNS domain name, as '.' dot-separated labels.
-    /// Non-ASCII labels are encoded in punycode per IDNA.
+    /// Non-ASCII labels are encoded in punycode per IDNA if this is the host of
+    /// a special URL, or percent encoded for non-special URLs. Hosts for
+    /// non-special URLs are also called opaque hosts.
     Domain(S),
 
     /// An IPv4 address.
