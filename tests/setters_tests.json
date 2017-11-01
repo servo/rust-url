@@ -259,6 +259,22 @@
             }
         },
         {
+            "href": "sc:///",
+            "new_value": "x",
+            "expected": {
+                "href": "sc:///",
+                "username": ""
+            }
+        },
+        {
+            "href": "file://test/",
+            "new_value": "test",
+            "expected": {
+                "href": "file://test/",
+                "username": ""
+            }
+        },
+        {
             "href": "javascript://x/",
             "new_value": "wario",
             "expected": {
@@ -343,6 +359,22 @@
             "expected": {
                 "href": "http://:%c3%89t%C3%A9@example.net/",
                 "password": "%c3%89t%C3%A9"
+            }
+        },
+        {
+            "href": "sc:///",
+            "new_value": "x",
+            "expected": {
+                "href": "sc:///",
+                "password": ""
+            }
+        },
+        {
+            "href": "file://test/",
+            "new_value": "test",
+            "expected": {
+                "href": "file://test/",
+                "password": ""
             }
         },
         {
@@ -1211,6 +1243,14 @@
             "new_value": "12",
             "expected": {
                 "href": "non-base:value",
+                "port": ""
+            }
+        },
+        {
+            "href": "sc:///",
+            "new_value": "12",
+            "expected": {
+                "href": "sc:///",
                 "port": ""
             }
         },

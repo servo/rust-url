@@ -296,22 +296,6 @@ fn host_and_port_display() {
 }
 
 #[test]
-/// https://github.com/servo/rust-url/issues/25
-fn issue_25() {
-    let filename = if cfg!(windows) { r"C:\run\pg.sock" } else { "/run/pg.sock" };
-    let mut url = Url::from_file_path(filename).unwrap();
-    url.check_invariants().unwrap();
-    url.set_scheme("postgres").unwrap();
-    url.check_invariants().unwrap();
-    url.set_host(Some("")).unwrap();
-    url.check_invariants().unwrap();
-    url.set_username("me").unwrap();
-    url.check_invariants().unwrap();
-    let expected = format!("postgres://me@/{}run/pg.sock", if cfg!(windows) { "C:/" } else { "" });
-    assert_eq!(url.as_str(), expected);
-}
-
-#[test]
 /// https://github.com/servo/rust-url/issues/61
 fn issue_61() {
     let mut url = Url::parse("http://mozilla.org").unwrap();

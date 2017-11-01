@@ -104,7 +104,7 @@ assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css");
 # run().unwrap();
 */
 
-#![doc(html_root_url = "https://docs.rs/url/1.6.0")]
+#![doc(html_root_url = "https://docs.rs/url/1.6.1")]
 
 #[cfg(feature="rustc-serialize")] extern crate rustc_serialize;
 #[macro_use] extern crate matches;
@@ -1427,7 +1427,8 @@ impl Url {
     /// # run().unwrap();
     /// ```
     pub fn set_port(&mut self, mut port: Option<u16>) -> Result<(), ()> {
-        if !self.has_host() || self.scheme() == "file" {
+        // has_host implies !cannot_be_a_base
+        if !self.has_host() || self.host() == Some(Host::Domain("")) || self.scheme() == "file" {
             return Err(())
         }
         if port.is_some() && port == parser::default_port(self.scheme()) {
@@ -1695,7 +1696,8 @@ impl Url {
     /// # run().unwrap();
     /// ```
     pub fn set_password(&mut self, password: Option<&str>) -> Result<(), ()> {
-        if !self.has_host() {
+        // has_host implies !cannot_be_a_base
+        if !self.has_host() || self.host() == Some(Host::Domain("")) || self.scheme() == "file" {
             return Err(())
         }
         if let Some(password) = password {
@@ -1776,7 +1778,8 @@ impl Url {
     /// # run().unwrap();
     /// ```
     pub fn set_username(&mut self, username: &str) -> Result<(), ()> {
-        if !self.has_host() {
+        // has_host implies !cannot_be_a_base
+        if !self.has_host() || self.host() == Some(Host::Domain("")) || self.scheme() == "file" {
             return Err(())
         }
         let username_start = self.scheme_end + 3;
