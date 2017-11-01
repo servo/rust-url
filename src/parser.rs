@@ -920,15 +920,6 @@ impl<'a> Parser<'a> {
                     },
                     _ => {
                         self.check_url_code_point(c, &input);
-                        if c == '%' {
-                            let after_percent_sign = input.clone();
-                            if matches!(input.next(), Some('2')) &&
-                                    matches!(input.next(), Some('E') | Some('e')) {
-                                self.serialization.push('.');
-                                continue
-                            }
-                            input = after_percent_sign
-                        }
                         if self.context == Context::PathSegmentSetter {
                             self.serialization.extend(utf8_percent_encode(
                                 utf8_c, PATH_SEGMENT_ENCODE_SET));
@@ -940,7 +931,7 @@ impl<'a> Parser<'a> {
                 }
             }
             match &self.serialization[segment_start..] {
-                ".." => {
+                ".." | "%2e%2e" | "%2e%2E" | "%2E%2e" | "%2E%2E" | "%2e." | "%2E." | ".%2e" | ".%2E"  => {
                     debug_assert!(self.serialization.as_bytes()[segment_start - 1] == b'/');
                     self.serialization.truncate(segment_start - 1);  // Truncate "/.."
                     self.pop_path(scheme_type, path_start);
@@ -948,7 +939,7 @@ impl<'a> Parser<'a> {
                         self.serialization.push('/')
                     }
                 },
-                "." => {
+                "." | "%2e" | "%2E" => {
                     self.serialization.truncate(segment_start);
                 },
                 _ => {
