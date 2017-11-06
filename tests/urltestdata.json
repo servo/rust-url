@@ -4859,6 +4859,11 @@
     "hash": ""
   },
   {
+    "input": "http://10000000000",
+    "base": "http://other.com/",
+    "failure": true
+  },
+  {
     "input": "http://10000000000.com",
     "base": "http://other.com/",
     "href": "http://10000000000.com/",
@@ -4889,6 +4894,11 @@
     "hash": ""
   },
   {
+    "input": "http://4294967296",
+    "base": "http://other.com/",
+    "failure": true
+  },
+  {
     "input": "http://0xffffffff",
     "base": "http://other.com/",
     "href": "http://255.255.255.255/",
@@ -4902,6 +4912,11 @@
     "pathname": "/",
     "search": "",
     "hash": ""
+  },
+  {
+    "input": "http://0xffffffff1",
+    "base": "http://other.com/",
+    "failure": true
   },
   {
     "input": "http://256.256.256.256",
