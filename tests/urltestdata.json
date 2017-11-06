@@ -5414,6 +5414,20 @@
     "search": "?q=v",
     "hash": ""
   },
+  {
+    "input": "file:#frag",
+    "base": "about:blank",
+    "href": "file:///#frag",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "hash": "#frag"
+  },
   "# IPv6 tests",
   {
     "input": "http://[1:0::]",

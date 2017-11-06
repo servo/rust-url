@@ -451,6 +451,7 @@ impl<'a> Parser<'a> {
                     let scheme_end = "file".len() as u32;
                     let path_start = "file://".len() as u32;
                     let fragment_start = "file:///".len() as u32;
+                    self.serialization.push('#');
                     self.parse_fragment(input_after_first_char);
                     Ok(Url {
                         serialization: self.serialization,
