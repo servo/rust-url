@@ -3684,6 +3684,21 @@
     "hash": ""
   },
   {
+    "input": "https://faß.ExAmPlE/",
+    "base": "about:blank",
+    "href": "https://xn--fa-hia.example/",
+    "origin": "https://xn--fa-hia.example",
+    "protocol": "https:",
+    "username": "",
+    "password": "",
+    "host": "xn--fa-hia.example",
+    "hostname": "xn--fa-hia.example",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "hash": ""
+  },
+  {
     "input": "sc://faß.ExAmPlE/",
     "base": "about:blank",
     "href": "sc://fa%C3%9F.ExAmPlE/",
