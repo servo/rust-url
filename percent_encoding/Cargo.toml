@@ -1,6 +1,6 @@
 [package]
 name = "percent-encoding"
-version = "1.0.0"
+version = "1.0.1"
 authors = ["The rust-url developers"]
 description = "Percent encoding and decoding"
 repository = "https://github.com/servo/rust-url/"
