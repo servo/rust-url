@@ -252,7 +252,7 @@ impl Url {
     /// # }
     /// # run().unwrap();
     /// ```
-    /// 
+    ///
     /// # Errors
     ///
     /// If the function can not parse an absolute URL from the given string,
@@ -315,7 +315,7 @@ impl Url {
     /// ```rust
     /// use url::Url;
     /// # use url::ParseError;
-    /// 
+    ///
     /// # fn run() -> Result<(), ParseError> {
     /// let base = Url::parse("https://example.net/a/b.html")?;
     /// let url = base.join("c.png")?;
@@ -331,7 +331,7 @@ impl Url {
     ///
     /// # Errors
     ///
-    /// If the function can not parse an URL from the given string 
+    /// If the function can not parse an URL from the given string
     /// with this URL as the base URL, a [`ParseError`] variant will be returned.
     ///
     /// [`ParseError`]: enum.ParseError.html
@@ -1177,11 +1177,11 @@ impl Url {
     /// assert_eq!(url.as_str(), "https://example.com/data.csv");
 
     /// url.set_fragment(Some("cell=4,1-6,2"));
-    /// assert_eq!(url.as_str(), "https://example.com/data.csv#cell=4,1-6,2");  
+    /// assert_eq!(url.as_str(), "https://example.com/data.csv#cell=4,1-6,2");
     /// assert_eq!(url.fragment(), Some("cell=4,1-6,2"));
     ///
     /// url.set_fragment(None);
-    /// assert_eq!(url.as_str(), "https://example.com/data.csv");    
+    /// assert_eq!(url.as_str(), "https://example.com/data.csv");
     /// assert!(url.fragment().is_none());
     /// # Ok(())
     /// # }
@@ -1234,7 +1234,7 @@ impl Url {
     /// assert_eq!(url.as_str(), "https://example.com/products");
     ///
     /// url.set_query(Some("page=2"));
-    /// assert_eq!(url.as_str(), "https://example.com/products?page=2");    
+    /// assert_eq!(url.as_str(), "https://example.com/products?page=2");
     /// assert_eq!(url.query(), Some("page=2"));
     /// # Ok(())
     /// # }
@@ -1330,12 +1330,12 @@ impl Url {
     /// # fn run() -> Result<(), ParseError> {
     /// let mut url = Url::parse("https://example.com")?;
     /// url.set_path("api/comments");
-    /// assert_eq!(url.as_str(), "https://example.com/api/comments");    
+    /// assert_eq!(url.as_str(), "https://example.com/api/comments");
     /// assert_eq!(url.path(), "/api/comments");
     ///
     /// let mut url = Url::parse("https://example.com/api")?;
     /// url.set_path("data/report.csv");
-    /// assert_eq!(url.as_str(), "https://example.com/data/report.csv");    
+    /// assert_eq!(url.as_str(), "https://example.com/data/report.csv");
     /// assert_eq!(url.path(), "/data/report.csv");
     /// # Ok(())
     /// # }
@@ -1496,7 +1496,7 @@ impl Url {
     /// ```
     /// use url::Url;
     /// # use url::ParseError;
-    /// 
+    ///
     /// # fn run() -> Result<(), ParseError> {
     /// let mut url = Url::parse("foo://example.net")?;
     /// let result = url.set_host(None);
@@ -1512,7 +1512,7 @@ impl Url {
     /// ```
     /// use url::Url;
     /// # use url::ParseError;
-    /// 
+    ///
     /// # fn run() -> Result<(), ParseError> {
     /// let mut url = Url::parse("https://example.net")?;
     /// let result = url.set_host(None);
@@ -1528,7 +1528,7 @@ impl Url {
     /// ```
     /// use url::Url;
     /// # use url::ParseError;
-    /// 
+    ///
     /// # fn run() -> Result<(), ParseError> {
     /// let mut url = Url::parse("mailto:rms@example.net")?;
     ///
@@ -1838,7 +1838,7 @@ impl Url {
     /// ```
     /// use url::Url;
     /// # use url::ParseError;
-    /// 
+    ///
     /// # fn run() -> Result<(), ParseError> {
     /// let mut url = Url::parse("https://example.net")?;
     /// let result = url.set_scheme("foo");
@@ -1855,7 +1855,7 @@ impl Url {
     /// ```
     /// use url::Url;
     /// # use url::ParseError;
-    /// 
+    ///
     /// # fn run() -> Result<(), ParseError> {
     /// let mut url = Url::parse("https://example.net")?;
     /// let result = url.set_scheme("foõ");
@@ -1871,7 +1871,7 @@ impl Url {
     /// ```
     /// use url::Url;
     /// # use url::ParseError;
-    /// 
+    ///
     /// # fn run() -> Result<(), ParseError> {
     /// let mut url = Url::parse("mailto:rms@example.net")?;
     /// let result = url.set_scheme("https");
@@ -1920,7 +1920,7 @@ impl Url {
     /// ```
     /// # if cfg!(unix) {
     /// use url::Url;
-    /// 
+    ///
     /// # fn run() -> Result<(), ()> {
     /// let url = Url::from_file_path("/tmp/foo.txt")?;
     /// assert_eq!(url.as_str(), "file:///tmp/foo.txt");
