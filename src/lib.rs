@@ -1935,6 +1935,7 @@ impl Url {
     /// # run().unwrap();
     /// # }
     /// ```
+    #[cfg(any(unix, windows, target_os="redox"))]
     pub fn from_file_path<P: AsRef<Path>>(path: P) -> Result<Url, ()> {
         let mut serialization = "file://".to_owned();
         let host_start = serialization.len() as u32;
@@ -1970,6 +1971,7 @@ impl Url {
     ///
     /// Note that `std::path` does not consider trailing slashes significant
     /// and usually does not include them (e.g. in `Path::parent()`).
+    #[cfg(any(unix, windows, target_os="redox"))]
     pub fn from_directory_path<P: AsRef<Path>>(path: P) -> Result<Url, ()> {
         let mut url = Url::from_file_path(path)?;
         if !url.serialization.ends_with('/') {
@@ -2051,6 +2053,7 @@ impl Url {
     /// (That is, if the percent-decoded path contains a NUL byte or,
     /// for a Windows path, is not UTF-8.)
     #[inline]
+    #[cfg(any(unix, windows, target_os="redox"))]
     pub fn to_file_path(&self) -> Result<PathBuf, ()> {
         if let Some(segments) = self.path_segments() {
             let host = match self.host() {
@@ -2296,6 +2299,7 @@ fn path_to_file_url_segments_windows(path: &Path, serialization: &mut String)
     }
     Ok((host_end, host_internal))
 }
+
 
 #[cfg(any(unix, target_os = "redox"))]
 fn file_url_segments_to_pathbuf(host: Option<&str>, segments: str::Split<char>) -> Result<PathBuf, ()> {
