@@ -1,9 +1,19 @@
 language: rust
-rust:
-  - nightly
-  - beta
-  - stable
-  - 1.17.0
 script: make test
+
+jobs:
+  include:
+  - rust: nightly
+  - rust: beta
+  - rust: stable
+  - rust: 1.17.0
+  - rust: nightly
+    env:
+    - WASM32=true  # just to show it in travis UI
+    install:
+    - rustup target add wasm32-unknown-unknown
+    script:
+    - cargo build --target=wasm32-unknown-unknown
+
 notifications:
   webhooks: http://build.servo.org:54856/travis
