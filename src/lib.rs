@@ -971,6 +971,59 @@ impl Url {
         })
     }
 
+    /// Return the parsed representation of the host for this URL with port.
+    /// Non-ASCII domain labels are punycode-encoded per IDNA.  If the port
+    /// number is not specified or equals the default port for given scheme, it
+    /// is not included in returned string.
+    ///
+    /// Cannot-be-a-base URLs (typical of `data:` and `mailto:`) and some
+    /// `file:` URLs don’t have `host_port`.
+    ///
+    /// See also the `host_str` method.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use url::Url;
+    /// # use url::ParseError;
+    ///
+    /// # fn run() -> Result<(), ParseError> {
+    /// let url = Url::parse("https://127.0.0.1/index.html")?;
+    /// assert_eq!(url.host_port_str(), Some("127.0.0.1"));
+    ///
+    /// let url = Url::parse("https://example.com:443/index.html")?;
+    /// assert_eq!(url.host_port_str(), Some("example.com"));
+    ///
+    /// let url = Url::parse("https://example.com:8080/index.html")?;
+    /// assert_eq!(url.host_port_str(), Some("example.com:8080"));
+    ///
+    /// let url = Url::parse("ftp://rms@example.com")?;
+    /// assert_eq!(url.host_port_str(), Some("example.com"));
+    ///
+    /// let url = Url::parse("unix:/run/foo.socket")?;
+    /// assert_eq!(url.host_port_str(), None);
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
+    /// ```
+    pub fn host_port_str(&self) -> Option<&str> {
+        if !self.has_host() {
+            return None;
+        }
+        let end = if let Some(port) = self.port {
+            let is_default = parser::default_port(self.scheme())
+                .map(|def| def == port).unwrap_or(false);
+            if is_default {
+                self.host_end
+            } else {
+                self.path_start
+            }
+        } else {
+            self.host_end
+        };
+        Some(self.slice(self.host_start..end))
+    }
+
     /// Return the path for this URL, as a percent-encoded ASCII string.
     /// For cannot-be-a-base URLs, this is an arbitrary string that doesn’t start with '/'.
     /// For other URLs, this starts with a '/' slash
@@ -1116,6 +1169,37 @@ impl Url {
     #[inline]
     pub fn query_pairs(&self) -> form_urlencoded::Parse {
         form_urlencoded::parse(self.query().unwrap_or("").as_bytes())
+    }
+
+    /// Return this URL’s path and query string.  If query string is not present
+    /// return just the path; otherwise returns path followed by a question mark
+    /// followed by the query string.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use url::{Url, ParseError};
+    ///
+    /// # fn run() -> Result<(), ParseError> {
+    /// let url = Url::parse("https://example.com/index#section")?;
+    /// assert_eq!(url.request_uri(), "/index");
+    ///
+    /// let url = Url::parse("https://example.com/api/versions?page=2")?;
+    /// assert_eq!(url.request_uri(), "/api/versions?page=2");
+    ///
+    /// let url = Url::parse("https://example.com")?;
+    /// assert_eq!(url.request_uri(), "/");
+    ///
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
+    /// ```
+    pub fn request_uri(&self) -> &str {
+        if let Some(pos) = self.fragment_start {
+            self.slice(self.path_start..pos)
+        } else {
+            self.slice(self.path_start..)
+        }
     }
 
     /// Return this URL’s fragment identifier, if any.
