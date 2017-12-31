@@ -1118,6 +1118,37 @@ impl Url {
         form_urlencoded::parse(self.query().unwrap_or("").as_bytes())
     }
 
+    /// Return this URL’s path and query string.  If query string is not present
+    /// return just the path; otherwise returns path followed by a question mark
+    /// followed by the query string.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use url::{Url, ParseError};
+    ///
+    /// # fn run() -> Result<(), ParseError> {
+    /// let url = Url::parse("https://example.com/index#section")?;
+    /// assert_eq!(url.request_uri(), "/index");
+    ///
+    /// let url = Url::parse("https://example.com/api/versions?page=2")?;
+    /// assert_eq!(url.request_uri(), "/api/versions?page=2");
+    ///
+    /// let url = Url::parse("https://example.com")?;
+    /// assert_eq!(url.request_uri(), "/");
+    ///
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
+    /// ```
+    pub fn request_uri(&self) -> &str {
+        if let Some(pos) = self.fragment_start {
+            self.slice(self.path_start..pos)
+        } else {
+            self.slice(self.path_start..)
+        }
+    }
+
     /// Return this URL’s fragment identifier, if any.
     ///
     /// A fragment is the part of the URL after the `#` symbol.
