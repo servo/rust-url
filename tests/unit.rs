@@ -207,6 +207,9 @@ fn host_serialization() {
     // Not [::0.0.0.2] / [::ffff:0.0.0.2]
     assert_eq!(Url::parse("http://[0::2]").unwrap().host_str(), Some("[::2]"));
     assert_eq!(Url::parse("http://[0::ffff:0:2]").unwrap().host_str(), Some("[::ffff:0:2]"));
+
+    assert_eq!(Host::parse("[0::2]").unwrap().to_string(), "[::2]");
+    assert_eq!(Host::parse("[0::2]").unwrap().serialize(), "[::2]");
 }
 
 #[test]
