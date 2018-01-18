@@ -7,6 +7,7 @@
 // except according to those terms.
 
 #[cfg(feature = "heapsize")] use heapsize::HeapSizeOf;
+use std::borrow::Cow;
 use std::cmp;
 use std::fmt::{self, Formatter};
 use std::io;
@@ -176,6 +177,16 @@ impl Host<String> {
         }
         let s = utf8_percent_encode(input, SIMPLE_ENCODE_SET).to_string();
         Ok(Host::Domain(s))
+    }
+}
+
+impl<S: AsRef<str>> Host<S> {
+    /// Return the host as a `Cow<str>`, borrowing any domain as a reference.
+    pub fn serialize(&self) -> Cow<str> {
+        match *self {
+            Host::Domain(ref domain) => domain.as_ref().into(),
+            ref ip => ip.to_string().into(),
+        }
     }
 }
 
