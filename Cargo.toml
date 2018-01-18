@@ -47,3 +47,6 @@ matches = "0.1"
 percent-encoding = { version = "1.0.0", path = "./percent_encoding" }
 rustc-serialize = {version = "0.3", optional = true}
 serde = {version = ">=0.6.1, <0.9", optional = true}
+
+[package.metadata.docs.rs]
+features = ["query_encoding"]
