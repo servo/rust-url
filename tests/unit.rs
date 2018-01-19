@@ -13,6 +13,7 @@ extern crate url;
 
 use std::ascii::AsciiExt;
 use std::borrow::Cow;
+use std::cell::Cell;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::path::{Path, PathBuf};
 use url::{Host, HostAndPort, Url, form_urlencoded};
@@ -476,4 +477,18 @@ fn test_windows_unc_path() {
     // Paths starting with "\\.\" (Local Device Paths) are intentionally not supported.
     let url = Url::from_file_path(Path::new(r"\\.\some\path\file.txt"));
     assert!(url.is_err());
+}
+
+#[test]
+fn test_old_log_violation_option() {
+    let violation = Cell::new(None);
+    let url = {
+        let vfn = |s: &str| violation.set(Some(s.to_owned()));
+        let options = Url::options().log_syntax_violation(Some(&vfn));
+        options.parse("http:////mozilla.org:42").unwrap()
+    };
+    assert_eq!(url.port(), Some(42));
+
+    let violation = violation.take();
+    assert_eq!(violation, Some("expected //".to_string()));
 }
