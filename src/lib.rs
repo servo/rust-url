@@ -130,12 +130,13 @@ use std::mem;
 use std::net::{ToSocketAddrs, IpAddr};
 use std::ops::{Range, RangeFrom, RangeTo};
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 use std::str;
 
 pub use origin::{Origin, OpaqueOrigin};
 pub use host::{Host, HostAndPort, SocketAddrs};
 pub use path_segments::PathSegmentsMut;
-pub use parser::ParseError;
+pub use parser::{ParseError, SyntaxViolation};
 pub use slicing::Position;
 
 mod encoding;
@@ -182,11 +183,11 @@ impl HeapSizeOf for Url {
 }
 
 /// Full configuration for the URL parser.
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct ParseOptions<'a> {
     base_url: Option<&'a Url>,
     encoding_override: encoding::EncodingOverride,
-    log_syntax_violation: Option<&'a Fn(&'static str)>,
+    syntax_violation_callback: Option<Rc<Fn(SyntaxViolation) + 'a>>,
 }
 
 impl<'a> ParseOptions<'a> {
@@ -209,9 +210,51 @@ impl<'a> ParseOptions<'a> {
         self
     }
 
-    /// Call the provided function or closure on non-fatal parse errors.
+    /// Call the provided function or closure on non-fatal parse errors, passing
+    /// a static string description.  This method is deprecated in favor of
+    /// `syntax_violation_callback` and is implemented as an adaptor for the
+    /// latter, passing the `SyntaxViolation` description. Only the last value
+    /// passed to either method will be used by a parser.
+    #[deprecated]
     pub fn log_syntax_violation(mut self, new: Option<&'a Fn(&'static str)>) -> Self {
-        self.log_syntax_violation = new;
+        self.syntax_violation_callback = match new {
+            Some(f) => Some(Rc::new(move |v: SyntaxViolation| f(v.description()))),
+            None => None
+        };
+        self
+    }
+
+    /// Call the provided function or closure for a non-fatal `SyntaxViolation`
+    /// when it occurs during parsing. Note that since the provided function is
+    /// `Fn`, the caller might need to utilize _interior mutability_, such as with
+    /// a `RefCell`, to collect the violations.
+    ///
+    /// ## Example
+    /// ```
+    /// use std::cell::RefCell;
+    /// use url::{Url, SyntaxViolation};
+    /// # use url::ParseError;
+    /// # fn run() -> Result<(), url::ParseError> {
+    /// let violations = RefCell::new(Vec::new());
+    /// let url = Url::options().
+    ///     syntax_violation_callback(Some(|v| {
+    ///         violations.borrow_mut().push(v)
+    ///     })).
+    ///     parse("https:////example.com")?;
+    /// assert_eq!(url.as_str(), "https://example.com/");
+    /// assert_eq!(vec!(SyntaxViolation::ExpectedDoubleSlash),
+    ///            violations.into_inner());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
+    /// ```
+    pub fn syntax_violation_callback<F>(mut self, new: Option<F>) -> Self
+        where F: Fn(SyntaxViolation) + 'a
+    {
+        self.syntax_violation_callback = match new {
+            Some(f) => Some(Rc::new(f)),
+            None => None
+        };
         self
     }
 
@@ -221,7 +264,7 @@ impl<'a> ParseOptions<'a> {
             serialization: String::with_capacity(input.len()),
             base_url: self.base_url,
             query_encoding_override: self.encoding_override,
-            log_syntax_violation: self.log_syntax_violation,
+            syntax_violation_callback: self.syntax_violation_callback,
             context: Context::UrlParser,
         }.parse_url(input)
     }
@@ -229,11 +272,14 @@ impl<'a> ParseOptions<'a> {
 
 impl<'a> Debug for ParseOptions<'a> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "ParseOptions {{ base_url: {:?}, encoding_override: {:?}, log_syntax_violation: ", self.base_url, self.encoding_override)?;
-        match self.log_syntax_violation {
-            Some(_) => write!(f, "Some(Fn(&'static str)) }}"),
-            None => write!(f, "None }}")
-        }
+        write!(f, "ParseOptions {{ base_url: {:?}, encoding_override: {:?}, \
+                   syntax_violation_callback: {} }}",
+               self.base_url,
+               self.encoding_override,
+               match self.syntax_violation_callback {
+                   Some(_) => "Some(Fn(SyntaxViolation))",
+                   None => "None"
+               })
     }
 }
 
@@ -363,7 +409,7 @@ impl Url {
         ParseOptions {
             base_url: None,
             encoding_override: EncodingOverride::utf8(),
-            log_syntax_violation: None,
+            syntax_violation_callback: None,
         }
     }
 

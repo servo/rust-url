@@ -479,7 +479,10 @@ fn test_windows_unc_path() {
     assert!(url.is_err());
 }
 
+// Test the now deprecated log_syntax_violation method for backward
+// compatibility
 #[test]
+#[allow(deprecated)]
 fn test_old_log_violation_option() {
     let violation = Cell::new(None);
     let url = {
@@ -491,4 +494,38 @@ fn test_old_log_violation_option() {
 
     let violation = violation.take();
     assert_eq!(violation, Some("expected //".to_string()));
+}
+
+#[test]
+fn test_syntax_violation_callback() {
+    use url::SyntaxViolation::*;
+    let violation = Cell::new(None);
+    let url = Url::options().
+        syntax_violation_callback(Some(|v| violation.set(Some(v)))).
+        parse("http:////mozilla.org:42").
+        unwrap();
+    assert_eq!(url.port(), Some(42));
+
+    let v = violation.take().unwrap();
+    assert_eq!(v, ExpectedDoubleSlash);
+    assert_eq!(v.description(), "expected //");
+}
+
+#[test]
+fn test_syntax_violation_callback_lifetimes() {
+    use url::SyntaxViolation::*;
+    let violation = Cell::new(None);
+    let vfn = |s| violation.set(Some(s));
+
+    let url = Url::options().syntax_violation_callback(Some(&vfn)).
+        parse("http:////mozilla.org:42").
+        unwrap();
+    assert_eq!(url.port(), Some(42));
+    assert_eq!(violation.take(), Some(ExpectedDoubleSlash));
+
+    let url = Url::options().syntax_violation_callback(Some(&vfn)).
+        parse("http://mozilla.org\\path").
+        unwrap();
+    assert_eq!(url.path(), "/path");
+    assert_eq!(violation.take(), Some(Backslash));
 }
