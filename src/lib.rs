@@ -259,12 +259,12 @@ impl<'a> ParseOptions<'a> {
     }
 
     /// Parse an URL string with the configuration so far.
-    pub fn parse(self, input: &str) -> Result<Url, ::ParseError> {
+    pub fn parse(&self, input: &str) -> Result<Url, ::ParseError> {
         Parser {
             serialization: String::with_capacity(input.len()),
             base_url: self.base_url,
             query_encoding_override: self.encoding_override,
-            syntax_violation_callback: self.syntax_violation_callback,
+            syntax_violation_callback: self.syntax_violation_callback.clone(),
             context: Context::UrlParser,
         }.parse_url(input)
     }
