@@ -156,6 +156,16 @@ define_encode_set! {
     }
 }
 
+define_encode_set! {
+    /// RFC8187 HTTP header field encoding
+    ///
+    /// Encodes all bytes that are not RFC7230 token bytes, in addition to asterisk (*), single quote ('),
+    /// and percent (%). Commonly used for encoding Unicode filenames in a `Content-Disposition` header.
+    pub HEADER_FIELD_ENCODE_SET = [SIMPLE_ENCODE_SET] | {
+        '*', '\'', '%', '(', ')', '<', '>', '@', ',', ';', ':', '\\', '"', '/', '[', ']', '?', '=', '{', '}', ' ', '\t'
+    }
+}
+
 /// Return the percent-encoding of the given bytes.
 ///
 /// This is unconditional, unlike `percent_encode()` which uses an encode set.
