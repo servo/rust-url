@@ -13,7 +13,7 @@
 #[cfg(feature = "query_encoding")] extern crate encoding;
 
 use std::borrow::Cow;
-#[cfg(feature = "query_encoding")] use std::fmt::{self, Debug, Formatter};
+use std::fmt::{self, Debug, Formatter};
 
 #[cfg(feature = "query_encoding")] use self::encoding::types::{DecoderTrap, EncoderTrap};
 #[cfg(feature = "query_encoding")] use self::encoding::label::encoding_from_whatwg_label;
@@ -90,26 +90,27 @@ impl EncodingOverride {
     }
 }
 
-#[cfg(feature = "query_encoding")]
 impl Debug for EncodingOverride {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "EncodingOverride {{ encoding: ")?;
-        match self.encoding {
-            Some(e) => write!(f, "{} }}", e.name()),
-            None => write!(f, "None }}")
-        }
+        #[cfg(not(feature = "query_encoding"))]
+        let encoding = "utf-8";
+        #[cfg(feature = "query_encoding")]
+        let encoding = self.encoding.map_or("utf_8", |e| e.name());
+        f.debug_struct("EncodingOverride").field("encoding", &encoding).finish()
     }
 }
 
 #[cfg(not(feature = "query_encoding"))]
-#[derive(Copy, Clone, Debug)]
-pub struct EncodingOverride;
+#[derive(Copy, Clone)]
+pub struct EncodingOverride {
+    _encoding: ()
+}
 
 #[cfg(not(feature = "query_encoding"))]
 impl EncodingOverride {
     #[inline]
     pub fn utf8() -> Self {
-        EncodingOverride
+        EncodingOverride { _encoding: () }
     }
 
     pub fn decode<'a>(&self, input: Cow<'a, [u8]>) -> Cow<'a, str> {
