@@ -4,3 +4,5 @@ version = "0.1.0"
 authors = ["Simon Sapin <simon.sapin@exyr.org>"]
 
 [dependencies]
+matches = "0.1"
+mime = "0.3"
