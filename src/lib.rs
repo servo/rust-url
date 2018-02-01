@@ -112,13 +112,20 @@ fn parse_header(from_colon_to_comma: &str) -> (mime::Mime, bool) {
     let input = from_colon_to_comma.chars()
         .filter(|&c| !matches!(c, '\t' | '\n' | '\r'))  // Removed by the URL parser
         .collect::<String>();
+    let mut string;
 
     let input = input.trim_matches(' ');
 
-    let (input, base64) = match without_base64_suffix(input) {
+    let (mut input, base64) = match without_base64_suffix(input) {
         Some(s) => (s, true),
         None => (input, false),
     };
+
+    if input.starts_with(';') {
+        string = String::from("text/plain");
+        string.push_str(input);
+        input = &*string;
+    }
 
     // FIXME: does Mime::from_str match the MIME Sniffing Standard’s parsing algorithm?
     // <https://mimesniff.spec.whatwg.org/#parse-a-mime-type>
