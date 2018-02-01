@@ -103,7 +103,7 @@ fn pretend_parse_data_url(input: &str) -> Option<&str> {
 
     let mut bytes = left_trimmed.bytes();
     {
-        // Ignore ASCII tabs or newlines
+        // Ignore ASCII tabs or newlines like the URL parser would
         let mut iter = bytes.by_ref().filter(|&byte| !matches!(byte, b'\t' | b'\n' | b'\r'));
         require!(iter.next()?.to_ascii_lowercase() == b'd');
         require!(iter.next()?.to_ascii_lowercase() == b'a');
@@ -131,53 +131,81 @@ fn find_comma_before_fragment(after_colon: &str) -> Option<(&str, &str)> {
 }
 
 fn parse_header(from_colon_to_comma: &str) -> (mime::Mime, bool) {
-    let input = from_colon_to_comma.chars()
-        .filter(|&c| !matches!(c, '\t' | '\n' | '\r'))  // Removed by the URL parser
-        .collect::<String>();
-    let mut string;
+    // "Strip leading and trailing ASCII whitespace"
+    //     \t, \n, and \r would have been filtered by the URL parser
+    //     \f percent-encoded by the URL parser
+    //     space is the only remaining ASCII whitespace
+    let trimmed = from_colon_to_comma.trim_matches(|c| matches!(c, ' ' | '\t' | '\n' | '\r'));
 
-    let input = input.trim_matches(' ');
+    let without_base64_suffix = remove_base64_suffix(trimmed);
+    let base64 = without_base64_suffix.is_some();
+    let mime_type = without_base64_suffix.unwrap_or(trimmed);
 
-    let (mut input, base64) = match without_base64_suffix(input) {
-        Some(s) => (s, true),
-        None => (input, false),
-    };
-
-    // FIXME: percent-encode
-
-    if input.starts_with(';') {
-        string = String::from("text/plain");
-        string.push_str(input);
-        input = &*string;
+    let mut string = String::new();
+    if mime_type.starts_with(';') {
+        string.push_str("text/plain")
     }
+    let mut in_query = false;
+    for byte in mime_type.bytes() {
+        match byte {
+            // Ignore ASCII tabs or newlines like the URL parser would
+            b'\t' | b'\n' | b'\r' => continue,
+
+            // C0 encode set
+            b'\0'...b'\x1F' | b'\x7F'...b'\xFF' => percent_encode(byte, &mut string),
+
+            // Bytes other than the C0 encode set that are percent-encoded
+            // by the URL parser in the query state.
+            // '#' is also in that list but cannot occur here
+            // since it indicates the start of the URL’s fragment.
+            b' ' | b'"' | b'<' | b'>' if in_query => percent_encode(byte, &mut string),
+
+            b'?' => {
+                in_query = true;
+                string.push('?')
+            }
+
+            // Printable ASCII
+            _ => string.push(byte as char)
+        }
+    }
+
 
     // FIXME: does Mime::from_str match the MIME Sniffing Standard’s parsing algorithm?
     // <https://mimesniff.spec.whatwg.org/#parse-a-mime-type>
-    let mime_type = input.parse()
-        .unwrap_or_else(|_| "text/plain;charset=US-ASCII".parse().unwrap());
+    let mime_type = string.parse().unwrap_or_else(|_| {
+        "text/plain;charset=US-ASCII".parse().unwrap()
+    });
 
     (mime_type, base64)
 }
 
 /// None: no base64 suffix
-fn without_base64_suffix(s: &str) -> Option<&str> {
-    remove_suffix(
-        remove_suffix(s, "base64", str::eq_ignore_ascii_case)?
-            .trim_right_matches(' '),
-        ";", str::eq
-    )
+fn remove_base64_suffix(s: &str) -> Option<&str> {
+    let mut bytes = s.bytes();
+    {
+        // Ignore ASCII tabs or newlines like the URL parser would
+        let iter = bytes.by_ref().filter(|&byte| !matches!(byte, b'\t' | b'\n' | b'\r'));
+
+        // Search from the end
+        let mut iter = iter.rev();
+
+        require!(iter.next()? == b'4');
+        require!(iter.next()? == b'6');
+        require!(iter.next()?.to_ascii_lowercase() == b'e');
+        require!(iter.next()?.to_ascii_lowercase() == b's');
+        require!(iter.next()?.to_ascii_lowercase() == b'a');
+        require!(iter.next()?.to_ascii_lowercase() == b'b');
+        require!(iter.skip_while(|&byte| byte == b' ').next()? == b';');
+    }
+    Some(&s[..bytes.len()])
 }
 
-fn remove_suffix<'a, Eq>(haystack: &'a str, needle: &str, eq: Eq) -> Option<&'a str>
-    where Eq: Fn(&str, &str) -> bool
-{
-    let start_index = haystack.len().checked_sub(needle.len())?;
-    let (before, after) = haystack.split_at(start_index);
-    if eq(after, needle) {
-        Some(before)
-    } else {
-        None
-    }
+fn percent_encode(byte: u8, string: &mut String) {
+    const HEX_UPPER: [u8; 16] = *b"0123456789ABCDEF";
+    string.push('%');
+    string.push(HEX_UPPER[(byte >> 4) as usize] as char);
+    string.push(HEX_UPPER[(byte & 0x0f) as usize] as char);
 }
 
 /// This is <https://url.spec.whatwg.org/#string-percent-decode> while also:
