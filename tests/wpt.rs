@@ -35,13 +35,7 @@ fn collect_data_url<F>(add_test: &mut F)
             Some(expected_mime.as_str().unwrap().to_owned())
         };
 
-        let expected_body = test.get(2).map(|j| {
-            j.as_array().unwrap().iter().map(|byte| {
-                let byte = byte.as_u64().unwrap();
-                assert!(byte <= 0xFF);
-                byte as u8
-            }).collect::<Vec<u8>>()
-        });
+        let expected_body = test.get(2).map(json_byte_array);
 
         let should_panic = [
             "data://test:test/,X",
@@ -69,6 +63,69 @@ fn collect_data_url<F>(add_test: &mut F)
     }
 }
 
+fn run_base64(input: String, expected: Option<Vec<u8>>) {
+    let result = data_url::forgiving_base64::decode_to_vec(input.as_bytes());
+    match (result, expected) {
+        (Ok(bytes), Some(expected)) => assert_eq!(bytes, expected),
+        (Ok(bytes), None) => panic!("Expected error, got {:?}", bytes),
+        (Err(_), Some(expected)) => panic!("Expected {:?}, got error", expected),
+        (Err(_), None) => {}
+    }
+}
+
+
+fn collect_base64<F>(add_test: &mut F)
+    where F: FnMut(String, bool, rustc_test::TestFn)
+{
+    let json = include_str!("base64.json");
+    let v: serde_json::Value = serde_json::from_str(json).unwrap();
+    for test in v.as_array().unwrap() {
+        let input = test.get(0).unwrap().as_str().unwrap().to_owned();
+        let expected = test.get(1).unwrap();
+        let expected = if expected.is_null() {
+            None
+        } else {
+            Some(json_byte_array(expected))
+        };
+
+        let should_panic = [
+            " \t\n\u{c}\r ab\t\n\u{c}\r cd\t\n\u{c}\r ",
+            " abcd",
+            "////A",
+            "///A",
+            "AAA/",
+            "AAAA/",
+            "ab cd",
+            "ab==",
+            "ab\ncd",
+            "ab\rcd",
+            "ab\t\n\u{c}\r =\t\n\u{c}\r =\t\n\u{c}\r ",
+            "ab\t\n\u{c}\r cd",
+            "ab\tcd",
+            "ab\u{c}cd",
+            "abc=",
+            "abcd ",
+            "abcd",
+            "abcde",
+        ].contains(&&*input);
+        add_test(
+            format!("base64 {:?}", input),
+            should_panic,
+            rustc_test::TestFn::dyn_test_fn(move || {
+                run_base64(input, expected)
+            })
+        );
+    }
+}
+
+fn json_byte_array(j: &serde_json::Value) -> Vec<u8> {
+    j.as_array().unwrap().iter().map(|byte| {
+        let byte = byte.as_u64().unwrap();
+        assert!(byte <= 0xFF);
+        byte as u8
+    }).collect()
+}
+
 fn main() {
     let mut tests = Vec::new();
     {
@@ -80,6 +137,7 @@ fn main() {
             tests.push(rustc_test::TestDescAndFn { desc, testfn: run })
         };
         collect_data_url(&mut add_one);
+        collect_base64(&mut add_one);
     }
     rustc_test::test_main(&std::env::args().collect::<Vec<_>>(), tests)
 }
