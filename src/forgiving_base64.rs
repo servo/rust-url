@@ -1,7 +1,15 @@
 //! <https://infra.spec.whatwg.org/#forgiving-base64-decode>
 
 #[derive(Debug)]
-pub struct InvalidBase64(());
+pub struct InvalidBase64(InvalidBase64Details);
+
+#[derive(Debug)]
+enum InvalidBase64Details {
+    UnexpectedSymbol(u8),
+    AlphabetSymbolAfterPadding,
+    LoneAlphabetSymbol,
+    Padding,
+}
 
 #[derive(Debug)]
 pub enum DecodeError<E> {
@@ -9,8 +17,10 @@ pub enum DecodeError<E> {
     WriteError(E),
 }
 
-impl<E> From<InvalidBase64> for DecodeError<E> {
-    fn from(e: InvalidBase64) -> Self { DecodeError::InvalidBase64(e) }
+impl<E> From<InvalidBase64Details> for DecodeError<E> {
+    fn from(e: InvalidBase64Details) -> Self {
+        DecodeError::InvalidBase64(InvalidBase64(e))
+    }
 }
 
 pub(crate) enum Impossible {}
@@ -71,11 +81,10 @@ impl<F, E> Decoder<F, E> where F: FnMut(&[u8]) -> Result<(), E> {
                     continue
                 }
 
-                Err(InvalidBase64(()))?
+                Err(InvalidBase64Details::UnexpectedSymbol(byte))?
             }
             if self.padding_symbols > 0 {
-                // Alphabet symbols after padding
-                Err(InvalidBase64(()))?
+                Err(InvalidBase64Details::AlphabetSymbolAfterPadding)?
             }
             self.bit_buffer <<= 6;
             self.bit_buffer |= value as u32;
@@ -120,9 +129,11 @@ impl<F, E> Decoder<F, E> where F: FnMut(&[u8]) -> Result<(), E> {
                 ];
                 (self.write_bytes)(&byte_buffer).map_err(DecodeError::WriteError)?;
             }
+            (6, _) => {
+                Err(InvalidBase64Details::LoneAlphabetSymbol)?
+            }
             _ => {
-                // No other combination is acceptable
-                Err(InvalidBase64(()))?
+                Err(InvalidBase64Details::Padding)?
             }
         }
         Ok(())

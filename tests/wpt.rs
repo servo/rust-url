@@ -68,7 +68,7 @@ fn run_base64(input: String, expected: Option<Vec<u8>>) {
     match (result, expected) {
         (Ok(bytes), Some(expected)) => assert_eq!(bytes, expected),
         (Ok(bytes), None) => panic!("Expected error, got {:?}", bytes),
-        (Err(_), Some(expected)) => panic!("Expected {:?}, got error", expected),
+        (Err(e), Some(expected)) => panic!("Expected {:?}, got error {:?}", expected, e),
         (Err(_), None) => {}
     }
 }
