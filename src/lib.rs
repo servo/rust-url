@@ -6,7 +6,6 @@ use std::io;
 pub enum DataUrlError {
     NotADataUrl,
     NoComma,
-    InvalidMimeType(mime::FromStrError),
 }
 
 pub struct DataUrl<'a> {
@@ -24,7 +23,7 @@ impl<'a> DataUrl<'a> {
         let after_colon = pretend_parse_data_url(input).ok_or(NotADataUrl)?;
         let comma = after_colon.bytes().position(|byte| byte == b',').ok_or(NoComma)?;
 
-        let (mime_type, base64) = parse_header(&after_colon[..comma]).map_err(InvalidMimeType)?;
+        let (mime_type, base64) = parse_header(&after_colon[..comma]);
         let encoded_body_plus_fragment = &after_colon[comma + 1..];
 
         Ok(DataUrl { mime_type, base64, encoded_body_plus_fragment })
@@ -109,7 +108,7 @@ fn pretend_parse_data_url(input: &str) -> Option<&str> {
     Some(after_colon.trim_right_matches(|ch| ch <= ' '))
 }
 
-fn parse_header(from_colon_to_comma: &str) -> Result<(mime::Mime, bool), mime::FromStrError> {
+fn parse_header(from_colon_to_comma: &str) -> (mime::Mime, bool) {
     let input = from_colon_to_comma.chars()
         .filter(|&c| !matches!(c, '\t' | '\n' | '\r'))  // Removed by the URL parser
         .collect::<String>();
@@ -123,7 +122,10 @@ fn parse_header(from_colon_to_comma: &str) -> Result<(mime::Mime, bool), mime::F
 
     // FIXME: does Mime::from_str match the MIME Sniffing Standard’s parsing algorithm?
     // <https://mimesniff.spec.whatwg.org/#parse-a-mime-type>
-    Ok((input.parse()?, base64))
+    let mime_type = input.parse()
+        .unwrap_or_else(|_| "text/plain;charset=US-ASCII".parse().unwrap());
+
+    (mime_type, base64)
 }
 
 /// None: no base64 suffix
