@@ -1,15 +1,15 @@
 #[macro_use] extern crate matches;
 pub extern crate mime;
 
-pub enum DataUrlError {
-    NotADataUrl,
-    NoComma,
-}
-
 pub struct DataUrl<'a> {
     mime_type: mime::Mime,
     base64: bool,
     encoded_body_plus_fragment: &'a str,
+}
+
+pub enum DataUrlError {
+    NotADataUrl,
+    NoComma,
 }
 
 pub enum DecodeError<E> {
@@ -22,12 +22,6 @@ pub struct InvalidBase64(());
 impl<E> From<InvalidBase64> for DecodeError<E> {
     fn from(e: InvalidBase64) -> Self { DecodeError::InvalidBase64(e) }
 }
-
-/// The URL’s fragment identifier (after `#`) encoded as in the original input.
-///
-/// It needs to be either percent-encoded to obtain the same string as in a parsed URL,
-/// or percent-decoded to interpret it as text.
-pub struct UrlFragmentIdentifier<'a>(pub &'a str);
 
 impl<'a> DataUrl<'a> {
     /// <https://fetch.spec.whatwg.org/#data-url-processor>
@@ -52,7 +46,7 @@ impl<'a> DataUrl<'a> {
     /// Streaming-decode the data URL’s body to `write_body_bytes`,
     /// and return the URL’s fragment identifier is returned if it has one.
     pub fn decode<F, E>(&self, write_body_bytes: F)
-                        -> Result<Option<UrlFragmentIdentifier<'a>>, DecodeError<E>>
+                        -> Result<Option<FragmentIdentifier<'a>>, DecodeError<E>>
         where F: FnMut(&[u8]) -> Result<(), E>
     {
         if self.base64 {
@@ -65,7 +59,7 @@ impl<'a> DataUrl<'a> {
 
     /// Return the decoded body and the URL’s fragment identifier
     pub fn decode_to_vec(&self)
-        -> Result<(Vec<u8>, Option<UrlFragmentIdentifier<'a>>), InvalidBase64>
+        -> Result<(Vec<u8>, Option<FragmentIdentifier<'a>>), InvalidBase64>
     {
         enum Impossible {}
         let mut body = Vec::new();
@@ -75,6 +69,29 @@ impl<'a> DataUrl<'a> {
             Err(DecodeError::InvalidBase64(e)) => Err(e),
             Err(DecodeError::WriteError(e)) => match e {}
         }
+    }
+}
+
+/// The URL’s fragment identifier (after `#`)
+pub struct FragmentIdentifier<'a>(&'a str);
+
+impl<'a> FragmentIdentifier<'a> {
+    /// Like in a parsed URL
+    pub fn to_percent_encoded(&self) -> String {
+        let mut string = String::new();
+        for byte in self.0.bytes() {
+            match byte {
+                // Ignore ASCII tabs or newlines like the URL parser would
+                b'\t' | b'\n' | b'\r' => continue,
+                // Fragment encode set
+                b'\0'...b' ' | b'"' | b'<' | b'>' | b'`' | b'\x7F'...b'\xFF' => {
+                    percent_encode(byte, &mut string)
+                }
+                // Printable ASCII
+                _ => string.push(byte as char)
+            }
+        }
+        string
     }
 }
 
@@ -217,7 +234,7 @@ fn percent_encode(byte: u8, string: &mut String) {
 /// would be percent-decoded here.
 /// We skip that round-trip and pass it through unchanged.
 fn decode_without_base64<F, E>(encoded_body_plus_fragment: &str, mut write_bytes: F)
-                               -> Result<Option<UrlFragmentIdentifier>, E>
+                               -> Result<Option<FragmentIdentifier>, E>
     where F: FnMut(&[u8]) -> Result<(), E>
 {
     let bytes = encoded_body_plus_fragment.as_bytes();
@@ -251,7 +268,7 @@ fn decode_without_base64<F, E>(encoded_body_plus_fragment: &str, mut write_bytes
                 b'#' => {
                     let fragment_start = i + 1;
                     let fragment = &encoded_body_plus_fragment[fragment_start..];
-                    return Ok(Some(UrlFragmentIdentifier(fragment)))
+                    return Ok(Some(FragmentIdentifier(fragment)))
                 }
 
                 // Ignore over '\t' | '\n' | '\r'
@@ -267,7 +284,7 @@ fn decode_without_base64<F, E>(encoded_body_plus_fragment: &str, mut write_bytes
 /// <https://infra.spec.whatwg.org/#isomorphic-decode> composed with
 /// <https://infra.spec.whatwg.org/#forgiving-base64-decode>.
 fn decode_with_base64<F, E>(encoded_body_plus_fragment: &str, mut write_bytes: F)
-                            -> Result<Option<UrlFragmentIdentifier>, DecodeError<E>>
+                            -> Result<Option<FragmentIdentifier>, DecodeError<E>>
     where F: FnMut(&[u8]) -> Result<(), E>
 {
     let mut bit_buffer: u32 = 0;
