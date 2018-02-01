@@ -207,7 +207,6 @@ fn parse_header(from_colon_to_comma: &str) -> (mime::Mime, bool) {
         }
     }
 
-
     // FIXME: does Mime::from_str match the MIME Sniffing Standard’s parsing algorithm?
     // <https://mimesniff.spec.whatwg.org/#parse-a-mime-type>
     let mime_type = string.parse().unwrap_or_else(|_| {

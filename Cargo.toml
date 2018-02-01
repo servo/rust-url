@@ -6,3 +6,15 @@ authors = ["Simon Sapin <simon.sapin@exyr.org>"]
 [dependencies]
 matches = "0.1"
 mime = "0.3"
+
+[dev-dependencies]
+rustc-test = "0.3"
+serde = "1.0"
+serde_json = "1.0"
+
+[lib]
+test = false
+
+[[test]]
+name = "wpt"
+harness = false
