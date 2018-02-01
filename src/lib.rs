@@ -1,8 +1,6 @@
 #[macro_use] extern crate matches;
 pub extern crate mime;
 
-use std::io;
-
 pub enum DataUrlError {
     NotADataUrl,
     NoComma,
@@ -14,7 +12,16 @@ pub struct DataUrl<'a> {
     encoded_body_plus_fragment: &'a str,
 }
 
-pub struct Base64Error(());
+pub enum DecodeError<E> {
+    InvalidBase64(InvalidBase64),
+    WriteError(E),
+}
+
+pub struct InvalidBase64(());
+
+impl<E> From<InvalidBase64> for DecodeError<E> {
+    fn from(e: InvalidBase64) -> Self { DecodeError::InvalidBase64(e) }
+}
 
 impl<'a> DataUrl<'a> {
     /// <https://fetch.spec.whatwg.org/#data-url-processor>
@@ -36,30 +43,32 @@ impl<'a> DataUrl<'a> {
         &self.mime_type
     }
 
-    /// Streaming-decode the data URL’s body to `sink`.
+    /// Streaming-decode the data URL’s body to `write_body_bytes`,
+    /// and return the URL’s fragment identifier is returned if it has one.
     ///
-    /// Errors while writing to the sink are propagated.
-    /// Invalid base64 causes an error with `e.kind() == ErrorKind::InvalidData`.
-    /// When decoding without error, the URL’s fragment identifier is returned if it has one.
-    ///
-    /// The fragment identifier is represented as in the origin input.
+    /// The fragment is represented as in the origin input.
     /// It needs to be either percent-encoded to obtain the same string as in a parsed URL,
     /// or percent-decoded to interpret it as text.
-    pub fn decode_body<W>(&self, sink: W) -> io::Result<Result<Option<&'a str>, Base64Error>>
-        where W: io::Write
+    pub fn decode<F, E>(&self, write_body_bytes: F) -> Result<Option<&'a str>, DecodeError<E>>
+        where F: FnMut(&[u8]) -> Result<(), E>
     {
         if self.base64 {
-            decode_with_base64(self.encoded_body_plus_fragment, sink)
+            decode_with_base64(self.encoded_body_plus_fragment, write_body_bytes)
         } else {
-            decode_without_base64(self.encoded_body_plus_fragment, sink).map(Ok)
+            decode_without_base64(self.encoded_body_plus_fragment, write_body_bytes)
+                .map_err(DecodeError::WriteError)
         }
     }
 
-    pub fn decode_body_to_vec(&self) -> Result<(Vec<u8>, Option<&str>), Base64Error> {
-        let mut sink = Vec::new();
-        let base64_result = self.decode_body(&mut sink).unwrap();
-        let url_fragment = base64_result?;
-        Ok((sink, url_fragment))
+    pub fn decode_to_vec(&self) -> Result<(Vec<u8>, Option<&str>), InvalidBase64> {
+        enum Impossible {}
+        let mut body = Vec::new();
+        let result = self.decode::<_, Impossible>(|bytes| Ok(body.extend_from_slice(bytes)));
+        match result {
+            Ok(url_fragment) => Ok((body, url_fragment)),
+            Err(DecodeError::InvalidBase64(e)) => Err(e),
+            Err(DecodeError::WriteError(e)) => match e {}
+        }
     }
 }
 
@@ -173,9 +182,9 @@ fn remove_suffix<'a, Eq>(haystack: &'a str, needle: &str, eq: Eq) -> Option<&'a 
 /// Anything that would have been UTF-8 percent-encoded by the URL parser
 /// would be percent-decoded here.
 /// We skip that round-trip and pass it through unchanged.
-fn decode_without_base64<W>(encoded_body_plus_fragment: &str, mut sink: W)
-                            -> io::Result<Option<&str>>
-    where W: io::Write
+fn decode_without_base64<F, E>(encoded_body_plus_fragment: &str, mut write_bytes: F)
+                               -> Result<Option<&str>, E>
+    where F: FnMut(&[u8]) -> Result<(), E>
 {
     let bytes = encoded_body_plus_fragment.as_bytes();
     let mut slice_start = 0;
@@ -187,7 +196,7 @@ fn decode_without_base64<W>(encoded_body_plus_fragment: &str, mut sink: W)
             // Write everything (if anything) "non-special" we’ve accumulated
             // before this special byte
             if i > slice_start {
-                sink.write_all(&bytes[slice_start..i])?;
+                write_bytes(&bytes[slice_start..i])?;
             }
             // Then deal with the special byte.
             match byte {
@@ -197,7 +206,7 @@ fn decode_without_base64<W>(encoded_body_plus_fragment: &str, mut sink: W)
                     if let (Some(h), Some(l)) = (h, l) {
                         // '%' followed by two ASCII hex digits
                         let one_byte = h as u8 * 0x10 + l as u8;
-                        sink.write_all(&[one_byte])?;
+                        write_bytes(&[one_byte])?;
                         slice_start = i + 3;
                     } else {
                         // Do nothing. Leave slice_start unchanged.
@@ -215,72 +224,23 @@ fn decode_without_base64<W>(encoded_body_plus_fragment: &str, mut sink: W)
             }
         }
     }
-    sink.write_all(&bytes[slice_start..])?;
+    write_bytes(&bytes[slice_start..])?;
     Ok(None)
 }
 
 /// `decode_without_base64()` composed with
 /// <https://infra.spec.whatwg.org/#isomorphic-decode> composed with
 /// <https://infra.spec.whatwg.org/#forgiving-base64-decode>.
-fn decode_with_base64<W>(encoded_body_plus_fragment: &str, sink: W)
-                          -> io::Result<Result<Option<&str>, Base64Error>>
-    where W: io::Write
+fn decode_with_base64<F, E>(encoded_body_plus_fragment: &str, mut write_bytes: F)
+                            -> Result<Option<&str>, DecodeError<E>>
+    where F: FnMut(&[u8]) -> Result<(), E>
 {
-    let mut decoder = Base64Decoder {
-        sink,
-        bit_buffer: 0,
-        buffer_bit_length: 0,
-        padding_symbols: 0,
-        base64_error: false,
-    };
-    let result = decode_without_base64(encoded_body_plus_fragment, &mut decoder);
-    if decoder.base64_error {
-        return Ok(Err(Base64Error(())))
-    }
-    let fragment = result?;
-    match (decoder.buffer_bit_length, decoder.padding_symbols) {
-        (0, 0) => {
-            // A multiple of four of alphabet symbols, and nothing else.
-        }
-        (12, 2) | (12, 0) => {
-            // A multiple of four of alphabet symbols, followed by two more symbols,
-            // optionally followed by two padding characters (which make a total multiple of four).
-            let byte_buffer = [
-                (decoder.bit_buffer >> 4) as u8,
-            ];
-            decoder.sink.write_all(&byte_buffer)?;
-        }
-        (18, 1) | (18, 0) => {
-            // A multiple of four of alphabet symbols, followed by three more symbols,
-            // optionally followed by one padding character (which make a total multiple of four).
-            let byte_buffer = [
-                (decoder.bit_buffer >> 10) as u8,
-                (decoder.bit_buffer >> 2) as u8,
-            ];
-            decoder.sink.write_all(&byte_buffer)?;
-        }
-        _ => {
-            // No other combination is acceptable
-            return Ok(Err(Base64Error(())))
-        }
-    }
-    Ok(Ok(fragment))
-}
+    let mut bit_buffer: u32 = 0;
+    let mut buffer_bit_length: u8 = 0;
+    let mut padding_symbols: u8 = 0;
 
-struct Base64Decoder<W> {
-    sink: W,
-    bit_buffer: u32,
-    buffer_bit_length: u8,
-    padding_symbols: u8,
-    base64_error: bool,
-}
-
-impl<W> io::Write for Base64Decoder<W> where W: io::Write {
-    fn write(&mut self, _buf: &[u8]) -> io::Result<usize> { unimplemented!() }
-    fn flush(&mut self) -> io::Result<()> { unimplemented!() }
-
-    fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
-        for &byte in buf.iter() {
+    let fragment = decode_without_base64::<_, DecodeError<E>>(encoded_body_plus_fragment, |bytes| {
+        for &byte in bytes.iter() {
             let value = BASE64_DECODE_TABLE[byte as usize];
             if value < 0 {
                 // A character that’s not part of the alphabet
@@ -292,37 +252,62 @@ impl<W> io::Write for Base64Decoder<W> where W: io::Write {
                 }
 
                 if byte == b'=' {
-                    self.padding_symbols = self.padding_symbols.saturating_add(8);
+                    padding_symbols = padding_symbols.saturating_add(8);
                     continue
                 }
 
-                self.base64_error = true;
-                Err(io::ErrorKind::InvalidData)?
+                Err(InvalidBase64(()))?
             }
-            if self.padding_symbols > 0 {
+            if padding_symbols > 0 {
                 // Alphabet symbols after padding
-                self.base64_error = true;
-                Err(io::ErrorKind::InvalidData)?
+                Err(InvalidBase64(()))?
             }
-            self.bit_buffer <<= 6;
-            self.bit_buffer |= value as u32;
-            if self.buffer_bit_length < 24 {
-                self.buffer_bit_length += 6;
+            bit_buffer <<= 6;
+            bit_buffer |= value as u32;
+            if buffer_bit_length < 24 {
+                buffer_bit_length += 6;
             } else {
                 // We’ve accumulated four times 6 bits, which equals three times 8 bits.
                 let byte_buffer = [
-                    (self.bit_buffer >> 16) as u8,
-                    (self.bit_buffer >> 8) as u8,
-                    self.bit_buffer as u8,
+                    (bit_buffer >> 16) as u8,
+                    (bit_buffer >> 8) as u8,
+                    bit_buffer as u8,
                 ];
-                self.sink.write_all(&byte_buffer)?;
-                self.buffer_bit_length = 0;
-                // No need to reset self.bit_buffer,
+                write_bytes(&byte_buffer).map_err(DecodeError::WriteError)?;
+                buffer_bit_length = 0;
+                // No need to reset bit_buffer,
                 // since next time we’re only gonna read relevant bits.
             }
         }
         Ok(())
+    })?;
+    match (buffer_bit_length, padding_symbols) {
+        (0, 0) => {
+            // A multiple of four of alphabet symbols, and nothing else.
+        }
+        (12, 2) | (12, 0) => {
+            // A multiple of four of alphabet symbols, followed by two more symbols,
+            // optionally followed by two padding characters (which make a total multiple of four).
+            let byte_buffer = [
+                (bit_buffer >> 4) as u8,
+            ];
+            write_bytes(&byte_buffer).map_err(DecodeError::WriteError)?;
+        }
+        (18, 1) | (18, 0) => {
+            // A multiple of four of alphabet symbols, followed by three more symbols,
+            // optionally followed by one padding character (which make a total multiple of four).
+            let byte_buffer = [
+                (bit_buffer >> 10) as u8,
+                (bit_buffer >> 2) as u8,
+            ];
+            write_bytes(&byte_buffer).map_err(DecodeError::WriteError)?;
+        }
+        _ => {
+            // No other combination is acceptable
+            Err(InvalidBase64(()))?
+        }
     }
+    Ok(fragment)
 }
 
 /// Generated by `make_base64_decode_table.py` based on "Table 1: The Base 64 Alphabet"
