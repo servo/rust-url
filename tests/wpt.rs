@@ -89,24 +89,9 @@ fn collect_base64<F>(add_test: &mut F)
         };
 
         let should_panic = [
-            " \t\n\u{c}\r ab\t\n\u{c}\r cd\t\n\u{c}\r ",
-            " abcd",
-            "////A",
-            "///A",
-            "AAA/",
-            "AAAA/",
-            "ab cd",
             "ab==",
-            "ab\ncd",
-            "ab\rcd",
             "ab\t\n\u{c}\r =\t\n\u{c}\r =\t\n\u{c}\r ",
-            "ab\t\n\u{c}\r cd",
-            "ab\tcd",
-            "ab\u{c}cd",
             "abc=",
-            "abcd ",
-            "abcd",
-            "abcde",
         ].contains(&&*input);
         add_test(
             format!("base64 {:?}", input),

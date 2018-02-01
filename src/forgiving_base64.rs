@@ -71,8 +71,7 @@ impl<F, E> Decoder<F, E> where F: FnMut(&[u8]) -> Result<(), E> {
                 // A character that’s not part of the alphabet
 
                 // Remove ASCII whitespace
-                // '\t' | '\n' | '\r' was already filtered by decode_without_base64()
-                if byte == b' ' || byte == b'\x0C' {
+                if matches!(byte, b' ' | b'\t' | b'\n' | b'\r' | b'\x0C') {
                     continue
                 }
 
@@ -88,7 +87,8 @@ impl<F, E> Decoder<F, E> where F: FnMut(&[u8]) -> Result<(), E> {
             }
             self.bit_buffer <<= 6;
             self.bit_buffer |= value as u32;
-            if self.buffer_bit_length < 24 {
+            // 18 before incrementing means we’ve just reached 24
+            if self.buffer_bit_length < 18 {
                 self.buffer_bit_length += 6;
             } else {
                 // We’ve accumulated four times 6 bits, which equals three times 8 bits.
