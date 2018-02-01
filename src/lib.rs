@@ -1,3 +1,20 @@
+//! Processing of `data:` URLs according to the Fetch Standard:
+//! <https://fetch.spec.whatwg.org/#data-urls>
+//! but starting from a string rather than a parsed URL to avoid extra copies.
+//!
+//! ```rust
+//! use data_url::{DataUrl, mime};
+//!
+//! let url = DataUrl::process("data:,Hello%20World!").unwrap();
+//! let (body, fragment) = url.decode_to_vec().unwrap();
+//!
+//! assert_eq!(url.mime_type().type_(), mime::TEXT);
+//! assert_eq!(url.mime_type().subtype(), mime::PLAIN);
+//! assert_eq!(url.mime_type().get_param(mime::CHARSET).unwrap(), "US-ASCII");
+//! assert_eq!(body, b"Hello World!");
+//! assert!(fragment.is_none());
+//! ```
+
 #[macro_use] extern crate matches;
 pub extern crate mime;
 
@@ -7,16 +24,19 @@ pub struct DataUrl<'a> {
     encoded_body_plus_fragment: &'a str,
 }
 
+#[derive(Debug)]
 pub enum DataUrlError {
     NotADataUrl,
     NoComma,
 }
 
+#[derive(Debug)]
 pub enum DecodeError<E> {
     InvalidBase64(InvalidBase64),
     WriteError(E),
 }
 
+#[derive(Debug)]
 pub struct InvalidBase64(());
 
 impl<E> From<InvalidBase64> for DecodeError<E> {
@@ -25,7 +45,7 @@ impl<E> From<InvalidBase64> for DecodeError<E> {
 
 impl<'a> DataUrl<'a> {
     /// <https://fetch.spec.whatwg.org/#data-url-processor>
-    /// but starting from a string rather than a Url, to avoid extra string copies.
+    /// but starting from a string rather than a parsed `Url`, to avoid extra string copies.
     pub fn process(input: &'a str) -> Result<Self, DataUrlError> {
         use DataUrlError::*;
 
@@ -44,7 +64,7 @@ impl<'a> DataUrl<'a> {
     }
 
     /// Streaming-decode the data URL’s body to `write_body_bytes`,
-    /// and return the URL’s fragment identifier is returned if it has one.
+    /// and return the URL’s fragment identifier if it has one.
     pub fn decode<F, E>(&self, write_body_bytes: F)
                         -> Result<Option<FragmentIdentifier<'a>>, DecodeError<E>>
         where F: FnMut(&[u8]) -> Result<(), E>
@@ -57,7 +77,7 @@ impl<'a> DataUrl<'a> {
         }
     }
 
-    /// Return the decoded body and the URL’s fragment identifier
+    /// Return the decoded body, and the URL’s fragment identifier if it has one.
     pub fn decode_to_vec(&self)
         -> Result<(Vec<u8>, Option<FragmentIdentifier<'a>>), InvalidBase64>
     {
