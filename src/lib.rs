@@ -81,13 +81,19 @@ impl<'a> DataUrl<'a> {
     pub fn decode_to_vec(&self)
         -> Result<(Vec<u8>, Option<FragmentIdentifier<'a>>), InvalidBase64>
     {
-        enum Impossible {}
         let mut body = Vec::new();
-        let result = self.decode::<_, Impossible>(|bytes| Ok(body.extend_from_slice(bytes)));
-        match result {
-            Ok(url_fragment) => Ok((body, url_fragment)),
-            Err(DecodeError::InvalidBase64(e)) => Err(e),
-            Err(DecodeError::WriteError(e)) => match e {}
+        let fragment = self.decode(|bytes| Ok(body.extend_from_slice(bytes)))?;
+        Ok((body, fragment))
+    }
+}
+
+enum Impossible {}
+
+impl From<DecodeError<Impossible>> for InvalidBase64 {
+    fn from(e: DecodeError<Impossible>) -> Self {
+        match e {
+            DecodeError::InvalidBase64(e) => e,
+            DecodeError::WriteError(e) => match e {}
         }
     }
 }
@@ -310,6 +316,19 @@ fn decode_with_base64<F, E>(encoded_body_plus_fragment: &str, write_bytes: F)
     let fragment = decode_without_base64(encoded_body_plus_fragment, |bytes| decoder.feed(bytes))?;
     decoder.finish()?;
     Ok(fragment)
+}
+
+/// <https://infra.spec.whatwg.org/#forgiving-base64-decode>
+///
+/// `input` is assumed to be in an ASCII-compatible encoding
+pub fn forgiving_base64_decode_to_vec(input: &[u8]) -> Result<Vec<u8>, InvalidBase64> {
+    let mut v = Vec::new();
+    {
+        let mut decoder = ForgivingBase64Decoder::new(|bytes| Ok(v.extend_from_slice(bytes)));
+        decoder.feed(input)?;
+        decoder.finish()?;
+    }
+    Ok(v)
 }
 
 /// <https://infra.spec.whatwg.org/#forgiving-base64-decode>
