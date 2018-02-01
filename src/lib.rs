@@ -21,10 +21,11 @@ impl<'a> DataUrl<'a> {
         use DataUrlError::*;
 
         let after_colon = pretend_parse_data_url(input).ok_or(NotADataUrl)?;
-        let comma = after_colon.bytes().position(|byte| byte == b',').ok_or(NoComma)?;
 
-        let (mime_type, base64) = parse_header(&after_colon[..comma]);
-        let encoded_body_plus_fragment = &after_colon[comma + 1..];
+        let (from_colon_to_comma, encoded_body_plus_fragment) =
+            find_comma_before_fragment(after_colon).ok_or(NoComma)?;
+
+        let (mime_type, base64) = parse_header(from_colon_to_comma);
 
         Ok(DataUrl { mime_type, base64, encoded_body_plus_fragment })
     }
@@ -106,6 +107,18 @@ fn pretend_parse_data_url(input: &str) -> Option<&str> {
 
     // Trim C0 control or space
     Some(after_colon.trim_right_matches(|ch| ch <= ' '))
+}
+
+fn find_comma_before_fragment(after_colon: &str) -> Option<(&str, &str)> {
+    for (i, byte) in after_colon.bytes().enumerate() {
+        if byte == b',' {
+            return Some((&after_colon[..i], &after_colon[i + 1..]))
+        }
+        if byte == b'#' {
+            break
+        }
+    }
+    None
 }
 
 fn parse_header(from_colon_to_comma: &str) -> (mime::Mime, bool) {
