@@ -23,6 +23,12 @@ impl<E> From<InvalidBase64> for DecodeError<E> {
     fn from(e: InvalidBase64) -> Self { DecodeError::InvalidBase64(e) }
 }
 
+/// The URL’s fragment identifier (after `#`) encoded as in the original input.
+///
+/// It needs to be either percent-encoded to obtain the same string as in a parsed URL,
+/// or percent-decoded to interpret it as text.
+pub struct UrlFragmentIdentifier<'a>(pub &'a str);
+
 impl<'a> DataUrl<'a> {
     /// <https://fetch.spec.whatwg.org/#data-url-processor>
     /// but starting from a string rather than a Url, to avoid extra string copies.
@@ -45,11 +51,8 @@ impl<'a> DataUrl<'a> {
 
     /// Streaming-decode the data URL’s body to `write_body_bytes`,
     /// and return the URL’s fragment identifier is returned if it has one.
-    ///
-    /// The fragment is represented as in the origin input.
-    /// It needs to be either percent-encoded to obtain the same string as in a parsed URL,
-    /// or percent-decoded to interpret it as text.
-    pub fn decode<F, E>(&self, write_body_bytes: F) -> Result<Option<&'a str>, DecodeError<E>>
+    pub fn decode<F, E>(&self, write_body_bytes: F)
+                        -> Result<Option<UrlFragmentIdentifier<'a>>, DecodeError<E>>
         where F: FnMut(&[u8]) -> Result<(), E>
     {
         if self.base64 {
@@ -60,7 +63,10 @@ impl<'a> DataUrl<'a> {
         }
     }
 
-    pub fn decode_to_vec(&self) -> Result<(Vec<u8>, Option<&str>), InvalidBase64> {
+    /// Return the decoded body and the URL’s fragment identifier
+    pub fn decode_to_vec(&self)
+        -> Result<(Vec<u8>, Option<UrlFragmentIdentifier<'a>>), InvalidBase64>
+    {
         enum Impossible {}
         let mut body = Vec::new();
         let result = self.decode::<_, Impossible>(|bytes| Ok(body.extend_from_slice(bytes)));
@@ -183,7 +189,7 @@ fn remove_suffix<'a, Eq>(haystack: &'a str, needle: &str, eq: Eq) -> Option<&'a 
 /// would be percent-decoded here.
 /// We skip that round-trip and pass it through unchanged.
 fn decode_without_base64<F, E>(encoded_body_plus_fragment: &str, mut write_bytes: F)
-                               -> Result<Option<&str>, E>
+                               -> Result<Option<UrlFragmentIdentifier>, E>
     where F: FnMut(&[u8]) -> Result<(), E>
 {
     let bytes = encoded_body_plus_fragment.as_bytes();
@@ -216,7 +222,8 @@ fn decode_without_base64<F, E>(encoded_body_plus_fragment: &str, mut write_bytes
 
                 b'#' => {
                     let fragment_start = i + 1;
-                    return Ok(Some(&encoded_body_plus_fragment[fragment_start..]))
+                    let fragment = &encoded_body_plus_fragment[fragment_start..];
+                    return Ok(Some(UrlFragmentIdentifier(fragment)))
                 }
 
                 // Ignore over '\t' | '\n' | '\r'
@@ -232,7 +239,7 @@ fn decode_without_base64<F, E>(encoded_body_plus_fragment: &str, mut write_bytes
 /// <https://infra.spec.whatwg.org/#isomorphic-decode> composed with
 /// <https://infra.spec.whatwg.org/#forgiving-base64-decode>.
 fn decode_with_base64<F, E>(encoded_body_plus_fragment: &str, mut write_bytes: F)
-                            -> Result<Option<&str>, DecodeError<E>>
+                            -> Result<Option<UrlFragmentIdentifier>, DecodeError<E>>
     where F: FnMut(&[u8]) -> Result<(), E>
 {
     let mut bit_buffer: u32 = 0;

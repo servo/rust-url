@@ -6,6 +6,7 @@ import string
 
 # https://tools.ietf.org/html/rfc4648#section-4
 alphabet = string.ascii_uppercase + string.ascii_lowercase + string.digits + "+/"
+assert len(alphabet) == 64
 
 reverse_table = [-1] * 256
 for i, symbol in enumerate(alphabet):
