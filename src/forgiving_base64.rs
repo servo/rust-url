@@ -76,7 +76,7 @@ impl<F, E> Decoder<F, E> where F: FnMut(&[u8]) -> Result<(), E> {
                 }
 
                 if byte == b'=' {
-                    self.padding_symbols = self.padding_symbols.saturating_add(8);
+                    self.padding_symbols = self.padding_symbols.saturating_add(1);
                     continue
                 }
 

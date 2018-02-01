@@ -88,11 +88,8 @@ fn collect_base64<F>(add_test: &mut F)
             Some(json_byte_array(expected))
         };
 
-        let should_panic = [
-            "ab==",
-            "ab\t\n\u{c}\r =\t\n\u{c}\r =\t\n\u{c}\r ",
-            "abc=",
-        ].contains(&&*input);
+        let known_failures = [];
+        let should_panic = known_failures.contains(&&*input);
         add_test(
             format!("base64 {:?}", input),
             should_panic,
