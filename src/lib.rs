@@ -302,16 +302,37 @@ fn decode_without_base64<F, E>(encoded_body_plus_fragment: &str, mut write_bytes
 /// `decode_without_base64()` composed with
 /// <https://infra.spec.whatwg.org/#isomorphic-decode> composed with
 /// <https://infra.spec.whatwg.org/#forgiving-base64-decode>.
-fn decode_with_base64<F, E>(encoded_body_plus_fragment: &str, mut write_bytes: F)
+fn decode_with_base64<F, E>(encoded_body_plus_fragment: &str, write_bytes: F)
                             -> Result<Option<FragmentIdentifier>, DecodeError<E>>
     where F: FnMut(&[u8]) -> Result<(), E>
 {
-    let mut bit_buffer: u32 = 0;
-    let mut buffer_bit_length: u8 = 0;
-    let mut padding_symbols: u8 = 0;
+    let mut decoder = ForgivingBase64Decoder::new(write_bytes);
+    let fragment = decode_without_base64(encoded_body_plus_fragment, |bytes| decoder.feed(bytes))?;
+    decoder.finish()?;
+    Ok(fragment)
+}
 
-    let fragment = decode_without_base64::<_, DecodeError<E>>(encoded_body_plus_fragment, |bytes| {
-        for &byte in bytes.iter() {
+/// <https://infra.spec.whatwg.org/#forgiving-base64-decode>
+pub struct ForgivingBase64Decoder<F, E> where F: FnMut(&[u8]) -> Result<(), E> {
+    write_bytes: F,
+    bit_buffer: u32,
+    buffer_bit_length: u8,
+    padding_symbols: u8,
+}
+
+impl<F, E> ForgivingBase64Decoder<F, E> where F: FnMut(&[u8]) -> Result<(), E> {
+    pub fn new(write_bytes: F) -> Self {
+        Self {
+            write_bytes,
+            bit_buffer: 0,
+            buffer_bit_length: 0,
+            padding_symbols: 0,
+        }
+    }
+
+    /// Feed to the decoder partial input in an ASCII-compatible encoding
+    pub fn feed(&mut self, input: &[u8]) -> Result<(), DecodeError<E>> {
+        for &byte in input.iter() {
             let value = BASE64_DECODE_TABLE[byte as usize];
             if value < 0 {
                 // A character that’s not part of the alphabet
@@ -323,63 +344,68 @@ fn decode_with_base64<F, E>(encoded_body_plus_fragment: &str, mut write_bytes: F
                 }
 
                 if byte == b'=' {
-                    padding_symbols = padding_symbols.saturating_add(8);
+                    self.padding_symbols = self.padding_symbols.saturating_add(8);
                     continue
                 }
 
                 Err(InvalidBase64(()))?
             }
-            if padding_symbols > 0 {
+            if self.padding_symbols > 0 {
                 // Alphabet symbols after padding
                 Err(InvalidBase64(()))?
             }
-            bit_buffer <<= 6;
-            bit_buffer |= value as u32;
-            if buffer_bit_length < 24 {
-                buffer_bit_length += 6;
+            self.bit_buffer <<= 6;
+            self.bit_buffer |= value as u32;
+            if self.buffer_bit_length < 24 {
+                self.buffer_bit_length += 6;
             } else {
                 // We’ve accumulated four times 6 bits, which equals three times 8 bits.
                 let byte_buffer = [
-                    (bit_buffer >> 16) as u8,
-                    (bit_buffer >> 8) as u8,
-                    bit_buffer as u8,
+                    (self.bit_buffer >> 16) as u8,
+                    (self.bit_buffer >> 8) as u8,
+                    self.bit_buffer as u8,
                 ];
-                write_bytes(&byte_buffer).map_err(DecodeError::WriteError)?;
-                buffer_bit_length = 0;
+                (self.write_bytes)(&byte_buffer).map_err(DecodeError::WriteError)?;
+                self.buffer_bit_length = 0;
                 // No need to reset bit_buffer,
                 // since next time we’re only gonna read relevant bits.
             }
         }
         Ok(())
-    })?;
-    match (buffer_bit_length, padding_symbols) {
-        (0, 0) => {
-            // A multiple of four of alphabet symbols, and nothing else.
-        }
-        (12, 2) | (12, 0) => {
-            // A multiple of four of alphabet symbols, followed by two more symbols,
-            // optionally followed by two padding characters (which make a total multiple of four).
-            let byte_buffer = [
-                (bit_buffer >> 4) as u8,
-            ];
-            write_bytes(&byte_buffer).map_err(DecodeError::WriteError)?;
-        }
-        (18, 1) | (18, 0) => {
-            // A multiple of four of alphabet symbols, followed by three more symbols,
-            // optionally followed by one padding character (which make a total multiple of four).
-            let byte_buffer = [
-                (bit_buffer >> 10) as u8,
-                (bit_buffer >> 2) as u8,
-            ];
-            write_bytes(&byte_buffer).map_err(DecodeError::WriteError)?;
-        }
-        _ => {
-            // No other combination is acceptable
-            Err(InvalidBase64(()))?
-        }
     }
-    Ok(fragment)
+
+    /// Call this to signal the end of the input
+    pub fn finish(mut self) -> Result<(), DecodeError<E>> {
+        match (self.buffer_bit_length, self.padding_symbols) {
+            (0, 0) => {
+                // A multiple of four of alphabet symbols, and nothing else.
+            }
+            (12, 2) | (12, 0) => {
+                // A multiple of four of alphabet symbols, followed by two more symbols,
+                // optionally followed by two padding characters (which make a total multiple of four).
+                let byte_buffer = [
+                    (self.bit_buffer >> 4) as u8,
+                ];
+                (self.write_bytes)(&byte_buffer).map_err(DecodeError::WriteError)?;
+            }
+            (18, 1) | (18, 0) => {
+                // A multiple of four of alphabet symbols, followed by three more symbols,
+                // optionally followed by one padding character (which make a total multiple of four).
+                let byte_buffer = [
+                    (self.bit_buffer >> 10) as u8,
+                    (self.bit_buffer >> 2) as u8,
+                ];
+                (self.write_bytes)(&byte_buffer).map_err(DecodeError::WriteError)?;
+            }
+            _ => {
+                // No other combination is acceptable
+                Err(InvalidBase64(()))?
+            }
+        }
+        Ok(())
+    }
 }
+
 
 /// Generated by `make_base64_decode_table.py` based on "Table 1: The Base 64 Alphabet"
 /// at <https://tools.ietf.org/html/rfc4648#section-4>
