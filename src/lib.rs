@@ -14,6 +14,8 @@ pub struct DataUrl<'a> {
     encoded_body_plus_fragment: &'a str,
 }
 
+pub struct Base64Error(());
+
 impl<'a> DataUrl<'a> {
     /// <https://fetch.spec.whatwg.org/#data-url-processor>
     /// but starting from a string rather than a Url, to avoid extra string copies.
@@ -43,29 +45,21 @@ impl<'a> DataUrl<'a> {
     /// The fragment identifier is represented as in the origin input.
     /// It needs to be either percent-encoded to obtain the same string as in a parsed URL,
     /// or percent-decoded to interpret it as text.
-    pub fn decode_body<W>(&self, sink: W) -> io::Result<Option<&'a str>>
+    pub fn decode_body<W>(&self, sink: W) -> io::Result<Result<Option<&'a str>, Base64Error>>
         where W: io::Write
     {
         if self.base64 {
             decode_with_base64(self.encoded_body_plus_fragment, sink)
         } else {
-            decode_without_base64(self.encoded_body_plus_fragment, sink)
+            decode_without_base64(self.encoded_body_plus_fragment, sink).map(Ok)
         }
     }
 
-    pub fn decode_body_to_vec(&self) -> Result<(Vec<u8>, Option<&str>), ()> {
+    pub fn decode_body_to_vec(&self) -> Result<(Vec<u8>, Option<&str>), Base64Error> {
         let mut sink = Vec::new();
-        match self.decode_body(&mut sink) {
-            Ok(url_fragment) => {
-                Ok((sink, url_fragment))
-            }
-            Err(e) => {
-                // Vec::write_all never returns an error
-                debug_assert!(e.kind() == io::ErrorKind::InvalidData && self.base64);
-
-                Err(())
-            }
-        }
+        let base64_result = self.decode_body(&mut sink).unwrap();
+        let url_fragment = base64_result?;
+        Ok((sink, url_fragment))
     }
 }
 
@@ -133,6 +127,8 @@ fn parse_header(from_colon_to_comma: &str) -> (mime::Mime, bool) {
         Some(s) => (s, true),
         None => (input, false),
     };
+
+    // FIXME: percent-encode
 
     if input.starts_with(';') {
         string = String::from("text/plain");
@@ -226,7 +222,8 @@ fn decode_without_base64<W>(encoded_body_plus_fragment: &str, mut sink: W)
 /// `decode_without_base64()` composed with
 /// <https://infra.spec.whatwg.org/#isomorphic-decode> composed with
 /// <https://infra.spec.whatwg.org/#forgiving-base64-decode>.
-fn decode_with_base64<W>(encoded_body_plus_fragment: &str, sink: W) -> io::Result<Option<&str>>
+fn decode_with_base64<W>(encoded_body_plus_fragment: &str, sink: W)
+                          -> io::Result<Result<Option<&str>, Base64Error>>
     where W: io::Write
 {
     let mut decoder = Base64Decoder {
@@ -234,8 +231,13 @@ fn decode_with_base64<W>(encoded_body_plus_fragment: &str, sink: W) -> io::Resul
         bit_buffer: 0,
         buffer_bit_length: 0,
         padding_symbols: 0,
+        base64_error: false,
     };
-    let fragment = decode_without_base64(encoded_body_plus_fragment, &mut decoder)?;
+    let result = decode_without_base64(encoded_body_plus_fragment, &mut decoder);
+    if decoder.base64_error {
+        return Ok(Err(Base64Error(())))
+    }
+    let fragment = result?;
     match (decoder.buffer_bit_length, decoder.padding_symbols) {
         (0, 0) => {
             // A multiple of four of alphabet symbols, and nothing else.
@@ -259,10 +261,10 @@ fn decode_with_base64<W>(encoded_body_plus_fragment: &str, sink: W) -> io::Resul
         }
         _ => {
             // No other combination is acceptable
-            Err(io::ErrorKind::InvalidData)?
+            return Ok(Err(Base64Error(())))
         }
     }
-    Ok(fragment)
+    Ok(Ok(fragment))
 }
 
 struct Base64Decoder<W> {
@@ -270,6 +272,7 @@ struct Base64Decoder<W> {
     bit_buffer: u32,
     buffer_bit_length: u8,
     padding_symbols: u8,
+    base64_error: bool,
 }
 
 impl<W> io::Write for Base64Decoder<W> where W: io::Write {
@@ -293,10 +296,12 @@ impl<W> io::Write for Base64Decoder<W> where W: io::Write {
                     continue
                 }
 
+                self.base64_error = true;
                 Err(io::ErrorKind::InvalidData)?
             }
             if self.padding_symbols > 0 {
                 // Alphabet symbols after padding
+                self.base64_error = true;
                 Err(io::ErrorKind::InvalidData)?
             }
             self.bit_buffer <<= 6;
