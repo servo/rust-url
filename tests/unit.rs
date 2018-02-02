@@ -13,7 +13,7 @@ extern crate url;
 
 use std::ascii::AsciiExt;
 use std::borrow::Cow;
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::path::{Path, PathBuf};
 use url::{Host, HostAndPort, Url, form_urlencoded};
@@ -525,4 +525,21 @@ fn test_syntax_violation_callback_lifetimes() {
         parse("http://mozilla.org\\path").unwrap();
     assert_eq!(url.path(), "/path");
     assert_eq!(violation.take(), Some(Backslash));
+}
+
+#[test]
+fn test_options_reuse() {
+    use url::SyntaxViolation::*;
+    let violations = RefCell::new(Vec::new());
+    let vfn = |v| violations.borrow_mut().push(v);
+
+    let options = Url::options().
+        syntax_violation_callback(Some(&vfn));
+    let url = options.parse("http:////mozilla.org").unwrap();
+
+    let options = options.base_url(Some(&url));
+    let url = options.parse("/sub\\path").unwrap();
+    assert_eq!(url.as_str(), "http://mozilla.org/sub/path");
+    assert_eq!(*violations.borrow(),
+               vec!(ExpectedDoubleSlash, Backslash));
 }
