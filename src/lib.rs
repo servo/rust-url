@@ -10,7 +10,7 @@
 //!
 //! assert_eq!(url.mime_type().type_, "text");
 //! assert_eq!(url.mime_type().subtype, "plain");
-//! assert_eq!(url.mime_type().parameters, [("charset".into(), "US-ASCII".into())]);
+//! assert_eq!(url.mime_type().get_parameter("charset"), Some("US-ASCII"));
 //! assert_eq!(body, b"Hello World!");
 //! assert!(fragment.is_none());
 //! ```

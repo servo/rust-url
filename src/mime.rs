@@ -10,6 +10,16 @@ pub struct Mime {
     pub parameters: Vec<(String, String)>
 }
 
+impl Mime {
+    pub fn get_parameter<P>(&self, name: &P) -> Option<&str>
+        where P: ?Sized + PartialEq<str>
+    {
+        self.parameters.iter()
+            .find(|&&(ref n, _)| name == &**n)
+            .map(|&(_, ref v)| &**v)
+    }
+}
+
 #[derive(Debug)]
 pub struct MimeParsingError(());
 
