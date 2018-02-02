@@ -9,6 +9,7 @@
 use std::ascii::AsciiExt;
 use std::error::Error;
 use std::fmt::{self, Formatter, Write};
+use std::rc::Rc;
 use std::str;
 
 use Url;
@@ -70,6 +71,55 @@ impl From<::idna::uts46::Errors> for ParseError {
     fn from(_: ::idna::uts46::Errors) -> ParseError { ParseError::IdnaError }
 }
 
+macro_rules! syntax_violation_enum {
+    ($($name: ident => $description: expr,)+) => {
+        /// Non-fatal syntax violations that can occur during parsing.
+        #[derive(PartialEq, Eq, Clone, Copy, Debug)]
+        pub enum SyntaxViolation {
+            $(
+                $name,
+            )+
+        }
+
+        impl SyntaxViolation {
+            pub fn description(&self) -> &'static str {
+                match *self {
+                    $(
+                        SyntaxViolation::$name => $description,
+                    )+
+                }
+            }
+        }
+    }
+}
+
+syntax_violation_enum! {
+    Backslash => "backslash",
+    C0SpaceIgnored =>
+        "leading or trailing control or space character are ignored in URLs",
+    EmbeddedCredentials =>
+        "embedding authentication information (username or password) \
+         in an URL is not recommended",
+    ExpectedDoubleSlash => "expected //",
+    ExpectedFileDoubleSlash => "expected // after file:",
+    FileWithHostandWindowsDriveLetter =>
+        "file: with host and Windows drive letter",
+    NonUrlCodePoint => "non-URL code point",
+    NullInFragment => "NULL characters are ignored in URL fragment identifiers",
+    PercentDecode => "expected 2 hex digits after %",
+    TabOrNewlineIgnored => "tabs or newlines are ignored in URLs",
+    UnencodedAtSign => "unencoded @ sign in username or password",
+}
+
+#[cfg(feature = "heapsize")]
+known_heap_size!(0, SyntaxViolation);
+
+impl fmt::Display for SyntaxViolation {
+    fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+        self.description().fmt(fmt)
+    }
+}
+
 #[derive(Copy, Clone)]
 pub enum SchemeType {
     File,
@@ -115,15 +165,15 @@ impl<'i> Input<'i> {
         Input::with_log(input, None)
     }
 
-    pub fn with_log(original_input: &'i str, log_syntax_violation: Option<&Fn(&'static str)>)
+    pub fn with_log(original_input: &'i str, callback: Option<Rc<Fn(SyntaxViolation) + 'i>>)
                     -> Self {
         let input = original_input.trim_matches(c0_control_or_space);
-        if let Some(log) = log_syntax_violation {
+        if let Some(cb) = callback {
             if input.len() < original_input.len() {
-                log("leading or trailing control or space character are ignored in URLs")
+                cb(SyntaxViolation::C0SpaceIgnored)
             }
             if input.chars().any(|c| matches!(c, '\t' | '\n' | '\r')) {
-                log("tabs or newlines are ignored in URLs")
+                cb(SyntaxViolation::TabOrNewlineIgnored)
             }
         }
         Input { chars: input.chars() }
@@ -220,7 +270,7 @@ pub struct Parser<'a> {
     pub serialization: String,
     pub base_url: Option<&'a Url>,
     pub query_encoding_override: EncodingOverride,
-    pub log_syntax_violation: Option<&'a Fn(&'static str)>,
+    pub syntax_violation_callback: Option<Rc<Fn(SyntaxViolation) + 'a>>,
     pub context: Context,
 }
 
@@ -237,29 +287,29 @@ impl<'a> Parser<'a> {
             serialization: serialization,
             base_url: None,
             query_encoding_override: EncodingOverride::utf8(),
-            log_syntax_violation: None,
+            syntax_violation_callback: None,
             context: Context::Setter,
         }
     }
 
-    fn syntax_violation(&self, reason: &'static str) {
-        if let Some(log) = self.log_syntax_violation {
-            log(reason)
+    fn syntax_violation(&self, v: SyntaxViolation) {
+        if let Some(ref cb) = self.syntax_violation_callback {
+            cb(v)
         }
     }
 
-    fn syntax_violation_if<F: Fn() -> bool>(&self, reason: &'static str, test: F) {
+    fn syntax_violation_if<F: Fn() -> bool>(&self, v: SyntaxViolation, test: F) {
         // Skip test if not logging.
-        if let Some(log) = self.log_syntax_violation {
+        if let Some(ref cb) = self.syntax_violation_callback {
             if test() {
-                log(reason)
+                cb(v)
             }
         }
     }
 
     /// https://url.spec.whatwg.org/#concept-basic-url-parser
     pub fn parse_url(mut self, input: &str) -> ParseResult<Url> {
-        let input = Input::with_log(input, self.log_syntax_violation);
+        let input = Input::with_log(input, self.syntax_violation_callback.clone());
         if let Ok(remaining) = self.parse_scheme(input.clone()) {
             return self.parse_with_scheme(remaining)
         }
@@ -310,12 +360,13 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_with_scheme(mut self, input: Input) -> ParseResult<Url> {
+        use SyntaxViolation::{ExpectedFileDoubleSlash, ExpectedDoubleSlash};
         let scheme_end = to_u32(self.serialization.len())?;
         let scheme_type = SchemeType::from(&self.serialization);
         self.serialization.push(':');
         match scheme_type {
             SchemeType::File => {
-                self.syntax_violation_if("expected // after file:", || !input.starts_with("//"));
+                self.syntax_violation_if(ExpectedFileDoubleSlash, || !input.starts_with("//"));
                 let base_file_url = self.base_url.and_then(|base| {
                     if base.scheme() == "file" { Some(base) } else { None }
                 });
@@ -335,7 +386,7 @@ impl<'a> Parser<'a> {
                     }
                 }
                 // special authority slashes state
-                self.syntax_violation_if("expected //", || {
+                self.syntax_violation_if(ExpectedDoubleSlash, || {
                     input.clone().take_while(|&c| matches!(c, '/' | '\\'))
                     .collect::<String>() != "//"
                 });
@@ -371,6 +422,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_file(mut self, input: Input, mut base_file_url: Option<&Url>) -> ParseResult<Url> {
+        use SyntaxViolation::Backslash;
         // file state
         debug_assert!(self.serialization.is_empty());
         let (first_char, input_after_first_char) = input.split_first();
@@ -468,10 +520,10 @@ impl<'a> Parser<'a> {
                 }
             }
             Some('/') | Some('\\') => {
-                self.syntax_violation_if("backslash", || first_char == Some('\\'));
+                self.syntax_violation_if(Backslash, || first_char == Some('\\'));
                 // file slash state
                 let (next_char, input_after_next_char) = input_after_first_char.split_first();
-                self.syntax_violation_if("backslash", || next_char == Some('\\'));
+                self.syntax_violation_if(Backslash, || next_char == Some('\\'));
                 if matches!(next_char, Some('/') | Some('\\')) {
                     // file host state
                     self.serialization.push_str("file://");
@@ -623,7 +675,7 @@ impl<'a> Parser<'a> {
             Some('/') | Some('\\') => {
                 let (slashes_count, remaining) = input.count_matching(|c| matches!(c, '/' | '\\'));
                 if slashes_count >= 2 {
-                    self.syntax_violation_if("expected //", || {
+                    self.syntax_violation_if(SyntaxViolation::ExpectedDoubleSlash, || {
                         input.clone().take_while(|&c| matches!(c, '/' | '\\'))
                         .collect::<String>() != "//"
                     });
@@ -687,11 +739,9 @@ impl<'a> Parser<'a> {
             match c {
                 '@' => {
                     if last_at.is_some() {
-                        self.syntax_violation("unencoded @ sign in username or password")
+                        self.syntax_violation(SyntaxViolation::UnencodedAtSign)
                     } else {
-                        self.syntax_violation(
-                            "embedding authentication information (username or password) \
-                            in an URL is not recommended")
+                        self.syntax_violation(SyntaxViolation::EmbeddedCredentials)
                     }
                     last_at = Some((char_count, remaining.clone()))
                 },
@@ -889,7 +939,7 @@ impl<'a> Parser<'a> {
         match input.split_first() {
             (Some('/'), remaining) => input = remaining,
             (Some('\\'), remaining) => if scheme_type.is_special() {
-                self.syntax_violation("backslash");
+                self.syntax_violation(SyntaxViolation::Backslash);
                 input = remaining
             },
             _ => {}
@@ -917,7 +967,7 @@ impl<'a> Parser<'a> {
                     },
                     '\\' if self.context != Context::PathSegmentSetter &&
                             scheme_type.is_special() => {
-                        self.syntax_violation("backslash");
+                        self.syntax_violation(SyntaxViolation::Backslash);
                         ends_with_slash = true;
                         break
                     },
@@ -958,7 +1008,7 @@ impl<'a> Parser<'a> {
                             self.serialization.push(':');
                         }
                         if *has_host {
-                            self.syntax_violation("file: with host and Windows drive letter");
+                            self.syntax_violation(SyntaxViolation::FileWithHostandWindowsDriveLetter);
                             *has_host = false;  // FIXME account for this in callers
                         }
                     }
@@ -1100,7 +1150,7 @@ impl<'a> Parser<'a> {
     pub fn parse_fragment(&mut self, mut input: Input) {
         while let Some((c, utf8_c)) = input.next_utf8() {
             if c ==  '\0' {
-                self.syntax_violation("NULL characters are ignored in URL fragment identifiers")
+                self.syntax_violation(SyntaxViolation::NullInFragment)
             } else {
                 self.check_url_code_point(c, &input);
                 self.serialization.extend(utf8_percent_encode(utf8_c,
@@ -1110,15 +1160,15 @@ impl<'a> Parser<'a> {
     }
 
     fn check_url_code_point(&self, c: char, input: &Input) {
-        if let Some(log) = self.log_syntax_violation {
+        if let Some(ref cb) = self.syntax_violation_callback {
             if c == '%' {
                 let mut input = input.clone();
                 if !matches!((input.next(), input.next()), (Some(a), Some(b))
                              if is_ascii_hex_digit(a) && is_ascii_hex_digit(b)) {
-                    log("expected 2 hex digits after %")
+                    cb(SyntaxViolation::PercentDecode)
                 }
             } else if !is_url_code_point(c) {
-                log("non-URL code point")
+                cb(SyntaxViolation::NonUrlCodePoint)
             }
         }
     }
