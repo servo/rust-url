@@ -1,14 +1,18 @@
 language: rust
-script: cargo test --all --all-features $CARGOFLAGS
+script: cargo test --all-features $CARGOFLAGS
 
 jobs:
   include:
   - rust: 1.17.0
+    env: CARGOFLAGS="-p url"
   - rust: stable
+    env: CARGOFLAGS="--all"
   - rust: beta
+    env: CARGOFLAGS="--all"
   - rust: nightly
+    env: CARGOFLAGS="--all"
   - rust: nightly
-    env: CARGOFLAGS=--target=wasm32-unknown-unknown
+    env: CARGOFLAGS="--all --target=wasm32-unknown-unknown"
     install: rustup target add wasm32-unknown-unknown
 
 notifications:
