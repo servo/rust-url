@@ -2,6 +2,9 @@
 name = "data-url"
 version = "0.1.0"
 authors = ["Simon Sapin <simon.sapin@exyr.org>"]
+description = "Processing of data: URL according to WHATWG’s Fetch Standard"
+repository = "https://github.com/servo/rust-url"
+license = "MIT OR Apache-2.0"
 
 [dependencies]
 matches = "0.1"
