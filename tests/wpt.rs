@@ -1,5 +1,6 @@
 extern crate data_url;
 extern crate rustc_test;
+#[macro_use] extern crate serde;
 extern crate serde_json;
 
 fn run_data_url(input: String, expected_mime: Option<String>, expected_body: Option<Vec<u8>>) {
@@ -40,20 +41,19 @@ fn collect_data_url<F>(add_test: &mut F)
         "data:x/x;base64;charset=x;base64,WA",
     ];
 
-    let json = include_str!("data-urls.json");
-    let v: serde_json::Value = serde_json::from_str(json).unwrap();
-    for test in v.as_array().unwrap() {
-        let input = test.get(0).unwrap().as_str().unwrap().to_owned();
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum TestCase {
+        Two(String, Option<String>),
+        Three(String, Option<String>, Vec<u8>),
+    };
 
-        let expected_mime = test.get(1).unwrap();
-        let expected_mime = if expected_mime.is_null() {
-            None
-        } else {
-            Some(expected_mime.as_str().unwrap().to_owned())
+    let v: Vec<TestCase> = serde_json::from_str(include_str!("data-urls.json")).unwrap();
+    for test in v {
+        let (input, expected_mime, expected_body) = match test {
+            TestCase::Two(i, m) => (i, m, None),
+            TestCase::Three(i, m, b) => (i, m, Some(b)),
         };
-
-        let expected_body = test.get(2).map(json_byte_array);
-
         let should_panic = known_failures.contains(&&*input);
         add_test(
             format!("data: URL {:?}", input),
@@ -81,17 +81,9 @@ fn collect_base64<F>(add_test: &mut F)
 {
     let known_failures = [];
 
-    let json = include_str!("base64.json");
-    let v: serde_json::Value = serde_json::from_str(json).unwrap();
-    for test in v.as_array().unwrap() {
-        let input = test.get(0).unwrap().as_str().unwrap().to_owned();
-        let expected = test.get(1).unwrap();
-        let expected = if expected.is_null() {
-            None
-        } else {
-            Some(json_byte_array(expected))
-        };
-
+    let v: Vec<(String, Option<Vec<u8>>)> =
+        serde_json::from_str(include_str!("base64.json")).unwrap();
+    for (input, expected) in v {
         let should_panic = known_failures.contains(&&*input);
         add_test(
             format!("base64 {:?}", input),
@@ -120,34 +112,35 @@ fn collect_mime<F>(add_test: &mut F)
     // Many WPT tests fail with the mime crate’s parser,
     // since that parser is not written for the same spec.
     // Only run a few of them for now, since listing all the failures individually is not useful.
-    let only_run_first_n_tests = 5;
+    let only_run_first_n_entries = 5;
     let known_failures = [
         "text/html;charset=gbk(",
     ];
 
-    let json = include_str!("mime-types.json");
-    let json2 = include_str!("generated-mime-types.json");
-    let v: serde_json::Value = serde_json::from_str(json).unwrap();
-    let v2: serde_json::Value = serde_json::from_str(json2).unwrap();
-    let tests = v.as_array().unwrap().iter().chain(v2.as_array().unwrap());
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Entry {
+        Comment(String),
+        TestCase { input: String, output: Option<String> }
+    }
+
+    let v: Vec<Entry> = serde_json::from_str(include_str!("mime-types.json")).unwrap();
+    let v2: Vec<Entry> = serde_json::from_str(include_str!("generated-mime-types.json")).unwrap();
+    let entries = v.into_iter().chain(v2);
 
     let mut last_comment = None;
-    for test in tests.take(only_run_first_n_tests) {
-        if let Some(s) = test.as_str() {
-            last_comment = Some(s);
-            continue
-        }
-        let input = test.get("input").unwrap().as_str().unwrap().to_owned();
-        let expected = test.get("output").unwrap();
-        let expected = if expected.is_null() {
-            None
-        } else {
-            Some(expected.as_str().unwrap().to_owned())
+    for entry in entries.take(only_run_first_n_entries) {
+        let (input, expected) = match entry {
+            Entry::TestCase { input, output } => (input, output),
+            Entry::Comment(s) => {
+                last_comment = Some(s);
+                continue
+            }
         };
 
         let should_panic = known_failures.contains(&&*input);
         add_test(
-            if let Some(s) = last_comment {
+            if let Some(ref s) = last_comment {
                 format!("MIME type {:?} {:?}", s, input)
             } else {
                 format!("MIME type {:?}", input)
@@ -158,14 +151,6 @@ fn collect_mime<F>(add_test: &mut F)
             })
         );
     }
-}
-
-fn json_byte_array(j: &serde_json::Value) -> Vec<u8> {
-    j.as_array().unwrap().iter().map(|byte| {
-        let byte = byte.as_u64().unwrap();
-        assert!(byte <= 0xFF);
-        byte as u8
-    }).collect()
 }
 
 fn main() {
