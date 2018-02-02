@@ -8,19 +8,25 @@
 //! let url = DataUrl::process("data:,Hello%20World!").unwrap();
 //! let (body, fragment) = url.decode_to_vec().unwrap();
 //!
-//! assert_eq!(url.mime_type().type_(), mime::TEXT);
-//! assert_eq!(url.mime_type().subtype(), mime::PLAIN);
-//! assert_eq!(url.mime_type().get_param(mime::CHARSET).unwrap(), "US-ASCII");
+//! assert_eq!(url.mime_type().type_, "text");
+//! assert_eq!(url.mime_type().subtype, "plain");
+//! assert_eq!(url.mime_type().parameters, [("charset".into(), "US-ASCII".into())]);
 //! assert_eq!(body, b"Hello World!");
 //! assert!(fragment.is_none());
 //! ```
 
 #[macro_use] extern crate matches;
-pub extern crate mime;
 
-use forgiving_base64::{InvalidBase64, DecodeError};
+macro_rules! require {
+    ($condition: expr) => {
+        if !$condition {
+            return None
+        }
+    }
+}
 
 pub mod forgiving_base64;
+pub mod mime;
 
 pub struct DataUrl<'a> {
     mime_type: mime::Mime,
@@ -57,20 +63,20 @@ impl<'a> DataUrl<'a> {
     /// Streaming-decode the data URL’s body to `write_body_bytes`,
     /// and return the URL’s fragment identifier if it has one.
     pub fn decode<F, E>(&self, write_body_bytes: F)
-                        -> Result<Option<FragmentIdentifier<'a>>, DecodeError<E>>
+                        -> Result<Option<FragmentIdentifier<'a>>, forgiving_base64::DecodeError<E>>
         where F: FnMut(&[u8]) -> Result<(), E>
     {
         if self.base64 {
             decode_with_base64(self.encoded_body_plus_fragment, write_body_bytes)
         } else {
             decode_without_base64(self.encoded_body_plus_fragment, write_body_bytes)
-                .map_err(DecodeError::WriteError)
+                .map_err(forgiving_base64::DecodeError::WriteError)
         }
     }
 
     /// Return the decoded body, and the URL’s fragment identifier if it has one.
     pub fn decode_to_vec(&self)
-        -> Result<(Vec<u8>, Option<FragmentIdentifier<'a>>), InvalidBase64>
+        -> Result<(Vec<u8>, Option<FragmentIdentifier<'a>>), forgiving_base64::InvalidBase64>
     {
         let mut body = Vec::new();
         let fragment = self.decode(|bytes| Ok(body.extend_from_slice(bytes)))?;
@@ -98,14 +104,6 @@ impl<'a> FragmentIdentifier<'a> {
             }
         }
         string
-    }
-}
-
-macro_rules! require {
-    ($condition: expr) => {
-        if !$condition {
-            return None
-        }
     }
 }
 
@@ -196,7 +194,11 @@ fn parse_header(from_colon_to_comma: &str) -> (mime::Mime, bool) {
     // FIXME: does Mime::from_str match the MIME Sniffing Standard’s parsing algorithm?
     // <https://mimesniff.spec.whatwg.org/#parse-a-mime-type>
     let mime_type = string.parse().unwrap_or_else(|_| {
-        "text/plain;charset=US-ASCII".parse().unwrap()
+        mime::Mime {
+            type_: String::from("text"),
+            subtype: String::from("plain"),
+            parameters: vec![(String::from("charset"), String::from("US-ASCII"))],
+        }
     });
 
     (mime_type, base64)
@@ -289,7 +291,7 @@ fn decode_without_base64<F, E>(encoded_body_plus_fragment: &str, mut write_bytes
 /// <https://infra.spec.whatwg.org/#isomorphic-decode> composed with
 /// <https://infra.spec.whatwg.org/#forgiving-base64-decode>.
 fn decode_with_base64<F, E>(encoded_body_plus_fragment: &str, write_bytes: F)
-                            -> Result<Option<FragmentIdentifier>, DecodeError<E>>
+                            -> Result<Option<FragmentIdentifier>, forgiving_base64::DecodeError<E>>
     where F: FnMut(&[u8]) -> Result<(), E>
 {
     let mut decoder = forgiving_base64::Decoder::new(write_bytes);

@@ -9,9 +9,9 @@ fn run_data_url(input: String, expected_mime: Option<String>, expected_body: Opt
         let url = url.unwrap();
         let (body, _) = url.decode_to_vec().unwrap();
         if expected_mime == "" {
-            assert_eq!(*url.mime_type(), "text/plain;charset=US-ASCII")
+            assert_eq!(url.mime_type().to_string(), "text/plain;charset=US-ASCII")
         } else {
-            assert_eq!(*url.mime_type(), &*expected_mime)
+            assert_eq!(url.mime_type().to_string(), expected_mime)
         }
         if let Some(expected_body) = expected_body {
             assert_eq!(body, expected_body)
@@ -26,19 +26,6 @@ fn collect_data_url<F>(add_test: &mut F)
 {
     let known_failures = [
         "data://test:test/,X",
-        "data:;%62ase64,WA",
-        "data:;base 64,WA",
-        "data:;base64;,WA",
-        "data:;base64;base64,WA",
-        "data:;charset =x,X",
-        "data:;charset,X",
-        "data:;charset=,X",
-        "data:text/plain;,X",
-        "data:text/plain;a=\",\",X",
-        "data:x/x;base64;base64,WA",
-        "data:x/x;base64;base64x,WA",
-        "data:x/x;base64;charset=x,WA",
-        "data:x/x;base64;charset=x;base64,WA",
     ];
 
     #[derive(Deserialize)]
@@ -98,8 +85,8 @@ fn collect_base64<F>(add_test: &mut F)
 fn run_mime(input: String, expected: Option<String>) {
     let result = input.parse::<data_url::mime::Mime>();
     match (result, expected) {
-        (Ok(bytes), Some(expected)) => assert_eq!(bytes, &*expected),
-        (Ok(bytes), None) => panic!("Expected error, got {:?}", bytes),
+        (Ok(mime), Some(expected)) => assert_eq!(mime.to_string(), expected),
+        (Ok(mime), None) => panic!("Expected error, got {:?}", mime),
         (Err(e), Some(expected)) => panic!("Expected {:?}, got error {:?}", expected, e),
         (Err(_), None) => {}
     }
@@ -109,13 +96,7 @@ fn run_mime(input: String, expected: Option<String>) {
 fn collect_mime<F>(add_test: &mut F)
     where F: FnMut(String, bool, rustc_test::TestFn)
 {
-    // Many WPT tests fail with the mime crate’s parser,
-    // since that parser is not written for the same spec.
-    // Only run a few of them for now, since listing all the failures individually is not useful.
-    let only_run_first_n_entries = 5;
-    let known_failures = [
-        "text/html;charset=gbk(",
-    ];
+    let known_failures = [];
 
     #[derive(Deserialize)]
     #[serde(untagged)]
@@ -129,7 +110,7 @@ fn collect_mime<F>(add_test: &mut F)
     let entries = v.into_iter().chain(v2);
 
     let mut last_comment = None;
-    for entry in entries.take(only_run_first_n_entries) {
+    for entry in entries {
         let (input, expected) = match entry {
             Entry::TestCase { input, output } => (input, output),
             Entry::Comment(s) => {
