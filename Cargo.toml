@@ -18,7 +18,7 @@ travis-ci = { repository = "servo/rust-url" }
 appveyor = { repository = "Manishearth/rust-url" }
 
 [workspace]
-members = [".", "idna", "percent_encoding", "url_serde"]
+members = [".", "idna", "percent_encoding", "url_serde", "data-url"]
 
 [[test]]
 name = "unit"
