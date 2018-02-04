@@ -482,11 +482,9 @@ fn test_windows_unc_path() {
 #[test]
 fn test_old_log_violation_option() {
     let violation = Cell::new(None);
-    let url = {
-        let vfn = |s: &str| violation.set(Some(s.to_owned()));
-        let options = Url::options().log_syntax_violation(Some(&vfn));
-        options.parse("http:////mozilla.org:42").unwrap()
-    };
+    let url = Url::options().
+        log_syntax_violation(Some(&|s| violation.set(Some(s.to_owned())))).
+        parse("http:////mozilla.org:42").unwrap();
     assert_eq!(url.port(), Some(42));
 
     let violation = violation.take();
