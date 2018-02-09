@@ -272,6 +272,7 @@ pub enum ViolationFn<'a> {
 }
 
 impl<'a> ViolationFn<'a> {
+    /// Call with a violation.
     pub fn call(self, v: SyntaxViolation) {
         match self {
             ViolationFn::NewFn(f) => f(v),
@@ -280,6 +281,8 @@ impl<'a> ViolationFn<'a> {
         }
     }
 
+    /// Call with a violation, if provided test returns true. Avoids
+    /// the test entirely if `NoOp`.
     pub fn call_if<F>(self, v: SyntaxViolation, test: F)
         where F: Fn() -> bool
     {
@@ -290,6 +293,7 @@ impl<'a> ViolationFn<'a> {
         }
     }
 
+    /// True if not `NoOp`
     pub fn is_set(self) -> bool {
         match self {
             ViolationFn::NoOp => false,
