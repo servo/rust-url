@@ -245,9 +245,7 @@ impl<'a> ParseOptions<'a> {
     /// # }
     /// # run().unwrap();
     /// ```
-    pub fn syntax_violation_callback<F>(mut self, new: Option<&'a F>) -> Self
-        where F: Fn(SyntaxViolation) + 'a
-    {
+    pub fn syntax_violation_callback(mut self, new: Option<&'a Fn(SyntaxViolation)>) -> Self {
         self.violation_fn = match new {
             Some(f) => ViolationFn::NewFn(f),
             None => ViolationFn::NoOp
