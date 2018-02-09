@@ -235,9 +235,9 @@ impl<'a> ParseOptions<'a> {
     /// # use url::ParseError;
     /// # fn run() -> Result<(), url::ParseError> {
     /// let violations = RefCell::new(Vec::new());
-    /// let url = Url::options().
-    ///     syntax_violation_callback(Some(&|v| violations.borrow_mut().push(v))).
-    ///     parse("https:////example.com")?;
+    /// let url = Url::options()
+    ///     .syntax_violation_callback(Some(&|v| violations.borrow_mut().push(v)))
+    ///     .parse("https:////example.com")?;
     /// assert_eq!(url.as_str(), "https://example.com/");
     /// assert_eq!(violations.into_inner(),
     ///            vec!(SyntaxViolation::ExpectedDoubleSlash));

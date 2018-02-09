@@ -485,9 +485,9 @@ fn test_windows_unc_path() {
 #[allow(deprecated)]
 fn test_old_log_violation_option() {
     let violation = Cell::new(None);
-    let url = Url::options().
-        log_syntax_violation(Some(&|s| violation.set(Some(s.to_owned())))).
-        parse("http:////mozilla.org:42").unwrap();
+    let url = Url::options()
+        .log_syntax_violation(Some(&|s| violation.set(Some(s.to_owned()))))
+        .parse("http:////mozilla.org:42").unwrap();
     assert_eq!(url.port(), Some(42));
 
     let violation = violation.take();
@@ -498,9 +498,9 @@ fn test_old_log_violation_option() {
 fn test_syntax_violation_callback() {
     use url::SyntaxViolation::*;
     let violation = Cell::new(None);
-    let url = Url::options().
-        syntax_violation_callback(Some(&|v| violation.set(Some(v)))).
-        parse("http:////mozilla.org:42").unwrap();
+    let url = Url::options()
+        .syntax_violation_callback(Some(&|v| violation.set(Some(v))))
+        .parse("http:////mozilla.org:42").unwrap();
     assert_eq!(url.port(), Some(42));
 
     let v = violation.take().unwrap();
@@ -514,15 +514,15 @@ fn test_syntax_violation_callback_lifetimes() {
     let violation = Cell::new(None);
     let vfn = |s| violation.set(Some(s));
 
-    let url = Url::options().
-        syntax_violation_callback(Some(&vfn)).
-        parse("http:////mozilla.org:42").unwrap();
+    let url = Url::options()
+        .syntax_violation_callback(Some(&vfn))
+        .parse("http:////mozilla.org:42").unwrap();
     assert_eq!(url.port(), Some(42));
     assert_eq!(violation.take(), Some(ExpectedDoubleSlash));
 
-    let url = Url::options().
-        syntax_violation_callback(Some(&vfn)).
-        parse("http://mozilla.org\\path").unwrap();
+    let url = Url::options()
+        .syntax_violation_callback(Some(&vfn))
+        .parse("http://mozilla.org\\path").unwrap();
     assert_eq!(url.path(), "/path");
     assert_eq!(violation.take(), Some(Backslash));
 }
@@ -533,8 +533,8 @@ fn test_options_reuse() {
     let violations = RefCell::new(Vec::new());
     let vfn = |v| violations.borrow_mut().push(v);
 
-    let options = Url::options().
-        syntax_violation_callback(Some(&vfn));
+    let options = Url::options()
+        .syntax_violation_callback(Some(&vfn));
     let url = options.parse("http:////mozilla.org").unwrap();
 
     let options = options.base_url(Some(&url));
