@@ -13,6 +13,7 @@ extern crate url;
 
 use std::ascii::AsciiExt;
 use std::borrow::Cow;
+use std::cell::{Cell, RefCell};
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::path::{Path, PathBuf};
 use url::{Host, HostAndPort, Url, form_urlencoded};
@@ -476,4 +477,69 @@ fn test_windows_unc_path() {
     // Paths starting with "\\.\" (Local Device Paths) are intentionally not supported.
     let url = Url::from_file_path(Path::new(r"\\.\some\path\file.txt"));
     assert!(url.is_err());
+}
+
+// Test the now deprecated log_syntax_violation method for backward
+// compatibility
+#[test]
+#[allow(deprecated)]
+fn test_old_log_violation_option() {
+    let violation = Cell::new(None);
+    let url = Url::options()
+        .log_syntax_violation(Some(&|s| violation.set(Some(s.to_owned()))))
+        .parse("http:////mozilla.org:42").unwrap();
+    assert_eq!(url.port(), Some(42));
+
+    let violation = violation.take();
+    assert_eq!(violation, Some("expected //".to_string()));
+}
+
+#[test]
+fn test_syntax_violation_callback() {
+    use url::SyntaxViolation::*;
+    let violation = Cell::new(None);
+    let url = Url::options()
+        .syntax_violation_callback(Some(&|v| violation.set(Some(v))))
+        .parse("http:////mozilla.org:42").unwrap();
+    assert_eq!(url.port(), Some(42));
+
+    let v = violation.take().unwrap();
+    assert_eq!(v, ExpectedDoubleSlash);
+    assert_eq!(v.description(), "expected //");
+}
+
+#[test]
+fn test_syntax_violation_callback_lifetimes() {
+    use url::SyntaxViolation::*;
+    let violation = Cell::new(None);
+    let vfn = |s| violation.set(Some(s));
+
+    let url = Url::options()
+        .syntax_violation_callback(Some(&vfn))
+        .parse("http:////mozilla.org:42").unwrap();
+    assert_eq!(url.port(), Some(42));
+    assert_eq!(violation.take(), Some(ExpectedDoubleSlash));
+
+    let url = Url::options()
+        .syntax_violation_callback(Some(&vfn))
+        .parse("http://mozilla.org\\path").unwrap();
+    assert_eq!(url.path(), "/path");
+    assert_eq!(violation.take(), Some(Backslash));
+}
+
+#[test]
+fn test_options_reuse() {
+    use url::SyntaxViolation::*;
+    let violations = RefCell::new(Vec::new());
+    let vfn = |v| violations.borrow_mut().push(v);
+
+    let options = Url::options()
+        .syntax_violation_callback(Some(&vfn));
+    let url = options.parse("http:////mozilla.org").unwrap();
+
+    let options = options.base_url(Some(&url));
+    let url = options.parse("/sub\\path").unwrap();
+    assert_eq!(url.as_str(), "http://mozilla.org/sub/path");
+    assert_eq!(*violations.borrow(),
+               vec!(ExpectedDoubleSlash, Backslash));
 }
