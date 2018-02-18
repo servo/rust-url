@@ -5,6 +5,11 @@ authors = ["The rust-url developers"]
 description = "IDNA (Internationalizing Domain Names in Applications) and Punycode."
 repository = "https://github.com/servo/rust-url/"
 license = "MIT/Apache-2.0"
+exclude = [
+    "tests/IdnaTest.txt",
+    "src/IdnaMappingTable.txt",
+    "src/make_uts46_mapping_table.py"
+]
 
 [lib]
 doctest = false
