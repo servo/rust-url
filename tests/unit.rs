@@ -543,3 +543,22 @@ fn test_options_reuse() {
     assert_eq!(*violations.borrow(),
                vec!(ExpectedDoubleSlash, Backslash));
 }
+
+#[cfg(feature = "query_encoding")]
+#[test]
+fn test_encoding_override_lookup() {
+    let url = Url::options()
+        .encoding_override_lookup(b"utf-8")
+        .parse("http://example.com/?例子").unwrap();
+    assert_eq!(url.query(), Some("%E4%BE%8B%E5%AD%90"));
+
+    let url = Url::options()
+        .encoding_override_lookup(b"gbk")
+        .parse("http://example.com/?例子").unwrap();
+    assert_eq!(url.query(), Some("%C0%FD%D7%D3"));
+
+    let url = Url::options()
+        .encoding_override_lookup(b"invalid label is ignored!")
+        .parse("http://example.com/?例子").unwrap();
+    assert_eq!(url.query(), Some("%E4%BE%8B%E5%AD%90"));
+}
