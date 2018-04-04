@@ -209,6 +209,24 @@ impl<'a> ParseOptions<'a> {
         self
     }
 
+    /// Override the character encoding of query strings.
+    /// This is a legacy concept only relevant for HTML.
+    ///
+    /// `label` is the WHATWG [encoding label](https://encoding.spec.whatwg.org/#names-and-labels).
+    ///
+    /// Silently fails if `label` is invalid.
+    ///
+    /// This method is only available if the `query_encoding`
+    /// [feature](http://doc.crates.io/manifest.html#the-features-section]) is enabled.
+    #[cfg(feature = "query_encoding")]
+    pub fn encoding_override_lookup(mut self, label: &[u8]) -> Self {
+        self.encoding_override = match EncodingOverride::lookup(label) {
+            Some(encoding_override) => encoding_override.to_output_encoding(),
+            None => self.encoding_override,
+        };
+        self
+    }
+
     /// Call the provided function or closure on non-fatal parse errors, passing
     /// a static string description.  This method is deprecated in favor of
     /// `syntax_violation_callback` and is implemented as an adaptor for the
