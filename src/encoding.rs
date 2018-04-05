@@ -78,17 +78,57 @@ impl EncodingOverride {
 
     pub fn decode<'a>(&self, input: Cow<'a, [u8]>) -> Cow<'a, str> {
         match self.encoding {
-            // encoding_rs returns a short-lived Cow, so create an owned Cow
-            Some(encoding) => Cow::from(encoding.decode(&input).0.into_owned()),
-            None => decode_utf8_lossy(input.into()),
+            Some(encoding) => {
+                match input {
+                    Cow::Borrowed(b) => {
+                        let (cow, _) = encoding.decode_without_bom_handling(b);
+                        cow
+                    },
+                    Cow::Owned(v) => {
+                        {
+                            let (cow, _) = encoding.decode_without_bom_handling(&v[..]);
+                            match cow {
+                                Cow::Owned(s) => {
+                                    // Free old heap buffer and return a new one.
+                                    return Cow::Owned(s);
+                                }
+                                Cow::Borrowed(_) => {}
+                            }
+                        }
+                        // Reuse the old heap buffer.
+                        Cow::Owned(unsafe { String::from_utf8_unchecked(v) })
+                    },
+                }
+            },
+            None => decode_utf8_lossy(input),
         }
     }
 
     pub fn encode<'a>(&self, input: Cow<'a, str>) -> Cow<'a, [u8]> {
         match self.encoding {
-            // encoding_rs returns a short-lived Cow, so create an owned Cow
-            Some(encoding) => Cow::from(encoding.encode(&input).0.into_owned()),
-            None => encode_utf8(input)
+            Some(encoding) => {
+                match input {
+                    Cow::Borrowed(s) => {
+                        let (cow, _, _) = encoding.encode(s);
+                        cow
+                    },
+                    Cow::Owned(s) => {
+                        {
+                            let (cow, _, _) = encoding.encode(&s[..]);
+                            match cow {
+                                Cow::Owned(v) => {
+                                    // Free old heap buffer and return a new one.
+                                    return Cow::Owned(v);
+                                },
+                                Cow::Borrowed(_) => {},
+                            }
+                        }
+                        // Reuse the old heap buffer.
+                        Cow::Owned(s.into_bytes())
+                    },
+                }
+            },
+            None => encode_utf8(input),
         }
     }
 }
