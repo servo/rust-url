@@ -199,6 +199,19 @@ impl<'a> ParseOptions<'a> {
     /// Override the character encoding of query strings.
     /// This is a legacy concept only relevant for HTML.
     ///
+    /// `Encoding` is defined in [encoding_rs](https://github.com/hsivonen/encoding_rs).
+    ///
+    /// This method is only available if the `query_encoding_2`
+    /// [feature](http://doc.crates.io/manifest.html#the-features-section]) is enabled.
+    #[cfg(feature = "query_encoding_2")]
+    pub fn encoding_override(mut self, new: Option<&'static encoding::Encoding>) -> Self {
+        self.encoding_override = EncodingOverride::from_opt_encoding(new).to_output_encoding();
+        self
+    }
+
+    /// Override the character encoding of query strings.
+    /// This is a legacy concept only relevant for HTML.
+    ///
     /// `EncodingRef` is defined in [rust-encoding](https://github.com/lifthrasiir/rust-encoding).
     ///
     /// This method is only available if the `query_encoding`

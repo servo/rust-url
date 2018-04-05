@@ -7,17 +7,131 @@
 // except according to those terms.
 
 
-//! Abstraction that conditionally compiles either to rust-encoding,
-//! or to only support UTF-8.
+//! Abstraction that conditionally compiles either to encoding_rs,
+//! or rust-encoding (legacy), or to only support UTF-8.
 
+#[cfg(feature = "query_encoding_2")] extern crate encoding_rs;
 #[cfg(feature = "query_encoding")] extern crate encoding;
 
 use std::borrow::Cow;
-#[cfg(feature = "query_encoding")] use std::fmt::{self, Debug, Formatter};
+#[cfg(any(feature = "query_encoding", feature = "query_encoding_2"))] use std::fmt::{self, Debug, Formatter};
+
+#[cfg(feature = "query_encoding_2")] pub use self::encoding_rs::Encoding;
 
 #[cfg(feature = "query_encoding")] use self::encoding::types::{DecoderTrap, EncoderTrap};
 #[cfg(feature = "query_encoding")] use self::encoding::label::encoding_from_whatwg_label;
 #[cfg(feature = "query_encoding")] pub use self::encoding::types::EncodingRef;
+
+
+
+#[cfg(feature = "query_encoding_2")]
+#[derive(Copy, Clone)]
+pub struct EncodingOverride {
+    /// `None` means UTF-8.
+    encoding: Option<&'static Encoding>
+}
+
+#[cfg(feature = "query_encoding_2")]
+impl EncodingOverride {
+    pub fn from_opt_encoding(encoding: Option<&'static Encoding>) -> Self {
+        encoding.map(Self::from_encoding).unwrap_or_else(Self::utf8)
+    }
+
+    pub fn from_encoding(encoding: &'static Encoding) -> Self {
+        EncodingOverride {
+            encoding: if encoding.name() == "UTF-8" { None } else { Some(encoding) }
+        }
+    }
+
+    #[inline]
+    pub fn utf8() -> Self {
+        EncodingOverride { encoding: None }
+    }
+
+    pub fn lookup(label: &[u8]) -> Option<Self> {
+        // Don't use String::from_utf8_lossy since no encoding label contains U+FFFD
+        // https://encoding.spec.whatwg.org/#names-and-labels
+        Encoding::for_label(label)
+            .map(Self::from_encoding)
+    }
+
+    /// https://encoding.spec.whatwg.org/#get-an-output-encoding
+    pub fn to_output_encoding(self) -> Self {
+        if let Some(encoding) = self.encoding {
+            if matches!(encoding.name(), "UTF-16LE" | "UTF-16BE") {
+                return Self::utf8()
+            }
+        }
+        self
+    }
+
+    pub fn is_utf8(&self) -> bool {
+        self.encoding.is_none()
+    }
+
+    pub fn name(&self) -> &'static str {
+        match self.encoding {
+            Some(encoding) => encoding.name(),
+            None => "UTF-8",
+        }
+    }
+
+    pub fn decode<'a>(&self, input: Cow<'a, [u8]>) -> Cow<'a, str> {
+        match self.encoding {
+            Some(encoding) => {
+                match input {
+                    Cow::Borrowed(b) => {
+                        let (cow, _) = encoding.decode_without_bom_handling(b);
+                        cow
+                    },
+                    Cow::Owned(v) => {
+                        {
+                            let (cow, _) = encoding.decode_without_bom_handling(&v[..]);
+                            match cow {
+                                Cow::Owned(s) => {
+                                    // Free old heap buffer and return a new one.
+                                    return Cow::Owned(s);
+                                }
+                                Cow::Borrowed(_) => {}
+                            }
+                        }
+                        // Reuse the old heap buffer.
+                        Cow::Owned(unsafe { String::from_utf8_unchecked(v) })
+                    },
+                }
+            },
+            None => decode_utf8_lossy(input),
+        }
+    }
+
+    pub fn encode<'a>(&self, input: Cow<'a, str>) -> Cow<'a, [u8]> {
+        match self.encoding {
+            Some(encoding) => {
+                match input {
+                    Cow::Borrowed(s) => {
+                        let (cow, _, _) = encoding.encode(s);
+                        cow
+                    },
+                    Cow::Owned(s) => {
+                        {
+                            let (cow, _, _) = encoding.encode(&s[..]);
+                            match cow {
+                                Cow::Owned(v) => {
+                                    // Free old heap buffer and return a new one.
+                                    return Cow::Owned(v);
+                                },
+                                Cow::Borrowed(_) => {},
+                            }
+                        }
+                        // Reuse the old heap buffer.
+                        Cow::Owned(s.into_bytes())
+                    },
+                }
+            },
+            None => encode_utf8(input),
+        }
+    }
+}
 
 #[cfg(feature = "query_encoding")]
 #[derive(Copy, Clone)]
@@ -90,7 +204,7 @@ impl EncodingOverride {
     }
 }
 
-#[cfg(feature = "query_encoding")]
+#[cfg(any(feature = "query_encoding", feature = "query_encoding_2"))]
 impl Debug for EncodingOverride {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "EncodingOverride {{ encoding: ")?;
@@ -101,11 +215,11 @@ impl Debug for EncodingOverride {
     }
 }
 
-#[cfg(not(feature = "query_encoding"))]
+#[cfg(all(not(feature = "query_encoding"), not(feature = "query_encoding_2")))]
 #[derive(Copy, Clone, Debug)]
 pub struct EncodingOverride;
 
-#[cfg(not(feature = "query_encoding"))]
+#[cfg(all(not(feature = "query_encoding"), not(feature = "query_encoding_2")))]
 impl EncodingOverride {
     #[inline]
     pub fn utf8() -> Self {
