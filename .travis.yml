@@ -9,16 +9,24 @@ jobs:
     # getopts is only used in tests. Its versions 0.2.16+ don’t build on 1.17.0
     - cargo update -p getopts --precise 0.2.15
     # data-url uses pub(crate) which is unstable in 1.17
-    script: cargo test --all-features -p url -p idna -p percent-encoding -p url_serde
+    script:
+      - cargo test --features "heap_size query_encoding_2" -p url -p idna -p percent-encoding -p url_serde
+      - cargo test --features "heap_size query_encoding" -p url -p idna -p percent-encoding -p url_serde
 
   - rust: stable
-    script: cargo test --all-features --all
+    script:
+      - cargo test --features "heap_size query_encoding_2" --all
+      - cargo test --features "heap_size query_encoding" --all
 
   - rust: beta
-    script: cargo test --all-features --all
+    script:
+      - cargo test --features "heap_size query_encoding_2" --all
+      - cargo test --features "heap_size query_encoding" --all
 
   - rust: nightly
-    script: cargo test --all-features --all
+    script:
+      - cargo test --features "heap_size query_encoding_2" --all
+      - cargo test --features "heap_size query_encoding" --all
 
   - rust: nightly
     env: TARGET=WASM32  # For job list UI
