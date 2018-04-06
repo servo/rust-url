@@ -7,8 +7,10 @@
 // except according to those terms.
 
 
-//! Implementation using rust-encoding (legacy).
-//! Only built with feature flag `query_encoding`.
+//! Legacy implementation using
+//! [rust-encoding](https://github.com/lifthrasiir/rust-encoding).
+//! Only built when setting feature flag `query_encoding`.
+//! Use feature flag `query_encoding_2` for the new `encoding_rs` implementation.
 
 extern crate encoding;
 

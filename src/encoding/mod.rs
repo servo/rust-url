@@ -15,11 +15,17 @@ mod utf8_helpers;
 use std::borrow::Cow;
 use std::fmt::Debug;
 
+#[cfg(feature = "query_encoding_2")] mod encoding_rs;
+#[cfg(feature = "query_encoding_2")] use self::encoding_rs::EncodingOverrideRs;
+
 #[cfg(feature = "query_encoding")] mod legacy;
 #[cfg(feature = "query_encoding")] pub use self::legacy::{EncodingOverrideLegacy, EncodingRef};
 
-#[cfg(not(feature = "query_encoding"))] mod fallback;
-#[cfg(not(feature = "query_encoding"))] use self::fallback::EncodingOverrideFallback;
+#[cfg(not(any(feature = "query_encoding", feature = "query_encoding_2")))]
+mod fallback;
+#[cfg(not(any(feature = "query_encoding", feature = "query_encoding_2")))]
+use self::fallback::EncodingOverrideFallback;
+
 
 pub trait EncodingOverride : Debug {
     /// Get an Encoding representing UTF-8.
@@ -54,12 +60,17 @@ pub trait EncodingOverride : Debug {
     fn encode<'a>(&self, input: Cow<'a, str>) -> Cow<'a, [u8]>;
 }
 
-#[cfg(feature = "query_encoding")]
+#[cfg(feature = "query_encoding_2")]
+pub fn default_encoding_override() -> EncodingOverrideRs {
+    EncodingOverrideRs::utf8()
+}
+
+#[cfg(all(feature = "query_encoding", not(feature = "query_encoding_2")))]
 pub fn default_encoding_override() -> EncodingOverrideLegacy {
     EncodingOverrideLegacy::utf8()
 }
 
-#[cfg(not(feature = "query_encoding"))]
+#[cfg(not(any(feature = "query_encoding", feature = "query_encoding_2")))]
 pub fn default_encoding_override() -> EncodingOverrideFallback {
     EncodingOverrideFallback::utf8()
 }
