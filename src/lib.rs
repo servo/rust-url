@@ -1161,7 +1161,7 @@ impl Url {
     /// let url = Url::parse("https://example.com/products?page=2&sort=desc")?;
     /// let mut pairs = url.query_pairs();
     ///
-    /// assert_eq!(pairs.count(), 2);
+    /// assert_eq!(pairs.clone().count(), 2);
     ///
     /// assert_eq!(pairs.next(), Some((Cow::Borrowed("page"), Cow::Borrowed("2"))));
     /// assert_eq!(pairs.next(), Some((Cow::Borrowed("sort"), Cow::Borrowed("desc"))));

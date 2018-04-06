@@ -528,16 +528,16 @@ fn test_syntax_violation_callback_lifetimes() {
 }
 
 #[test]
-fn test_options_reuse() {
+fn test_options_clone() {
     use url::SyntaxViolation::*;
     let violations = RefCell::new(Vec::new());
     let vfn = |v| violations.borrow_mut().push(v);
 
     let options = Url::options()
         .syntax_violation_callback(Some(&vfn));
-    let url = options.parse("http:////mozilla.org").unwrap();
+    let url = options.clone().parse("http:////mozilla.org").unwrap();
 
-    let options = options.base_url(Some(&url));
+    let options = options.clone().base_url(Some(&url));
     let url = options.parse("/sub\\path").unwrap();
     assert_eq!(url.as_str(), "http://mozilla.org/sub/path");
     assert_eq!(*violations.borrow(),
