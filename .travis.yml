@@ -8,17 +8,37 @@ jobs:
     - cargo update
     # getopts is only used in tests. Its versions 0.2.16+ don’t build on 1.17.0
     - cargo update -p getopts --precise 0.2.15
-    # data-url uses pub(crate) which is unstable in 1.17
-    script: cargo test --all-features -p url -p idna -p percent-encoding -p url_serde
+    script:
+      # test building potentially conflicting features
+      - cargo build
+      - cargo build --features query_encoding
+      - cargo build --features query_encoding_2
+      # data-url uses pub(crate) which is unstable in 1.17
+      - cargo test --all-features -p url -p idna -p percent-encoding -p url_serde
 
   - rust: stable
-    script: cargo test --all-features --all
+    script:
+      # test building potentially conflicting features
+      - cargo build
+      - cargo build --features query_encoding
+      - cargo build --features query_encoding_2
+      - cargo test --all-features --all
 
   - rust: beta
-    script: cargo test --all-features --all
+    script:
+      # test building potentially conflicting features
+      - cargo build
+      - cargo build --features query_encoding
+      - cargo build --features query_encoding_2
+      - cargo test --all-features --all
 
   - rust: nightly
-    script: cargo test --all-features --all
+    script:
+      # test building potentially conflicting features
+      - cargo build
+      - cargo build --features query_encoding
+      - cargo build --features query_encoding_2
+      - cargo test --all-features --all
 
   - rust: nightly
     env: TARGET=WASM32  # For job list UI
