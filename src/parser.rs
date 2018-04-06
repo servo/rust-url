@@ -9,10 +9,12 @@
 use std::ascii::AsciiExt;
 use std::error::Error;
 use std::fmt::{self, Formatter, Write};
+use std::rc::Rc;
 use std::str;
 
 use Url;
 use encoding::EncodingOverride;
+use encoding::default_encoding_override;
 use host::{Host, HostInternal};
 use percent_encoding::{
     utf8_percent_encode, percent_encode,
@@ -315,7 +317,7 @@ impl<'a> fmt::Debug for ViolationFn<'a> {
 pub struct Parser<'a> {
     pub serialization: String,
     pub base_url: Option<&'a Url>,
-    pub query_encoding_override: EncodingOverride,
+    pub query_encoding_override: Rc<EncodingOverride>,
     pub violation_fn: ViolationFn<'a>,
     pub context: Context,
 }
@@ -332,7 +334,7 @@ impl<'a> Parser<'a> {
         Parser {
             serialization: serialization,
             base_url: None,
-            query_encoding_override: EncodingOverride::utf8(),
+            query_encoding_override: Rc::new(default_encoding_override()),
             violation_fn: ViolationFn::NoOp,
             context: Context::Setter,
         }
@@ -1151,8 +1153,8 @@ impl<'a> Parser<'a> {
         }
 
         let encoding = match &self.serialization[..scheme_end as usize] {
-            "http" | "https" | "file" | "ftp" | "gopher" => self.query_encoding_override,
-            _ => EncodingOverride::utf8(),
+            "http" | "https" | "file" | "ftp" | "gopher" => self.query_encoding_override.clone(),
+            _ => Rc::new(default_encoding_override()),
         };
         let query_bytes = encoding.encode(query.into());
         self.serialization.extend(percent_encode(&query_bytes, QUERY_ENCODE_SET));

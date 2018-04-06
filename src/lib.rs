@@ -115,6 +115,8 @@ pub extern crate idna;
 pub extern crate percent_encoding;
 
 use encoding::EncodingOverride;
+use encoding::default_encoding_override;
+#[cfg(feature = "query_encoding")] use encoding::EncodingOverrideLegacy;
 #[cfg(feature = "heapsize")] use heapsize::HeapSizeOf;
 use host::HostInternal;
 use parser::{Parser, Context, SchemeType, to_u32, ViolationFn};
@@ -130,6 +132,7 @@ use std::mem;
 use std::net::{ToSocketAddrs, IpAddr};
 use std::ops::{Range, RangeFrom, RangeTo};
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 use std::str;
 
 pub use origin::{Origin, OpaqueOrigin};
@@ -182,10 +185,10 @@ impl HeapSizeOf for Url {
 }
 
 /// Full configuration for the URL parser.
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct ParseOptions<'a> {
     base_url: Option<&'a Url>,
-    encoding_override: encoding::EncodingOverride,
+    encoding_override: Rc<EncodingOverride>,
     violation_fn: ViolationFn<'a>,
 }
 
@@ -205,7 +208,7 @@ impl<'a> ParseOptions<'a> {
     /// [feature](http://doc.crates.io/manifest.html#the-features-section]) is enabled.
     #[cfg(feature = "query_encoding")]
     pub fn encoding_override(mut self, new: Option<encoding::EncodingRef>) -> Self {
-        self.encoding_override = EncodingOverride::from_opt_encoding(new).to_output_encoding();
+        self.encoding_override = Rc::new(EncodingOverrideLegacy::from_opt_encoding(new).to_output_encoding());
         self
     }
 
@@ -258,7 +261,7 @@ impl<'a> ParseOptions<'a> {
         Parser {
             serialization: String::with_capacity(input.len()),
             base_url: self.base_url,
-            query_encoding_override: self.encoding_override,
+            query_encoding_override: self.encoding_override.clone(),
             violation_fn: self.violation_fn,
             context: Context::UrlParser,
         }.parse_url(input)
@@ -401,7 +404,7 @@ impl Url {
     pub fn options<'a>() -> ParseOptions<'a> {
         ParseOptions {
             base_url: None,
-            encoding_override: EncodingOverride::utf8(),
+            encoding_override: Rc::new(default_encoding_override()),
             violation_fn: ViolationFn::NoOp,
         }
     }

@@ -14,9 +14,12 @@
 //! and a sequence of (name, value) pairs.
 
 use encoding::EncodingOverride;
+#[cfg(feature = "query_encoding")] use encoding::EncodingOverrideLegacy;
+use encoding::default_encoding_override;
 use percent_encoding::{percent_encode_byte, percent_decode};
 use std::borrow::{Borrow, Cow};
 use std::fmt;
+use std::rc::Rc;
 use std::str;
 
 
@@ -31,7 +34,7 @@ use std::str;
 pub fn parse(input: &[u8]) -> Parse {
     Parse {
         input: input,
-        encoding: EncodingOverride::utf8(),
+        encoding: Rc::new(default_encoding_override()),
     }
 }
 
@@ -57,7 +60,7 @@ pub fn parse_with_encoding<'a>(input: &'a [u8],
                                -> Result<Parse<'a>, ()> {
     use std::ascii::AsciiExt;
 
-    let mut encoding = EncodingOverride::from_opt_encoding(encoding_override);
+    let mut encoding = EncodingOverrideLegacy::from_opt_encoding(encoding_override);
     if !(encoding.is_utf8() || input.is_ascii()) {
         return Err(())
     }
@@ -77,15 +80,15 @@ pub fn parse_with_encoding<'a>(input: &'a [u8],
     }
     Ok(Parse {
         input: input,
-        encoding: encoding,
+        encoding: Rc::new(encoding),
     })
 }
 
 /// The return type of `parse()`.
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct Parse<'a> {
     input: &'a [u8],
-    encoding: EncodingOverride,
+    encoding: Rc<EncodingOverride>,
 }
 
 impl<'a> Iterator for Parse<'a> {
@@ -106,14 +109,14 @@ impl<'a> Iterator for Parse<'a> {
             let name = split2.next().unwrap();
             let value = split2.next().unwrap_or(&[][..]);
             return Some((
-                decode(name, self.encoding),
-                decode(value, self.encoding),
+                decode(name, &*self.encoding),
+                decode(value, &*self.encoding),
             ))
         }
     }
 }
 
-fn decode(input: &[u8], encoding: EncodingOverride) -> Cow<str> {
+fn decode<'i>(input: &'i [u8], encoding: &EncodingOverride) -> Cow<'i, str> {
     let replaced = replace_plus(input);
     encoding.decode(match percent_decode(&replaced).if_any() {
         Some(vec) => Cow::Owned(vec),
@@ -216,7 +219,7 @@ impl<'a> Iterator for ByteSerialize<'a> {
 pub struct Serializer<T: Target> {
     target: Option<T>,
     start_position: usize,
-    encoding: EncodingOverride,
+    encoding: Rc<EncodingOverride>,
     custom_encoding: Option<SilentDebug<Box<FnMut(&str) -> Cow<[u8]>>>>,
 }
 
@@ -281,7 +284,7 @@ impl<T: Target> Serializer<T> {
         Serializer {
             target: Some(target),
             start_position: start_position,
-            encoding: EncodingOverride::utf8(),
+            encoding: Rc::new(default_encoding_override()),
             custom_encoding: None,
         }
     }
@@ -297,7 +300,7 @@ impl<T: Target> Serializer<T> {
     /// Set the character encoding to be used for names and values before percent-encoding.
     #[cfg(feature = "query_encoding")]
     pub fn encoding_override(&mut self, new: Option<::encoding::EncodingRef>) -> &mut Self {
-        self.encoding = EncodingOverride::from_opt_encoding(new).to_output_encoding();
+        self.encoding = Rc::new(EncodingOverrideLegacy::from_opt_encoding(new).to_output_encoding());
         self
     }
 
@@ -313,7 +316,7 @@ impl<T: Target> Serializer<T> {
     ///
     /// Panics if called after `.finish()`.
     pub fn append_pair(&mut self, name: &str, value: &str) -> &mut Self {
-        append_pair(string(&mut self.target), self.start_position, self.encoding,
+        append_pair(string(&mut self.target), self.start_position, &*self.encoding,
                     &mut self.custom_encoding, name, value);
         self
     }
@@ -331,7 +334,7 @@ impl<T: Target> Serializer<T> {
             let string = string(&mut self.target);
             for pair in iter {
                 let &(ref k, ref v) = pair.borrow();
-                append_pair(string, self.start_position, self.encoding,
+                append_pair(string, self.start_position, &*self.encoding,
                             &mut self.custom_encoding, k.as_ref(), v.as_ref());
             }
         }
@@ -383,7 +386,7 @@ fn string<T: Target>(target: &mut Option<T>) -> &mut String {
     target.as_mut().expect("url::form_urlencoded::Serializer finished").as_mut_string()
 }
 
-fn append_pair(string: &mut String, start_position: usize, encoding: EncodingOverride,
+fn append_pair(string: &mut String, start_position: usize, encoding: &EncodingOverride,
                custom_encoding: &mut Option<SilentDebug<Box<FnMut(&str) -> Cow<[u8]>>>>,
                name: &str, value: &str) {
     append_separator_if_needed(string, start_position);
@@ -392,7 +395,7 @@ fn append_pair(string: &mut String, start_position: usize, encoding: EncodingOve
     append_encoded(value, string, encoding, custom_encoding);
 }
 
-fn append_encoded(s: &str, string: &mut String, encoding: EncodingOverride,
+fn append_encoded(s: &str, string: &mut String, encoding: &EncodingOverride,
                custom_encoding: &mut Option<SilentDebug<Box<FnMut(&str) -> Cow<[u8]>>>>) {
     let bytes = if let Some(SilentDebug(ref mut custom)) = *custom_encoding {
         custom(s)
