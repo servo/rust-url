@@ -16,6 +16,7 @@
 use encoding::EncodingOverride;
 #[cfg(feature = "query_encoding")] use encoding::EncodingOverrideLegacy;
 use encoding::default_encoding_override;
+#[cfg(any(feature = "query_encoding", feature = "query_encoding_2"))] use encoding::encoding_override_for_label;
 use percent_encoding::{percent_encode_byte, percent_decode};
 use std::borrow::{Borrow, Cow};
 use std::fmt;
@@ -44,6 +45,29 @@ pub fn parse(input: &[u8]) -> Parse {
 ///
 /// Use `parse(input.as_bytes())` to parse a `&str` string.
 ///
+/// This function is only available if the `query_encoding_2` or `query_encoding`
+/// [feature](http://doc.crates.io/manifest.html#the-features-section]) is enabled.
+///
+/// Arguments:
+///
+/// * `encoding_label`: The character encoding each name and values is decoded as
+///    after percent-decoding. Defaults to UTF-8.
+///    Labels are listed at https://encoding.spec.whatwg.org/#names-and-labels
+/// * `use_charset`: The *use _charset_ flag*. If in doubt, set to `false`.
+#[cfg(any(feature = "query_encoding", feature = "query_encoding_2"))]
+pub fn parse_with_encoding_label<'a>(input: &'a [u8],
+                                     encoding_label: Option<&[u8]>,
+                                     use_charset: bool)
+                                     -> Result<Parse<'a>, ()> {
+    let encoding = encoding_override_for_label(encoding_label);
+    parse_with_encoding_override(input, encoding, use_charset)
+}
+
+/// Convert a byte string in the `application/x-www-form-urlencoded` syntax
+/// into a iterator of (name, value) pairs.
+///
+/// Use `parse(input.as_bytes())` to parse a `&str` string.
+///
 /// This function is only available if the `query_encoding`
 /// [feature](http://doc.crates.io/manifest.html#the-features-section]) is enabled.
 ///
@@ -54,13 +78,23 @@ pub fn parse(input: &[u8]) -> Parse {
 ///    `EncodingRef` is defined in [rust-encoding](https://github.com/lifthrasiir/rust-encoding).
 /// * `use_charset`: The *use _charset_ flag*. If in doubt, set to `false`.
 #[cfg(feature = "query_encoding")]
+#[deprecated(note="Build with `query_encoding_2` instead")]
 pub fn parse_with_encoding<'a>(input: &'a [u8],
                                encoding_override: Option<::encoding::EncodingRef>,
                                use_charset: bool)
                                -> Result<Parse<'a>, ()> {
+    let encoding = EncodingOverrideLegacy::from_opt_encoding(encoding_override);
+    parse_with_encoding_override(input, encoding, use_charset)
+}
+
+#[cfg(any(feature = "query_encoding", feature = "query_encoding_2"))]
+fn parse_with_encoding_override<'a, E>(input: &'a [u8],
+                                       mut encoding: E,
+                                       use_charset: bool)
+                                       -> Result<Parse<'a>, ()>
+                                       where E: 'static + EncodingOverride {
     use std::ascii::AsciiExt;
 
-    let mut encoding = EncodingOverrideLegacy::from_opt_encoding(encoding_override);
     if !(encoding.is_utf8() || input.is_ascii()) {
         return Err(())
     }
@@ -298,7 +332,15 @@ impl<T: Target> Serializer<T> {
     }
 
     /// Set the character encoding to be used for names and values before percent-encoding.
+    #[cfg(any(feature = "query_encoding", feature = "query_encoding_2"))]
+    pub fn encoding_override_for_label(&mut self, label: Option<&[u8]>) -> &mut Self {
+        self.encoding = Rc::new(encoding_override_for_label(label).to_output_encoding());
+        self
+    }
+
+    /// Set the character encoding to be used for names and values before percent-encoding.
     #[cfg(feature = "query_encoding")]
+    #[deprecated(note="Build with `query_encoding_2` instead")]
     pub fn encoding_override(&mut self, new: Option<::encoding::EncodingRef>) -> &mut Self {
         self.encoding = Rc::new(EncodingOverrideLegacy::from_opt_encoding(new).to_output_encoding());
         self
@@ -346,7 +388,7 @@ impl<T: Target> Serializer<T> {
     /// (See the `encoding_override()` method.)
     ///
     /// Panics if called after `.finish()`.
-    #[cfg(feature = "query_encoding")]
+    #[cfg(any(feature = "query_encoding", feature = "query_encoding_2"))]
     pub fn append_charset(&mut self) -> &mut Self {
         assert!(self.custom_encoding.is_none(),
                 "Cannot use both custom_encoding_override() and append_charset()");

@@ -65,8 +65,28 @@ pub fn default_encoding_override() -> EncodingOverrideRs {
     EncodingOverrideRs::utf8()
 }
 
+#[cfg(feature = "query_encoding_2")]
+pub fn encoding_override_for_label(label: Option<&[u8]>) -> EncodingOverrideRs {
+    if let Some(label) = label {
+        if let Some(encoding) = EncodingOverrideRs::lookup(label) {
+            return encoding;
+        }
+    }
+    EncodingOverrideRs::utf8()
+}
+
 #[cfg(all(feature = "query_encoding", not(feature = "query_encoding_2")))]
 pub fn default_encoding_override() -> EncodingOverrideLegacy {
+    EncodingOverrideLegacy::utf8()
+}
+
+#[cfg(all(feature = "query_encoding", not(feature = "query_encoding_2")))]
+pub fn encoding_override_for_label(label: Option<&[u8]>) -> EncodingOverrideLegacy {
+    if let Some(label) = label {
+        if let Some(encoding) = EncodingOverrideLegacy::lookup(label) {
+            return encoding;
+        }
+    }
     EncodingOverrideLegacy::utf8()
 }
 
