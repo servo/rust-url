@@ -55,7 +55,6 @@ enum Mapping {
 struct Range {
     from: char,
     to: char,
-    mapping: Mapping,
 }
 
 fn find_char(codepoint: char) -> &'static Mapping {
@@ -68,7 +67,7 @@ fn find_char(codepoint: char) -> &'static Mapping {
             Equal
         }
     });
-    r.ok().map(|i| &TABLE[i].mapping).unwrap()
+    r.ok().map(|i| &MAPPING_TABLE[i]).unwrap()
 }
 
 fn map_char(codepoint: char, flags: Flags, output: &mut String, errors: &mut Vec<Error>) {
