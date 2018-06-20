@@ -220,15 +220,19 @@ fn passes_bidi(label: &str, is_bidi_domain: bool) -> bool {
 }
 
 /// http://www.unicode.org/reports/tr46/#Validity_Criteria
+fn validate_full(label: &str, is_bidi_domain: bool, flags: Flags, errors: &mut Vec<Error>) {
+    // V1: Must be in NFC form.
+    if label.nfc().ne(label.chars()) {
+        errors.push(Error::ValidityCriteria);
+    } else {
+        validate(label, is_bidi_domain, flags, errors);
+    }
+}
+
 fn validate(label: &str, is_bidi_domain: bool, flags: Flags, errors: &mut Vec<Error>) {
     let first_char = label.chars().next();
     if first_char == None {
         // Empty string, pass
-    }
-
-    // V1: Must be in NFC form.
-    else if label.nfc().ne(label.chars()) {
-        errors.push(Error::ValidityCriteria);
     }
 
     // V2: No U+002D HYPHEN-MINUS in both third and fourth positions.
@@ -322,12 +326,13 @@ fn processing(domain: &str, flags: Flags, errors: &mut Vec<Error>) -> String {
             match punycode::decode_to_string(&label[PUNYCODE_PREFIX.len()..]) {
                 Some(decoded_label) => {
                     let flags = Flags { transitional_processing: false, ..flags };
-                    validate(&decoded_label, is_bidi_domain, flags, errors);
+                    validate_full(&decoded_label, is_bidi_domain, flags, errors);
                     validated.push_str(&decoded_label)
                 }
                 None => errors.push(Error::PunycodeError)
             }
         } else {
+            // `normalized` is already `NFC` so we can skip that check
             validate(label, is_bidi_domain, flags, errors);
             validated.push_str(label)
         }
