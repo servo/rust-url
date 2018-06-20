@@ -278,11 +278,12 @@ fn validate(label: &str, is_bidi_domain: bool, flags: Flags, errors: &mut Vec<Er
 
 /// http://www.unicode.org/reports/tr46/#Processing
 fn processing(domain: &str, flags: Flags, errors: &mut Vec<Error>) -> String {
-    let mut mapped = String::new();
+    let mut mapped = String::with_capacity(domain.len());
     for c in domain.chars() {
         map_char(c, flags, &mut mapped, errors)
     }
-    let normalized: String = mapped.nfc().collect();
+    let mut normalized = String::with_capacity(mapped.len());
+    normalized.extend(mapped.nfc());
 
     // Find out if it's a Bidi Domain Name
     //
