@@ -10,6 +10,7 @@
 # You can get the latest idna table from
 # http://www.unicode.org/Public/idna/latest/IdnaMappingTable.txt
 
+from __future__ import print_function
 import collections
 import itertools
 
@@ -82,6 +83,7 @@ for line in txt:
 
 def mergeable_key(r):
     mapping = r[2]
+
     # These types have associated data, so we should not merge them.
     if mapping in ('Mapped', 'Deviation', 'DisallowedStd3Mapped'):
         return r
@@ -121,23 +123,49 @@ for (k, g) in grouped_ranges:
     unicode_str = group[0][3]
     optimized_ranges.append((first, last, mapping, unicode_str))
 
+import sys
+def merge_single_char_ranges(ranges):
+    current = []
+    for r in ranges:
+        mapping = r[2]
+
+        if not current or current[-1][0] == current[-1][1] and r[0] == r[1]:
+            current.append(r)
+            continue
+        if len(current) != 0:
+            ret = current
+            current = [r]
+            yield ret
+            continue
+        current.append(r)
+        ret = current
+        current = []
+        yield ret
+
+optimized_ranges = list(merge_single_char_ranges(optimized_ranges))
+
 
 print("static TABLE: &'static [Range] = &[")
 
-for (first, last, mapping, unicode_str) in optimized_ranges:
-    if unicode_str is not None:
-        mapping += rust_slice(strtab_slice(unicode_str))
+for ranges in optimized_ranges:
+    first = ranges[0][0]
+    last = ranges[-1][1]
     print("    Range { from: '%s', to: '%s', }," % (escape_char(char(first)),
-                                                                escape_char(char(last))))
+                                                            escape_char(char(last))))
 
 print("];\n")
 
-print("static MAPPING_TABLE: &'static [Mapping] = &[")
+print("static MAPPING_TABLE: &'static [&[Mapping]] = &[")
 
-for (first, last, mapping, unicode_str) in optimized_ranges:
-    if unicode_str is not None:
-        mapping += rust_slice(strtab_slice(unicode_str))
-    print("    %s," % mapping)
+for ranges in optimized_ranges:
+    print("&[", end='')
+
+    for (first, last, mapping, unicode_str) in ranges:
+        if unicode_str is not None:
+            mapping += rust_slice(strtab_slice(unicode_str))
+        print("%s, " % mapping, end='')
+
+    print("],")
 
 print("];\n")
 

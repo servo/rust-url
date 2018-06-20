@@ -67,7 +67,14 @@ fn find_char(codepoint: char) -> &'static Mapping {
             Equal
         }
     });
-    r.ok().map(|i| &MAPPING_TABLE[i]).unwrap()
+    r.ok().map(|i| {
+        let xs = &MAPPING_TABLE[i];
+        if xs.len() == 1 {
+            &xs[0]
+        } else {
+            &xs[codepoint as usize - TABLE[i].from as usize]
+        }
+    }).unwrap()
 }
 
 fn map_char(codepoint: char, flags: Flags, output: &mut String, errors: &mut Vec<Error>) {
