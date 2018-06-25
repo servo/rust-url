@@ -68,11 +68,11 @@ fn find_char(codepoint: char) -> &'static Mapping {
         }
     });
     r.ok().map(|i| {
-        let xs = &MAPPING_TABLE[i];
-        if xs.len() == 1 {
-            &xs[0]
+        let (offset, single) = INDEX_TABLE[i];
+        if single {
+            &MAPPING_TABLE[offset as usize]
         } else {
-            &xs[codepoint as usize - TABLE[i].from as usize]
+            &MAPPING_TABLE[(offset + codepoint as u16 - TABLE[i].from as u16) as usize]
         }
     }).unwrap()
 }

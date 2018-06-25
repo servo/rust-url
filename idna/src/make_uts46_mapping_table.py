@@ -155,17 +155,23 @@ for ranges in optimized_ranges:
 
 print("];\n")
 
-print("static MAPPING_TABLE: &'static [&[Mapping]] = &[")
+print("static INDEX_TABLE: &'static [(u16, bool)] = &[")
+
+offset = 0
+for ranges in optimized_ranges:
+    block_len = len(ranges)
+    print("(%s, %s), " % (offset, "true" if block_len == 1 else "false"))
+    offset += block_len
+
+print("];\n")
+
+print("static MAPPING_TABLE: &'static [Mapping] = &[")
 
 for ranges in optimized_ranges:
-    print("&[", end='')
-
     for (first, last, mapping, unicode_str) in ranges:
         if unicode_str is not None:
             mapping += rust_slice(strtab_slice(unicode_str))
-        print("%s, " % mapping, end='')
-
-    print("],")
+        print("%s, " % mapping)
 
 print("];\n")
 
