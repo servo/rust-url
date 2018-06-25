@@ -155,12 +155,13 @@ for ranges in optimized_ranges:
 
 print("];\n")
 
-print("static INDEX_TABLE: &'static [(u16, bool)] = &[")
+print("static INDEX_TABLE: &'static [u16] = &[")
 
 offset = 0
 for ranges in optimized_ranges:
     block_len = len(ranges)
-    print("(%s, %s), " % (offset, "true" if block_len == 1 else "false"))
+    single = (1 << 15) if block_len == 1 else 0 
+    print("    %s | %s, " % (offset, single))
     offset += block_len
 
 print("];\n")
