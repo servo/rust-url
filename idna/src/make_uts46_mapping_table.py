@@ -123,7 +123,9 @@ for (k, g) in grouped_ranges:
     unicode_str = group[0][3]
     optimized_ranges.append((first, last, mapping, unicode_str))
 
-import sys
+# We can reduce the size of the character range table and the index table to about 1/4
+# by merging runs of single character ranges and using character offsets from the start
+# of that range to retrieve the correct `Mapping` value
 def merge_single_char_ranges(ranges):
     current = []
     for r in ranges:
