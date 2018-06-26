@@ -143,6 +143,7 @@ def merge_single_char_ranges(ranges):
         ret = current
         current = []
         yield ret
+    yield current
 
 optimized_ranges = list(merge_single_char_ranges(optimized_ranges))
 
@@ -174,7 +175,7 @@ for ranges in optimized_ranges:
     for (first, last, mapping, unicode_str) in ranges:
         if unicode_str is not None:
             mapping += rust_slice(strtab_slice(unicode_str))
-        print("%s, " % mapping)
+        print("    %s," % mapping)
 
 print("];\n")
 
