@@ -69,9 +69,12 @@ fn find_char(codepoint: char) -> &'static Mapping {
         }
     });
     r.ok().map(|i| {
+        const SINGLE_MARKER: u16 = 1 << 15;
+
         let x = INDEX_TABLE[i];
-        let single = (x & (1 << 15)) != 0;
-        let offset = !(1 << 15) & x;
+        let single = (x & SINGLE_MARKER) != 0;
+        let offset = !SINGLE_MARKER & x;
+
         if single {
             &MAPPING_TABLE[offset as usize]
         } else {

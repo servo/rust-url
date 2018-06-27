@@ -162,11 +162,15 @@ print("];\n")
 
 print("static INDEX_TABLE: &'static [u16] = &[")
 
+SINGLE_MARKER = 1 << 15
+
 offset = 0
 for ranges in optimized_ranges:
+    assert offset < SINGLE_MARKER
+
     block_len = len(ranges)
-    single = (1 << 15) if block_len == 1 else 0 
-    print("    %s | %s, " % (offset, single))
+    single = SINGLE_MARKER if block_len == 1 else 0
+    print("    %s," % (offset | single))
     offset += block_len
 
 print("];\n")
