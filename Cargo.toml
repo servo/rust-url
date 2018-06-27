@@ -35,6 +35,8 @@ rustc-test = "0.3"
 rustc-serialize = "0.3"
 serde_json = ">=0.6.1, <0.9"
 
+bencher = "0.1"
+
 [features]
 query_encoding = ["encoding"]
 heap_size = ["heapsize"]
@@ -47,6 +49,10 @@ matches = "0.1"
 percent-encoding = { version = "1.0.0", path = "./percent_encoding" }
 rustc-serialize = {version = "0.3", optional = true}
 serde = {version = ">=0.6.1, <0.9", optional = true}
+
+[[bench]]
+name = "parse_url"
+harness = false
 
 [package.metadata.docs.rs]
 features = ["query_encoding"]

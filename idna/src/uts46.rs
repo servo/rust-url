@@ -11,6 +11,7 @@
 
 use self::Mapping::*;
 use punycode;
+#[allow(unused_imports, deprecated)]
 use std::ascii::AsciiExt;
 use std::cmp::Ordering::{Equal, Less, Greater};
 use unicode_bidi::{BidiClass, bidi_class};
@@ -55,7 +56,6 @@ enum Mapping {
 struct Range {
     from: char,
     to: char,
-    mapping: Mapping,
 }
 
 fn find_char(codepoint: char) -> &'static Mapping {
@@ -68,7 +68,19 @@ fn find_char(codepoint: char) -> &'static Mapping {
             Equal
         }
     });
-    r.ok().map(|i| &TABLE[i].mapping).unwrap()
+    r.ok().map(|i| {
+        const SINGLE_MARKER: u16 = 1 << 15;
+
+        let x = INDEX_TABLE[i];
+        let single = (x & SINGLE_MARKER) != 0;
+        let offset = !SINGLE_MARKER & x;
+
+        if single {
+            &MAPPING_TABLE[offset as usize]
+        } else {
+            &MAPPING_TABLE[(offset + (codepoint as u16 - TABLE[i].from as u16)) as usize]
+        }
+    }).unwrap()
 }
 
 fn map_char(codepoint: char, flags: Flags, output: &mut String, errors: &mut Vec<Error>) {
@@ -221,15 +233,19 @@ fn passes_bidi(label: &str, is_bidi_domain: bool) -> bool {
 }
 
 /// http://www.unicode.org/reports/tr46/#Validity_Criteria
+fn validate_full(label: &str, is_bidi_domain: bool, flags: Flags, errors: &mut Vec<Error>) {
+    // V1: Must be in NFC form.
+    if label.nfc().ne(label.chars()) {
+        errors.push(Error::ValidityCriteria);
+    } else {
+        validate(label, is_bidi_domain, flags, errors);
+    }
+}
+
 fn validate(label: &str, is_bidi_domain: bool, flags: Flags, errors: &mut Vec<Error>) {
     let first_char = label.chars().next();
     if first_char == None {
         // Empty string, pass
-    }
-
-    // V1: Must be in NFC form.
-    else if label.nfc().ne(label.chars()) {
-        errors.push(Error::ValidityCriteria);
     }
 
     // V2: No U+002D HYPHEN-MINUS in both third and fourth positions.
@@ -279,11 +295,12 @@ fn validate(label: &str, is_bidi_domain: bool, flags: Flags, errors: &mut Vec<Er
 
 /// http://www.unicode.org/reports/tr46/#Processing
 fn processing(domain: &str, flags: Flags, errors: &mut Vec<Error>) -> String {
-    let mut mapped = String::new();
+    let mut mapped = String::with_capacity(domain.len());
     for c in domain.chars() {
         map_char(c, flags, &mut mapped, errors)
     }
-    let normalized: String = mapped.nfc().collect();
+    let mut normalized = String::with_capacity(mapped.len());
+    normalized.extend(mapped.nfc());
 
     // Find out if it's a Bidi Domain Name
     //
@@ -322,12 +339,13 @@ fn processing(domain: &str, flags: Flags, errors: &mut Vec<Error>) -> String {
             match punycode::decode_to_string(&label[PUNYCODE_PREFIX.len()..]) {
                 Some(decoded_label) => {
                     let flags = Flags { transitional_processing: false, ..flags };
-                    validate(&decoded_label, is_bidi_domain, flags, errors);
+                    validate_full(&decoded_label, is_bidi_domain, flags, errors);
                     validated.push_str(&decoded_label)
                 }
                 None => errors.push(Error::PunycodeError)
             }
         } else {
+            // `normalized` is already `NFC` so we can skip that check
             validate(label, is_bidi_domain, flags, errors);
             validated.push_str(label)
         }

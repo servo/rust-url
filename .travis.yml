@@ -8,6 +8,9 @@ jobs:
     - cargo update
     # getopts is only used in tests. Its versions 0.2.16+ don’t build on 1.17.0
     - cargo update -p getopts --precise 0.2.15
+
+    - cargo update -p unicode-normalization --precise 0.1.5
+
     # data-url uses pub(crate) which is unstable in 1.17
     script: cargo test --all-features -p url -p idna -p percent-encoding -p url_serde
 
