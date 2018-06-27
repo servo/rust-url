@@ -123,15 +123,17 @@ for (k, g) in grouped_ranges:
     unicode_str = group[0][3]
     optimized_ranges.append((first, last, mapping, unicode_str))
 
+def is_single_char_range(r):
+    (first, last, _, _) = r
+    return first == last
+
 # We can reduce the size of the character range table and the index table to about 1/4
 # by merging runs of single character ranges and using character offsets from the start
 # of that range to retrieve the correct `Mapping` value
 def merge_single_char_ranges(ranges):
     current = []
     for r in ranges:
-        mapping = r[2]
-
-        if not current or current[-1][0] == current[-1][1] and r[0] == r[1]:
+        if not current or is_single_char_range(current[-1]) and is_single_char_range(r):
             current.append(r)
             continue
         if len(current) != 0:
