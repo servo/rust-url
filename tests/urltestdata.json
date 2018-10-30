@@ -6144,5 +6144,10 @@
     "pathname": "/test",
     "search": "?a",
     "hash": "#bc"
+  },
+  {
+    "input": "f::some::ambiguous::ipv6",
+    "base": "http://example.org/foo/bar",
+    "failure": true
   }
 ]
