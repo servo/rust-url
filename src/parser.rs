@@ -19,22 +19,13 @@ use host::{Host, HostInternal};
 use percent_encoding::{
     utf8_percent_encode, percent_encode,
     SIMPLE_ENCODE_SET, DEFAULT_ENCODE_SET, USERINFO_ENCODE_SET, QUERY_ENCODE_SET,
-    PATH_SEGMENT_ENCODE_SET, EncodeSet
+    PATH_SEGMENT_ENCODE_SET
 };
 
-// The backslash (\) character is treated as a path separator in special URLs
-// so it needs to be additionally escaped in that case.
-#[derive(Clone)]
-struct SPECIAL_PATH_SEGMENT_ENCODE_SET;
-
-impl EncodeSet for SPECIAL_PATH_SEGMENT_ENCODE_SET {
-    #[inline]
-    fn contains(&self, byte: u8) -> bool {
-        match byte {
-            b'\\' => true,
-            _ => PATH_SEGMENT_ENCODE_SET.contains(byte)
-        }
-    }
+define_encode_set! {
+    // The backslash (\) character is treated as a path separator in special URLs
+    // so it needs to be additionally escaped in that case.
+    pub SPECIAL_PATH_SEGMENT_ENCODE_SET = [PATH_SEGMENT_ENCODE_SET] | {'\\'}
 }
 
 pub type ParseResult<T> = Result<T, ParseError>;

@@ -112,6 +112,7 @@ assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css");
 #[cfg(feature="heapsize")] #[macro_use] extern crate heapsize;
 
 pub extern crate idna;
+#[macro_use]
 pub extern crate percent_encoding;
 
 use encoding::EncodingOverride;
