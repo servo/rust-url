@@ -19,8 +19,23 @@ use host::{Host, HostInternal};
 use percent_encoding::{
     utf8_percent_encode, percent_encode,
     SIMPLE_ENCODE_SET, DEFAULT_ENCODE_SET, USERINFO_ENCODE_SET, QUERY_ENCODE_SET,
-    PATH_SEGMENT_ENCODE_SET
+    PATH_SEGMENT_ENCODE_SET, EncodeSet
 };
+
+// The backslash (\) character is treated as a path separator in special URLs
+// so it needs to be additionally escaped in that case.
+#[derive(Clone)]
+struct SPECIAL_PATH_SEGMENT_ENCODE_SET;
+
+impl EncodeSet for SPECIAL_PATH_SEGMENT_ENCODE_SET {
+    #[inline]
+    fn contains(&self, byte: u8) -> bool {
+        match byte {
+            b'\\' => true,
+            _ => PATH_SEGMENT_ENCODE_SET.contains(byte)
+        }
+    }
+}
 
 pub type ParseResult<T> = Result<T, ParseError>;
 
@@ -1011,8 +1026,13 @@ impl<'a> Parser<'a> {
                     _ => {
                         self.check_url_code_point(c, &input);
                         if self.context == Context::PathSegmentSetter {
-                            self.serialization.extend(utf8_percent_encode(
-                                utf8_c, PATH_SEGMENT_ENCODE_SET));
+                            if scheme_type.is_special() {
+                                self.serialization.extend(utf8_percent_encode(
+                                    utf8_c, SPECIAL_PATH_SEGMENT_ENCODE_SET));
+                            } else {
+                                self.serialization.extend(utf8_percent_encode(
+                                    utf8_c, PATH_SEGMENT_ENCODE_SET));
+                            }
                         } else {
                             self.serialization.extend(utf8_percent_encode(
                                 utf8_c, DEFAULT_ENCODE_SET));
