@@ -140,6 +140,11 @@ define_encode_set! {
     /// space, double quote ("), hash (#), inequality qualifiers (<), (>), backtick (`),
     /// question mark (?), and curly brackets ({), (}), percent sign (%), forward slash (/) are
     /// encoded.
+    ///
+    /// # Note
+    ///
+    /// For [special URLs](https://url.spec.whatwg.org/#is-special), the backslash (\) character should
+    /// additionally be escaped, but that is *not* included in this encode set.
     pub PATH_SEGMENT_ENCODE_SET = [DEFAULT_ENCODE_SET] | {'%', '/'}
 }
 
