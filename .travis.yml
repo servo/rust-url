@@ -27,6 +27,3 @@ jobs:
     env: TARGET=WASM32  # For job list UI
     install: rustup target add wasm32-unknown-unknown
     script: cargo build --all --target=wasm32-unknown-unknown
-
-notifications:
-  webhooks: http://build.servo.org:54856/travis
