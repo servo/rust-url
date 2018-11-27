@@ -33,7 +33,7 @@ pub type ParseResult<T> = Result<T, ParseError>;
 macro_rules! simple_enum_error {
     ($($name: ident => $description: expr,)+) => {
         /// Errors that can occur during parsing.
-        #[derive(PartialEq, Eq, Clone, Copy, Debug)]
+        #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug)]
         pub enum ParseError {
             $(
                 $name,
@@ -81,7 +81,7 @@ impl From<::idna::uts46::Errors> for ParseError {
 macro_rules! syntax_violation_enum {
     ($($name: ident => $description: expr,)+) => {
         /// Non-fatal syntax violations that can occur during parsing.
-        #[derive(PartialEq, Eq, Clone, Copy, Debug)]
+        #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug)]
         pub enum SyntaxViolation {
             $(
                 $name,
@@ -126,7 +126,7 @@ impl fmt::Display for SyntaxViolation {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug)]
 pub enum SchemeType {
     File,
     SpecialNotFile,
@@ -161,7 +161,7 @@ pub fn default_port(scheme: &str) -> Option<u16> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Input<'i> {
     chars: str::Chars<'i>,
 }
@@ -320,6 +320,7 @@ impl<'a> fmt::Debug for ViolationFn<'a> {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Parser<'a> {
     pub serialization: String,
     pub base_url: Option<&'a Url>,
@@ -328,7 +329,7 @@ pub struct Parser<'a> {
     pub context: Context,
 }
 
-#[derive(PartialEq, Eq, Copy, Clone)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug)]
 pub enum Context {
     UrlParser,
     Setter,

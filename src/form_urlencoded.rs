@@ -146,7 +146,7 @@ impl<'a> Parse<'a> {
 }
 
 /// Like `Parse`, but yields pairs of `String` instead of pairs of `Cow<str>`.
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct ParseIntoOwned<'a> {
     inner: Parse<'a>
 }
@@ -170,7 +170,7 @@ pub fn byte_serialize(input: &[u8]) -> ByteSerialize {
 }
 
 /// Return value of `byte_serialize()`.
-#[derive(Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug)]
 pub struct ByteSerialize<'a> {
     bytes: &'a [u8],
 }

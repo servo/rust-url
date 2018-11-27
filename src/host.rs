@@ -16,12 +16,18 @@ use parser::{ParseResult, ParseError};
 use percent_encoding::{percent_decode, utf8_percent_encode, SIMPLE_ENCODE_SET};
 use idna;
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Eq, PartialEq, PartialOrd, Ord, Hash, Copy, Clone, Debug)]
 pub enum HostInternal {
     None,
     Domain,
     Ipv4(Ipv4Addr),
     Ipv6(Ipv6Addr),
+}
+
+impl Default for HostInternal {
+    fn default() -> Self {
+        HostInternal::None
+    }
 }
 
 #[cfg(feature = "heapsize")]
@@ -70,7 +76,7 @@ impl<S> From<Host<S>> for HostInternal {
 }
 
 /// The host name of an URL.
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug)]
 pub enum Host<S=String> {
     /// A DNS domain name, as '.' dot-separated labels.
     /// Non-ASCII labels are encoded in punycode per IDNA if this is the host of
@@ -195,7 +201,7 @@ impl<S: AsRef<str>> fmt::Display for Host<S> {
 
 /// This mostly exists because coherence rules don’t allow us to implement
 /// `ToSocketAddrs for (Host<S>, u16)`.
-#[derive(Clone, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug)]
 pub struct HostAndPort<S=String> {
     pub host: Host<S>,
     pub port: u16,
@@ -241,12 +247,12 @@ impl<S: AsRef<str>> ToSocketAddrs for HostAndPort<S> {
 }
 
 /// Socket addresses for an URL.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct SocketAddrs {
     state: SocketAddrsState
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 enum SocketAddrsState {
     Domain(vec::IntoIter<SocketAddr>),
     One(SocketAddr),

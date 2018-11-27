@@ -150,7 +150,7 @@ pub mod form_urlencoded;
 #[doc(hidden)] pub mod quirks;
 
 /// A parsed URL record.
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct Url {
     /// Syntax in pseudo-BNF:
     ///
@@ -2422,7 +2422,7 @@ fn io_error<T>(reason: &str) -> io::Result<T> {
 }
 
 /// Implementation detail of `Url::query_pairs_mut`. Typically not used directly.
-#[derive(Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct UrlQuery<'a> {
     url: Option<&'a mut Url>,
     fragment: Option<String>,
@@ -2463,7 +2463,7 @@ impl<'a> Drop for UrlQuery<'a> {
 macro_rules! define_encode_set {
     ($(#[$attr: meta])* pub $name: ident = [$base_set: expr] | {$($ch: pat),*}) => {
         $(#[$attr])*
-        #[derive(Copy, Clone)]
+        #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug)]
         #[allow(non_camel_case_types)]
         pub struct $name;
 

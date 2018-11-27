@@ -77,7 +77,7 @@ impl Index<Range<Position>> for Url {
 /// `BeforeScheme` and `AfterFragment` are always the start and end of the entire URL,
 /// so `&url[BeforeScheme..X]` is the same as `&url[..X]`
 /// and `&url[X..AfterFragment]` is the same as `&url[X..]`.
-#[derive(Copy, Clone, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug)]
 pub enum Position {
     BeforeScheme,
     AfterScheme,
