@@ -33,7 +33,7 @@ use Url;
 /// # }
 /// # run().unwrap();
 /// ```
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub struct PathSegmentsMut<'a> {
     url: &'a mut Url,
     after_first_slash: usize,
