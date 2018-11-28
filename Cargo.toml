@@ -12,6 +12,7 @@ readme = "README.md"
 keywords = ["url", "parser"]
 categories = ["parser-implementations", "web-programming", "encoding"]
 license = "MIT/Apache-2.0"
+autotests = false  # Inhibit lookup for tests/*.rs without [[test]] sections
 
 [badges]
 travis-ci = { repository = "servo/rust-url" }
