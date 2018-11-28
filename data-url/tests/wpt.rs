@@ -135,6 +135,7 @@ fn collect_mime<F>(add_test: &mut F)
 }
 
 fn main() {
+    std::panic::set_hook(Box::new(|_| {}));
     let mut tests = Vec::new();
     {
         let mut add_one = |name: String, should_panic: bool, run: rustc_test::TestFn| {
