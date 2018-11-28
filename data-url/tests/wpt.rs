@@ -1,7 +1,18 @@
 #[macro_use]
 extern crate serde;
 
-fn run_data_url(input: String, expected_mime: Option<String>, expected_body: Option<Vec<u8>>) {
+fn run_data_url(
+    input: String,
+    expected_mime: Option<String>,
+    expected_body: Option<Vec<u8>>,
+    expected_panic: bool,
+) {
+    let priorhook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |p| {
+        if !expected_panic {
+            priorhook(p);
+        }
+    }));
     let url = data_url::DataUrl::process(&input);
     if let Some(expected_mime) = expected_mime {
         let url = url.unwrap();
@@ -43,7 +54,7 @@ where
             format!("data: URL {:?}", input),
             should_panic,
             rustc_test::TestFn::dyn_test_fn(move || {
-                run_data_url(input, expected_mime, expected_body)
+                run_data_url(input, expected_mime, expected_body, should_panic)
             }),
         );
     }
