@@ -3,7 +3,13 @@ extern crate rustc_test;
 #[macro_use] extern crate serde;
 extern crate serde_json;
 
-fn run_data_url(input: String, expected_mime: Option<String>, expected_body: Option<Vec<u8>>) {
+fn run_data_url(input: String, expected_mime: Option<String>, expected_body: Option<Vec<u8>>, expected_panic: bool) {
+    let priorhook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move|p| {
+        if !expected_panic {
+            priorhook(p);
+        }
+    }));
     let url = data_url::DataUrl::process(&input);
     if let Some(expected_mime) = expected_mime {
         let url = url.unwrap();
@@ -46,7 +52,7 @@ fn collect_data_url<F>(add_test: &mut F)
             format!("data: URL {:?}", input),
             should_panic,
             rustc_test::TestFn::dyn_test_fn(move || {
-                run_data_url(input, expected_mime, expected_body)
+                run_data_url(input, expected_mime, expected_body, should_panic)
             })
         );
     }
@@ -135,7 +141,6 @@ fn collect_mime<F>(add_test: &mut F)
 }
 
 fn main() {
-    std::panic::set_hook(Box::new(|_| {}));
     let mut tests = Vec::new();
     {
         let mut add_one = |name: String, should_panic: bool, run: rustc_test::TestFn| {
