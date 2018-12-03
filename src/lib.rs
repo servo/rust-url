@@ -81,7 +81,7 @@ Many contexts allow URL *references* that can be relative to a *base URL*:
 <link rel="stylesheet" href="../main.css">
 ```
 
-Since parsed URL are absolute, giving a base is required for parsing relative URLs:
+Since parsed URLs are absolute, giving a base is required for parsing relative URLs:
 
 ```
 use url::{Url, ParseError};
