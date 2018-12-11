@@ -1035,12 +1035,21 @@ impl Url {
     /// # run().unwrap();
     /// ```
     pub fn path(&self) -> &str {
-        match (self.query_start, self.fragment_start) {
+        let path = match (self.query_start, self.fragment_start) {
             (None, None) => self.slice(self.path_start..),
             (Some(next_component_start), _) |
             (None, Some(next_component_start)) => {
                 self.slice(self.path_start..next_component_start)
             }
+        };
+        // Disambiguating a path that starts with "//" from a URL with an authority may require
+        // the serializer to insert a disambiguating marker to the start of the path.
+        // When deserializing, "/./" is supposed to be reduced to "/", so avoid exposing it to
+        // the application.
+        if path.len() >= 3 && &path[..3] == "/./" {
+            &path[2..]
+        } else {
+            path
         }
     }
 

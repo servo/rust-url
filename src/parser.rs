@@ -1057,6 +1057,17 @@ impl<'a> Parser<'a> {
                         }
                     }
                     if ends_with_slash {
+                        // This is a willfull violation of the URL specification for serialization.
+                        //
+                        // It aligns with the behaviour of Microsoft Edge,
+                        // it does not affect the result of parsing (that's still compliant),
+                        // and it's necessary to make URL reparsing idempotent.
+                        //
+                        // See the specification bug at https://github.com/whatwg/url/issues/415
+                        if !*has_host && &self.serialization[path_start..] == "/" {
+                            self.serialization.push('.');
+                            self.serialization.push('/');
+                        }
                         self.serialization.push('/')
                     }
                 }

@@ -6144,5 +6144,20 @@
     "pathname": "/test",
     "search": "?a",
     "hash": "#bc"
+  },
+  "Found by fuzzing",
+  {
+    "input": "a:/a/..//a",
+    "base": "about:blank",
+    "href": "a:/.//a",
+    "protocol": "a:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "//a",
+    "search": "",
+    "hash": ""
   }
 ]
