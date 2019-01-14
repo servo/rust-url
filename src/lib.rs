@@ -2351,7 +2351,11 @@ fn file_url_segments_to_pathbuf(host: Option<&str>, segments: str::Split<char>) 
         return Err(());
     }
 
-    let mut bytes = Vec::new();
+    let mut bytes = if cfg!(target_os = "redox") {
+        b"file:".to_vec()
+    } else {
+        Vec::new()
+    };
     for segment in segments {
         bytes.push(b'/');
         bytes.extend(percent_decode(segment.as_bytes()));
