@@ -915,7 +915,9 @@ impl Url {
         }
     }
 
-    /// Return the port number for this URL, if any.
+    /// Return the port number for this URL, if any. Note that default port numbers are never reflected
+    /// by the serialization, use the `port_or_known_default()` method if you want a default port
+    /// number returned.
     ///
     /// # Examples
     ///
@@ -926,6 +928,9 @@ impl Url {
     /// # fn run() -> Result<(), ParseError> {
     /// let url = Url::parse("https://example.com")?;
     /// assert_eq!(url.port(), None);
+    ///
+    /// let url = Url::parse( "https://example.com:443/" )?;
+    /// assert_eq!( url.port( ), None );
     ///
     /// let url = Url::parse("ssh://example.com:22")?;
     /// assert_eq!(url.port(), Some(22));
@@ -1424,7 +1429,8 @@ impl Url {
         self.serialization.push_str(after_path)
     }
 
-    /// Change this URL’s port number.
+    /// Change this URL’s port number. Note that default port numbers are not reflected in the
+    /// serialization.
     ///
     /// If this URL is cannot-be-a-base, does not have a host, or has the `file` scheme;
     /// do nothing and return `Err`.
@@ -1446,6 +1452,21 @@ impl Url {
     /// # Ok(())
     /// # }
     /// # run().unwrap();
+    /// ```
+    ///
+    /// Known default port numbers are not reflected:
+    ///
+    /// ```rust
+    /// use url::Url;
+    /// # use std::error::Error;
+    ///
+    /// # fn run( ) -> Result< ( ), Box< Error > > {
+    /// let mut url = Url::parse( "https://example.org/" )?;
+    ///
+    /// url.set_port( Some( 443 ) ).map_err( |_| "cannot be base" )?;
+    /// assert!( url.port( ).is_none( ) );
+    /// }
+    /// # run( ).unwrap( );
     /// ```
     ///
     /// Cannot set port for cannot-be-a-base URLs:
