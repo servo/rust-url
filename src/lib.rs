@@ -1465,7 +1465,8 @@ impl Url {
     ///
     /// url.set_port( Some( 443 ) ).map_err( |_| "cannot be base" )?;
     /// assert!( url.port( ).is_none( ) );
-    /// }
+    /// # Ok( () )
+    /// # }
     /// # run( ).unwrap( );
     /// ```
     ///
