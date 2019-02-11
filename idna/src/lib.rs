@@ -47,11 +47,12 @@ pub mod uts46;
 ///
 /// This process may fail.
 pub fn domain_to_ascii(domain: &str) -> Result<String, uts46::Errors> {
-    uts46::to_ascii(domain, uts46::Flags {
+    let flags = uts46::Flags {
         use_std3_ascii_rules: false,
         transitional_processing: false,
         verify_dns_length: false,
-    })
+    };
+    uts46::Config::from(flags).check_hyphens(false).to_ascii(domain)
 }
 
 /// The [domain to Unicode](https://url.spec.whatwg.org/#concept-domain-to-unicode) algorithm.
@@ -63,11 +64,12 @@ pub fn domain_to_ascii(domain: &str) -> Result<String, uts46::Errors> {
 /// This may indicate [syntax violations](https://url.spec.whatwg.org/#syntax-violation)
 /// but always returns a string for the mapped domain.
 pub fn domain_to_unicode(domain: &str) -> (String, Result<(), uts46::Errors>) {
-    uts46::to_unicode(domain, uts46::Flags {
+    let flags = uts46::Flags {
         use_std3_ascii_rules: false,
 
         // Unused:
         transitional_processing: false,
         verify_dns_length: false,
-    })
+    };
+    uts46::Config::from(flags).check_hyphens(false).to_unicode(domain)
 }
