@@ -353,6 +353,90 @@ fn processing(domain: &str, flags: Flags, errors: &mut Vec<Error>) -> String {
     validated
 }
 
+#[derive(Clone, Copy)]
+pub struct Config {
+    flags: Flags,
+}
+
+impl From<Flags> for Config {
+    #[inline]
+    fn from(flags: Flags) -> Self {
+        Self { flags }
+    }
+}
+
+impl Config {
+    #[inline]
+    pub fn use_std3_ascii_rules(mut self, value: bool) -> Self {
+        self.flags.use_std3_ascii_rules = value;
+        self
+    }
+
+    #[inline]
+    pub fn transitional_processing(mut self, value: bool) -> Self {
+        self.flags.transitional_processing = value;
+        self
+    }
+
+    #[inline]
+    pub fn verify_dns_length(mut self, value: bool) -> Self {
+        self.flags.verify_dns_length = value;
+        self
+    }
+
+    /// http://www.unicode.org/reports/tr46/#ToASCII
+    pub fn to_ascii(self, domain: &str) -> Result<String, Errors> {
+        let mut errors = Vec::new();
+        let mut result = String::new();
+        let mut first = true;
+        for label in processing(domain, self.flags, &mut errors).split('.') {
+            if !first {
+                result.push('.');
+            }
+            first = false;
+            if label.is_ascii() {
+                result.push_str(label);
+            } else {
+                match punycode::encode_str(label) {
+                    Some(x) => {
+                        result.push_str(PUNYCODE_PREFIX);
+                        result.push_str(&x);
+                    },
+                    None => errors.push(Error::PunycodeError)
+                }
+            }
+        }
+
+        if self.flags.verify_dns_length {
+            let domain = if result.ends_with(".") { &result[..result.len()-1] } else { &*result };
+            if domain.len() < 1 || domain.split('.').any(|label| label.len() < 1) {
+                errors.push(Error::TooShortForDns)
+            }
+            if domain.len() > 253 || domain.split('.').any(|label| label.len() > 63) {
+                errors.push(Error::TooLongForDns)
+            }
+        }
+        if errors.is_empty() {
+            Ok(result)
+        } else {
+            Err(Errors(errors))
+        }
+    }
+
+    /// http://www.unicode.org/reports/tr46/#ToUnicode
+    pub fn to_unicode(self, domain: &str) -> (String, Result<(), Errors>) {
+        let mut errors = Vec::new();
+        let domain = processing(domain, self.flags, &mut errors);
+        let errors = if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(Errors(errors))
+        };
+        (domain, errors)
+    }
+
+}
+
 #[derive(Copy, Clone)]
 pub struct Flags {
    pub use_std3_ascii_rules: bool,
@@ -380,41 +464,7 @@ pub struct Errors(Vec<Error>);
 
 /// http://www.unicode.org/reports/tr46/#ToASCII
 pub fn to_ascii(domain: &str, flags: Flags) -> Result<String, Errors> {
-    let mut errors = Vec::new();
-    let mut result = String::new();
-    let mut first = true;
-    for label in processing(domain, flags, &mut errors).split('.') {
-        if !first {
-            result.push('.');
-        }
-        first = false;
-        if label.is_ascii() {
-            result.push_str(label);
-        } else {
-            match punycode::encode_str(label) {
-                Some(x) => {
-                    result.push_str(PUNYCODE_PREFIX);
-                    result.push_str(&x);
-                },
-                None => errors.push(Error::PunycodeError)
-            }
-        }
-    }
-
-    if flags.verify_dns_length {
-        let domain = if result.ends_with(".") { &result[..result.len()-1]  } else { &*result };
-        if domain.len() < 1 || domain.split('.').any(|label| label.len() < 1) {
-            errors.push(Error::TooShortForDns)
-        }
-        if domain.len() > 253 || domain.split('.').any(|label| label.len() > 63) {
-            errors.push(Error::TooLongForDns)
-        }
-    }
-    if errors.is_empty() {
-        Ok(result)
-    } else {
-        Err(Errors(errors))
-    }
+    Config::from(flags).to_ascii(domain)
 }
 
 /// http://www.unicode.org/reports/tr46/#ToUnicode
@@ -422,12 +472,5 @@ pub fn to_ascii(domain: &str, flags: Flags) -> Result<String, Errors> {
 /// Only `use_std3_ascii_rules` is used in `flags`.
 pub fn to_unicode(domain: &str, mut flags: Flags) -> (String, Result<(), Errors>) {
     flags.transitional_processing = false;
-    let mut errors = Vec::new();
-    let domain = processing(domain, flags, &mut errors);
-    let errors = if errors.is_empty() {
-        Ok(())
-    } else {
-        Err(Errors(errors))
-    };
-    (domain, errors)
+    Config::from(flags).to_unicode(domain)
 }
