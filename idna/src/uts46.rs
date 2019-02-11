@@ -253,11 +253,9 @@ fn validate(label: &str, is_bidi_domain: bool, config: Config, errors: &mut Vec<
     // NOTE: Spec says that the label must not contain a HYPHEN-MINUS character in both the
     // third and fourth positions. But nobody follows this criteria. See the spec issue below:
     // https://github.com/whatwg/url/issues/53
-    //
-    // TODO: Add *CheckHyphens* flag.
 
     // V3: neither begin nor end with a U+002D HYPHEN-MINUS
-    else if label.starts_with("-") || label.ends_with("-") {
+    else if config.check_hyphens && (label.starts_with("-") || label.ends_with("-")) {
         errors.push(Error::ValidityCriteria);
     }
 
@@ -356,12 +354,13 @@ fn processing(domain: &str, config: Config, errors: &mut Vec<Error>) -> String {
 #[derive(Clone, Copy)]
 pub struct Config {
     flags: Flags,
+    check_hyphens: bool,
 }
 
 impl From<Flags> for Config {
     #[inline]
     fn from(flags: Flags) -> Self {
-        Self { flags }
+        Self { flags, check_hyphens: true }
     }
 }
 
@@ -381,6 +380,12 @@ impl Config {
     #[inline]
     pub fn verify_dns_length(mut self, value: bool) -> Self {
         self.flags.verify_dns_length = value;
+        self
+    }
+
+    #[inline]
+    pub fn check_hyphens(mut self, value: bool) -> Self {
+        self.check_hyphens = value;
         self
     }
 
