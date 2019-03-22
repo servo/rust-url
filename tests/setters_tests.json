@@ -1483,8 +1483,8 @@
             "href": "https://example.net?lang=en-US",
             "new_value": "##nav",
             "expected": {
-                "href": "https://example.net/?lang=en-US##nav",
-                "hash": "##nav"
+                "href": "https://example.net/?lang=en-US#%23nav",
+                "hash": "#%23nav"
             }
         },
         {
@@ -1512,12 +1512,12 @@
             }
         },
         {
-            "comment": "Simple percent-encoding; nuls, tabs, and newlines are removed",
+            "comment": "Fragment percent-encoding; nuls, tabs, spaces, double quotes, backticks, inequality qualifiers and newlines are removed",
             "href": "a:/",
             "new_value": "\u0000\u0001\t\n\r\u001f !\u0000\u0001\t\n\r\u001f !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~\u007f\u0080\u0081Éé",
             "expected": {
-                "href": "a:/#!%01%1F !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~%7F%C2%80%C2%81%C3%89%C3%A9",
-                "hash": "#!%01%1F !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~%7F%C2%80%C2%81%C3%89%C3%A9"
+                "href": "a:/#!%01%1F%20!%22%23$%&'()*+,-./09:;%3C=%3E?@AZ[\\]^_%60az{|}~%7F%C2%80%C2%81%C3%89%C3%A9",
+                "hash": "#!%01%1F%20!%22%23$%&'()*+,-./09:;%3C=%3E?@AZ[\\]^_%60az{|}~%7F%C2%80%C2%81%C3%89%C3%A9"
             }
         },
         {

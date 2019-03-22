@@ -153,7 +153,7 @@
   {
     "input": "http://f:21/ b ? d # e ",
     "base": "http://example.org/foo/bar",
-    "href": "http://f:21/%20b%20?%20d%20# e",
+    "href": "http://f:21/%20b%20?%20d%20#%20e",
     "origin": "http://f:21",
     "protocol": "http:",
     "username": "",
@@ -163,12 +163,12 @@
     "port": "21",
     "pathname": "/%20b%20",
     "search": "?%20d%20",
-    "hash": "# e"
+    "hash": "#%20e"
   },
   {
     "input": "lolscheme:x x#x x",
     "base": "about:blank",
-    "href": "lolscheme:x x#x x",
+    "href": "lolscheme:x x#x%20x",
     "protocol": "lolscheme:",
     "username": "",
     "password": "",
@@ -177,7 +177,7 @@
     "port": "",
     "pathname": "x x",
     "search": "",
-    "hash": "#x x"
+    "hash": "#x%20x"
   },
   {
     "input": "http://f:/c",
@@ -812,7 +812,7 @@
   {
     "input": "http://foo/path;a??e#f#g",
     "base": "http://example.org/foo/bar",
-    "href": "http://foo/path;a??e#f#g",
+    "href": "http://foo/path;a??e#f%23g",
     "origin": "http://foo",
     "protocol": "http:",
     "username": "",
@@ -822,7 +822,7 @@
     "port": "",
     "pathname": "/path;a",
     "search": "??e",
-    "hash": "#f#g"
+    "hash": "#f%23g"
   },
   {
     "input": "http://foo/abcd?efgh?ijkl",
@@ -2260,7 +2260,7 @@
   {
     "input": "http://www.google.com/foo?bar=baz# »",
     "base": "about:blank",
-    "href": "http://www.google.com/foo?bar=baz# %C2%BB",
+    "href": "http://www.google.com/foo?bar=baz#%20%C2%BB",
     "origin": "http://www.google.com",
     "protocol": "http:",
     "username": "",
@@ -2270,12 +2270,12 @@
     "port": "",
     "pathname": "/foo",
     "search": "?bar=baz",
-    "hash": "# %C2%BB"
+    "hash": "#%20%C2%BB"
   },
   {
     "input": "data:test# »",
     "base": "about:blank",
-    "href": "data:test# %C2%BB",
+    "href": "data:test#%20%C2%BB",
     "origin": "null",
     "protocol": "data:",
     "username": "",
@@ -2285,7 +2285,7 @@
     "port": "",
     "pathname": "test",
     "search": "",
-    "hash": "# %C2%BB"
+    "hash": "#%20%C2%BB"
   },
   {
     "input": "http://www.google.com",

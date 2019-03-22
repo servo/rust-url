@@ -18,8 +18,8 @@ use encoding::EncodingOverride;
 use host::{Host, HostInternal};
 use percent_encoding::{
     utf8_percent_encode, percent_encode,
-    SIMPLE_ENCODE_SET, DEFAULT_ENCODE_SET, USERINFO_ENCODE_SET, QUERY_ENCODE_SET,
-    PATH_SEGMENT_ENCODE_SET
+    SIMPLE_ENCODE_SET, FRAGMENT_ENCODE_SET, DEFAULT_ENCODE_SET, USERINFO_ENCODE_SET,
+    QUERY_ENCODE_SET, PATH_SEGMENT_ENCODE_SET
 };
 
 define_encode_set! {
@@ -1198,7 +1198,7 @@ impl<'a> Parser<'a> {
             } else {
                 self.check_url_code_point(c, &input);
                 self.serialization.extend(utf8_percent_encode(utf8_c,
-                                                              SIMPLE_ENCODE_SET));
+                                                              FRAGMENT_ENCODE_SET));
             }
         }
     }

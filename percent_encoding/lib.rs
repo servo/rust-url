@@ -117,6 +117,14 @@ impl EncodeSet for SIMPLE_ENCODE_SET {
 }
 
 define_encode_set! {
+    /// This encode set is used in the URL parser for fragments.
+    ///
+    /// Aside from special chacters defined in the [`SIMPLE_ENCODE_SET`](struct.SIMPLE_ENCODE_SET.html),
+    /// space, double quote ("), hash (#), inequality qualifiers (<), (>), and backtick (`) are encoded.
+    pub FRAGMENT_ENCODE_SET = [SIMPLE_ENCODE_SET] | {' ', '"', '#', '<', '>', '`'}
+}
+
+define_encode_set! {
     /// This encode set is used in the URL parser for query strings.
     ///
     /// Aside from special chacters defined in the [`SIMPLE_ENCODE_SET`](struct.SIMPLE_ENCODE_SET.html),
