@@ -372,7 +372,7 @@ impl<T: Target> Serializer<T> {
     ///     .append_pair("foo", "bar & baz")
     ///     .append_pair("saison", "Été+hiver")
     ///     .finish();
-    /// assert_eq!(encoded, "foo=bar+%26+baz&saison=%C3%89t%C3%A9%2Bhiver");
+    /// assert_eq!(encoded, "?foo=bar+%26+baz&saison=%C3%89t%C3%A9%2Bhiver");
     /// ```
     ///
     /// Panics if called more than once.
