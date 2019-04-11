@@ -1327,8 +1327,7 @@ impl Url {
     /// # run().unwrap();
     /// ```
     ///
-    /// Note: `url.query_pairs_mut().clear();` is equivalent to `url.set_query(Some(""))`,
-    /// not `url.set_query(None)`.
+    /// Note: `url.query_pairs_mut().clear();` is equivalent to `url.set_query(None)`.
     ///
     /// The state of `Url` is unspecified if this return value is leaked without being dropped.
     pub fn query_pairs_mut(&mut self) -> form_urlencoded::Serializer<UrlQuery> {
