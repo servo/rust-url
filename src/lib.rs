@@ -1336,16 +1336,14 @@ impl Url {
 
         let query_start;
         if let Some(start) = self.query_start {
-            debug_assert!(self.byte_at(start) == b'?');
             query_start = start as usize;
         } else {
             query_start = self.serialization.len();
             self.query_start = Some(to_u32(query_start).unwrap());
-            self.serialization.push('?');
         }
 
         let query = UrlQuery { url: Some(self), fragment: fragment };
-        form_urlencoded::Serializer::for_suffix(query, query_start + "?".len())
+        form_urlencoded::Serializer::for_suffix(query, query_start)
     }
 
     fn take_after_path(&mut self) -> String {

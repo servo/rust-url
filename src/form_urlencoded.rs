@@ -384,6 +384,8 @@ impl<T: Target> Serializer<T> {
 fn append_separator_if_needed(string: &mut String, start_position: usize) {
     if string.len() > start_position {
         string.push('&')
+    } else if string.len() == start_position {
+        string.insert(start_position, '?')
     }
 }
 
