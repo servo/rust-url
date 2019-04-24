@@ -25,7 +25,7 @@ assert!(Url::parse("http://[:::1]") == Err(ParseError::InvalidIpv6Address))
 Let’s parse a valid URL and look at its components.
 
 ```
-use url::{Url, Host};
+use url::{Url, Host, Position};
 # use url::ParseError;
 # fn run() -> Result<(), ParseError> {
 let issue_list_url = Url::parse(
@@ -43,6 +43,7 @@ assert!(issue_list_url.path() == "/rust-lang/rust/issues");
 assert!(issue_list_url.path_segments().map(|c| c.collect::<Vec<_>>()) ==
         Some(vec!["rust-lang", "rust", "issues"]));
 assert!(issue_list_url.query() == Some("labels=E-easy&state=open"));
+assert!(&issue_list_url[Position::BeforePath..] == "/rust-lang/rust/issues?labels=E-easy&state=open");
 assert!(issue_list_url.fragment() == None);
 assert!(!issue_list_url.cannot_be_a_base());
 # Ok(())
