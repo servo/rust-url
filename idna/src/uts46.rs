@@ -130,7 +130,7 @@ fn passes_bidi(label: &str, is_bidi_domain: bool) -> bool {
 
     match first_char_class {
         // LTR label
-        BidiClass::L => {
+        BidiClass::L | BidiClass::EN => {
             // Rule 5
             loop {
                 match chars.next() {
