@@ -32,7 +32,8 @@ fn test_v8_bidi_rules() {
     assert_eq!(_to_ascii("אבּג.ابج").unwrap(), "xn--kdb3bdf.xn--mgbcm");
 
     // Bidi domain names cannot start with digits
-    assert!(_to_ascii("0a.\u{05D0}").is_err());
+    assert!(_to_ascii("0a.\u{05D0}").is_ok());
+    assert!(_to_ascii("\u{05D0}.0a").is_err());
     assert!(_to_ascii("0à.\u{05D0}").is_err());
 
     // Bidi chars may be punycode-encoded

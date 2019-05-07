@@ -115,7 +115,7 @@ fn map_char(codepoint: char, flags: Flags, output: &mut String, errors: &mut Vec
 }
 
 // http://tools.ietf.org/html/rfc5893#section-2
-fn passes_bidi(label: &str, is_bidi_domain: bool) -> bool {
+fn passes_bidi(label: &str, is_bidi_domain: bool, after_rtl_label: &mut bool) -> bool {
     // Rule 0: Bidi Rules apply to Bidi Domain Names: a name with at least one RTL label.  A label
     // is RTL if it contains at least one character of bidi class R, AL or AN.
     if !is_bidi_domain {
@@ -123,7 +123,8 @@ fn passes_bidi(label: &str, is_bidi_domain: bool) -> bool {
     }
 
     let mut chars = label.chars();
-    let first_char_class = match chars.next() {
+    let first_char = chars.next();
+    let first_char_class = match first_char {
         Some(c) => bidi_class(c),
         None => return true, // empty string
     };
@@ -174,6 +175,7 @@ fn passes_bidi(label: &str, is_bidi_domain: bool) -> bool {
         BidiClass::R | BidiClass::AL => {
             let mut found_en = false;
             let mut found_an = false;
+            *after_rtl_label = true;
 
             // Rule 2
             loop {
@@ -223,6 +225,36 @@ fn passes_bidi(label: &str, is_bidi_domain: bool) -> bool {
             }
         }
 
+        BidiClass::EN => {
+            // https://github.com/servo/rust-url/issues/489
+            // LDH labels that start with a digit are allowed when they don't come after RTL label
+            if *after_rtl_label  {
+                return false;
+            }
+            match first_char {
+                Some(c) if c.is_ascii() => {},
+                _ => { return false; }
+            };
+            // check that label is LDH
+            // https://tools.ietf.org/html/rfc5890#section-2.3.1
+            let mut last = chars.next();
+            loop {
+                match last {
+                    Some(c) => {
+                        if !c.is_ascii() {
+                            return false;
+                        }
+                        last = chars.next();
+                    }
+                    _ => { break; }
+                }
+            }
+            if last == Some('-') {
+                return false;
+            }
+            return true;
+        }
+
         // Rule 1: Should start with L or R/AL
         _ => {
             return false;
@@ -233,16 +265,16 @@ fn passes_bidi(label: &str, is_bidi_domain: bool) -> bool {
 }
 
 /// http://www.unicode.org/reports/tr46/#Validity_Criteria
-fn validate_full(label: &str, is_bidi_domain: bool, flags: Flags, errors: &mut Vec<Error>) {
+fn validate_full(label: &str, is_bidi_domain: bool, after_rtl_label: &mut bool, flags: Flags, errors: &mut Vec<Error>) {
     // V1: Must be in NFC form.
     if label.nfc().ne(label.chars()) {
         errors.push(Error::ValidityCriteria);
     } else {
-        validate(label, is_bidi_domain, flags, errors);
+        validate(label, is_bidi_domain, after_rtl_label, flags, errors);
     }
 }
 
-fn validate(label: &str, is_bidi_domain: bool, flags: Flags, errors: &mut Vec<Error>) {
+fn validate(label: &str, is_bidi_domain: bool, after_rtl_label: &mut bool, flags: Flags, errors: &mut Vec<Error>) {
     let first_char = label.chars().next();
     if first_char == None {
         // Empty string, pass
@@ -287,7 +319,7 @@ fn validate(label: &str, is_bidi_domain: bool, flags: Flags, errors: &mut Vec<Er
     // V8: Bidi rules
     //
     // TODO: Add *CheckBidi* flag
-    else if !passes_bidi(label, is_bidi_domain)
+    else if !passes_bidi(label, is_bidi_domain, after_rtl_label)
     {
         errors.push(Error::ValidityCriteria);
     }
@@ -330,6 +362,7 @@ fn processing(domain: &str, flags: Flags, errors: &mut Vec<Error>) -> String {
 
     let mut validated = String::new();
     let mut first = true;
+    let mut after_rtl_label = false;
     for label in normalized.split('.') {
         if !first {
             validated.push('.');
@@ -339,14 +372,14 @@ fn processing(domain: &str, flags: Flags, errors: &mut Vec<Error>) -> String {
             match punycode::decode_to_string(&label[PUNYCODE_PREFIX.len()..]) {
                 Some(decoded_label) => {
                     let flags = Flags { transitional_processing: false, ..flags };
-                    validate_full(&decoded_label, is_bidi_domain, flags, errors);
+                    validate_full(&decoded_label, is_bidi_domain, &mut after_rtl_label, flags, errors);
                     validated.push_str(&decoded_label)
                 }
                 None => errors.push(Error::PunycodeError)
             }
         } else {
             // `normalized` is already `NFC` so we can skip that check
-            validate(label, is_bidi_domain, flags, errors);
+            validate(label, is_bidi_domain, &mut after_rtl_label, flags, errors);
             validated.push_str(label)
         }
     }
