@@ -7,11 +7,11 @@
 // except according to those terms.
 
 //! URLs use special chacters to indicate the parts of the request.  For example, a forward slash
-//! indicates a path.  In order for that charcter to exist outside of a path separator, that
-//! charcter would need to be encoded.
+//! indicates a path.  In order for that character to exist outside of a path separator, that
+//! character would need to be encoded.
 //!
-//! Percent encoding replaces reserved charcters with the `%` escape charcter followed by hexidecimal
-//! ASCII representaton.  For non-ASCII charcters that are percent encoded, a UTF-8 byte sequence
+//! Percent encoding replaces reserved characters with the `%` escape character followed by hexidecimal
+//! ASCII representaton.  For non-ASCII character that are percent encoded, a UTF-8 byte sequence
 //! becomes percent encoded.  A simple example can be seen when the space literal is replaced with
 //! `%20`.
 //!
