@@ -3530,7 +3530,7 @@
   {
     "input": "http://[]",
     "base": "http://other.com/",
-    "failure": true
+    "failure": false
   },
   {
     "input": "http://[:]",
