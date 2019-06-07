@@ -27,6 +27,17 @@ struct MyStruct {
 }
 ```
 
+# How do I use a data type with an unnamed `Url` member with serde?
+
+Same problem, same solution.
+
+```
+#[derive(serde::Serialize, serde::Deserialize)]
+enum MyEnum {
+    A(#[serde(with = "url_serde")] Url, OtherType),
+}
+```
+
 # How do I encode a `Url` value with `serde_json::to_string`?
 
 Use the `Ser` wrapper.
