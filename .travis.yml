@@ -2,7 +2,7 @@ language: rust
 
 jobs:
   include:
-  - rust: 1.17.0
+  - rust: 1.24.0
     install:
     # --precise requires Cargo.lock to already exist
     - cargo update
@@ -11,8 +11,7 @@ jobs:
 
     - cargo update -p unicode-normalization --precise 0.1.5
 
-    # data-url uses pub(crate) which is unstable in 1.17
-    script: cargo test --all-features -p url -p idna -p percent-encoding -p url_serde
+    script: cargo test --all-features -p url -p idna -p percent-encoding -p url_serde -p data-url
 
   - rust: stable
     script: cargo test --all-features --all
