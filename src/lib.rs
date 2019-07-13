@@ -107,7 +107,6 @@ assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css");
 
 #![doc(html_root_url = "https://docs.rs/url/1.7.0")]
 
-#[cfg(feature="rustc-serialize")] extern crate rustc_serialize;
 #[macro_use] extern crate matches;
 #[cfg(feature="serde")] extern crate serde;
 #[cfg(feature="heapsize")] #[macro_use] extern crate heapsize;
@@ -2223,23 +2222,6 @@ impl RangeArg for RangeTo<u32> {
     #[inline]
     fn slice_of<'a>(&self, s: &'a str) -> &'a str {
         &s[.. self.end as usize]
-    }
-}
-
-#[cfg(feature="rustc-serialize")]
-impl rustc_serialize::Encodable for Url {
-    fn encode<S: rustc_serialize::Encoder>(&self, encoder: &mut S) -> Result<(), S::Error> {
-        encoder.emit_str(self.as_str())
-    }
-}
-
-
-#[cfg(feature="rustc-serialize")]
-impl rustc_serialize::Decodable for Url {
-    fn decode<D: rustc_serialize::Decoder>(decoder: &mut D) -> Result<Url, D::Error> {
-        Url::parse(&*decoder.read_str()?).map_err(|error| {
-            decoder.error(&format!("URL parsing error: {}", error))
-        })
     }
 }
 
