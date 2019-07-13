@@ -275,7 +275,6 @@ impl<'i> Iterator for Input<'i> {
 #[derive(Copy, Clone)]
 pub enum ViolationFn<'a> {
     NewFn(&'a (Fn(SyntaxViolation) + 'a)),
-    OldFn(&'a (Fn(&'static str) + 'a)),
     NoOp
 }
 
@@ -284,7 +283,6 @@ impl<'a> ViolationFn<'a> {
     pub fn call(self, v: SyntaxViolation) {
         match self {
             ViolationFn::NewFn(f) => f(v),
-            ViolationFn::OldFn(f) => f(v.description()),
             ViolationFn::NoOp => {}
         }
     }
@@ -296,7 +294,6 @@ impl<'a> ViolationFn<'a> {
     {
         match self {
             ViolationFn::NewFn(f) => if test() { f(v) },
-            ViolationFn::OldFn(f) => if test() { f(v.description()) },
             ViolationFn::NoOp => {} // avoid test
         }
     }
@@ -314,7 +311,6 @@ impl<'a> fmt::Debug for ViolationFn<'a> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
             ViolationFn::NewFn(_) => write!(f, "NewFn(Fn(SyntaxViolation))"),
-            ViolationFn::OldFn(_) => write!(f, "OldFn(Fn(&'static str))"),
             ViolationFn::NoOp     => write!(f, "NoOp")
         }
     }

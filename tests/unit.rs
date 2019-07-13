@@ -490,21 +490,6 @@ fn test_windows_unc_path() {
     assert!(url.is_err());
 }
 
-// Test the now deprecated log_syntax_violation method for backward
-// compatibility
-#[test]
-#[allow(deprecated)]
-fn test_old_log_violation_option() {
-    let violation = Cell::new(None);
-    let url = Url::options()
-        .log_syntax_violation(Some(&|s| violation.set(Some(s.to_owned()))))
-        .parse("http:////mozilla.org:42").unwrap();
-    assert_eq!(url.port(), Some(42));
-
-    let violation = violation.take();
-    assert_eq!(violation, Some("expected //".to_string()));
-}
-
 #[test]
 fn test_syntax_violation_callback() {
     use url::SyntaxViolation::*;
