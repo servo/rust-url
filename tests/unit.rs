@@ -11,7 +11,6 @@
 #[macro_use]
 extern crate url;
 
-use std::ascii::AsciiExt;
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::net::{Ipv4Addr, Ipv6Addr};

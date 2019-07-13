@@ -11,8 +11,6 @@
 
 use self::Mapping::*;
 use punycode;
-#[allow(unused_imports, deprecated)]
-use std::ascii::AsciiExt;
 use std::cmp::Ordering::{Equal, Less, Greater};
 use unicode_bidi::{BidiClass, bidi_class};
 use unicode_normalization::UnicodeNormalization;

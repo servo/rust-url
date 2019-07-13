@@ -32,7 +32,6 @@
 //! assert_eq!(utf8_percent_encode("foo bar?", DEFAULT_ENCODE_SET).to_string(), "foo%20bar%3F");
 //! ```
 
-use std::ascii::AsciiExt;
 use std::borrow::Cow;
 use std::fmt;
 use std::slice;
