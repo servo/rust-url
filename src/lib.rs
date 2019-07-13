@@ -2346,7 +2346,6 @@ fn path_to_file_url_segments_windows(path: &Path, serialization: &mut String)
 fn file_url_segments_to_pathbuf(host: Option<&str>, segments: str::Split<char>) -> Result<PathBuf, ()> {
     use std::ffi::OsStr;
     use std::os::unix::prelude::OsStrExt;
-    use std::path::PathBuf;
 
     if host.is_some() {
         return Err(());
