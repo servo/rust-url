@@ -32,7 +32,8 @@
 //! > that minimizes the impact of this transition for client software,
 //! > allowing client software to access domains that are valid under either system.
 
-#[macro_use] extern crate matches;
+#[macro_use]
+extern crate matches;
 extern crate unicode_bidi;
 extern crate unicode_normalization;
 
@@ -47,11 +48,14 @@ pub mod uts46;
 ///
 /// This process may fail.
 pub fn domain_to_ascii(domain: &str) -> Result<String, uts46::Errors> {
-    uts46::to_ascii(domain, uts46::Flags {
-        use_std3_ascii_rules: false,
-        transitional_processing: false,
-        verify_dns_length: false,
-    })
+    uts46::to_ascii(
+        domain,
+        uts46::Flags {
+            use_std3_ascii_rules: false,
+            transitional_processing: false,
+            verify_dns_length: false,
+        },
+    )
 }
 
 /// The [domain to Unicode](https://url.spec.whatwg.org/#concept-domain-to-unicode) algorithm.
@@ -63,11 +67,14 @@ pub fn domain_to_ascii(domain: &str) -> Result<String, uts46::Errors> {
 /// This may indicate [syntax violations](https://url.spec.whatwg.org/#syntax-violation)
 /// but always returns a string for the mapped domain.
 pub fn domain_to_unicode(domain: &str) -> (String, Result<(), uts46::Errors>) {
-    uts46::to_unicode(domain, uts46::Flags {
-        use_std3_ascii_rules: false,
+    uts46::to_unicode(
+        domain,
+        uts46::Flags {
+            use_std3_ascii_rules: false,
 
-        // Unused:
-        transitional_processing: false,
-        verify_dns_length: false,
-    })
+            // Unused:
+            transitional_processing: false,
+            verify_dns_length: false,
+        },
+    )
 }

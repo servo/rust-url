@@ -6,15 +6,16 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-#[cfg(feature = "heapsize")] use heapsize::HeapSizeOf;
+#[cfg(feature = "heapsize")]
+use heapsize::HeapSizeOf;
+use idna;
+use parser::{ParseError, ParseResult};
+use percent_encoding::{percent_decode, utf8_percent_encode, SIMPLE_ENCODE_SET};
 use std::cmp;
 use std::fmt::{self, Formatter};
 use std::io;
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
 use std::vec;
-use parser::{ParseResult, ParseError};
-use percent_encoding::{percent_decode, utf8_percent_encode, SIMPLE_ENCODE_SET};
-use idna;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum HostInternal {
@@ -27,9 +28,12 @@ pub enum HostInternal {
 #[cfg(feature = "heapsize")]
 known_heap_size!(0, HostInternal);
 
-#[cfg(feature="serde")]
+#[cfg(feature = "serde")]
 impl ::serde::Serialize for HostInternal {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::Serializer {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: ::serde::Serializer,
+    {
         // This doesn’t use `derive` because that involves
         // large dependencies (that take a long time to build), and
         // either Macros 1.1 which are not stable yet or a cumbersome build script.
@@ -42,13 +46,17 @@ impl ::serde::Serialize for HostInternal {
             HostInternal::Domain => Some(None),
             HostInternal::Ipv4(addr) => Some(Some(IpAddr::V4(addr))),
             HostInternal::Ipv6(addr) => Some(Some(IpAddr::V6(addr))),
-        }.serialize(serializer)
+        }
+        .serialize(serializer)
     }
 }
 
-#[cfg(feature="serde")]
+#[cfg(feature = "serde")]
 impl<'de> ::serde::Deserialize<'de> for HostInternal {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: ::serde::Deserializer<'de> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+    {
         use std::net::IpAddr;
         Ok(match ::serde::Deserialize::deserialize(deserializer)? {
             None => HostInternal::None,
@@ -71,7 +79,7 @@ impl<S> From<Host<S>> for HostInternal {
 
 /// The host name of an URL.
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub enum Host<S=String> {
+pub enum Host<S = String> {
     /// A DNS domain name, as '.' dot-separated labels.
     /// Non-ASCII labels are encoded in punycode per IDNA if this is the host of
     /// a special URL, or percent encoded for non-special URLs. Hosts for
@@ -91,21 +99,28 @@ pub enum Host<S=String> {
     Ipv6(Ipv6Addr),
 }
 
-#[cfg(feature="serde")]
+#[cfg(feature = "serde")]
 impl<S: ::serde::Serialize> ::serde::Serialize for Host<S> {
-    fn serialize<R>(&self, serializer: R) -> Result<R::Ok, R::Error> where R: ::serde::Serializer {
+    fn serialize<R>(&self, serializer: R) -> Result<R::Ok, R::Error>
+    where
+        R: ::serde::Serializer,
+    {
         use std::net::IpAddr;
         match *self {
             Host::Domain(ref s) => Ok(s),
             Host::Ipv4(addr) => Err(IpAddr::V4(addr)),
             Host::Ipv6(addr) => Err(IpAddr::V6(addr)),
-        }.serialize(serializer)
+        }
+        .serialize(serializer)
     }
 }
 
-#[cfg(feature="serde")]
+#[cfg(feature = "serde")]
 impl<'de, S: ::serde::Deserialize<'de>> ::serde::Deserialize<'de> for Host<S> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: ::serde::Deserializer<'de> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+    {
         use std::net::IpAddr;
         Ok(match ::serde::Deserialize::deserialize(deserializer)? {
             Ok(s) => Host::Domain(s),
@@ -143,16 +158,34 @@ impl Host<String> {
     pub fn parse(input: &str) -> Result<Self, ParseError> {
         if input.starts_with('[') {
             if !input.ends_with(']') {
-                return Err(ParseError::InvalidIpv6Address)
+                return Err(ParseError::InvalidIpv6Address);
             }
-            return parse_ipv6addr(&input[1..input.len() - 1]).map(Host::Ipv6)
+            return parse_ipv6addr(&input[1..input.len() - 1]).map(Host::Ipv6);
         }
         let domain = percent_decode(input.as_bytes()).decode_utf8_lossy();
         let domain = idna::domain_to_ascii(&domain)?;
-        if domain.find(|c| matches!(c,
-            '\0' | '\t' | '\n' | '\r' | ' ' | '#' | '%' | '/' | ':' | '?' | '@' | '[' | '\\' | ']'
-        )).is_some() {
-            return Err(ParseError::InvalidDomainCharacter)
+        if domain
+            .find(|c| {
+                matches!(
+                    c,
+                    '\0' | '\t'
+                        | '\n'
+                        | '\r'
+                        | ' '
+                        | '#'
+                        | '%'
+                        | '/'
+                        | ':'
+                        | '?'
+                        | '@'
+                        | '['
+                        | '\\'
+                        | ']'
+                )
+            })
+            .is_some()
+        {
+            return Err(ParseError::InvalidDomainCharacter);
         }
         if let Some(address) = parse_ipv4addr(&domain)? {
             Ok(Host::Ipv4(address))
@@ -165,14 +198,31 @@ impl Host<String> {
     pub fn parse_opaque(input: &str) -> Result<Self, ParseError> {
         if input.starts_with('[') {
             if !input.ends_with(']') {
-                return Err(ParseError::InvalidIpv6Address)
+                return Err(ParseError::InvalidIpv6Address);
             }
-            return parse_ipv6addr(&input[1..input.len() - 1]).map(Host::Ipv6)
+            return parse_ipv6addr(&input[1..input.len() - 1]).map(Host::Ipv6);
         }
-        if input.find(|c| matches!(c,
-            '\0' | '\t' | '\n' | '\r' | ' ' | '#' | '/' | ':' | '?' | '@' | '[' | '\\' | ']'
-        )).is_some() {
-            return Err(ParseError::InvalidDomainCharacter)
+        if input
+            .find(|c| {
+                matches!(
+                    c,
+                    '\0' | '\t'
+                        | '\n'
+                        | '\r'
+                        | ' '
+                        | '#'
+                        | '/'
+                        | ':'
+                        | '?'
+                        | '@'
+                        | '['
+                        | '\\'
+                        | ']'
+                )
+            })
+            .is_some()
+        {
+            return Err(ParseError::InvalidDomainCharacter);
         }
         let s = utf8_percent_encode(input, SIMPLE_ENCODE_SET).to_string();
         Ok(Host::Domain(s))
@@ -196,7 +246,7 @@ impl<S: AsRef<str>> fmt::Display for Host<S> {
 /// This mostly exists because coherence rules don’t allow us to implement
 /// `ToSocketAddrs for (Host<S>, u16)`.
 #[derive(Clone, Debug)]
-pub struct HostAndPort<S=String> {
+pub struct HostAndPort<S = String> {
     pub host: Host<S>,
     pub port: u16,
 }
@@ -206,7 +256,7 @@ impl<'a> HostAndPort<&'a str> {
     pub fn to_owned(&self) -> HostAndPort<String> {
         HostAndPort {
             host: self.host.to_owned(),
-            port: self.port
+            port: self.port,
         }
     }
 }
@@ -219,7 +269,6 @@ impl<S: AsRef<str>> fmt::Display for HostAndPort<S> {
     }
 }
 
-
 impl<S: AsRef<str>> ToSocketAddrs for HostAndPort<S> {
     type Iter = SocketAddrs;
 
@@ -228,13 +277,15 @@ impl<S: AsRef<str>> ToSocketAddrs for HostAndPort<S> {
         match self.host {
             Host::Domain(ref domain) => Ok(SocketAddrs {
                 // FIXME: use std::net::lookup_host when it’s stable.
-                state: SocketAddrsState::Domain((domain.as_ref(), port).to_socket_addrs()?)
+                state: SocketAddrsState::Domain((domain.as_ref(), port).to_socket_addrs()?),
             }),
             Host::Ipv4(address) => Ok(SocketAddrs {
-                state: SocketAddrsState::One(SocketAddr::V4(SocketAddrV4::new(address, port)))
+                state: SocketAddrsState::One(SocketAddr::V4(SocketAddrV4::new(address, port))),
             }),
             Host::Ipv6(address) => Ok(SocketAddrs {
-                state: SocketAddrsState::One(SocketAddr::V6(SocketAddrV6::new(address, port, 0, 0)))
+                state: SocketAddrsState::One(SocketAddr::V6(SocketAddrV6::new(
+                    address, port, 0, 0,
+                ))),
             }),
         }
     }
@@ -243,7 +294,7 @@ impl<S: AsRef<str>> ToSocketAddrs for HostAndPort<S> {
 /// Socket addresses for an URL.
 #[derive(Debug)]
 pub struct SocketAddrs {
-    state: SocketAddrsState
+    state: SocketAddrsState,
 }
 
 #[derive(Debug)]
@@ -262,7 +313,7 @@ impl Iterator for SocketAddrs {
                 self.state = SocketAddrsState::Done;
                 Some(s)
             }
-            SocketAddrsState::Done => None
+            SocketAddrsState::Done => None,
         }
     }
 }
@@ -344,10 +395,12 @@ fn parse_ipv4number(mut input: &str) -> Result<Option<u32>, ()> {
     // So instead we check if the input looks like a real number and only return
     // an error when it's an overflow.
     let valid_number = match r {
-        8 => input.chars().all(|c| c >= '0' && c <='7'),
-        10 => input.chars().all(|c| c >= '0' && c <='9'),
-        16 => input.chars().all(|c| (c >= '0' && c <='9') || (c >='a' && c <= 'f') || (c >= 'A' && c <= 'F')),
-        _ => false
+        8 => input.chars().all(|c| c >= '0' && c <= '7'),
+        10 => input.chars().all(|c| c >= '0' && c <= '9'),
+        16 => input
+            .chars()
+            .all(|c| (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')),
+        _ => false,
     };
 
     if !valid_number {
@@ -369,7 +422,7 @@ fn parse_ipv4number(mut input: &str) -> Result<Option<u32>, ()> {
 /// <https://url.spec.whatwg.org/#concept-ipv4-parser>
 fn parse_ipv4addr(input: &str) -> ParseResult<Option<Ipv4Addr>> {
     if input.is_empty() {
-        return Ok(None)
+        return Ok(None);
     }
     let mut parts: Vec<&str> = input.split('.').collect();
     if parts.last() == Some(&"") {
@@ -387,7 +440,7 @@ fn parse_ipv4addr(input: &str) -> ParseResult<Option<Ipv4Addr>> {
         match parse_ipv4number(part) {
             Ok(Some(n)) => numbers.push(n),
             Ok(None) => return Ok(None),
-            Err(()) => overflow = true
+            Err(()) => overflow = true,
         };
     }
     if overflow {
@@ -395,7 +448,7 @@ fn parse_ipv4addr(input: &str) -> ParseResult<Option<Ipv4Addr>> {
     }
     let mut ipv4 = numbers.pop().expect("a non-empty list of numbers");
     // Equivalent to: ipv4 >= 256 ** (4 − numbers.len())
-    if ipv4 > u32::max_value() >> (8 * numbers.len() as u32)  {
+    if ipv4 > u32::max_value() >> (8 * numbers.len() as u32) {
         return Err(ParseError::InvalidIpv4Address);
     }
     if numbers.iter().any(|x| *x > 255) {
@@ -418,12 +471,12 @@ fn parse_ipv6addr(input: &str) -> ParseResult<Ipv6Addr> {
     let mut i = 0;
 
     if len < 2 {
-        return Err(ParseError::InvalidIpv6Address)
+        return Err(ParseError::InvalidIpv6Address);
     }
 
     if input[0] == b':' {
         if input[1] != b':' {
-            return Err(ParseError::InvalidIpv6Address)
+            return Err(ParseError::InvalidIpv6Address);
         }
         i = 2;
         piece_pointer = 1;
@@ -432,16 +485,16 @@ fn parse_ipv6addr(input: &str) -> ParseResult<Ipv6Addr> {
 
     while i < len {
         if piece_pointer == 8 {
-            return Err(ParseError::InvalidIpv6Address)
+            return Err(ParseError::InvalidIpv6Address);
         }
         if input[i] == b':' {
             if compress_pointer.is_some() {
-                return Err(ParseError::InvalidIpv6Address)
+                return Err(ParseError::InvalidIpv6Address);
             }
             i += 1;
             piece_pointer += 1;
             compress_pointer = Some(piece_pointer);
-            continue
+            continue;
         }
         let start = i;
         let end = cmp::min(len, start + 4);
@@ -451,33 +504,33 @@ fn parse_ipv6addr(input: &str) -> ParseResult<Ipv6Addr> {
                 Some(digit) => {
                     value = value * 0x10 + digit as u16;
                     i += 1;
-                },
-                None => break
+                }
+                None => break,
             }
         }
         if i < len {
             match input[i] {
                 b'.' => {
                     if i == start {
-                        return Err(ParseError::InvalidIpv6Address)
+                        return Err(ParseError::InvalidIpv6Address);
                     }
                     i = start;
                     if piece_pointer > 6 {
-                        return Err(ParseError::InvalidIpv6Address)
+                        return Err(ParseError::InvalidIpv6Address);
                     }
                     is_ip_v4 = true;
-                },
+                }
                 b':' => {
                     i += 1;
                     if i == len {
-                        return Err(ParseError::InvalidIpv6Address)
+                        return Err(ParseError::InvalidIpv6Address);
                     }
-                },
-                _ => return Err(ParseError::InvalidIpv6Address)
+                }
+                _ => return Err(ParseError::InvalidIpv6Address),
             }
         }
         if is_ip_v4 {
-            break
+            break;
         }
         pieces[piece_pointer] = value;
         piece_pointer += 1;
@@ -485,7 +538,7 @@ fn parse_ipv6addr(input: &str) -> ParseResult<Ipv6Addr> {
 
     if is_ip_v4 {
         if piece_pointer > 6 {
-            return Err(ParseError::InvalidIpv6Address)
+            return Err(ParseError::InvalidIpv6Address);
         }
         let mut numbers_seen = 0;
         while i < len {
@@ -493,23 +546,23 @@ fn parse_ipv6addr(input: &str) -> ParseResult<Ipv6Addr> {
                 if numbers_seen < 4 && (i < len && input[i] == b'.') {
                     i += 1
                 } else {
-                    return Err(ParseError::InvalidIpv6Address)
+                    return Err(ParseError::InvalidIpv6Address);
                 }
             }
 
             let mut ipv4_piece = None;
             while i < len {
                 let digit = match input[i] {
-                    c @ b'0' ..= b'9' => c - b'0',
-                    _ => break
+                    c @ b'0'..=b'9' => c - b'0',
+                    _ => break,
                 };
                 match ipv4_piece {
                     None => ipv4_piece = Some(digit as u16),
-                    Some(0) => return Err(ParseError::InvalidIpv6Address),  // No leading zero
+                    Some(0) => return Err(ParseError::InvalidIpv6Address), // No leading zero
                     Some(ref mut v) => {
                         *v = *v * 10 + digit as u16;
                         if *v > 255 {
-                            return Err(ParseError::InvalidIpv6Address)
+                            return Err(ParseError::InvalidIpv6Address);
                         }
                     }
                 }
@@ -519,7 +572,7 @@ fn parse_ipv6addr(input: &str) -> ParseResult<Ipv6Addr> {
             pieces[piece_pointer] = if let Some(v) = ipv4_piece {
                 pieces[piece_pointer] * 0x100 + v
             } else {
-                return Err(ParseError::InvalidIpv6Address)
+                return Err(ParseError::InvalidIpv6Address);
             };
             numbers_seen += 1;
 
@@ -529,12 +582,12 @@ fn parse_ipv6addr(input: &str) -> ParseResult<Ipv6Addr> {
         }
 
         if numbers_seen != 4 {
-            return Err(ParseError::InvalidIpv6Address)
+            return Err(ParseError::InvalidIpv6Address);
         }
     }
 
     if i < len {
-        return Err(ParseError::InvalidIpv6Address)
+        return Err(ParseError::InvalidIpv6Address);
     }
 
     match compress_pointer {
@@ -547,10 +600,13 @@ fn parse_ipv6addr(input: &str) -> ParseResult<Ipv6Addr> {
                 piece_pointer -= 1;
             }
         }
-        _ => if piece_pointer != 8 {
-            return Err(ParseError::InvalidIpv6Address)
+        _ => {
+            if piece_pointer != 8 {
+                return Err(ParseError::InvalidIpv6Address);
+            }
         }
     }
-    Ok(Ipv6Addr::new(pieces[0], pieces[1], pieces[2], pieces[3],
-                     pieces[4], pieces[5], pieces[6], pieces[7]))
+    Ok(Ipv6Addr::new(
+        pieces[0], pieces[1], pieces[2], pieces[3], pieces[4], pieces[5], pieces[6], pieces[7],
+    ))
 }

@@ -6,24 +6,28 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-
 //! Abstraction that conditionally compiles either to rust-encoding,
 //! or to only support UTF-8.
 
-#[cfg(feature = "query_encoding")] extern crate encoding;
+#[cfg(feature = "query_encoding")]
+extern crate encoding;
 
 use std::borrow::Cow;
-#[cfg(feature = "query_encoding")] use std::fmt::{self, Debug, Formatter};
+#[cfg(feature = "query_encoding")]
+use std::fmt::{self, Debug, Formatter};
 
-#[cfg(feature = "query_encoding")] use self::encoding::types::{DecoderTrap, EncoderTrap};
-#[cfg(feature = "query_encoding")] use self::encoding::label::encoding_from_whatwg_label;
-#[cfg(feature = "query_encoding")] pub use self::encoding::types::EncodingRef;
+#[cfg(feature = "query_encoding")]
+use self::encoding::label::encoding_from_whatwg_label;
+#[cfg(feature = "query_encoding")]
+pub use self::encoding::types::EncodingRef;
+#[cfg(feature = "query_encoding")]
+use self::encoding::types::{DecoderTrap, EncoderTrap};
 
 #[cfg(feature = "query_encoding")]
 #[derive(Copy, Clone)]
 pub struct EncodingOverride {
     /// `None` means UTF-8.
-    encoding: Option<EncodingRef>
+    encoding: Option<EncodingRef>,
 }
 
 #[cfg(feature = "query_encoding")]
@@ -34,7 +38,11 @@ impl EncodingOverride {
 
     pub fn from_encoding(encoding: EncodingRef) -> Self {
         EncodingOverride {
-            encoding: if encoding.name() == "utf-8" { None } else { Some(encoding) }
+            encoding: if encoding.name() == "utf-8" {
+                None
+            } else {
+                Some(encoding)
+            },
         }
     }
 
@@ -47,16 +55,16 @@ impl EncodingOverride {
         // Don't use String::from_utf8_lossy since no encoding label contains U+FFFD
         // https://encoding.spec.whatwg.org/#names-and-labels
         ::std::str::from_utf8(label)
-        .ok()
-        .and_then(encoding_from_whatwg_label)
-        .map(Self::from_encoding)
+            .ok()
+            .and_then(encoding_from_whatwg_label)
+            .map(Self::from_encoding)
     }
 
     /// https://encoding.spec.whatwg.org/#get-an-output-encoding
     pub fn to_output_encoding(self) -> Self {
         if let Some(encoding) = self.encoding {
             if matches!(encoding.name(), "utf-16le" | "utf-16be") {
-                return Self::utf8()
+                return Self::utf8();
             }
         }
         self
@@ -76,7 +84,10 @@ impl EncodingOverride {
     pub fn decode<'a>(&self, input: Cow<'a, [u8]>) -> Cow<'a, str> {
         match self.encoding {
             // `encoding.decode` never returns `Err` when called with `DecoderTrap::Replace`
-            Some(encoding) => encoding.decode(&input, DecoderTrap::Replace).unwrap().into(),
+            Some(encoding) => encoding
+                .decode(&input, DecoderTrap::Replace)
+                .unwrap()
+                .into(),
             None => decode_utf8_lossy(input),
         }
     }
@@ -85,7 +96,7 @@ impl EncodingOverride {
         match self.encoding {
             // `encoding.encode` never returns `Err` when called with `EncoderTrap::NcrEscape`
             Some(encoding) => Cow::Owned(encoding.encode(&input, EncoderTrap::NcrEscape).unwrap()),
-            None => encode_utf8(input)
+            None => encode_utf8(input),
         }
     }
 }
@@ -96,7 +107,7 @@ impl Debug for EncodingOverride {
         write!(f, "EncodingOverride {{ encoding: ")?;
         match self.encoding {
             Some(e) => write!(f, "{} }}", e.name()),
-            None => write!(f, "None }}")
+            None => write!(f, "None }}"),
         }
     }
 }
@@ -141,6 +152,6 @@ pub fn decode_utf8_lossy(input: Cow<[u8]>) -> Cow<str> {
 pub fn encode_utf8(input: Cow<str>) -> Cow<[u8]> {
     match input {
         Cow::Borrowed(s) => Cow::Borrowed(s.as_bytes()),
-        Cow::Owned(s) => Cow::Owned(s.into_bytes())
+        Cow::Owned(s) => Cow::Owned(s.into_bytes()),
     }
 }

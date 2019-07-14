@@ -8,29 +8,29 @@
 
 //! Data-driven tests
 
-extern crate serde_json;
 extern crate rustc_test as test;
+extern crate serde_json;
 extern crate url;
 
 use serde_json::Value;
-use url::{Url, quirks};
 use std::str::FromStr;
+use url::{quirks, Url};
 
 fn check_invariants(url: &Url) {
     url.check_invariants().unwrap();
-    #[cfg(feature="serde")] {
+    #[cfg(feature = "serde")]
+    {
         let bytes = serde_json::to_vec(url).unwrap();
         let new_url: Url = serde_json::from_slice(&bytes).unwrap();
         assert_eq!(url, &new_url);
     }
 }
 
-
 fn run_parsing(input: &str, base: &str, expected: Result<ExpectedAttributes, ()>) {
     let base = match Url::parse(&base) {
         Ok(base) => base,
         Err(_) if expected.is_err() => return,
-        Err(message) => panic!("Error parsing base {:?}: {}", base, message)
+        Err(message) => panic!("Error parsing base {:?}: {}", base, message),
     };
     let (url, expected) = match (base.join(&input), expected) {
         (Ok(url), Ok(expected)) => (url, expected),
@@ -42,14 +42,18 @@ fn run_parsing(input: &str, base: &str, expected: Result<ExpectedAttributes, ()>
     check_invariants(&url);
 
     macro_rules! assert_eq {
-        ($expected: expr, $got: expr) => {
-            {
-                let expected = $expected;
-                let got = $got;
-                assert!(expected == got, "{:?} != {} {:?} for URL {:?}",
-                        got, stringify!($expected), expected, url);
-            }
-        }
+        ($expected: expr, $got: expr) => {{
+            let expected = $expected;
+            let got = $got;
+            assert!(
+                expected == got,
+                "{:?} != {} {:?} for URL {:?}",
+                got,
+                stringify!($expected),
+                expected,
+                url
+            );
+        }};
     }
 
     macro_rules! assert_attributes {
@@ -95,7 +99,11 @@ impl JsonExt for Value {
     }
 
     fn string(self) -> String {
-        if let Value::String(s) = self { s } else { panic!("Not a Value::String") }
+        if let Value::String(s) = self {
+            s
+        } else {
+            panic!("Not a Value::String")
+        }
     }
 
     fn take_string(&mut self, key: &str) -> String {
@@ -109,7 +117,7 @@ fn collect_parsing<F: FnMut(String, test::TestFn)>(add_test: &mut F) {
         .expect("JSON parse error in urltestdata.json");
     for entry in json.as_array_mut().unwrap() {
         if entry.is_string() {
-            continue  // ignore comments
+            continue; // ignore comments
         }
         let base = entry.take_string("base");
         let input = entry.take_string("input");
@@ -118,8 +126,7 @@ fn collect_parsing<F: FnMut(String, test::TestFn)>(add_test: &mut F) {
         } else {
             Ok(ExpectedAttributes {
                 href: entry.take_string("href"),
-                origin: entry.take_key("origin")
-                    .map(|s| s.string()),
+                origin: entry.take_key("origin").map(|s| s.string()),
                 protocol: entry.take_string("protocol"),
                 username: entry.take_string("username"),
                 password: entry.take_string("password"),
@@ -131,12 +138,17 @@ fn collect_parsing<F: FnMut(String, test::TestFn)>(add_test: &mut F) {
                 hash: entry.take_string("hash"),
             })
         };
-        add_test(format!("{:?} @ base {:?}", input, base),
-                 test::TestFn::dyn_test_fn(move || run_parsing(&input, &base, expected)));
+        add_test(
+            format!("{:?} @ base {:?}", input, base),
+            test::TestFn::dyn_test_fn(move || run_parsing(&input, &base, expected)),
+        );
     }
 }
 
-fn collect_setters<F>(add_test: &mut F) where F: FnMut(String, test::TestFn) {
+fn collect_setters<F>(add_test: &mut F)
+where
+    F: FnMut(String, test::TestFn),
+{
     let mut json = Value::from_str(include_str!("setters_tests.json"))
         .expect("JSON parse error in setters_tests.json");
 

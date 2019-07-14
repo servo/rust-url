@@ -107,47 +107,56 @@ assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css");
 
 #![doc(html_root_url = "https://docs.rs/url/1.7.0")]
 
-#[macro_use] extern crate matches;
-#[cfg(feature="serde")] extern crate serde;
-#[cfg(feature="heapsize")] #[macro_use] extern crate heapsize;
+#[macro_use]
+extern crate matches;
+#[cfg(feature = "serde")]
+extern crate serde;
+#[cfg(feature = "heapsize")]
+#[macro_use]
+extern crate heapsize;
 
 pub extern crate idna;
 #[macro_use]
 pub extern crate percent_encoding;
 
 use encoding::EncodingOverride;
-#[cfg(feature = "heapsize")] use heapsize::HeapSizeOf;
+#[cfg(feature = "heapsize")]
+use heapsize::HeapSizeOf;
 use host::HostInternal;
-use parser::{Parser, Context, SchemeType, to_u32};
-use percent_encoding::{PATH_SEGMENT_ENCODE_SET, USERINFO_ENCODE_SET,
-                       percent_encode, percent_decode, utf8_percent_encode};
+use parser::{to_u32, Context, Parser, SchemeType};
+use percent_encoding::{
+    percent_decode, percent_encode, utf8_percent_encode, PATH_SEGMENT_ENCODE_SET,
+    USERINFO_ENCODE_SET,
+};
 use std::borrow::Borrow;
 use std::cmp;
-#[cfg(feature = "serde")] use std::error::Error;
-use std::fmt::{self, Write, Debug, Formatter};
+#[cfg(feature = "serde")]
+use std::error::Error;
+use std::fmt::{self, Debug, Formatter, Write};
 use std::hash;
 use std::io;
 use std::mem;
-use std::net::{ToSocketAddrs, IpAddr};
+use std::net::{IpAddr, ToSocketAddrs};
 use std::ops::{Range, RangeFrom, RangeTo};
 use std::path::{Path, PathBuf};
 use std::str;
 
-pub use origin::{Origin, OpaqueOrigin};
 pub use host::{Host, HostAndPort, SocketAddrs};
-pub use path_segments::PathSegmentsMut;
+pub use origin::{OpaqueOrigin, Origin};
 pub use parser::{ParseError, SyntaxViolation};
+pub use path_segments::PathSegmentsMut;
 pub use slicing::Position;
 
 mod encoding;
 mod host;
 mod origin;
-mod path_segments;
 mod parser;
+mod path_segments;
 mod slicing;
 
 pub mod form_urlencoded;
-#[doc(hidden)] pub mod quirks;
+#[doc(hidden)]
+pub mod quirks;
 
 /// A parsed URL record.
 #[derive(Clone)]
@@ -164,15 +173,15 @@ pub struct Url {
     serialization: String,
 
     // Components
-    scheme_end: u32,  // Before ':'
-    username_end: u32,  // Before ':' (if a password is given) or '@' (if not)
+    scheme_end: u32,   // Before ':'
+    username_end: u32, // Before ':' (if a password is given) or '@' (if not)
     host_start: u32,
     host_end: u32,
     host: HostInternal,
     port: Option<u16>,
-    path_start: u32,  // Before initial '/', if any
-    query_start: Option<u32>,  // Before '?', unlike Position::QueryStart
-    fragment_start: Option<u32>,  // Before '#', unlike Position::FragmentStart
+    path_start: u32,             // Before initial '/', if any
+    query_start: Option<u32>,    // Before '?', unlike Position::QueryStart
+    fragment_start: Option<u32>, // Before '#', unlike Position::FragmentStart
 }
 
 #[cfg(feature = "heapsize")]
@@ -245,18 +254,21 @@ impl<'a> ParseOptions<'a> {
             query_encoding_override: self.encoding_override,
             violation_fn: self.violation_fn,
             context: Context::UrlParser,
-        }.parse_url(input)
+        }
+        .parse_url(input)
     }
 }
 
 impl<'a> Debug for ParseOptions<'a> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f,
-               "ParseOptions {{ base_url: {:?}, encoding_override: {:?}, \
-                violation_fn: {:?} }}",
-               self.base_url,
-               self.encoding_override,
-               self.violation_fn.map(|_| "…"))
+        write!(
+            f,
+            "ParseOptions {{ base_url: {:?}, encoding_override: {:?}, \
+             violation_fn: {:?} }}",
+            self.base_url,
+            self.encoding_override,
+            self.violation_fn.map(|_| "…")
+        )
     }
 }
 
@@ -313,10 +325,11 @@ impl Url {
     /// [`ParseError`]: enum.ParseError.html
     #[inline]
     pub fn parse_with_params<I, K, V>(input: &str, iter: I) -> Result<Url, ::ParseError>
-        where I: IntoIterator,
-              I::Item: Borrow<(K, V)>,
-              K: AsRef<str>,
-              V: AsRef<str>
+    where
+        I: IntoIterator,
+        I::Item: Borrow<(K, V)>,
+        K: AsRef<str>,
+        V: AsRef<str>,
     {
         let mut url = Url::options().parse(input);
 
@@ -446,10 +459,13 @@ impl Url {
         macro_rules! assert {
             ($x: expr) => {
                 if !$x {
-                    return Err(format!("!( {} ) for URL {:?}",
-                                       stringify!($x), self.serialization))
+                    return Err(format!(
+                        "!( {} ) for URL {:?}",
+                        stringify!($x),
+                        self.serialization
+                    ));
                 }
-            }
+            };
         }
 
         macro_rules! assert_eq {
@@ -468,11 +484,13 @@ impl Url {
 
         assert!(self.scheme_end >= 1);
         assert!(matches!(self.byte_at(0), b'a'..=b'z' | b'A'..=b'Z'));
-        assert!(self.slice(1..self.scheme_end).chars()
-                .all(|c| matches!(c, 'a'..='z' | 'A'..='Z' | '0'..='9' | '+' | '-' | '.')));
+        assert!(self
+            .slice(1..self.scheme_end)
+            .chars()
+            .all(|c| matches!(c, 'a'..='z' | 'A'..='Z' | '0'..='9' | '+' | '-' | '.')));
         assert_eq!(self.byte_at(self.scheme_end), b':');
 
-        if self.slice(self.scheme_end + 1 ..).starts_with("//") {
+        if self.slice(self.scheme_end + 1..).starts_with("//") {
             // URL with authority
             match self.byte_at(self.username_end) {
                 b':' => {
@@ -503,7 +521,10 @@ impl Url {
             } else {
                 assert_eq!(self.byte_at(self.host_end), b':');
                 let port_str = self.slice(self.host_end + 1..self.path_start);
-                assert_eq!(self.port, Some(port_str.parse::<u16>().expect("Couldn't parse port?")));
+                assert_eq!(
+                    self.port,
+                    Some(port_str.parse::<u16>().expect("Couldn't parse port?"))
+                );
             }
             assert_eq!(self.byte_at(self.path_start), b'/');
         } else {
@@ -533,10 +554,12 @@ impl Url {
         assert_eq!(self.username_end, other.username_end);
         assert_eq!(self.host_start, other.host_start);
         assert_eq!(self.host_end, other.host_end);
-        assert!(self.host == other.host ||
+        assert!(
+            self.host == other.host ||
                 // XXX No host round-trips to empty host.
                 // See https://github.com/whatwg/url/issues/79
-                (self.host_str(), other.host_str()) == (None, Some("")));
+                (self.host_str(), other.host_str()) == (None, Some(""))
+        );
         assert_eq!(self.port, other.port);
         assert_eq!(self.path_start, other.path_start);
         assert_eq!(self.query_start, other.query_start);
@@ -982,15 +1005,19 @@ impl Url {
     /// }
     /// ```
     pub fn with_default_port<F>(&self, f: F) -> io::Result<HostAndPort<&str>>
-    where F: FnOnce(&Url) -> Result<u16, ()> {
+    where
+        F: FnOnce(&Url) -> Result<u16, ()>,
+    {
         Ok(HostAndPort {
-            host: self.host()
-                      .ok_or(())
-                      .or_else(|()| io_error("URL has no host"))?,
-            port: self.port_or_known_default()
-                      .ok_or(())
-                      .or_else(|()| f(self))
-                      .or_else(|()| io_error("URL has no port number"))?
+            host: self
+                .host()
+                .ok_or(())
+                .or_else(|()| io_error("URL has no host"))?,
+            port: self
+                .port_or_known_default()
+                .ok_or(())
+                .or_else(|()| f(self))
+                .or_else(|()| io_error("URL has no port number"))?,
         })
     }
 
@@ -1020,8 +1047,7 @@ impl Url {
     pub fn path(&self) -> &str {
         match (self.query_start, self.fragment_start) {
             (None, None) => self.slice(self.path_start..),
-            (Some(next_component_start), _) |
-            (None, Some(next_component_start)) => {
+            (Some(next_component_start), _) | (None, Some(next_component_start)) => {
                 self.slice(self.path_start..next_component_start)
             }
         }
@@ -1327,7 +1353,10 @@ impl Url {
             self.serialization.push('?');
         }
 
-        let query = UrlQuery { url: Some(self), fragment: fragment };
+        let query = UrlQuery {
+            url: Some(self),
+            fragment: fragment,
+        };
         form_urlencoded::Serializer::for_suffix(query, query_start + "?".len())
     }
 
@@ -1337,7 +1366,7 @@ impl Url {
                 let after_path = self.slice(i..).to_owned();
                 self.serialization.truncate(i as usize);
                 after_path
-            },
+            }
             (None, None) => String::new(),
         }
     }
@@ -1378,7 +1407,7 @@ impl Url {
                 }
                 parser.parse_cannot_be_a_base_path(parser::Input::new(path));
             } else {
-                let mut has_host = true;  // FIXME
+                let mut has_host = true; // FIXME
                 parser.parse_path_start(scheme_type, &mut has_host, parser::Input::new(path));
             }
         });
@@ -1402,8 +1431,12 @@ impl Url {
             *index -= old_after_path_position;
             *index += new_after_path_position;
         };
-        if let Some(ref mut index) = self.query_start { adjust(index) }
-        if let Some(ref mut index) = self.fragment_start { adjust(index) }
+        if let Some(ref mut index) = self.query_start {
+            adjust(index)
+        }
+        if let Some(ref mut index) = self.fragment_start {
+            adjust(index)
+        }
         self.serialization.push_str(after_path)
     }
 
@@ -1452,7 +1485,7 @@ impl Url {
     pub fn set_port(&mut self, mut port: Option<u16>) -> Result<(), ()> {
         // has_host implies !cannot_be_a_base
         if !self.has_host() || self.host() == Some(Host::Domain("")) || self.scheme() == "file" {
-            return Err(())
+            return Err(());
         }
         if port.is_some() && port == parser::default_port(self.scheme()) {
             port = None
@@ -1465,11 +1498,16 @@ impl Url {
         match (self.port, port) {
             (None, None) => {}
             (Some(_), None) => {
-                self.serialization.drain(self.host_end as usize .. self.path_start as usize);
+                self.serialization
+                    .drain(self.host_end as usize..self.path_start as usize);
                 let offset = self.path_start - self.host_end;
                 self.path_start = self.host_end;
-                if let Some(ref mut index) = self.query_start { *index -= offset }
-                if let Some(ref mut index) = self.fragment_start { *index -= offset }
+                if let Some(ref mut index) = self.query_start {
+                    *index -= offset
+                }
+                if let Some(ref mut index) = self.fragment_start {
+                    *index -= offset
+                }
             }
             (Some(old), Some(new)) if old == new => {}
             (_, Some(new)) => {
@@ -1483,8 +1521,12 @@ impl Url {
                     *index -= old_path_start;
                     *index += new_path_start;
                 };
-                if let Some(ref mut index) = self.query_start { adjust(index) }
-                if let Some(ref mut index) = self.fragment_start { adjust(index) }
+                if let Some(ref mut index) = self.query_start {
+                    adjust(index)
+                }
+                if let Some(ref mut index) = self.fragment_start {
+                    adjust(index)
+                }
                 self.serialization.push_str(&path_and_after);
             }
         }
@@ -1575,7 +1617,7 @@ impl Url {
     /// [`ParseError`]: enum.ParseError.html
     pub fn set_host(&mut self, host: Option<&str>) -> Result<(), ParseError> {
         if self.cannot_be_a_base() {
-            return Err(ParseError::SetHostOnCannotBeABaseUrl)
+            return Err(ParseError::SetHostOnCannotBeABaseUrl);
         }
 
         if let Some(host) = host {
@@ -1589,27 +1631,36 @@ impl Url {
             }
         } else if self.has_host() {
             if SchemeType::from(self.scheme()).is_special() {
-                return Err(ParseError::EmptyHost)
+                return Err(ParseError::EmptyHost);
             }
             debug_assert!(self.byte_at(self.scheme_end) == b':');
             debug_assert!(self.byte_at(self.path_start) == b'/');
             let new_path_start = self.scheme_end + 1;
-            self.serialization.drain(new_path_start as usize..self.path_start as usize);
+            self.serialization
+                .drain(new_path_start as usize..self.path_start as usize);
             let offset = self.path_start - new_path_start;
             self.path_start = new_path_start;
             self.username_end = new_path_start;
             self.host_start = new_path_start;
             self.host_end = new_path_start;
             self.port = None;
-            if let Some(ref mut index) = self.query_start { *index -= offset }
-            if let Some(ref mut index) = self.fragment_start { *index -= offset }
+            if let Some(ref mut index) = self.query_start {
+                *index -= offset
+            }
+            if let Some(ref mut index) = self.fragment_start {
+                *index -= offset
+            }
         }
         Ok(())
     }
 
     /// opt_new_port: None means leave unchanged, Some(None) means remove any port number.
     fn set_host_internal(&mut self, host: Host<String>, opt_new_port: Option<Option<u16>>) {
-        let old_suffix_pos = if opt_new_port.is_some() { self.path_start } else { self.host_end };
+        let old_suffix_pos = if opt_new_port.is_some() {
+            self.path_start
+        } else {
+            self.host_end
+        };
         let suffix = self.slice(old_suffix_pos..).to_owned();
         self.serialization.truncate(self.host_start as usize);
         if !self.has_authority() {
@@ -1638,8 +1689,12 @@ impl Url {
             *index += new_suffix_pos;
         };
         adjust(&mut self.path_start);
-        if let Some(ref mut index) = self.query_start { adjust(index) }
-        if let Some(ref mut index) = self.fragment_start { adjust(index) }
+        if let Some(ref mut index) = self.query_start {
+            adjust(index)
+        }
+        if let Some(ref mut index) = self.fragment_start {
+            adjust(index)
+        }
     }
 
     /// Change this URL’s host to the given IP address.
@@ -1681,7 +1736,7 @@ impl Url {
     ///
     pub fn set_ip_host(&mut self, address: IpAddr) -> Result<(), ()> {
         if self.cannot_be_a_base() {
-            return Err(())
+            return Err(());
         }
 
         let address = match address {
@@ -1721,13 +1776,14 @@ impl Url {
     pub fn set_password(&mut self, password: Option<&str>) -> Result<(), ()> {
         // has_host implies !cannot_be_a_base
         if !self.has_host() || self.host() == Some(Host::Domain("")) || self.scheme() == "file" {
-            return Err(())
+            return Err(());
         }
         if let Some(password) = password {
             let host_and_after = self.slice(self.host_start..).to_owned();
             self.serialization.truncate(self.username_end as usize);
             self.serialization.push(':');
-            self.serialization.extend(utf8_percent_encode(password, USERINFO_ENCODE_SET));
+            self.serialization
+                .extend(utf8_percent_encode(password, USERINFO_ENCODE_SET));
             self.serialization.push('@');
 
             let old_host_start = self.host_start;
@@ -1739,28 +1795,37 @@ impl Url {
             self.host_start = new_host_start;
             adjust(&mut self.host_end);
             adjust(&mut self.path_start);
-            if let Some(ref mut index) = self.query_start { adjust(index) }
-            if let Some(ref mut index) = self.fragment_start { adjust(index) }
+            if let Some(ref mut index) = self.query_start {
+                adjust(index)
+            }
+            if let Some(ref mut index) = self.fragment_start {
+                adjust(index)
+            }
 
             self.serialization.push_str(&host_and_after);
-        } else if self.byte_at(self.username_end) == b':' {  // If there is a password to remove
+        } else if self.byte_at(self.username_end) == b':' {
+            // If there is a password to remove
             let has_username_or_password = self.byte_at(self.host_start - 1) == b'@';
             debug_assert!(has_username_or_password);
             let username_start = self.scheme_end + 3;
             let empty_username = username_start == self.username_end;
-            let start = self.username_end;  // Remove the ':'
+            let start = self.username_end; // Remove the ':'
             let end = if empty_username {
                 self.host_start // Remove the '@' as well
             } else {
-                self.host_start - 1  // Keep the '@' to separate the username from the host
+                self.host_start - 1 // Keep the '@' to separate the username from the host
             };
-            self.serialization.drain(start as usize .. end as usize);
+            self.serialization.drain(start as usize..end as usize);
             let offset = end - start;
             self.host_start -= offset;
             self.host_end -= offset;
             self.path_start -= offset;
-            if let Some(ref mut index) = self.query_start { *index -= offset }
-            if let Some(ref mut index) = self.fragment_start { *index -= offset }
+            if let Some(ref mut index) = self.query_start {
+                *index -= offset
+            }
+            if let Some(ref mut index) = self.fragment_start {
+                *index -= offset
+            }
         }
         Ok(())
     }
@@ -1803,16 +1868,17 @@ impl Url {
     pub fn set_username(&mut self, username: &str) -> Result<(), ()> {
         // has_host implies !cannot_be_a_base
         if !self.has_host() || self.host() == Some(Host::Domain("")) || self.scheme() == "file" {
-            return Err(())
+            return Err(());
         }
         let username_start = self.scheme_end + 3;
         debug_assert!(self.slice(self.scheme_end..username_start) == "://");
         if self.slice(username_start..self.username_end) == username {
-            return Ok(())
+            return Ok(());
         }
         let after_username = self.slice(self.username_end..).to_owned();
         self.serialization.truncate(username_start as usize);
-        self.serialization.extend(utf8_percent_encode(username, USERINFO_ENCODE_SET));
+        self.serialization
+            .extend(utf8_percent_encode(username, USERINFO_ENCODE_SET));
 
         let mut removed_bytes = self.username_end;
         self.username_end = to_u32(self.serialization.len()).unwrap();
@@ -1841,8 +1907,12 @@ impl Url {
         adjust(&mut self.host_start);
         adjust(&mut self.host_end);
         adjust(&mut self.path_start);
-        if let Some(ref mut index) = self.query_start { adjust(index) }
-        if let Some(ref mut index) = self.fragment_start { adjust(index) }
+        if let Some(ref mut index) = self.query_start {
+            adjust(index)
+        }
+        if let Some(ref mut index) = self.fragment_start {
+            adjust(index)
+        }
         Ok(())
     }
 
@@ -1907,9 +1977,10 @@ impl Url {
     pub fn set_scheme(&mut self, scheme: &str) -> Result<(), ()> {
         let mut parser = Parser::for_setter(String::new());
         let remaining = parser.parse_scheme(parser::Input::new(scheme))?;
-        if !remaining.is_empty() ||
-                (!self.has_host() && SchemeType::from(&parser.serialization).is_special()) {
-            return Err(())
+        if !remaining.is_empty()
+            || (!self.has_host() && SchemeType::from(&parser.serialization).is_special())
+        {
+            return Err(());
         }
         let old_scheme_end = self.scheme_end;
         let new_scheme_end = to_u32(parser.serialization.len()).unwrap();
@@ -1923,8 +1994,12 @@ impl Url {
         adjust(&mut self.host_start);
         adjust(&mut self.host_end);
         adjust(&mut self.path_start);
-        if let Some(ref mut index) = self.query_start { adjust(index) }
-        if let Some(ref mut index) = self.fragment_start { adjust(index) }
+        if let Some(ref mut index) = self.query_start {
+            adjust(index)
+        }
+        if let Some(ref mut index) = self.fragment_start {
+            adjust(index)
+        }
 
         parser.serialization.push_str(self.slice(old_scheme_end..));
         self.serialization = parser.serialization;
@@ -1958,7 +2033,7 @@ impl Url {
     /// # run().unwrap();
     /// # }
     /// ```
-    #[cfg(any(unix, windows, target_os="redox"))]
+    #[cfg(any(unix, windows, target_os = "redox"))]
     pub fn from_file_path<P: AsRef<Path>>(path: P) -> Result<Url, ()> {
         let mut serialization = "file://".to_owned();
         let host_start = serialization.len() as u32;
@@ -1994,7 +2069,7 @@ impl Url {
     ///
     /// Note that `std::path` does not consider trailing slashes significant
     /// and usually does not include them (e.g. in `Path::parent()`).
-    #[cfg(any(unix, windows, target_os="redox"))]
+    #[cfg(any(unix, windows, target_os = "redox"))]
     pub fn from_directory_path<P: AsRef<Path>>(path: P) -> Result<Url, ()> {
         let mut url = Url::from_file_path(path)?;
         if !url.serialization.ends_with('/') {
@@ -2011,18 +2086,38 @@ impl Url {
     /// This method is only available if the `serde` Cargo feature is enabled.
     #[cfg(feature = "serde")]
     #[deny(unused)]
-    pub fn serialize_internal<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
+    pub fn serialize_internal<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
         use serde::Serialize;
         // Destructuring first lets us ensure that adding or removing fields forces this method
         // to be updated
-        let Url { ref serialization, ref scheme_end,
-                  ref username_end, ref host_start,
-                  ref host_end, ref host, ref port,
-                  ref path_start, ref query_start,
-                  ref fragment_start} = *self;
-        (serialization, scheme_end, username_end,
-         host_start, host_end, host, port, path_start,
-         query_start, fragment_start).serialize(serializer)
+        let Url {
+            ref serialization,
+            ref scheme_end,
+            ref username_end,
+            ref host_start,
+            ref host_end,
+            ref host,
+            ref port,
+            ref path_start,
+            ref query_start,
+            ref fragment_start,
+        } = *self;
+        (
+            serialization,
+            scheme_end,
+            username_end,
+            host_start,
+            host_end,
+            host,
+            port,
+            path_start,
+            query_start,
+            fragment_start,
+        )
+            .serialize(serializer)
     }
 
     /// Serialize with Serde using the internal representation of the `Url` struct.
@@ -2033,11 +2128,23 @@ impl Url {
     /// This method is only available if the `serde` Cargo feature is enabled.
     #[cfg(feature = "serde")]
     #[deny(unused)]
-    pub fn deserialize_internal<'de, D>(deserializer: D) -> Result<Self, D::Error> where D: serde::Deserializer<'de> {
+    pub fn deserialize_internal<'de, D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
         use serde::de::{Deserialize, Error, Unexpected};
-        let (serialization, scheme_end, username_end,
-             host_start, host_end, host, port, path_start,
-             query_start, fragment_start) = Deserialize::deserialize(deserializer)?;
+        let (
+            serialization,
+            scheme_end,
+            username_end,
+            host_start,
+            host_end,
+            host,
+            port,
+            path_start,
+            query_start,
+            fragment_start,
+        ) = Deserialize::deserialize(deserializer)?;
         let url = Url {
             serialization: serialization,
             scheme_end: scheme_end,
@@ -2048,7 +2155,7 @@ impl Url {
             port: port,
             path_start: path_start,
             query_start: query_start,
-            fragment_start: fragment_start
+            fragment_start: fragment_start,
         };
         if cfg!(debug_assertions) {
             url.check_invariants().map_err(|reason| {
@@ -2058,7 +2165,6 @@ impl Url {
         }
         Ok(url)
     }
-
 
     /// Assuming the URL is in the `file` scheme or similar,
     /// convert its path to an absolute `std::path::Path`.
@@ -2079,15 +2185,15 @@ impl Url {
     /// (That is, if the percent-decoded path contains a NUL byte or,
     /// for a Windows path, is not UTF-8.)
     #[inline]
-    #[cfg(any(unix, windows, target_os="redox"))]
+    #[cfg(any(unix, windows, target_os = "redox"))]
     pub fn to_file_path(&self) -> Result<PathBuf, ()> {
         if let Some(segments) = self.path_segments() {
             let host = match self.host() {
                 None | Some(Host::Domain("localhost")) => None,
                 Some(_) if cfg!(windows) && self.scheme() == "file" => {
-                    Some(&self.serialization[self.host_start as usize .. self.host_end as usize])
-                },
-                _ => return Err(())
+                    Some(&self.serialization[self.host_start as usize..self.host_end as usize])
+                }
+                _ => return Err(()),
             };
 
             return file_url_segments_to_pathbuf(host, segments);
@@ -2098,7 +2204,10 @@ impl Url {
     // Private helper methods:
 
     #[inline]
-    fn slice<R>(&self, range: R) -> &str where R: RangeArg {
+    fn slice<R>(&self, range: R) -> &str
+    where
+        R: RangeArg,
+    {
         range.slice_of(&self.serialization)
     }
 
@@ -2173,7 +2282,10 @@ impl PartialOrd for Url {
 /// URLs hash like their serialization.
 impl hash::Hash for Url {
     #[inline]
-    fn hash<H>(&self, state: &mut H) where H: hash::Hasher {
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: hash::Hasher,
+    {
         hash::Hash::hash(&self.serialization, state)
     }
 }
@@ -2193,30 +2305,33 @@ trait RangeArg {
 impl RangeArg for Range<u32> {
     #[inline]
     fn slice_of<'a>(&self, s: &'a str) -> &'a str {
-        &s[self.start as usize .. self.end as usize]
+        &s[self.start as usize..self.end as usize]
     }
 }
 
 impl RangeArg for RangeFrom<u32> {
     #[inline]
     fn slice_of<'a>(&self, s: &'a str) -> &'a str {
-        &s[self.start as usize ..]
+        &s[self.start as usize..]
     }
 }
 
 impl RangeArg for RangeTo<u32> {
     #[inline]
     fn slice_of<'a>(&self, s: &'a str) -> &'a str {
-        &s[.. self.end as usize]
+        &s[..self.end as usize]
     }
 }
 
 /// Serializes this URL into a `serde` stream.
 ///
 /// This implementation is only available if the `serde` Cargo feature is enabled.
-#[cfg(feature="serde")]
+#[cfg(feature = "serde")]
 impl serde::Serialize for Url {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
         serializer.serialize_str(self.as_str())
     }
 }
@@ -2224,10 +2339,13 @@ impl serde::Serialize for Url {
 /// Deserializes this URL from a `serde` stream.
 ///
 /// This implementation is only available if the `serde` Cargo feature is enabled.
-#[cfg(feature="serde")]
+#[cfg(feature = "serde")]
 impl<'de> serde::Deserialize<'de> for Url {
-    fn deserialize<D>(deserializer: D) -> Result<Url, D::Error> where D: serde::Deserializer<'de> {
-        use serde::de::{Unexpected, Error};
+    fn deserialize<D>(deserializer: D) -> Result<Url, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::{Error, Unexpected};
         let string_representation: String = serde::Deserialize::deserialize(deserializer)?;
         Url::parse(&string_representation).map_err(|err| {
             Error::invalid_value(Unexpected::Str(&string_representation), &err.description())
@@ -2236,11 +2354,13 @@ impl<'de> serde::Deserialize<'de> for Url {
 }
 
 #[cfg(any(unix, target_os = "redox"))]
-fn path_to_file_url_segments(path: &Path, serialization: &mut String)
-                             -> Result<(u32, HostInternal), ()> {
+fn path_to_file_url_segments(
+    path: &Path,
+    serialization: &mut String,
+) -> Result<(u32, HostInternal), ()> {
     use std::os::unix::prelude::OsStrExt;
     if !path.is_absolute() {
-        return Err(())
+        return Err(());
     }
     let host_end = to_u32(serialization.len()).unwrap();
     let mut empty = true;
@@ -2249,7 +2369,9 @@ fn path_to_file_url_segments(path: &Path, serialization: &mut String)
         empty = false;
         serialization.push('/');
         serialization.extend(percent_encode(
-            component.as_os_str().as_bytes(), PATH_SEGMENT_ENCODE_SET));
+            component.as_os_str().as_bytes(),
+            PATH_SEGMENT_ENCODE_SET,
+        ));
     }
     if empty {
         // An URL’s path must not be empty.
@@ -2259,18 +2381,22 @@ fn path_to_file_url_segments(path: &Path, serialization: &mut String)
 }
 
 #[cfg(windows)]
-fn path_to_file_url_segments(path: &Path, serialization: &mut String)
-                             -> Result<(u32, HostInternal), ()> {
+fn path_to_file_url_segments(
+    path: &Path,
+    serialization: &mut String,
+) -> Result<(u32, HostInternal), ()> {
     path_to_file_url_segments_windows(path, serialization)
 }
 
 // Build this unconditionally to alleviate https://github.com/servo/rust-url/issues/102
 #[cfg_attr(not(windows), allow(dead_code))]
-fn path_to_file_url_segments_windows(path: &Path, serialization: &mut String)
-                                     -> Result<(u32, HostInternal), ()> {
-    use std::path::{Prefix, Component};
+fn path_to_file_url_segments_windows(
+    path: &Path,
+    serialization: &mut String,
+) -> Result<(u32, HostInternal), ()> {
+    use std::path::{Component, Prefix};
     if !path.is_absolute() {
-        return Err(())
+        return Err(());
     }
     let mut components = path.components();
 
@@ -2284,7 +2410,7 @@ fn path_to_file_url_segments_windows(path: &Path, serialization: &mut String)
                 serialization.push('/');
                 serialization.push(letter as char);
                 serialization.push(':');
-            },
+            }
             Prefix::UNC(server, share) | Prefix::VerbatimUNC(server, share) => {
                 let host = Host::parse(server.to_str().ok_or(())?).map_err(|_| ())?;
                 write!(serialization, "{}", host).unwrap();
@@ -2293,26 +2419,33 @@ fn path_to_file_url_segments_windows(path: &Path, serialization: &mut String)
                 serialization.push('/');
                 let share = share.to_str().ok_or(())?;
                 serialization.extend(percent_encode(share.as_bytes(), PATH_SEGMENT_ENCODE_SET));
-            },
-            _ => return Err(())
+            }
+            _ => return Err(()),
         },
 
-        _ => return Err(())
+        _ => return Err(()),
     }
 
     for component in components {
-        if component == Component::RootDir { continue }
+        if component == Component::RootDir {
+            continue;
+        }
         // FIXME: somehow work with non-unicode?
         let component = component.as_os_str().to_str().ok_or(())?;
         serialization.push('/');
-        serialization.extend(percent_encode(component.as_bytes(), PATH_SEGMENT_ENCODE_SET));
+        serialization.extend(percent_encode(
+            component.as_bytes(),
+            PATH_SEGMENT_ENCODE_SET,
+        ));
     }
     Ok((host_end, host_internal))
 }
 
-
 #[cfg(any(unix, target_os = "redox"))]
-fn file_url_segments_to_pathbuf(host: Option<&str>, segments: str::Split<char>) -> Result<PathBuf, ()> {
+fn file_url_segments_to_pathbuf(
+    host: Option<&str>,
+    segments: str::Split<char>,
+) -> Result<PathBuf, ()> {
     use std::ffi::OsStr;
     use std::os::unix::prelude::OsStrExt;
 
@@ -2331,20 +2464,27 @@ fn file_url_segments_to_pathbuf(host: Option<&str>, segments: str::Split<char>) 
     }
     let os_str = OsStr::from_bytes(&bytes);
     let path = PathBuf::from(os_str);
-    debug_assert!(path.is_absolute(),
-                  "to_file_path() failed to produce an absolute Path");
+    debug_assert!(
+        path.is_absolute(),
+        "to_file_path() failed to produce an absolute Path"
+    );
     Ok(path)
 }
 
 #[cfg(windows)]
-fn file_url_segments_to_pathbuf(host: Option<&str>, segments: str::Split<char>) -> Result<PathBuf, ()> {
+fn file_url_segments_to_pathbuf(
+    host: Option<&str>,
+    segments: str::Split<char>,
+) -> Result<PathBuf, ()> {
     file_url_segments_to_pathbuf_windows(host, segments)
 }
 
 // Build this unconditionally to alleviate https://github.com/servo/rust-url/issues/102
 #[cfg_attr(not(windows), allow(dead_code))]
-fn file_url_segments_to_pathbuf_windows(host: Option<&str>, mut segments: str::Split<char>) -> Result<PathBuf, ()> {
-
+fn file_url_segments_to_pathbuf_windows(
+    host: Option<&str>,
+    mut segments: str::Split<char>,
+) -> Result<PathBuf, ()> {
     let mut string = if let Some(host) = host {
         r"\\".to_owned() + host
     } else {
@@ -2353,23 +2493,23 @@ fn file_url_segments_to_pathbuf_windows(host: Option<&str>, mut segments: str::S
         match first.len() {
             2 => {
                 if !first.starts_with(parser::ascii_alpha) || first.as_bytes()[1] != b':' {
-                    return Err(())
+                    return Err(());
                 }
 
                 first.to_owned()
-            },
+            }
 
             4 => {
                 if !first.starts_with(parser::ascii_alpha) {
-                    return Err(())
+                    return Err(());
                 }
                 let bytes = first.as_bytes();
                 if bytes[1] != b'%' || bytes[2] != b'3' || (bytes[3] != b'a' && bytes[3] != b'A') {
-                    return Err(())
+                    return Err(());
                 }
 
                 first[0..1].to_owned() + ":"
-            },
+            }
 
             _ => return Err(()),
         }
@@ -2385,8 +2525,10 @@ fn file_url_segments_to_pathbuf_windows(host: Option<&str>, mut segments: str::S
         }
     }
     let path = PathBuf::from(string);
-    debug_assert!(path.is_absolute(),
-                  "to_file_path() failed to produce an absolute Path");
+    debug_assert!(
+        path.is_absolute(),
+        "to_file_path() failed to produce an absolute Path"
+    );
     Ok(path)
 }
 
@@ -2408,7 +2550,6 @@ impl<'a> Drop for UrlQuery<'a> {
         }
     }
 }
-
 
 /// Define a new struct
 /// that implements the [`EncodeSet`](percent_encoding/trait.EncodeSet.html) trait,

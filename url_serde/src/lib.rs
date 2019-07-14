@@ -67,25 +67,30 @@ ipc::channel::<Serde<Url>>()
 #![deny(unsafe_code)]
 
 extern crate serde;
-#[cfg(test)] #[macro_use] extern crate serde_derive;
-#[cfg(test)] extern crate serde_json;
+#[cfg(test)]
+#[macro_use]
+extern crate serde_derive;
+#[cfg(test)]
+extern crate serde_json;
 extern crate url;
 
-use serde::{Deserialize, Serialize, Serializer, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::cmp::PartialEq;
 use std::error::Error;
 use std::fmt;
 use std::io::Write;
 use std::ops::{Deref, DerefMut};
 use std::str;
-use url::{Url, Host};
+use url::{Host, Url};
 
 /// Serialises `value` with a given serializer.
 ///
 /// This is useful to serialize `rust-url` types used in structure fields or
 /// tuple members with `#[serde(serialize_with = "url_serde::serialize")]`.
 pub fn serialize<T, S>(value: &T, serializer: S) -> Result<S::Ok, S::Error>
-    where S: Serializer, for<'a> Ser<'a, T>: Serialize
+where
+    S: Serializer,
+    for<'a> Ser<'a, T>: Serialize,
 {
     Ser::new(value).serialize(serializer)
 }
@@ -98,7 +103,10 @@ pub fn serialize<T, S>(value: &T, serializer: S) -> Result<S::Ok, S::Error>
 #[derive(Debug)]
 pub struct Ser<'a, T: 'a>(&'a T);
 
-impl<'a, T> Ser<'a, T> where Ser<'a, T>: Serialize {
+impl<'a, T> Ser<'a, T>
+where
+    Ser<'a, T>: Serialize,
+{
     /// Returns a new `Ser` wrapper.
     #[inline(always)]
     pub fn new(value: &'a T) -> Self {
@@ -108,14 +116,20 @@ impl<'a, T> Ser<'a, T> where Ser<'a, T>: Serialize {
 
 /// Serializes this URL into a `serde` stream.
 impl<'a> Serialize for Ser<'a, Url> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
         serializer.serialize_str(self.0.as_str())
     }
 }
 
 /// Serializes this Option<URL> into a `serde` stream.
 impl<'a> Serialize for Ser<'a, Option<Url>> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
         if let Some(url) = self.0.as_ref() {
             serializer.serialize_some(url.as_str())
         } else {
@@ -124,8 +138,14 @@ impl<'a> Serialize for Ser<'a, Option<Url>> {
     }
 }
 
-impl<'a, String> Serialize for Ser<'a, Host<String>> where String: AsRef<str> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+impl<'a, String> Serialize for Ser<'a, Host<String>>
+where
+    String: AsRef<str>,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
         match *self.0 {
             Host::Domain(ref s) => serializer.serialize_str(s.as_ref()),
             Host::Ipv4(_) | Host::Ipv6(_) => {
@@ -166,7 +186,9 @@ fn display_into_buffer<'a, T: fmt::Display>(value: &T, buffer: &'a mut [u8]) -> 
 /// This is useful to deserialize Url types used in structure fields or
 /// tuple members with `#[serde(deserialize_with = "url_serde::deserialize")]`.
 pub fn deserialize<'de, T, D>(deserializer: D) -> Result<T, D::Error>
-    where D: Deserializer<'de>, De<T>: Deserialize<'de>
+where
+    D: Deserializer<'de>,
+    De<T>: Deserialize<'de>,
 {
     De::deserialize(deserializer).map(De::into_inner)
 }
@@ -180,7 +202,10 @@ pub fn deserialize<'de, T, D>(deserializer: D) -> Result<T, D::Error>
 #[derive(Debug)]
 pub struct De<T>(T);
 
-impl<'de, T> De<T> where De<T>: serde::Deserialize<'de> {
+impl<'de, T> De<T>
+where
+    De<T>: serde::Deserialize<'de>,
+{
     /// Consumes this wrapper, returning the deserialized value.
     #[inline(always)]
     pub fn into_inner(self) -> T {
@@ -190,35 +215,43 @@ impl<'de, T> De<T> where De<T>: serde::Deserialize<'de> {
 
 /// Deserializes this URL from a `serde` stream.
 impl<'de> Deserialize<'de> for De<Url> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
         let string_representation: String = Deserialize::deserialize(deserializer)?;
-        Url::parse(&string_representation).map(De).map_err(|err| {
-            serde::de::Error::custom(err.description())
-        })
+        Url::parse(&string_representation)
+            .map(De)
+            .map_err(|err| serde::de::Error::custom(err.description()))
     }
 }
 
 /// Deserializes this Option<URL> from a `serde` stream.
 impl<'de> Deserialize<'de> for De<Option<Url>> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
         let option_representation: Option<String> = Deserialize::deserialize(deserializer)?;
         if let Some(s) = option_representation {
             return Url::parse(&s)
                 .map(Some)
                 .map(De)
-                .map_err(|err| {serde::de::Error::custom(err.description())});
+                .map_err(|err| serde::de::Error::custom(err.description()));
         }
         Ok(De(None))
-
     }
 }
 
 impl<'de> Deserialize<'de> for De<Host> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
         let string_representation: String = Deserialize::deserialize(deserializer)?;
-        Host::parse(&string_representation).map(De).map_err(|err| {
-            serde::de::Error::custom(err.description())
-        })
+        Host::parse(&string_representation)
+            .map(De)
+            .map_err(|err| serde::de::Error::custom(err.description()))
     }
 }
 
@@ -231,7 +264,9 @@ pub struct Serde<T>(pub T);
 pub type SerdeUrl = Serde<Url>;
 
 impl<'de, T> Serde<T>
-where De<T>: Deserialize<'de>, for<'a> Ser<'a, T>: Serialize
+where
+    De<T>: Deserialize<'de>,
+    for<'a> Ser<'a, T>: Serialize,
 {
     /// Consumes this wrapper, returning the inner value.
     #[inline(always)]
@@ -241,7 +276,10 @@ where De<T>: Deserialize<'de>, for<'a> Ser<'a, T>: Serialize
 }
 
 impl<'de, T> fmt::Debug for Serde<T>
-where T: fmt::Debug, De<T>: Deserialize<'de>, for<'a> Ser<'a, T>: Serialize
+where
+    T: fmt::Debug,
+    De<T>: Deserialize<'de>,
+    for<'a> Ser<'a, T>: Serialize,
 {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         self.0.fmt(formatter)
@@ -249,7 +287,9 @@ where T: fmt::Debug, De<T>: Deserialize<'de>, for<'a> Ser<'a, T>: Serialize
 }
 
 impl<'de, T> Deref for Serde<T>
-where De<T>: Deserialize<'de>, for<'a> Ser<'a, T>: Serialize
+where
+    De<T>: Deserialize<'de>,
+    for<'a> Ser<'a, T>: Serialize,
 {
     type Target = T;
 
@@ -259,7 +299,9 @@ where De<T>: Deserialize<'de>, for<'a> Ser<'a, T>: Serialize
 }
 
 impl<'de, T> DerefMut for Serde<T>
-where De<T>: Deserialize<'de>, for<'a> Ser<'a, T>: Serialize
+where
+    De<T>: Deserialize<'de>,
+    for<'a> Ser<'a, T>: Serialize,
 {
     fn deref_mut(&mut self) -> &mut T {
         &mut self.0
@@ -267,7 +309,9 @@ where De<T>: Deserialize<'de>, for<'a> Ser<'a, T>: Serialize
 }
 
 impl<'de, T: PartialEq> PartialEq<T> for Serde<T>
-where De<T>: Deserialize<'de>, for<'a> Ser<'a, T>: Serialize
+where
+    De<T>: Deserialize<'de>,
+    for<'a> Ser<'a, T>: Serialize,
 {
     fn eq(&self, other: &T) -> bool {
         self.0 == *other
@@ -275,20 +319,26 @@ where De<T>: Deserialize<'de>, for<'a> Ser<'a, T>: Serialize
 }
 
 impl<'de, T> Deserialize<'de> for Serde<T>
-where De<T>: Deserialize<'de>, for<'a> Ser<'a, T>: Serialize
+where
+    De<T>: Deserialize<'de>,
+    for<'a> Ser<'a, T>: Serialize,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer<'de>
+    where
+        D: Deserializer<'de>,
     {
         De::deserialize(deserializer).map(De::into_inner).map(Serde)
     }
 }
 
 impl<'de, T> Serialize for Serde<T>
-where De<T>: Deserialize<'de>, for<'a> Ser<'a, T>: Serialize
+where
+    De<T>: Deserialize<'de>,
+    for<'a> Ser<'a, T>: Serialize,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
+    where
+        S: Serializer,
     {
         Ser(&self.0).serialize(serializer)
     }
@@ -307,18 +357,17 @@ fn test_derive_deserialize_with_for_url() {
     #[derive(Deserialize, Debug, Eq, PartialEq)]
     struct Test {
         #[serde(deserialize_with = "deserialize", rename = "_url_")]
-        url: Url
+        url: Url,
     }
 
     let url_str = "http://www.test.com/foo/bar?$param=bazz";
 
     let expected = Test {
-        url: Url::parse(url_str).unwrap()
+        url: Url::parse(url_str).unwrap(),
     };
     let json_string = format!(r#"{{"_url_": "{}"}}"#, url_str);
     let got: Test = serde_json::from_str(&json_string).unwrap();
     assert_eq!(expected, got);
-
 }
 
 #[test]
@@ -326,21 +375,19 @@ fn test_derive_deserialize_with_for_option_url() {
     #[derive(Deserialize, Debug, Eq, PartialEq)]
     struct Test {
         #[serde(deserialize_with = "deserialize", rename = "_url_")]
-        url: Option<Url>
+        url: Option<Url>,
     }
 
     let url_str = "http://www.test.com/foo/bar?$param=bazz";
 
     let expected = Test {
-        url: Some(Url::parse(url_str).unwrap())
+        url: Some(Url::parse(url_str).unwrap()),
     };
     let json_string = format!(r#"{{"_url_": "{}"}}"#, url_str);
     let got: Test = serde_json::from_str(&json_string).unwrap();
     assert_eq!(expected, got);
 
-    let expected = Test {
-        url: None
-    };
+    let expected = Test { url: None };
     let json_string = r#"{"_url_": null}"#;
     let got: Test = serde_json::from_str(&json_string).unwrap();
     assert_eq!(expected, got);
@@ -351,13 +398,15 @@ fn test_derive_serialize_with_for_url() {
     #[derive(Serialize, Debug, Eq, PartialEq)]
     struct Test {
         #[serde(serialize_with = "serialize", rename = "_url_")]
-        url: Url
+        url: Url,
     }
 
     let url_str = "http://www.test.com/foo/bar?$param=bazz";
 
     let expected = format!(r#"{{"_url_":"{}"}}"#, url_str);
-    let input = Test {url: Url::parse(url_str).unwrap()};
+    let input = Test {
+        url: Url::parse(url_str).unwrap(),
+    };
     let got = serde_json::to_string(&input).unwrap();
     assert_eq!(expected, got);
 }
@@ -367,18 +416,20 @@ fn test_derive_serialize_with_for_option_url() {
     #[derive(Serialize, Debug, Eq, PartialEq)]
     struct Test {
         #[serde(serialize_with = "serialize", rename = "_url_")]
-        url: Option<Url>
+        url: Option<Url>,
     }
 
     let url_str = "http://www.test.com/foo/bar?$param=bazz";
 
     let expected = format!(r#"{{"_url_":"{}"}}"#, url_str);
-    let input = Test {url: Some(Url::parse(url_str).unwrap())};
+    let input = Test {
+        url: Some(Url::parse(url_str).unwrap()),
+    };
     let got = serde_json::to_string(&input).unwrap();
     assert_eq!(expected, got);
 
     let expected = format!(r#"{{"_url_":null}}"#);
-    let input = Test {url: None};
+    let input = Test { url: None };
     let got = serde_json::to_string(&input).unwrap();
     assert_eq!(expected, got);
 }
@@ -388,7 +439,7 @@ fn test_derive_with_for_url() {
     #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
     struct Test {
         #[serde(with = "self", rename = "_url_")]
-        url: Url
+        url: Url,
     }
 
     let url_str = "http://www.test.com/foo/bar?$param=bazz";
@@ -396,13 +447,15 @@ fn test_derive_with_for_url() {
 
     // test deserialization
     let expected = Test {
-        url: Url::parse(url_str).unwrap()
+        url: Url::parse(url_str).unwrap(),
     };
     let got: Test = serde_json::from_str(&json_string).unwrap();
     assert_eq!(expected, got);
 
     // test serialization
-    let input = Test {url: Url::parse(url_str).unwrap()};
+    let input = Test {
+        url: Url::parse(url_str).unwrap(),
+    };
     let got = serde_json::to_string(&input).unwrap();
     assert_eq!(json_string, got);
 }

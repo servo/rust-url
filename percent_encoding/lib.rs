@@ -175,23 +175,23 @@ define_encode_set! {
 pub fn percent_encode_byte(byte: u8) -> &'static str {
     let index = usize::from(byte) * 3;
     &"\
-        %00%01%02%03%04%05%06%07%08%09%0A%0B%0C%0D%0E%0F\
-        %10%11%12%13%14%15%16%17%18%19%1A%1B%1C%1D%1E%1F\
-        %20%21%22%23%24%25%26%27%28%29%2A%2B%2C%2D%2E%2F\
-        %30%31%32%33%34%35%36%37%38%39%3A%3B%3C%3D%3E%3F\
-        %40%41%42%43%44%45%46%47%48%49%4A%4B%4C%4D%4E%4F\
-        %50%51%52%53%54%55%56%57%58%59%5A%5B%5C%5D%5E%5F\
-        %60%61%62%63%64%65%66%67%68%69%6A%6B%6C%6D%6E%6F\
-        %70%71%72%73%74%75%76%77%78%79%7A%7B%7C%7D%7E%7F\
-        %80%81%82%83%84%85%86%87%88%89%8A%8B%8C%8D%8E%8F\
-        %90%91%92%93%94%95%96%97%98%99%9A%9B%9C%9D%9E%9F\
-        %A0%A1%A2%A3%A4%A5%A6%A7%A8%A9%AA%AB%AC%AD%AE%AF\
-        %B0%B1%B2%B3%B4%B5%B6%B7%B8%B9%BA%BB%BC%BD%BE%BF\
-        %C0%C1%C2%C3%C4%C5%C6%C7%C8%C9%CA%CB%CC%CD%CE%CF\
-        %D0%D1%D2%D3%D4%D5%D6%D7%D8%D9%DA%DB%DC%DD%DE%DF\
-        %E0%E1%E2%E3%E4%E5%E6%E7%E8%E9%EA%EB%EC%ED%EE%EF\
-        %F0%F1%F2%F3%F4%F5%F6%F7%F8%F9%FA%FB%FC%FD%FE%FF\
-    "[index..index + 3]
+      %00%01%02%03%04%05%06%07%08%09%0A%0B%0C%0D%0E%0F\
+      %10%11%12%13%14%15%16%17%18%19%1A%1B%1C%1D%1E%1F\
+      %20%21%22%23%24%25%26%27%28%29%2A%2B%2C%2D%2E%2F\
+      %30%31%32%33%34%35%36%37%38%39%3A%3B%3C%3D%3E%3F\
+      %40%41%42%43%44%45%46%47%48%49%4A%4B%4C%4D%4E%4F\
+      %50%51%52%53%54%55%56%57%58%59%5A%5B%5C%5D%5E%5F\
+      %60%61%62%63%64%65%66%67%68%69%6A%6B%6C%6D%6E%6F\
+      %70%71%72%73%74%75%76%77%78%79%7A%7B%7C%7D%7E%7F\
+      %80%81%82%83%84%85%86%87%88%89%8A%8B%8C%8D%8E%8F\
+      %90%91%92%93%94%95%96%97%98%99%9A%9B%9C%9D%9E%9F\
+      %A0%A1%A2%A3%A4%A5%A6%A7%A8%A9%AA%AB%AC%AD%AE%AF\
+      %B0%B1%B2%B3%B4%B5%B6%B7%B8%B9%BA%BB%BC%BD%BE%BF\
+      %C0%C1%C2%C3%C4%C5%C6%C7%C8%C9%CA%CB%CC%CD%CE%CF\
+      %D0%D1%D2%D3%D4%D5%D6%D7%D8%D9%DA%DB%DC%DD%DE%DF\
+      %E0%E1%E2%E3%E4%E5%E6%E7%E8%E9%EA%EB%EC%ED%EE%EF\
+      %F0%F1%F2%F3%F4%F5%F6%F7%F8%F9%FA%FB%FC%FD%FE%FF\
+      "[index..index + 3]
 }
 
 /// Percent-encode the given bytes with the given encode set.
@@ -259,7 +259,7 @@ impl<'a, E: EncodeSet> Iterator for PercentEncode<'a, E> {
                         // 1 for first_byte + i for previous iterations of this loop
                         let (unchanged_slice, remaining) = self.bytes.split_at(1 + i);
                         self.bytes = remaining;
-                        return Some(unsafe { str::from_utf8_unchecked(unchanged_slice) })
+                        return Some(unsafe { str::from_utf8_unchecked(unchanged_slice) });
                     } else {
                         assert!(byte.is_ascii());
                     }
@@ -295,17 +295,15 @@ impl<'a, E: EncodeSet> From<PercentEncode<'a, E>> for Cow<'a, str> {
     fn from(mut iter: PercentEncode<'a, E>) -> Self {
         match iter.next() {
             None => "".into(),
-            Some(first) => {
-                match iter.next() {
-                    None => first.into(),
-                    Some(second) => {
-                        let mut string = first.to_owned();
-                        string.push_str(second);
-                        string.extend(iter);
-                        string.into()
-                    }
+            Some(first) => match iter.next() {
+                None => first.into(),
+                Some(second) => {
+                    let mut string = first.to_owned();
+                    string.push_str(second);
+                    string.extend(iter);
+                    string.into()
                 }
-            }
+            },
         }
     }
 }
@@ -327,7 +325,7 @@ impl<'a, E: EncodeSet> From<PercentEncode<'a, E>> for Cow<'a, str> {
 #[inline]
 pub fn percent_decode(input: &[u8]) -> PercentDecode {
     PercentDecode {
-        bytes: input.iter()
+        bytes: input.iter(),
     }
 }
 
@@ -387,10 +385,8 @@ impl<'a> PercentDecode<'a> {
                 let unchanged_bytes_len = initial_bytes.len() - bytes_iter.len() - 3;
                 let mut decoded = initial_bytes[..unchanged_bytes_len].to_owned();
                 decoded.push(decoded_byte);
-                decoded.extend(PercentDecode {
-                    bytes: bytes_iter
-                });
-                return Some(decoded)
+                decoded.extend(PercentDecode { bytes: bytes_iter });
+                return Some(decoded);
             }
         }
         // Nothing to decode
@@ -402,18 +398,14 @@ impl<'a> PercentDecode<'a> {
     /// This is return `Err` when the percent-decoded bytes are not well-formed in UTF-8.
     pub fn decode_utf8(self) -> Result<Cow<'a, str>, str::Utf8Error> {
         match self.clone().into() {
-            Cow::Borrowed(bytes) => {
-                match str::from_utf8(bytes) {
-                    Ok(s) => Ok(s.into()),
-                    Err(e) => Err(e),
-                }
-            }
-            Cow::Owned(bytes) => {
-                match String::from_utf8(bytes) {
-                    Ok(s) => Ok(s.into()),
-                    Err(e) => Err(e.utf8_error()),
-                }
-            }
+            Cow::Borrowed(bytes) => match str::from_utf8(bytes) {
+                Ok(s) => Ok(s.into()),
+                Err(e) => Err(e),
+            },
+            Cow::Owned(bytes) => match String::from_utf8(bytes) {
+                Ok(s) => Ok(s.into()),
+                Err(e) => Err(e.utf8_error()),
+            },
         }
     }
 
@@ -442,5 +434,3 @@ fn decode_utf8_lossy(input: Cow<[u8]>) -> Cow<str> {
         }
     }
 }
-
-
