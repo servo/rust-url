@@ -160,6 +160,7 @@ macro_rules! byte_map {
 }
 
 // Copied from https://github.com/hyperium/mime/blob/v0.3.5/src/parse.rs#L293
+#[rustfmt::skip]
 static IS_HTTP_TOKEN: [bool; 256] = byte_map![
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

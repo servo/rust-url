@@ -148,6 +148,7 @@ impl<F, E> Decoder<F, E> where F: FnMut(&[u8]) -> Result<(), E> {
 /// Array values are their positions in the base64 alphabet,
 /// or -1 for symbols not in the alphabet.
 /// The position contributes 6 bits to the decoded bytes.
+#[rustfmt::skip]
 const BASE64_DECODE_TABLE: [i8; 256] = [
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
