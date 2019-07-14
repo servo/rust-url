@@ -6,8 +6,6 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-#[cfg(feature = "heapsize")]
-use heapsize::HeapSizeOf;
 use idna;
 use parser::{ParseError, ParseResult};
 use percent_encoding::{percent_decode, utf8_percent_encode, SIMPLE_ENCODE_SET};
@@ -24,9 +22,6 @@ pub enum HostInternal {
     Ipv4(Ipv4Addr),
     Ipv6(Ipv6Addr),
 }
-
-#[cfg(feature = "heapsize")]
-known_heap_size!(0, HostInternal);
 
 #[cfg(feature = "serde")]
 impl ::serde::Serialize for HostInternal {
@@ -127,16 +122,6 @@ impl<'de, S: ::serde::Deserialize<'de>> ::serde::Deserialize<'de> for Host<S> {
             Err(IpAddr::V4(addr)) => Host::Ipv4(addr),
             Err(IpAddr::V6(addr)) => Host::Ipv6(addr),
         })
-    }
-}
-
-#[cfg(feature = "heapsize")]
-impl<S: HeapSizeOf> HeapSizeOf for Host<S> {
-    fn heap_size_of_children(&self) -> usize {
-        match *self {
-            Host::Domain(ref s) => s.heap_size_of_children(),
-            _ => 0,
-        }
     }
 }
 

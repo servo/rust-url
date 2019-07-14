@@ -61,9 +61,6 @@ simple_enum_error! {
     Overflow => "URLs more than 4 GB are not supported",
 }
 
-#[cfg(feature = "heapsize")]
-known_heap_size!(0, ParseError);
-
 impl fmt::Display for ParseError {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
         self.description().fmt(fmt)
@@ -114,9 +111,6 @@ syntax_violation_enum! {
     TabOrNewlineIgnored => "tabs or newlines are ignored in URLs",
     UnencodedAtSign => "unencoded @ sign in username or password",
 }
-
-#[cfg(feature = "heapsize")]
-known_heap_size!(0, SyntaxViolation);
 
 impl fmt::Display for SyntaxViolation {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {

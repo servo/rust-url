@@ -111,17 +111,12 @@ assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css");
 extern crate matches;
 #[cfg(feature = "serde")]
 extern crate serde;
-#[cfg(feature = "heapsize")]
-#[macro_use]
-extern crate heapsize;
 
 pub extern crate idna;
 #[macro_use]
 pub extern crate percent_encoding;
 
 use encoding::EncodingOverride;
-#[cfg(feature = "heapsize")]
-use heapsize::HeapSizeOf;
 use host::HostInternal;
 use parser::{to_u32, Context, Parser, SchemeType};
 use percent_encoding::{
@@ -182,13 +177,6 @@ pub struct Url {
     path_start: u32,             // Before initial '/', if any
     query_start: Option<u32>,    // Before '?', unlike Position::QueryStart
     fragment_start: Option<u32>, // Before '#', unlike Position::FragmentStart
-}
-
-#[cfg(feature = "heapsize")]
-impl HeapSizeOf for Url {
-    fn heap_size_of_children(&self) -> usize {
-        self.serialization.heap_size_of_children()
-    }
 }
 
 /// Full configuration for the URL parser.
