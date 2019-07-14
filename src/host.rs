@@ -29,7 +29,7 @@ known_heap_size!(0, HostInternal);
 
 #[cfg(feature="serde")]
 impl ::serde::Serialize for HostInternal {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: ::serde::Serializer {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::Serializer {
         // This doesn’t use `derive` because that involves
         // large dependencies (that take a long time to build), and
         // either Macros 1.1 which are not stable yet or a cumbersome build script.
@@ -47,8 +47,8 @@ impl ::serde::Serialize for HostInternal {
 }
 
 #[cfg(feature="serde")]
-impl ::serde::Deserialize for HostInternal {
-    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error> where D: ::serde::Deserializer {
+impl<'de> ::serde::Deserialize<'de> for HostInternal {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: ::serde::Deserializer<'de> {
         use std::net::IpAddr;
         Ok(match ::serde::Deserialize::deserialize(deserializer)? {
             None => HostInternal::None,
@@ -92,8 +92,8 @@ pub enum Host<S=String> {
 }
 
 #[cfg(feature="serde")]
-impl<S: ::serde::Serialize>  ::serde::Serialize for Host<S> {
-    fn serialize<R>(&self, serializer: &mut R) -> Result<(), R::Error> where R: ::serde::Serializer {
+impl<S: ::serde::Serialize> ::serde::Serialize for Host<S> {
+    fn serialize<R>(&self, serializer: R) -> Result<R::Ok, R::Error> where R: ::serde::Serializer {
         use std::net::IpAddr;
         match *self {
             Host::Domain(ref s) => Ok(s),
@@ -104,8 +104,8 @@ impl<S: ::serde::Serialize>  ::serde::Serialize for Host<S> {
 }
 
 #[cfg(feature="serde")]
-impl<S: ::serde::Deserialize> ::serde::Deserialize for Host<S> {
-    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error> where D: ::serde::Deserializer {
+impl<'de, S: ::serde::Deserialize<'de>> ::serde::Deserialize<'de> for Host<S> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: ::serde::Deserializer<'de> {
         use std::net::IpAddr;
         Ok(match ::serde::Deserialize::deserialize(deserializer)? {
             Ok(s) => Host::Domain(s),
