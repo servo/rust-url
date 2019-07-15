@@ -210,20 +210,6 @@ impl<'a> ParseOptions<'a> {
         self
     }
 
-    /// Call the provided function or closure on non-fatal parse errors, passing
-    /// a static string description.  This method is deprecated in favor of
-    /// `syntax_violation_callback` and is implemented as an adaptor for the
-    /// latter, passing the `SyntaxViolation` description. Only the last value
-    /// passed to either method will be used by a parser.
-    #[deprecated]
-    pub fn log_syntax_violation(mut self, new: Option<&'a dyn Fn(&'static str)>) -> Self {
-        self.violation_fn = match new {
-            Some(f) => ViolationFn::OldFn(f),
-            None => ViolationFn::NoOp
-        };
-        self
-    }
-
     /// Call the provided function or closure for a non-fatal `SyntaxViolation`
     /// when it occurs during parsing. Note that since the provided function is
     /// `Fn`, the caller might need to utilize _interior mutability_, such as with
