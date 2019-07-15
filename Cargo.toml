@@ -36,11 +36,7 @@ serde_json = "1.0"
 
 bencher = "0.1"
 
-[features]
-query_encoding = ["encoding"]
-
 [dependencies]
-encoding = {version = "0.2", optional = true}
 idna = { version = "0.1.0", path = "./idna" }
 matches = "0.1"
 percent-encoding = { version = "1.0.0", path = "./percent_encoding" }
@@ -49,6 +45,3 @@ serde = {version = "1.0", optional = true}
 [[bench]]
 name = "parse_url"
 harness = false
-
-[package.metadata.docs.rs]
-features = ["query_encoding"]

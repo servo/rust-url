@@ -115,7 +115,6 @@ extern crate serde;
 #[macro_use]
 extern crate percent_encoding;
 
-use encoding::EncodingOverride;
 use host::HostInternal;
 use parser::{to_u32, Context, Parser, SchemeType};
 use percent_encoding::{
@@ -126,7 +125,7 @@ use std::borrow::Borrow;
 use std::cmp;
 #[cfg(feature = "serde")]
 use std::error::Error;
-use std::fmt::{self, Debug, Formatter, Write};
+use std::fmt::{self, Write};
 use std::hash;
 use std::mem;
 use std::net::IpAddr;
@@ -139,13 +138,14 @@ pub use origin::{OpaqueOrigin, Origin};
 pub use parser::{ParseError, SyntaxViolation};
 pub use path_segments::PathSegmentsMut;
 pub use slicing::Position;
+pub use query_encoding::EncodingOverride;
 
-mod encoding;
 mod host;
 mod origin;
 mod parser;
 mod path_segments;
 mod slicing;
+mod query_encoding;
 
 pub mod form_urlencoded;
 #[doc(hidden)]
@@ -181,7 +181,7 @@ pub struct Url {
 #[derive(Copy, Clone)]
 pub struct ParseOptions<'a> {
     base_url: Option<&'a Url>,
-    encoding_override: encoding::EncodingOverride,
+    encoding_override: EncodingOverride<'a>,
     violation_fn: Option<&'a dyn Fn(SyntaxViolation)>,
 }
 
@@ -194,14 +194,8 @@ impl<'a> ParseOptions<'a> {
 
     /// Override the character encoding of query strings.
     /// This is a legacy concept only relevant for HTML.
-    ///
-    /// `EncodingRef` is defined in [rust-encoding](https://github.com/lifthrasiir/rust-encoding).
-    ///
-    /// This method is only available if the `query_encoding`
-    /// [feature](http://doc.crates.io/manifest.html#the-features-section]) is enabled.
-    #[cfg(feature = "query_encoding")]
-    pub fn encoding_override(mut self, new: Option<encoding::EncodingRef>) -> Self {
-        self.encoding_override = EncodingOverride::from_opt_encoding(new).to_output_encoding();
+    pub fn encoding_override(mut self, new: EncodingOverride<'a>) -> Self {
+        self.encoding_override = new;
         self
     }
 
@@ -242,19 +236,6 @@ impl<'a> ParseOptions<'a> {
             context: Context::UrlParser,
         }
         .parse_url(input)
-    }
-}
-
-impl<'a> Debug for ParseOptions<'a> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(
-            f,
-            "ParseOptions {{ base_url: {:?}, encoding_override: {:?}, \
-             violation_fn: {:?} }}",
-            self.base_url,
-            self.encoding_override,
-            self.violation_fn.map(|_| "…")
-        )
     }
 }
 
@@ -384,7 +365,7 @@ impl Url {
     pub fn options<'a>() -> ParseOptions<'a> {
         ParseOptions {
             base_url: None,
-            encoding_override: EncodingOverride::utf8(),
+            encoding_override: None,
             violation_fn: None,
         }
     }

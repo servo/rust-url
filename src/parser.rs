@@ -10,12 +10,12 @@ use std::error::Error;
 use std::fmt::{self, Formatter, Write};
 use std::str;
 
-use encoding::EncodingOverride;
 use host::{Host, HostInternal};
 use percent_encoding::{
     percent_encode, utf8_percent_encode, DEFAULT_ENCODE_SET, PATH_SEGMENT_ENCODE_SET,
     QUERY_ENCODE_SET, SIMPLE_ENCODE_SET, USERINFO_ENCODE_SET,
 };
+use query_encoding::EncodingOverride;
 use Url;
 
 define_encode_set! {
@@ -274,7 +274,7 @@ impl<'i> Iterator for Input<'i> {
 pub struct Parser<'a> {
     pub serialization: String,
     pub base_url: Option<&'a Url>,
-    pub query_encoding_override: EncodingOverride,
+    pub query_encoding_override: EncodingOverride<'a>,
     pub violation_fn: Option<&'a dyn Fn(SyntaxViolation)>,
     pub context: Context,
 }
@@ -305,7 +305,7 @@ impl<'a> Parser<'a> {
         Parser {
             serialization: serialization,
             base_url: None,
-            query_encoding_override: EncodingOverride::utf8(),
+            query_encoding_override: None,
             violation_fn: None,
             context: Context::Setter,
         }
@@ -1238,9 +1238,9 @@ impl<'a> Parser<'a> {
 
         let encoding = match &self.serialization[..scheme_end as usize] {
             "http" | "https" | "file" | "ftp" | "gopher" => self.query_encoding_override,
-            _ => EncodingOverride::utf8(),
+            _ => None,
         };
-        let query_bytes = encoding.encode(query.into());
+        let query_bytes = ::query_encoding::encode(encoding, &query);
         self.serialization
             .extend(percent_encode(&query_bytes, QUERY_ENCODE_SET));
         remaining

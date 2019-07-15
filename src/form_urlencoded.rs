@@ -13,10 +13,9 @@
 //! Converts between a string (such as an URL’s query string)
 //! and a sequence of (name, value) pairs.
 
-use encoding::{decode_utf8_lossy, EncodingOverride};
 use percent_encoding::{percent_decode, percent_encode_byte};
+use query_encoding::{self, decode_utf8_lossy, EncodingOverride};
 use std::borrow::{Borrow, Cow};
-use std::fmt;
 use std::str;
 
 /// Convert a byte string in the `application/x-www-form-urlencoded` syntax
@@ -31,7 +30,7 @@ pub fn parse(input: &[u8]) -> Parse {
     Parse { input: input }
 }
 /// The return type of `parse()`.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 pub struct Parse<'a> {
     input: &'a [u8],
 }
@@ -91,7 +90,6 @@ impl<'a> Parse<'a> {
 }
 
 /// Like `Parse`, but yields pairs of `String` instead of pairs of `Cow<str>`.
-#[derive(Debug)]
 pub struct ParseIntoOwned<'a> {
     inner: Parse<'a>,
 }
@@ -161,20 +159,10 @@ impl<'a> Iterator for ByteSerialize<'a> {
 
 /// The [`application/x-www-form-urlencoded` serializer](
 /// https://url.spec.whatwg.org/#concept-urlencoded-serializer).
-#[derive(Debug)]
-pub struct Serializer<T: Target> {
+pub struct Serializer<'a, T: Target> {
     target: Option<T>,
     start_position: usize,
-    encoding: EncodingOverride,
-    custom_encoding: Option<SilentDebug<Box<dyn FnMut(&str) -> Cow<[u8]>>>>,
-}
-
-struct SilentDebug<T>(T);
-
-impl<T> fmt::Debug for SilentDebug<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("…")
-    }
+    encoding: EncodingOverride<'a>,
 }
 
 pub trait Target {
@@ -227,7 +215,7 @@ impl<'a> Target for ::UrlQuery<'a> {
     type Finished = &'a mut ::Url;
 }
 
-impl<T: Target> Serializer<T> {
+impl<'a, T: Target> Serializer<'a, T> {
     /// Create a new `application/x-www-form-urlencoded` serializer for the given target.
     ///
     /// If the target is non-empty,
@@ -246,8 +234,7 @@ impl<T: Target> Serializer<T> {
         Serializer {
             target: Some(target),
             start_position: start_position,
-            encoding: EncodingOverride::utf8(),
-            custom_encoding: None,
+            encoding: None,
         }
     }
 
@@ -260,18 +247,8 @@ impl<T: Target> Serializer<T> {
     }
 
     /// Set the character encoding to be used for names and values before percent-encoding.
-    #[cfg(feature = "query_encoding")]
-    pub fn encoding_override(&mut self, new: Option<::encoding::EncodingRef>) -> &mut Self {
-        self.encoding = EncodingOverride::from_opt_encoding(new).to_output_encoding();
-        self
-    }
-
-    /// Set the character encoding to be used for names and values before percent-encoding.
-    pub fn custom_encoding_override<F>(&mut self, encode: F) -> &mut Self
-    where
-        F: FnMut(&str) -> Cow<[u8]> + 'static,
-    {
-        self.custom_encoding = Some(SilentDebug(Box::new(encode)));
+    pub fn encoding_override(&mut self, new: EncodingOverride<'a>) -> &mut Self {
+        self.encoding = new;
         self
     }
 
@@ -283,7 +260,6 @@ impl<T: Target> Serializer<T> {
             string(&mut self.target),
             self.start_position,
             self.encoding,
-            &mut self.custom_encoding,
             name,
             value,
         );
@@ -312,31 +288,10 @@ impl<T: Target> Serializer<T> {
                     string,
                     self.start_position,
                     self.encoding,
-                    &mut self.custom_encoding,
                     k.as_ref(),
                     v.as_ref(),
                 );
             }
-        }
-        self
-    }
-
-    /// Add a name/value pair whose name is `_charset_`
-    /// and whose value is the character encoding’s name.
-    /// (See the `encoding_override()` method.)
-    ///
-    /// Panics if called after `.finish()`.
-    #[cfg(feature = "query_encoding")]
-    pub fn append_charset(&mut self) -> &mut Self {
-        assert!(
-            self.custom_encoding.is_none(),
-            "Cannot use both custom_encoding_override() and append_charset()"
-        );
-        {
-            let string = string(&mut self.target);
-            append_separator_if_needed(string, self.start_position);
-            string.push_str("_charset_=");
-            string.push_str(self.encoding.name());
         }
         self
     }
@@ -378,26 +333,15 @@ fn append_pair(
     string: &mut String,
     start_position: usize,
     encoding: EncodingOverride,
-    custom_encoding: &mut Option<SilentDebug<Box<dyn FnMut(&str) -> Cow<[u8]>>>>,
     name: &str,
     value: &str,
 ) {
     append_separator_if_needed(string, start_position);
-    append_encoded(name, string, encoding, custom_encoding);
+    append_encoded(name, string, encoding);
     string.push('=');
-    append_encoded(value, string, encoding, custom_encoding);
+    append_encoded(value, string, encoding);
 }
 
-fn append_encoded(
-    s: &str,
-    string: &mut String,
-    encoding: EncodingOverride,
-    custom_encoding: &mut Option<SilentDebug<Box<dyn FnMut(&str) -> Cow<[u8]>>>>,
-) {
-    let bytes = if let Some(SilentDebug(ref mut custom)) = *custom_encoding {
-        custom(s)
-    } else {
-        encoding.encode(s.into())
-    };
-    string.extend(byte_serialize(&bytes));
+fn append_encoded(s: &str, string: &mut String, encoding: EncodingOverride) {
+    string.extend(byte_serialize(&query_encoding::encode(encoding, s.into())))
 }
