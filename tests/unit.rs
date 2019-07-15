@@ -8,8 +8,9 @@
 
 //! Unit tests
 
-#[macro_use]
 extern crate url;
+#[macro_use]
+extern crate percent_encoding;
 
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
@@ -468,7 +469,7 @@ fn test_leading_dots() {
 // inside both a module and a function
 #[test]
 fn define_encode_set_scopes() {
-    use url::percent_encoding::{utf8_percent_encode, SIMPLE_ENCODE_SET};
+    use percent_encoding::{utf8_percent_encode, SIMPLE_ENCODE_SET};
 
     define_encode_set! {
         /// This encode set is used in the URL parser for query strings.
@@ -481,7 +482,7 @@ fn define_encode_set_scopes() {
     );
 
     mod m {
-        use url::percent_encoding::{utf8_percent_encode, SIMPLE_ENCODE_SET};
+        use percent_encoding::{utf8_percent_encode, SIMPLE_ENCODE_SET};
 
         define_encode_set! {
             /// This encode set is used in the URL parser for query strings.
