@@ -1427,10 +1427,10 @@ impl Url {
     /// # }
     /// # run().unwrap();
     /// ```
-    pub fn set_port(&mut self, mut port: Option<u16>) -> Result<(), ()> {
+    pub fn set_port(&mut self, mut port: Option<u16>) -> Result<(), ParseError> {
         // has_host implies !cannot_be_a_base
         if !self.has_host() || self.host() == Some(Host::Domain("")) || self.scheme() == "file" {
-            return Err(());
+            return Err(ParseError::EmptyHost);
         }
         if port.is_some() && port == parser::default_port(self.scheme()) {
             port = None
@@ -1679,9 +1679,9 @@ impl Url {
     /// # run().unwrap();
     /// ```
     ///
-    pub fn set_ip_host(&mut self, address: IpAddr) -> Result<(), ()> {
+    pub fn set_ip_host(&mut self, address: IpAddr) -> Result<(), ParseError> {
         if self.cannot_be_a_base() {
-            return Err(());
+            return Err(ParseError::SetHostOnCannotBeABaseUrl);
         }
 
         let address = match address {
@@ -1718,10 +1718,10 @@ impl Url {
     /// # }
     /// # run().unwrap();
     /// ```
-    pub fn set_password(&mut self, password: Option<&str>) -> Result<(), ()> {
+    pub fn set_password(&mut self, password: Option<&str>) -> Result<(), ParseError> {
         // has_host implies !cannot_be_a_base
         if !self.has_host() || self.host() == Some(Host::Domain("")) || self.scheme() == "file" {
-            return Err(());
+            return Err(ParseError::EmptyHost);
         }
         if let Some(password) = password {
             let host_and_after = self.slice(self.host_start..).to_owned();
@@ -1810,10 +1810,10 @@ impl Url {
     /// # }
     /// # run().unwrap();
     /// ```
-    pub fn set_username(&mut self, username: &str) -> Result<(), ()> {
+    pub fn set_username(&mut self, username: &str) -> Result<(), ParseError> {
         // has_host implies !cannot_be_a_base
         if !self.has_host() || self.host() == Some(Host::Domain("")) || self.scheme() == "file" {
-            return Err(());
+            return Err(ParseError::EmptyHost);
         }
         let username_start = self.scheme_end + 3;
         debug_assert!(self.slice(self.scheme_end..username_start) == "://");
@@ -1919,13 +1919,13 @@ impl Url {
     /// # }
     /// # run().unwrap();
     /// ```
-    pub fn set_scheme(&mut self, scheme: &str) -> Result<(), ()> {
+    pub fn set_scheme(&mut self, scheme: &str) -> Result<(), ParseError> {
         let mut parser = Parser::for_setter(String::new());
         let remaining = parser.parse_scheme(parser::Input::new(scheme))?;
         if !remaining.is_empty()
             || (!self.has_host() && SchemeType::from(&parser.serialization).is_special())
         {
-            return Err(());
+            return Err(ParseError::InvalidScheme);
         }
         let old_scheme_end = self.scheme_end;
         let new_scheme_end = to_u32(parser.serialization.len()).unwrap();
@@ -1964,7 +1964,7 @@ impl Url {
     /// # if cfg!(unix) {
     /// use url::Url;
     ///
-    /// # fn run() -> Result<(), ()> {
+    /// # fn run() -> Result<(), url::ParseError> {
     /// let url = Url::from_file_path("/tmp/foo.txt")?;
     /// assert_eq!(url.as_str(), "file:///tmp/foo.txt");
     ///
@@ -1979,7 +1979,7 @@ impl Url {
     /// # }
     /// ```
     #[cfg(any(unix, windows, target_os = "redox"))]
-    pub fn from_file_path<P: AsRef<Path>>(path: P) -> Result<Url, ()> {
+    pub fn from_file_path<P: AsRef<Path>>(path: P) -> Result<Url, ParseError> {
         let mut serialization = "file://".to_owned();
         let host_start = serialization.len() as u32;
         let (host_end, host) = path_to_file_url_segments(path.as_ref(), &mut serialization)?;
@@ -2015,7 +2015,7 @@ impl Url {
     /// Note that `std::path` does not consider trailing slashes significant
     /// and usually does not include them (e.g. in `Path::parent()`).
     #[cfg(any(unix, windows, target_os = "redox"))]
-    pub fn from_directory_path<P: AsRef<Path>>(path: P) -> Result<Url, ()> {
+    pub fn from_directory_path<P: AsRef<Path>>(path: P) -> Result<Url, ParseError> {
         let mut url = Url::from_file_path(path)?;
         if !url.serialization.ends_with('/') {
             url.serialization.push('/')
@@ -2124,26 +2124,26 @@ impl Url {
     /// let path = url.to_file_path();
     /// ```
     ///
-    /// Returns `Err` if the host is neither empty nor `"localhost"` (except on Windows, where
+    /// Returns `Err(ParseError::InvalidLocalPath)` if the host is neither empty nor `"localhost"` (except on Windows, where
     /// `file:` URLs may have a non-local host),
     /// or if `Path::new_opt()` returns `None`.
     /// (That is, if the percent-decoded path contains a NUL byte or,
     /// for a Windows path, is not UTF-8.)
     #[inline]
     #[cfg(any(unix, windows, target_os = "redox"))]
-    pub fn to_file_path(&self) -> Result<PathBuf, ()> {
+    pub fn to_file_path(&self) -> Result<PathBuf, ParseError> {
         if let Some(segments) = self.path_segments() {
             let host = match self.host() {
                 None | Some(Host::Domain("localhost")) => None,
                 Some(_) if cfg!(windows) && self.scheme() == "file" => {
                     Some(&self.serialization[self.host_start as usize..self.host_end as usize])
                 }
-                _ => return Err(()),
+                _ => return Err(ParseError::InvalidLocalPath),
             };
 
             return file_url_segments_to_pathbuf(host, segments);
         }
-        Err(())
+        Err(ParseError::InvalidLocalPath)
     }
 
     // Private helper methods:
@@ -2293,10 +2293,10 @@ impl<'de> serde::Deserialize<'de> for Url {
 fn path_to_file_url_segments(
     path: &Path,
     serialization: &mut String,
-) -> Result<(u32, HostInternal), ()> {
+) -> Result<(u32, HostInternal), ParseError> {
     use std::os::unix::prelude::OsStrExt;
     if !path.is_absolute() {
-        return Err(());
+        return Err(ParseError::PathNotAbsolute);
     }
     let host_end = to_u32(serialization.len()).unwrap();
     let mut empty = true;
@@ -2378,12 +2378,12 @@ fn path_to_file_url_segments_windows(
 fn file_url_segments_to_pathbuf(
     host: Option<&str>,
     segments: str::Split<char>,
-) -> Result<PathBuf, ()> {
+) -> Result<PathBuf, ParseError> {
     use std::ffi::OsStr;
     use std::os::unix::prelude::OsStrExt;
 
     if host.is_some() {
-        return Err(());
+        return Err(ParseError::InvalidLocalPath);
     }
 
     let mut bytes = if cfg!(target_os = "redox") {

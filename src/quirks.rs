@@ -56,7 +56,7 @@ pub fn protocol(url: &Url) -> &str {
 }
 
 /// Setter for https://url.spec.whatwg.org/#dom-url-protocol
-pub fn set_protocol(url: &mut Url, mut new_protocol: &str) -> Result<(), ()> {
+pub fn set_protocol(url: &mut Url, mut new_protocol: &str) -> Result<(), ParseError> {
     // The scheme state in the spec ignores everything after the first `:`,
     // but `set_scheme` errors if there is more.
     if let Some(position) = new_protocol.find(':') {
@@ -72,7 +72,7 @@ pub fn username(url: &Url) -> &str {
 }
 
 /// Setter for https://url.spec.whatwg.org/#dom-url-username
-pub fn set_username(url: &mut Url, new_username: &str) -> Result<(), ()> {
+pub fn set_username(url: &mut Url, new_username: &str) -> Result<(), ParseError> {
     url.set_username(new_username)
 }
 
@@ -83,7 +83,7 @@ pub fn password(url: &Url) -> &str {
 }
 
 /// Setter for https://url.spec.whatwg.org/#dom-url-password
-pub fn set_password(url: &mut Url, new_password: &str) -> Result<(), ()> {
+pub fn set_password(url: &mut Url, new_password: &str) -> Result<(), ParseError> {
     url.set_password(if new_password.is_empty() {
         None
     } else {
