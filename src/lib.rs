@@ -930,8 +930,8 @@ impl Url {
     /// let url = Url::parse("https://example.com")?;
     /// assert_eq!(url.port(), None);
     ///
-    /// let url = Url::parse( "https://example.com:443/" )?;
-    /// assert_eq!( url.port(), None );
+    /// let url = Url::parse("https://example.com:443/")?;
+    /// assert_eq!(url.port(), None);
     ///
     /// let url = Url::parse("ssh://example.com:22")?;
     /// assert_eq!(url.port(), Some(22));
