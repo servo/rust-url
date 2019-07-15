@@ -59,9 +59,9 @@ impl<'a> Iterator for Parse<'a> {
 
 fn decode(input: &[u8]) -> Cow<str> {
     let replaced = replace_plus(input);
-    decode_utf8_lossy(match percent_decode(&replaced).if_any() {
-        Some(vec) => Cow::Owned(vec),
-        None => replaced,
+    decode_utf8_lossy(match percent_decode(&replaced).into() {
+        Cow::Owned(vec) => Cow::Owned(vec),
+        Cow::Borrowed(_) => replaced,
     })
 }
 
