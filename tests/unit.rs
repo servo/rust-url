@@ -86,6 +86,29 @@ fn new_path_windows_fun() {
     }
 }
 
+#[test]
+fn to_file_path_for_relative_windows_paths() {
+    if cfg!(windows) {
+        let url = Url::parse("file://example.com/C:foo").unwrap();
+        assert!(url.to_file_path().is_ok());
+
+        let url = Url::parse("file://example.com/C:").unwrap();
+        assert!(url.to_file_path().is_err());
+
+        let url = Url::parse("file:///E:foo").unwrap();
+        assert!(url.to_file_path().is_err());
+
+        let url = Url::parse("file:///E:").unwrap();
+        assert!(url.to_file_path().is_err());
+
+        let url = Url::parse("file://localhost/C:foo").unwrap();
+        assert!(url.to_file_path().is_err());
+
+        let url = Url::parse("file://localhost/C:").unwrap();
+        assert!(url.to_file_path().is_err());
+    }
+}
+
 
 #[test]
 fn new_directory_paths() {

@@ -2441,8 +2441,9 @@ fn file_url_segments_to_pathbuf_windows(host: Option<&str>, mut segments: str::S
         }
     }
     let path = PathBuf::from(string);
-    debug_assert!(path.is_absolute(),
-                  "to_file_path() failed to produce an absolute Path");
+    if !path.is_absolute() {
+        return Err(());
+    }
     Ok(path)
 }
 
