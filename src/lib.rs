@@ -915,9 +915,10 @@ impl Url {
         }
     }
 
-    /// Return the port number for this URL, if any. Note that default port numbers are never reflected
-    /// by the serialization, use the `port_or_known_default()` method if you want a default port
-    /// number returned.
+    /// Return the port number for this URL, if any.
+    ///
+    /// Note that default port numbers are never reflected by the serialization,
+    /// use the `port_or_known_default()` method if you want a default port number returned.
     ///
     /// # Examples
     ///
@@ -930,7 +931,7 @@ impl Url {
     /// assert_eq!(url.port(), None);
     ///
     /// let url = Url::parse( "https://example.com:443/" )?;
-    /// assert_eq!( url.port( ), None );
+    /// assert_eq!( url.port(), None );
     ///
     /// let url = Url::parse("ssh://example.com:22")?;
     /// assert_eq!(url.port(), Some(22));
@@ -1429,8 +1430,9 @@ impl Url {
         self.serialization.push_str(after_path)
     }
 
-    /// Change this URL’s port number. Note that default port numbers are not reflected in the
-    /// serialization.
+    /// Change this URL’s port number.
+    ///
+    /// Note that default port numbers are not reflected in the serialization.
     ///
     /// If this URL is cannot-be-a-base, does not have a host, or has the `file` scheme;
     /// do nothing and return `Err`.
