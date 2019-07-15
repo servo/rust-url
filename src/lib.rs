@@ -978,7 +978,7 @@ impl Url {
     /// the closure is called to obtain a port number.
     /// Typically, this closure can match on the result `Url::scheme`
     /// to have per-scheme default port numbers,
-    /// and panic for schemes it’s not prepared to handle.
+    /// and return `None` for schemes it’s not prepared to handle.
     /// For example:
     ///
     /// ```rust
@@ -989,26 +989,24 @@ impl Url {
     ///     TcpStream::connect(url.with_default_port(default_port)?)
     /// }
     ///
-    /// fn default_port(url: &Url) -> Result<u16, ()> {
+    /// fn default_port(url: &Url) -> Option<u16> {
     ///     match url.scheme() {
-    ///         "git" => Ok(9418),
-    ///         "git+ssh" => Ok(22),
-    ///         "git+https" => Ok(443),
-    ///         "git+http" => Ok(80),
-    ///         _ => Err(()),
+    ///         "git" => Some(9418),
+    ///         "git+ssh" => Some(22),
+    ///         "git+https" => Some(443),
+    ///         "git+http" => Some(80),
+    ///         _ => None,
     ///     }
     /// }
     /// ```
     pub fn with_default_port<F>(&self, f: F) -> io::Result<HostAndPort<&str>>
-    where F: FnOnce(&Url) -> Result<u16, ()> {
+    where F: FnOnce(&Url) -> Option<u16> {
         Ok(HostAndPort {
             host: self.host()
-                      .ok_or(())
-                      .or_else(|()| io_error("URL has no host"))?,
+                      .ok_or_else(|| io_error("URL has no host"))?,
             port: self.port_or_known_default()
-                      .ok_or(())
-                      .or_else(|()| f(self))
-                      .or_else(|()| io_error("URL has no port number"))?
+                      .or_else(|| f(self))
+                      .ok_or_else(|| io_error("URL has no port number"))?
         })
     }
 
@@ -2128,7 +2126,7 @@ impl ToSocketAddrs for Url {
     type Iter = SocketAddrs;
 
     fn to_socket_addrs(&self) -> io::Result<Self::Iter> {
-        self.with_default_port(|_| Err(()))?.to_socket_addrs()
+        self.with_default_port(|_| None)?.to_socket_addrs()
     }
 }
 
@@ -2346,7 +2344,6 @@ fn path_to_file_url_segments_windows(path: &Path, serialization: &mut String)
 fn file_url_segments_to_pathbuf(host: Option<&str>, segments: str::Split<char>) -> Result<PathBuf, ()> {
     use std::ffi::OsStr;
     use std::os::unix::prelude::OsStrExt;
-    use std::path::PathBuf;
 
     if host.is_some() {
         return Err(());
@@ -2422,8 +2419,8 @@ fn file_url_segments_to_pathbuf_windows(host: Option<&str>, mut segments: str::S
     Ok(path)
 }
 
-fn io_error<T>(reason: &str) -> io::Result<T> {
-    Err(io::Error::new(io::ErrorKind::InvalidData, reason))
+fn io_error(reason: &str) -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidData, reason)
 }
 
 /// Implementation detail of `Url::query_pairs_mut`. Typically not used directly.
