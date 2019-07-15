@@ -11,9 +11,7 @@ use parser::{ParseError, ParseResult};
 use percent_encoding::{percent_decode, utf8_percent_encode, SIMPLE_ENCODE_SET};
 use std::cmp;
 use std::fmt::{self, Formatter};
-use std::io;
-use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
-use std::vec;
+use std::net::{Ipv4Addr, Ipv6Addr};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum HostInternal {
@@ -224,81 +222,6 @@ impl<S: AsRef<str>> fmt::Display for Host<S> {
                 write_ipv6(addr, f)?;
                 f.write_str("]")
             }
-        }
-    }
-}
-
-/// This mostly exists because coherence rules don’t allow us to implement
-/// `ToSocketAddrs for (Host<S>, u16)`.
-#[derive(Clone, Debug)]
-pub struct HostAndPort<S = String> {
-    pub host: Host<S>,
-    pub port: u16,
-}
-
-impl<'a> HostAndPort<&'a str> {
-    /// Return a copy of `self` that owns an allocated `String` but does not borrow an `&Url`.
-    pub fn to_owned(&self) -> HostAndPort<String> {
-        HostAndPort {
-            host: self.host.to_owned(),
-            port: self.port,
-        }
-    }
-}
-
-impl<S: AsRef<str>> fmt::Display for HostAndPort<S> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        self.host.fmt(f)?;
-        f.write_str(":")?;
-        self.port.fmt(f)
-    }
-}
-
-impl<S: AsRef<str>> ToSocketAddrs for HostAndPort<S> {
-    type Iter = SocketAddrs;
-
-    fn to_socket_addrs(&self) -> io::Result<Self::Iter> {
-        let port = self.port;
-        match self.host {
-            Host::Domain(ref domain) => Ok(SocketAddrs {
-                // FIXME: use std::net::lookup_host when it’s stable.
-                state: SocketAddrsState::Domain((domain.as_ref(), port).to_socket_addrs()?),
-            }),
-            Host::Ipv4(address) => Ok(SocketAddrs {
-                state: SocketAddrsState::One(SocketAddr::V4(SocketAddrV4::new(address, port))),
-            }),
-            Host::Ipv6(address) => Ok(SocketAddrs {
-                state: SocketAddrsState::One(SocketAddr::V6(SocketAddrV6::new(
-                    address, port, 0, 0,
-                ))),
-            }),
-        }
-    }
-}
-
-/// Socket addresses for an URL.
-#[derive(Debug)]
-pub struct SocketAddrs {
-    state: SocketAddrsState,
-}
-
-#[derive(Debug)]
-enum SocketAddrsState {
-    Domain(vec::IntoIter<SocketAddr>),
-    One(SocketAddr),
-    Done,
-}
-
-impl Iterator for SocketAddrs {
-    type Item = SocketAddr;
-    fn next(&mut self) -> Option<SocketAddr> {
-        match self.state {
-            SocketAddrsState::Domain(ref mut iter) => iter.next(),
-            SocketAddrsState::One(s) => {
-                self.state = SocketAddrsState::Done;
-                Some(s)
-            }
-            SocketAddrsState::Done => None,
         }
     }
 }

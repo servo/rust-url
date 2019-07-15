@@ -16,7 +16,7 @@ use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::path::{Path, PathBuf};
-use url::{form_urlencoded, Host, HostAndPort, Url};
+use url::{form_urlencoded, Host, Url};
 
 #[test]
 fn size() {
@@ -327,42 +327,6 @@ fn form_urlencoded_custom_encoding_override() {
         .append_pair("foo", "bar")
         .finish();
     assert_eq!(encoded, "FOO=BAR");
-}
-
-#[test]
-fn host_and_port_display() {
-    assert_eq!(
-        format!(
-            "{}",
-            HostAndPort {
-                host: Host::Domain("www.mozilla.org"),
-                port: 80
-            }
-        ),
-        "www.mozilla.org:80"
-    );
-    assert_eq!(
-        format!(
-            "{}",
-            HostAndPort::<String> {
-                host: Host::Ipv4(Ipv4Addr::new(1, 35, 33, 49)),
-                port: 65535
-            }
-        ),
-        "1.35.33.49:65535"
-    );
-    assert_eq!(
-        format!(
-            "{}",
-            HostAndPort::<String> {
-                host: Host::Ipv6(Ipv6Addr::new(
-                    0x2001, 0x0db8, 0x85a3, 0x08d3, 0x1319, 0x8a2e, 0x0370, 0x7344
-                )),
-                port: 1337
-            }
-        ),
-        "[2001:db8:85a3:8d3:1319:8a2e:370:7344]:1337"
-    )
 }
 
 #[test]
