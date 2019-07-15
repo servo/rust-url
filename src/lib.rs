@@ -105,7 +105,7 @@ assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css");
 # run().unwrap();
 */
 
-#![doc(html_root_url = "https://docs.rs/url/1.7.0")]
+#![doc(html_root_url = "https://docs.rs/url/2.0.0")]
 
 #[macro_use]
 extern crate matches;
