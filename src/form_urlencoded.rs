@@ -13,7 +13,7 @@
 //! Converts between a string (such as an URL’s query string)
 //! and a sequence of (name, value) pairs.
 
-use encoding::EncodingOverride;
+use encoding::{decode_utf8_lossy, EncodingOverride};
 use percent_encoding::{percent_decode, percent_encode_byte};
 use std::borrow::{Borrow, Cow};
 use std::fmt;
@@ -28,61 +28,12 @@ use std::str;
 /// converted to `[("#first", "%try%")]`.
 #[inline]
 pub fn parse(input: &[u8]) -> Parse {
-    Parse {
-        input: input,
-        encoding: EncodingOverride::utf8(),
-    }
+    Parse { input: input }
 }
-
-/// Convert a byte string in the `application/x-www-form-urlencoded` syntax
-/// into a iterator of (name, value) pairs.
-///
-/// Use `parse(input.as_bytes())` to parse a `&str` string.
-///
-/// This function is only available if the `query_encoding`
-/// [feature](http://doc.crates.io/manifest.html#the-features-section]) is enabled.
-///
-/// Arguments:
-///
-/// * `encoding_override`: The character encoding each name and values is decoded as
-///    after percent-decoding. Defaults to UTF-8.
-///    `EncodingRef` is defined in [rust-encoding](https://github.com/lifthrasiir/rust-encoding).
-/// * `use_charset`: The *use _charset_ flag*. If in doubt, set to `false`.
-#[cfg(feature = "query_encoding")]
-pub fn parse_with_encoding<'a>(
-    input: &'a [u8],
-    encoding_override: Option<::encoding::EncodingRef>,
-    use_charset: bool,
-) -> Result<Parse<'a>, ()> {
-    let mut encoding = EncodingOverride::from_opt_encoding(encoding_override);
-    if !(encoding.is_utf8() || input.is_ascii()) {
-        return Err(());
-    }
-    if use_charset {
-        for sequence in input.split(|&b| b == b'&') {
-            // No '+' in "_charset_" to replace with ' '.
-            if sequence.starts_with(b"_charset_=") {
-                let value = &sequence[b"_charset_=".len()..];
-                // Skip replacing '+' with ' ' in value since no encoding label contains either:
-                // https://encoding.spec.whatwg.org/#names-and-labels
-                if let Some(e) = EncodingOverride::lookup(value) {
-                    encoding = e;
-                    break;
-                }
-            }
-        }
-    }
-    Ok(Parse {
-        input: input,
-        encoding: encoding,
-    })
-}
-
 /// The return type of `parse()`.
 #[derive(Copy, Clone, Debug)]
 pub struct Parse<'a> {
     input: &'a [u8],
-    encoding: EncodingOverride,
 }
 
 impl<'a> Iterator for Parse<'a> {
@@ -102,14 +53,14 @@ impl<'a> Iterator for Parse<'a> {
             let mut split2 = sequence.splitn(2, |&b| b == b'=');
             let name = split2.next().unwrap();
             let value = split2.next().unwrap_or(&[][..]);
-            return Some((decode(name, self.encoding), decode(value, self.encoding)));
+            return Some((decode(name), decode(value)));
         }
     }
 }
 
-fn decode(input: &[u8], encoding: EncodingOverride) -> Cow<str> {
+fn decode(input: &[u8]) -> Cow<str> {
     let replaced = replace_plus(input);
-    encoding.decode(match percent_decode(&replaced).if_any() {
+    decode_utf8_lossy(match percent_decode(&replaced).if_any() {
         Some(vec) => Cow::Owned(vec),
         None => replaced,
     })

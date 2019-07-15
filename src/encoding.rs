@@ -17,11 +17,9 @@ use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
 
 #[cfg(feature = "query_encoding")]
-use self::encoding::label::encoding_from_whatwg_label;
+use self::encoding::types::EncoderTrap;
 #[cfg(feature = "query_encoding")]
 pub use self::encoding::types::EncodingRef;
-#[cfg(feature = "query_encoding")]
-use self::encoding::types::{DecoderTrap, EncoderTrap};
 
 #[cfg(feature = "query_encoding")]
 #[derive(Copy, Clone)]
@@ -51,15 +49,6 @@ impl EncodingOverride {
         EncodingOverride { encoding: None }
     }
 
-    pub fn lookup(label: &[u8]) -> Option<Self> {
-        // Don't use String::from_utf8_lossy since no encoding label contains U+FFFD
-        // https://encoding.spec.whatwg.org/#names-and-labels
-        ::std::str::from_utf8(label)
-            .ok()
-            .and_then(encoding_from_whatwg_label)
-            .map(Self::from_encoding)
-    }
-
     /// https://encoding.spec.whatwg.org/#get-an-output-encoding
     pub fn to_output_encoding(self) -> Self {
         if let Some(encoding) = self.encoding {
@@ -70,25 +59,10 @@ impl EncodingOverride {
         self
     }
 
-    pub fn is_utf8(&self) -> bool {
-        self.encoding.is_none()
-    }
-
     pub fn name(&self) -> &'static str {
         match self.encoding {
             Some(encoding) => encoding.name(),
             None => "utf-8",
-        }
-    }
-
-    pub fn decode<'a>(&self, input: Cow<'a, [u8]>) -> Cow<'a, str> {
-        match self.encoding {
-            // `encoding.decode` never returns `Err` when called with `DecoderTrap::Replace`
-            Some(encoding) => encoding
-                .decode(&input, DecoderTrap::Replace)
-                .unwrap()
-                .into(),
-            None => decode_utf8_lossy(input),
         }
     }
 
@@ -121,10 +95,6 @@ impl EncodingOverride {
     #[inline]
     pub fn utf8() -> Self {
         EncodingOverride
-    }
-
-    pub fn decode<'a>(&self, input: Cow<'a, [u8]>) -> Cow<'a, str> {
-        decode_utf8_lossy(input)
     }
 
     pub fn encode<'a>(&self, input: Cow<'a, str>) -> Cow<'a, [u8]> {
