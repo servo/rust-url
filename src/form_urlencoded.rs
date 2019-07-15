@@ -175,7 +175,7 @@ pub struct ByteSerialize<'a> {
 }
 
 fn byte_serialized_unchanged(byte: u8) -> bool {
-    matches!(byte, b'*' | b'-' | b'.' | b'0' ... b'9' | b'A' ... b'Z' | b'_' | b'a' ... b'z')
+    matches!(byte, b'*' | b'-' | b'.' | b'0' ..= b'9' | b'A' ..= b'Z' | b'_' | b'a' ..= b'z')
 }
 
 impl<'a> Iterator for ByteSerialize<'a> {
@@ -216,7 +216,7 @@ pub struct Serializer<T: Target> {
     target: Option<T>,
     start_position: usize,
     encoding: EncodingOverride,
-    custom_encoding: Option<SilentDebug<Box<FnMut(&str) -> Cow<[u8]>>>>,
+    custom_encoding: Option<SilentDebug<Box<dyn FnMut(&str) -> Cow<[u8]>>>>,
 }
 
 struct SilentDebug<T>(T);
@@ -391,7 +391,7 @@ fn string<T: Target>(target: &mut Option<T>) -> &mut String {
 }
 
 fn append_pair(string: &mut String, start_position: usize, encoding: EncodingOverride,
-               custom_encoding: &mut Option<SilentDebug<Box<FnMut(&str) -> Cow<[u8]>>>>,
+               custom_encoding: &mut Option<SilentDebug<Box<dyn FnMut(&str) -> Cow<[u8]>>>>,
                name: &str, value: &str) {
     append_separator_if_needed(string, start_position);
     append_encoded(name, string, encoding, custom_encoding);
@@ -400,7 +400,7 @@ fn append_pair(string: &mut String, start_position: usize, encoding: EncodingOve
 }
 
 fn append_encoded(s: &str, string: &mut String, encoding: EncodingOverride,
-               custom_encoding: &mut Option<SilentDebug<Box<FnMut(&str) -> Cow<[u8]>>>>) {
+               custom_encoding: &mut Option<SilentDebug<Box<dyn FnMut(&str) -> Cow<[u8]>>>>) {
     let bytes = if let Some(SilentDebug(ref mut custom)) = *custom_encoding {
         custom(s)
     } else {

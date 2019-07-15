@@ -271,8 +271,8 @@ impl<'i> Iterator for Input<'i> {
 /// Wrapper for syntax violation callback functions.
 #[derive(Copy, Clone)]
 pub enum ViolationFn<'a> {
-    NewFn(&'a (Fn(SyntaxViolation) + 'a)),
-    OldFn(&'a (Fn(&'static str) + 'a)),
+    NewFn(&'a (dyn Fn(SyntaxViolation) + 'a)),
+    OldFn(&'a (dyn Fn(&'static str) + 'a)),
     NoOp
 }
 
@@ -376,7 +376,7 @@ impl<'a> Parser<'a> {
         debug_assert!(self.serialization.is_empty());
         while let Some(c) = input.next() {
             match c {
-                'a'...'z' | 'A'...'Z' | '0'...'9' | '+' | '-' | '.' => {
+                'a'..='z' | 'A'..='Z' | '0'..='9' | '+' | '-' | '.' => {
                     self.serialization.push(c.to_ascii_lowercase())
                 }
                 ':' => return Ok(input),
@@ -1218,7 +1218,7 @@ impl<'a> Parser<'a> {
 
 #[inline]
 fn is_ascii_hex_digit(c: char) -> bool {
-    matches!(c, 'a'...'f' | 'A'...'F' | '0'...'9')
+    matches!(c, 'a'..='f' | 'A'..='F' | '0'..='9')
 }
 
 // Non URL code points:
@@ -1231,20 +1231,20 @@ fn is_ascii_hex_digit(c: char) -> bool {
 #[inline]
 fn is_url_code_point(c: char) -> bool {
     matches!(c,
-        'a'...'z' |
-        'A'...'Z' |
-        '0'...'9' |
+        'a'..='z' |
+        'A'..='Z' |
+        '0'..='9' |
         '!' | '$' | '&' | '\'' | '(' | ')' | '*' | '+' | ',' | '-' |
         '.' | '/' | ':' | ';' | '=' | '?' | '@' | '_' | '~' |
-        '\u{A0}'...'\u{D7FF}' | '\u{E000}'...'\u{FDCF}' | '\u{FDF0}'...'\u{FFFD}' |
-        '\u{10000}'...'\u{1FFFD}' | '\u{20000}'...'\u{2FFFD}' |
-        '\u{30000}'...'\u{3FFFD}' | '\u{40000}'...'\u{4FFFD}' |
-        '\u{50000}'...'\u{5FFFD}' | '\u{60000}'...'\u{6FFFD}' |
-        '\u{70000}'...'\u{7FFFD}' | '\u{80000}'...'\u{8FFFD}' |
-        '\u{90000}'...'\u{9FFFD}' | '\u{A0000}'...'\u{AFFFD}' |
-        '\u{B0000}'...'\u{BFFFD}' | '\u{C0000}'...'\u{CFFFD}' |
-        '\u{D0000}'...'\u{DFFFD}' | '\u{E1000}'...'\u{EFFFD}' |
-        '\u{F0000}'...'\u{FFFFD}' | '\u{100000}'...'\u{10FFFD}')
+        '\u{A0}'..='\u{D7FF}' | '\u{E000}'..='\u{FDCF}' | '\u{FDF0}'..='\u{FFFD}' |
+        '\u{10000}'..='\u{1FFFD}' | '\u{20000}'..='\u{2FFFD}' |
+        '\u{30000}'..='\u{3FFFD}' | '\u{40000}'..='\u{4FFFD}' |
+        '\u{50000}'..='\u{5FFFD}' | '\u{60000}'..='\u{6FFFD}' |
+        '\u{70000}'..='\u{7FFFD}' | '\u{80000}'..='\u{8FFFD}' |
+        '\u{90000}'..='\u{9FFFD}' | '\u{A0000}'..='\u{AFFFD}' |
+        '\u{B0000}'..='\u{BFFFD}' | '\u{C0000}'..='\u{CFFFD}' |
+        '\u{D0000}'..='\u{DFFFD}' | '\u{E1000}'..='\u{EFFFD}' |
+        '\u{F0000}'..='\u{FFFFD}' | '\u{100000}'..='\u{10FFFD}')
 }
 
 /// https://url.spec.whatwg.org/#c0-controls-and-space
@@ -1256,7 +1256,7 @@ fn c0_control_or_space(ch: char) -> bool {
 /// https://url.spec.whatwg.org/#ascii-alpha
 #[inline]
 pub fn ascii_alpha(ch: char) -> bool {
-    matches!(ch, 'a'...'z' | 'A'...'Z')
+    matches!(ch, 'a'..='z' | 'A'..='Z')
 }
 
 #[inline]

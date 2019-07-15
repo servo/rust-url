@@ -500,7 +500,7 @@ fn parse_ipv6addr(input: &str) -> ParseResult<Ipv6Addr> {
             let mut ipv4_piece = None;
             while i < len {
                 let digit = match input[i] {
-                    c @ b'0' ... b'9' => c - b'0',
+                    c @ b'0' ..= b'9' => c - b'0',
                     _ => break
                 };
                 match ipv4_piece {

@@ -216,7 +216,7 @@ impl<'a> ParseOptions<'a> {
     /// latter, passing the `SyntaxViolation` description. Only the last value
     /// passed to either method will be used by a parser.
     #[deprecated]
-    pub fn log_syntax_violation(mut self, new: Option<&'a Fn(&'static str)>) -> Self {
+    pub fn log_syntax_violation(mut self, new: Option<&'a dyn Fn(&'static str)>) -> Self {
         self.violation_fn = match new {
             Some(f) => ViolationFn::OldFn(f),
             None => ViolationFn::NoOp
@@ -246,7 +246,7 @@ impl<'a> ParseOptions<'a> {
     /// # }
     /// # run().unwrap();
     /// ```
-    pub fn syntax_violation_callback(mut self, new: Option<&'a Fn(SyntaxViolation)>) -> Self {
+    pub fn syntax_violation_callback(mut self, new: Option<&'a dyn Fn(SyntaxViolation)>) -> Self {
         self.violation_fn = match new {
             Some(f) => ViolationFn::NewFn(f),
             None => ViolationFn::NoOp
@@ -484,9 +484,9 @@ impl Url {
         }
 
         assert!(self.scheme_end >= 1);
-        assert!(matches!(self.byte_at(0), b'a'...b'z' | b'A'...b'Z'));
+        assert!(matches!(self.byte_at(0), b'a'..=b'z' | b'A'..=b'Z'));
         assert!(self.slice(1..self.scheme_end).chars()
-                .all(|c| matches!(c, 'a'...'z' | 'A'...'Z' | '0'...'9' | '+' | '-' | '.')));
+                .all(|c| matches!(c, 'a'..='z' | 'A'..='Z' | '0'..='9' | '+' | '-' | '.')));
         assert_eq!(self.byte_at(self.scheme_end), b':');
 
         if self.slice(self.scheme_end + 1 ..).starts_with("//") {
