@@ -1462,14 +1462,14 @@ impl Url {
     /// use url::Url;
     /// # use std::error::Error;
     ///
-    /// # fn run( ) -> Result< ( ), Box< Error > > {
-    /// let mut url = Url::parse( "https://example.org/" )?;
+    /// # fn run() -> Result<(), Box<Error>> {
+    /// let mut url = Url::parse("https://example.org/")?;
     ///
-    /// url.set_port( Some( 443 ) ).map_err( |_| "cannot be base" )?;
-    /// assert!( url.port( ).is_none( ) );
-    /// # Ok( () )
+    /// url.set_port(Some(443)).map_err(|_| "cannot be base")?;
+    /// assert!(url.port().is_none());
+    /// # Ok(())
     /// # }
-    /// # run( ).unwrap( );
+    /// # run().unwrap();
     /// ```
     ///
     /// Cannot set port for cannot-be-a-base URLs:
