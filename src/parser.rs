@@ -165,17 +165,17 @@ pub struct Input<'i> {
 
 impl<'i> Input<'i> {
     pub fn new(input: &'i str) -> Self {
-        Input::with_log(input, ViolationFn::NoOp)
+        Input::with_log(input, None)
     }
 
-    pub fn with_log(original_input: &'i str, vfn: ViolationFn) -> Self {
+    pub fn with_log(original_input: &'i str, vfn: Option<&dyn Fn(SyntaxViolation)>) -> Self {
         let input = original_input.trim_matches(c0_control_or_space);
-        if vfn.is_set() {
+        if let Some(vfn) = vfn {
             if input.len() < original_input.len() {
-                vfn.call(SyntaxViolation::C0SpaceIgnored)
+                vfn(SyntaxViolation::C0SpaceIgnored)
             }
             if input.chars().any(|c| matches!(c, '\t' | '\n' | '\r')) {
-                vfn.call(SyntaxViolation::TabOrNewlineIgnored)
+                vfn(SyntaxViolation::TabOrNewlineIgnored)
             }
         }
         Input { chars: input.chars() }
@@ -268,56 +268,11 @@ impl<'i> Iterator for Input<'i> {
     }
 }
 
-/// Wrapper for syntax violation callback functions.
-#[derive(Copy, Clone)]
-pub enum ViolationFn<'a> {
-    NewFn(&'a (dyn Fn(SyntaxViolation) + 'a)),
-    NoOp
-}
-
-impl<'a> ViolationFn<'a> {
-    /// Call with a violation.
-    pub fn call(self, v: SyntaxViolation) {
-        match self {
-            ViolationFn::NewFn(f) => f(v),
-            ViolationFn::NoOp => {}
-        }
-    }
-
-    /// Call with a violation, if provided test returns true. Avoids
-    /// the test entirely if `NoOp`.
-    pub fn call_if<F>(self, v: SyntaxViolation, test: F)
-        where F: Fn() -> bool
-    {
-        match self {
-            ViolationFn::NewFn(f) => if test() { f(v) },
-            ViolationFn::NoOp => {} // avoid test
-        }
-    }
-
-    /// True if not `NoOp`
-    pub fn is_set(self) -> bool {
-        match self {
-            ViolationFn::NoOp => false,
-            _ => true
-        }
-    }
-}
-
-impl<'a> fmt::Debug for ViolationFn<'a> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match *self {
-            ViolationFn::NewFn(_) => write!(f, "NewFn(Fn(SyntaxViolation))"),
-            ViolationFn::NoOp     => write!(f, "NoOp")
-        }
-    }
-}
-
 pub struct Parser<'a> {
     pub serialization: String,
     pub base_url: Option<&'a Url>,
     pub query_encoding_override: EncodingOverride,
-    pub violation_fn: ViolationFn<'a>,
+    pub violation_fn: Option<&'a dyn Fn(SyntaxViolation)>,
     pub context: Context,
 }
 
@@ -329,12 +284,26 @@ pub enum Context {
 }
 
 impl<'a> Parser<'a> {
+    fn log_violation(&self, v: SyntaxViolation) {
+        if let Some(f) = self.violation_fn {
+            f(v)
+        }
+    }
+
+    fn log_violation_if(&self, v: SyntaxViolation, test: impl FnOnce() -> bool) {
+        if let Some(f) = self.violation_fn {
+            if test() {
+                f(v)
+            }
+        }
+    }
+
     pub fn for_setter(serialization: String) -> Parser<'a> {
         Parser {
             serialization: serialization,
             base_url: None,
             query_encoding_override: EncodingOverride::utf8(),
-            violation_fn: ViolationFn::NoOp,
+            violation_fn: None,
             context: Context::Setter,
         }
     }
@@ -398,7 +367,7 @@ impl<'a> Parser<'a> {
         self.serialization.push(':');
         match scheme_type {
             SchemeType::File => {
-                self.violation_fn.call_if(ExpectedFileDoubleSlash, || !input.starts_with("//"));
+                self.log_violation_if(ExpectedFileDoubleSlash, || !input.starts_with("//"));
                 let base_file_url = self.base_url.and_then(|base| {
                     if base.scheme() == "file" { Some(base) } else { None }
                 });
@@ -418,7 +387,7 @@ impl<'a> Parser<'a> {
                     }
                 }
                 // special authority slashes state
-                self.violation_fn.call_if(ExpectedDoubleSlash, || {
+                self.log_violation_if(ExpectedDoubleSlash, || {
                     input.clone().take_while(|&c| matches!(c, '/' | '\\'))
                     .collect::<String>() != "//"
                 });
@@ -552,10 +521,10 @@ impl<'a> Parser<'a> {
                 }
             }
             Some('/') | Some('\\') => {
-                self.violation_fn.call_if(Backslash, || first_char == Some('\\'));
+                self.log_violation_if(Backslash, || first_char == Some('\\'));
                 // file slash state
                 let (next_char, input_after_next_char) = input_after_first_char.split_first();
-                self.violation_fn.call_if(Backslash, || next_char == Some('\\'));
+                self.log_violation_if(Backslash, || next_char == Some('\\'));
                 if matches!(next_char, Some('/') | Some('\\')) {
                     // file host state
                     self.serialization.push_str("file://");
@@ -707,7 +676,7 @@ impl<'a> Parser<'a> {
             Some('/') | Some('\\') => {
                 let (slashes_count, remaining) = input.count_matching(|c| matches!(c, '/' | '\\'));
                 if slashes_count >= 2 {
-                    self.violation_fn.call_if(SyntaxViolation::ExpectedDoubleSlash, || {
+                    self.log_violation_if(SyntaxViolation::ExpectedDoubleSlash, || {
                         input.clone().take_while(|&c| matches!(c, '/' | '\\'))
                         .collect::<String>() != "//"
                     });
@@ -771,9 +740,9 @@ impl<'a> Parser<'a> {
             match c {
                 '@' => {
                     if last_at.is_some() {
-                        self.violation_fn.call(SyntaxViolation::UnencodedAtSign)
+                        self.log_violation(SyntaxViolation::UnencodedAtSign)
                     } else {
-                        self.violation_fn.call(SyntaxViolation::EmbeddedCredentials)
+                        self.log_violation(SyntaxViolation::EmbeddedCredentials)
                     }
                     last_at = Some((char_count, remaining.clone()))
                 },
@@ -971,7 +940,7 @@ impl<'a> Parser<'a> {
         match input.split_first() {
             (Some('/'), remaining) => input = remaining,
             (Some('\\'), remaining) => if scheme_type.is_special() {
-                self.violation_fn.call(SyntaxViolation::Backslash);
+                self.log_violation(SyntaxViolation::Backslash);
                 input = remaining
             },
             _ => {}
@@ -999,7 +968,7 @@ impl<'a> Parser<'a> {
                     },
                     '\\' if self.context != Context::PathSegmentSetter &&
                             scheme_type.is_special() => {
-                        self.violation_fn.call(SyntaxViolation::Backslash);
+                        self.log_violation(SyntaxViolation::Backslash);
                         ends_with_slash = true;
                         break
                     },
@@ -1045,7 +1014,7 @@ impl<'a> Parser<'a> {
                             self.serialization.push(':');
                         }
                         if *has_host {
-                            self.violation_fn.call(SyntaxViolation::FileWithHostAndWindowsDrive);
+                            self.log_violation(SyntaxViolation::FileWithHostAndWindowsDrive);
                             *has_host = false;  // FIXME account for this in callers
                         }
                     }
@@ -1187,7 +1156,7 @@ impl<'a> Parser<'a> {
     pub fn parse_fragment(&mut self, mut input: Input) {
         while let Some((c, utf8_c)) = input.next_utf8() {
             if c ==  '\0' {
-                self.violation_fn.call(SyntaxViolation::NullInFragment)
+                self.log_violation(SyntaxViolation::NullInFragment)
             } else {
                 self.check_url_code_point(c, &input);
                 self.serialization.extend(utf8_percent_encode(utf8_c,
@@ -1197,16 +1166,15 @@ impl<'a> Parser<'a> {
     }
 
     fn check_url_code_point(&self, c: char, input: &Input) {
-        let vfn = self.violation_fn;
-        if vfn.is_set() {
+        if let Some(vfn) = self.violation_fn {
             if c == '%' {
                 let mut input = input.clone();
                 if !matches!((input.next(), input.next()), (Some(a), Some(b))
                              if is_ascii_hex_digit(a) && is_ascii_hex_digit(b)) {
-                    vfn.call(SyntaxViolation::PercentDecode)
+                    vfn(SyntaxViolation::PercentDecode)
                 }
             } else if !is_url_code_point(c) {
-                vfn.call(SyntaxViolation::NonUrlCodePoint)
+                vfn(SyntaxViolation::NonUrlCodePoint)
             }
         }
     }

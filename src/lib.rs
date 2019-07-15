@@ -118,7 +118,7 @@ pub extern crate percent_encoding;
 use encoding::EncodingOverride;
 #[cfg(feature = "heapsize")] use heapsize::HeapSizeOf;
 use host::HostInternal;
-use parser::{Parser, Context, SchemeType, to_u32, ViolationFn};
+use parser::{Parser, Context, SchemeType, to_u32};
 use percent_encoding::{PATH_SEGMENT_ENCODE_SET, USERINFO_ENCODE_SET,
                        percent_encode, percent_decode, utf8_percent_encode};
 use std::borrow::Borrow;
@@ -187,7 +187,7 @@ impl HeapSizeOf for Url {
 pub struct ParseOptions<'a> {
     base_url: Option<&'a Url>,
     encoding_override: encoding::EncodingOverride,
-    violation_fn: ViolationFn<'a>,
+    violation_fn: Option<&'a dyn Fn(SyntaxViolation)>,
 }
 
 impl<'a> ParseOptions<'a> {
@@ -233,10 +233,7 @@ impl<'a> ParseOptions<'a> {
     /// # run().unwrap();
     /// ```
     pub fn syntax_violation_callback(mut self, new: Option<&'a dyn Fn(SyntaxViolation)>) -> Self {
-        self.violation_fn = match new {
-            Some(f) => ViolationFn::NewFn(f),
-            None => ViolationFn::NoOp
-        };
+        self.violation_fn = new;
         self
     }
 
@@ -259,7 +256,7 @@ impl<'a> Debug for ParseOptions<'a> {
                 violation_fn: {:?} }}",
                self.base_url,
                self.encoding_override,
-               self.violation_fn)
+               self.violation_fn.map(|_| "…"))
     }
 }
 
@@ -389,7 +386,7 @@ impl Url {
         ParseOptions {
             base_url: None,
             encoding_override: EncodingOverride::utf8(),
-            violation_fn: ViolationFn::NoOp,
+            violation_fn: None,
         }
     }
 
