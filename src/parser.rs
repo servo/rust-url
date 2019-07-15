@@ -6,9 +6,6 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-#[allow(unused_imports, deprecated)]
-use std::ascii::AsciiExt;
-
 use std::error::Error;
 use std::fmt::{self, Formatter, Write};
 use std::str;

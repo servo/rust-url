@@ -55,7 +55,6 @@ pub fn parse_with_encoding<'a>(input: &'a [u8],
                                encoding_override: Option<::encoding::EncodingRef>,
                                use_charset: bool)
                                -> Result<Parse<'a>, ()> {
-    use std::ascii::AsciiExt;
 
     let mut encoding = EncodingOverride::from_opt_encoding(encoding_override);
     if !(encoding.is_utf8() || input.is_ascii()) {
