@@ -421,14 +421,18 @@ impl Config {
                     Some(x) => {
                         result.push_str(PUNYCODE_PREFIX);
                         result.push_str(&x);
-                    },
-                    None => errors.push(Error::PunycodeError)
+                    }
+                    None => errors.push(Error::PunycodeError),
                 }
             }
         }
 
         if self.verify_dns_length {
-            let domain = if result.ends_with(".") { &result[..result.len()-1] } else { &*result };
+            let domain = if result.ends_with(".") {
+                &result[..result.len() - 1]
+            } else {
+                &*result
+            };
             if domain.len() < 1 || domain.split('.').any(|label| label.len() < 1) {
                 errors.push(Error::TooShortForDns)
             }
@@ -454,7 +458,6 @@ impl Config {
         };
         (domain, errors)
     }
-
 }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]

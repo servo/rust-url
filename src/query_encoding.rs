@@ -10,10 +10,7 @@ use std::borrow::Cow;
 
 pub type EncodingOverride<'a> = Option<&'a dyn Fn(&str) -> Cow<[u8]>>;
 
-pub(crate) fn encode<'a>(
-    encoding_override: EncodingOverride,
-    input: &'a str,
-) -> Cow<'a, [u8]> {
+pub(crate) fn encode<'a>(encoding_override: EncodingOverride, input: &'a str) -> Cow<'a, [u8]> {
     if let Some(o) = encoding_override {
         return o(input);
     }

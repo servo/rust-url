@@ -137,15 +137,15 @@ pub use host::Host;
 pub use origin::{OpaqueOrigin, Origin};
 pub use parser::{ParseError, SyntaxViolation};
 pub use path_segments::PathSegmentsMut;
-pub use slicing::Position;
 pub use query_encoding::EncodingOverride;
+pub use slicing::Position;
 
 mod host;
 mod origin;
 mod parser;
 mod path_segments;
-mod slicing;
 mod query_encoding;
+mod slicing;
 
 pub mod form_urlencoded;
 #[doc(hidden)]
