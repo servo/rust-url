@@ -7,14 +7,16 @@ pub struct Mime {
     pub type_: String,
     pub subtype: String,
     /// (name, value)
-    pub parameters: Vec<(String, String)>
+    pub parameters: Vec<(String, String)>,
 }
 
 impl Mime {
     pub fn get_parameter<P>(&self, name: &P) -> Option<&str>
-        where P: ?Sized + PartialEq<str>
+    where
+        P: ?Sized + PartialEq<str>,
     {
-        self.parameters.iter()
+        self.parameters
+            .iter()
             .find(|&&(ref n, _)| name == &**n)
             .map(|&(_, ref v)| &**v)
     }
@@ -67,11 +69,11 @@ fn parse_parameters(s: &str, parameters: &mut Vec<(String, String)>) {
         let piece = piece.trim_left_matches(ascii_whitespace);
         let (name, value) = split2(piece, '=');
         if name.is_empty() || !only_http_token_code_points(name) || contains(&parameters, name) {
-            continue
+            continue;
         }
         if let Some(value) = value {
             let value = if value.starts_with('"') {
-                let max_len = value.len().saturating_sub(2);  // without start or end quotes
+                let max_len = value.len().saturating_sub(2); // without start or end quotes
                 let mut unescaped_value = String::with_capacity(max_len);
                 let mut chars = value[1..].chars();
                 'until_closing_quote: loop {
@@ -79,7 +81,7 @@ fn parse_parameters(s: &str, parameters: &mut Vec<(String, String)>) {
                         match c {
                             '"' => break 'until_closing_quote,
                             '\\' => unescaped_value.push(chars.next().unwrap_or('\\')),
-                            _ => unescaped_value.push(c)
+                            _ => unescaped_value.push(c),
                         }
                     }
                     if let Some(piece) = semicolon_separated.next() {
@@ -88,17 +90,17 @@ fn parse_parameters(s: &str, parameters: &mut Vec<(String, String)>) {
                         unescaped_value.push(';');
                         chars = piece.chars()
                     } else {
-                        break
+                        break;
                     }
                 }
                 if !valid_value(&unescaped_value) {
-                    continue
+                    continue;
                 }
                 unescaped_value
             } else {
                 let value = value.trim_right_matches(ascii_whitespace);
                 if !valid_value(value) {
-                    continue
+                    continue;
                 }
                 value.to_owned()
             };
@@ -160,6 +162,7 @@ macro_rules! byte_map {
 }
 
 // Copied from https://github.com/hyperium/mime/blob/v0.3.5/src/parse.rs#L293
+#[rustfmt::skip]
 static IS_HTTP_TOKEN: [bool; 256] = byte_map![
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

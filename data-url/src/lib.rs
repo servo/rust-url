@@ -15,14 +15,15 @@
 //! assert!(fragment.is_none());
 //! ```
 
-#[macro_use] extern crate matches;
+#[macro_use]
+extern crate matches;
 
 macro_rules! require {
     ($condition: expr) => {
         if !$condition {
-            return None
+            return None;
         }
-    }
+    };
 }
 
 pub mod forgiving_base64;
@@ -53,7 +54,11 @@ impl<'a> DataUrl<'a> {
 
         let (mime_type, base64) = parse_header(from_colon_to_comma);
 
-        Ok(DataUrl { mime_type, base64, encoded_body_plus_fragment })
+        Ok(DataUrl {
+            mime_type,
+            base64,
+            encoded_body_plus_fragment,
+        })
     }
 
     pub fn mime_type(&self) -> &mime::Mime {
@@ -62,9 +67,12 @@ impl<'a> DataUrl<'a> {
 
     /// Streaming-decode the data URL’s body to `write_body_bytes`,
     /// and return the URL’s fragment identifier if it has one.
-    pub fn decode<F, E>(&self, write_body_bytes: F)
-                        -> Result<Option<FragmentIdentifier<'a>>, forgiving_base64::DecodeError<E>>
-        where F: FnMut(&[u8]) -> Result<(), E>
+    pub fn decode<F, E>(
+        &self,
+        write_body_bytes: F,
+    ) -> Result<Option<FragmentIdentifier<'a>>, forgiving_base64::DecodeError<E>>
+    where
+        F: FnMut(&[u8]) -> Result<(), E>,
     {
         if self.base64 {
             decode_with_base64(self.encoded_body_plus_fragment, write_body_bytes)
@@ -75,9 +83,9 @@ impl<'a> DataUrl<'a> {
     }
 
     /// Return the decoded body, and the URL’s fragment identifier if it has one.
-    pub fn decode_to_vec(&self)
-        -> Result<(Vec<u8>, Option<FragmentIdentifier<'a>>), forgiving_base64::InvalidBase64>
-    {
+    pub fn decode_to_vec(
+        &self,
+    ) -> Result<(Vec<u8>, Option<FragmentIdentifier<'a>>), forgiving_base64::InvalidBase64> {
         let mut body = Vec::new();
         let fragment = self.decode(|bytes| Ok(body.extend_from_slice(bytes)))?;
         Ok((body, fragment))
@@ -100,7 +108,7 @@ impl<'a> FragmentIdentifier<'a> {
                     percent_encode(byte, &mut string)
                 }
                 // Printable ASCII
-                _ => string.push(byte as char)
+                _ => string.push(byte as char),
             }
         }
         string
@@ -125,7 +133,9 @@ fn pretend_parse_data_url(input: &str) -> Option<&str> {
     let mut bytes = left_trimmed.bytes();
     {
         // Ignore ASCII tabs or newlines like the URL parser would
-        let mut iter = bytes.by_ref().filter(|&byte| !matches!(byte, b'\t' | b'\n' | b'\r'));
+        let mut iter = bytes
+            .by_ref()
+            .filter(|&byte| !matches!(byte, b'\t' | b'\n' | b'\r'));
         require!(iter.next()?.to_ascii_lowercase() == b'd');
         require!(iter.next()?.to_ascii_lowercase() == b'a');
         require!(iter.next()?.to_ascii_lowercase() == b't');
@@ -142,10 +152,10 @@ fn pretend_parse_data_url(input: &str) -> Option<&str> {
 fn find_comma_before_fragment(after_colon: &str) -> Option<(&str, &str)> {
     for (i, byte) in after_colon.bytes().enumerate() {
         if byte == b',' {
-            return Some((&after_colon[..i], &after_colon[i + 1..]))
+            return Some((&after_colon[..i], &after_colon[i + 1..]));
         }
         if byte == b'#' {
-            break
+            break;
         }
     }
     None
@@ -187,18 +197,16 @@ fn parse_header(from_colon_to_comma: &str) -> (mime::Mime, bool) {
             }
 
             // Printable ASCII
-            _ => string.push(byte as char)
+            _ => string.push(byte as char),
         }
     }
 
     // FIXME: does Mime::from_str match the MIME Sniffing Standard’s parsing algorithm?
     // <https://mimesniff.spec.whatwg.org/#parse-a-mime-type>
-    let mime_type = string.parse().unwrap_or_else(|_| {
-        mime::Mime {
-            type_: String::from("text"),
-            subtype: String::from("plain"),
-            parameters: vec![(String::from("charset"), String::from("US-ASCII"))],
-        }
+    let mime_type = string.parse().unwrap_or_else(|_| mime::Mime {
+        type_: String::from("text"),
+        subtype: String::from("plain"),
+        parameters: vec![(String::from("charset"), String::from("US-ASCII"))],
     });
 
     (mime_type, base64)
@@ -209,7 +217,9 @@ fn remove_base64_suffix(s: &str) -> Option<&str> {
     let mut bytes = s.bytes();
     {
         // Ignore ASCII tabs or newlines like the URL parser would
-        let iter = bytes.by_ref().filter(|&byte| !matches!(byte, b'\t' | b'\n' | b'\r'));
+        let iter = bytes
+            .by_ref()
+            .filter(|&byte| !matches!(byte, b'\t' | b'\n' | b'\r'));
 
         // Search from the end
         let mut iter = iter.rev();
@@ -240,9 +250,12 @@ fn percent_encode(byte: u8, string: &mut String) {
 /// Anything that would have been UTF-8 percent-encoded by the URL parser
 /// would be percent-decoded here.
 /// We skip that round-trip and pass it through unchanged.
-fn decode_without_base64<F, E>(encoded_body_plus_fragment: &str, mut write_bytes: F)
-                               -> Result<Option<FragmentIdentifier>, E>
-    where F: FnMut(&[u8]) -> Result<(), E>
+fn decode_without_base64<F, E>(
+    encoded_body_plus_fragment: &str,
+    mut write_bytes: F,
+) -> Result<Option<FragmentIdentifier>, E>
+where
+    F: FnMut(&[u8]) -> Result<(), E>,
 {
     let bytes = encoded_body_plus_fragment.as_bytes();
     let mut slice_start = 0;
@@ -275,11 +288,11 @@ fn decode_without_base64<F, E>(encoded_body_plus_fragment: &str, mut write_bytes
                 b'#' => {
                     let fragment_start = i + 1;
                     let fragment = &encoded_body_plus_fragment[fragment_start..];
-                    return Ok(Some(FragmentIdentifier(fragment)))
+                    return Ok(Some(FragmentIdentifier(fragment)));
                 }
 
                 // Ignore over '\t' | '\n' | '\r'
-                _ => slice_start = i + 1
+                _ => slice_start = i + 1,
             }
         }
     }
@@ -290,9 +303,12 @@ fn decode_without_base64<F, E>(encoded_body_plus_fragment: &str, mut write_bytes
 /// `decode_without_base64()` composed with
 /// <https://infra.spec.whatwg.org/#isomorphic-decode> composed with
 /// <https://infra.spec.whatwg.org/#forgiving-base64-decode>.
-fn decode_with_base64<F, E>(encoded_body_plus_fragment: &str, write_bytes: F)
-                            -> Result<Option<FragmentIdentifier>, forgiving_base64::DecodeError<E>>
-    where F: FnMut(&[u8]) -> Result<(), E>
+fn decode_with_base64<F, E>(
+    encoded_body_plus_fragment: &str,
+    write_bytes: F,
+) -> Result<Option<FragmentIdentifier>, forgiving_base64::DecodeError<E>>
+where
+    F: FnMut(&[u8]) -> Result<(), E>,
 {
     let mut decoder = forgiving_base64::Decoder::new(write_bytes);
     let fragment = decode_without_base64(encoded_body_plus_fragment, |bytes| decoder.feed(bytes))?;
