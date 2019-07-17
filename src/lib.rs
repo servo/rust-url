@@ -2322,15 +2322,6 @@ fn path_to_file_url_segments(
     path: &Path,
     serialization: &mut String,
 ) -> Result<(u32, HostInternal), ()> {
-    path_to_file_url_segments_windows(path, serialization)
-}
-
-// Build this unconditionally to alleviate https://github.com/servo/rust-url/issues/102
-#[cfg_attr(not(windows), allow(dead_code))]
-fn path_to_file_url_segments_windows(
-    path: &Path,
-    serialization: &mut String,
-) -> Result<(u32, HostInternal), ()> {
     use std::path::{Component, Prefix};
     if !path.is_absolute() {
         return Err(());
