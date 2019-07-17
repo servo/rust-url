@@ -18,7 +18,7 @@ use unicode_normalization::UnicodeNormalization;
 
 include!("uts46_mapping_table.rs");
 
-pub static PUNYCODE_PREFIX: &'static str = "xn--";
+const PUNYCODE_PREFIX: &'static str = "xn--";
 
 #[derive(Debug)]
 struct StringTableSlice {

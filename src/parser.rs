@@ -67,8 +67,8 @@ impl fmt::Display for ParseError {
     }
 }
 
-impl From<::idna::uts46::Errors> for ParseError {
-    fn from(_: ::idna::uts46::Errors) -> ParseError {
+impl From<::idna::Errors> for ParseError {
+    fn from(_: ::idna::Errors) -> ParseError {
         ParseError::IdnaError
     }
 }

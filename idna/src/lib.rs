@@ -38,7 +38,9 @@ extern crate unicode_bidi;
 extern crate unicode_normalization;
 
 pub mod punycode;
-pub mod uts46;
+mod uts46;
+
+pub use uts46::{Config, Errors};
 
 /// The [domain to ASCII](https://url.spec.whatwg.org/#concept-domain-to-ascii) algorithm.
 ///
