@@ -371,12 +371,28 @@ fn processing(domain: &str, config: Config, errors: &mut Vec<Error>) -> String {
     validated
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy)]
 pub struct Config {
     use_std3_ascii_rules: bool,
     transitional_processing: bool,
     verify_dns_length: bool,
     check_hyphens: bool,
+}
+
+/// The defaults are that of https://url.spec.whatwg.org/#idna
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            use_std3_ascii_rules: false,
+            transitional_processing: false,
+            check_hyphens: false,
+            // check_bidi: true,
+            // check_joiners: true,
+
+            // Only use for to_ascii, not to_unicode
+            verify_dns_length: false,
+        }
+    }
 }
 
 impl Config {
