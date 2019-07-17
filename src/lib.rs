@@ -110,17 +110,13 @@ assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css");
 #[macro_use]
 extern crate matches;
 extern crate idna;
+extern crate percent_encoding;
 #[cfg(feature = "serde")]
 extern crate serde;
-#[macro_use]
-extern crate percent_encoding;
 
 use host::HostInternal;
-use parser::{to_u32, Context, Parser, SchemeType};
-use percent_encoding::{
-    percent_decode, percent_encode, utf8_percent_encode, PATH_SEGMENT_ENCODE_SET,
-    USERINFO_ENCODE_SET,
-};
+use parser::{to_u32, Context, Parser, SchemeType, PATH_SEGMENT, USERINFO};
+use percent_encoding::{percent_decode, percent_encode, utf8_percent_encode};
 use std::borrow::Borrow;
 use std::cmp;
 #[cfg(feature = "serde")]
@@ -1229,8 +1225,11 @@ impl Url {
         if let Some(input) = query {
             self.query_start = Some(to_u32(self.serialization.len()).unwrap());
             self.serialization.push('?');
+            let scheme_type = SchemeType::from(self.scheme());
             let scheme_end = self.scheme_end;
-            self.mutate(|parser| parser.parse_query(scheme_end, parser::Input::new(input)));
+            self.mutate(|parser| {
+                parser.parse_query(scheme_type, scheme_end, parser::Input::new(input))
+            });
         }
 
         self.restore_already_parsed_fragment(fragment);
@@ -1729,7 +1728,7 @@ impl Url {
             self.serialization.truncate(self.username_end as usize);
             self.serialization.push(':');
             self.serialization
-                .extend(utf8_percent_encode(password, USERINFO_ENCODE_SET));
+                .extend(utf8_percent_encode(password, USERINFO));
             self.serialization.push('@');
 
             let old_host_start = self.host_start;
@@ -1824,7 +1823,7 @@ impl Url {
         let after_username = self.slice(self.username_end..).to_owned();
         self.serialization.truncate(username_start as usize);
         self.serialization
-            .extend(utf8_percent_encode(username, USERINFO_ENCODE_SET));
+            .extend(utf8_percent_encode(username, USERINFO));
 
         let mut removed_bytes = self.username_end;
         self.username_end = to_u32(self.serialization.len()).unwrap();
@@ -2307,7 +2306,7 @@ fn path_to_file_url_segments(
         serialization.push('/');
         serialization.extend(percent_encode(
             component.as_os_str().as_bytes(),
-            PATH_SEGMENT_ENCODE_SET,
+            PATH_SEGMENT,
         ));
     }
     if empty {
@@ -2355,7 +2354,7 @@ fn path_to_file_url_segments_windows(
                 host_internal = host.into();
                 serialization.push('/');
                 let share = share.to_str().ok_or(())?;
-                serialization.extend(percent_encode(share.as_bytes(), PATH_SEGMENT_ENCODE_SET));
+                serialization.extend(percent_encode(share.as_bytes(), PATH_SEGMENT));
             }
             _ => return Err(()),
         },
@@ -2370,10 +2369,7 @@ fn path_to_file_url_segments_windows(
         // FIXME: somehow work with non-unicode?
         let component = component.as_os_str().to_str().ok_or(())?;
         serialization.push('/');
-        serialization.extend(percent_encode(
-            component.as_bytes(),
-            PATH_SEGMENT_ENCODE_SET,
-        ));
+        serialization.extend(percent_encode(component.as_bytes(), PATH_SEGMENT));
     }
     Ok((host_end, host_internal))
 }

@@ -8,7 +8,7 @@
 
 use idna;
 use parser::{ParseError, ParseResult};
-use percent_encoding::{percent_decode, utf8_percent_encode, SIMPLE_ENCODE_SET};
+use percent_encoding::{percent_decode, utf8_percent_encode, CONTROLS};
 use std::cmp;
 use std::fmt::{self, Formatter};
 use std::net::{Ipv4Addr, Ipv6Addr};
@@ -207,7 +207,7 @@ impl Host<String> {
         {
             return Err(ParseError::InvalidDomainCharacter);
         }
-        let s = utf8_percent_encode(input, SIMPLE_ENCODE_SET).to_string();
+        let s = utf8_percent_encode(input, CONTROLS).to_string();
         Ok(Host::Domain(s))
     }
 }

@@ -47,7 +47,7 @@ fn run_parsing(input: &str, base: &str, expected: Result<ExpectedAttributes, ()>
             let got = $got;
             assert!(
                 expected == got,
-                "{:?} != {} {:?} for URL {:?}",
+                "\n{:?}\n!= {}\n{:?}\nfor URL {:?}\n",
                 got,
                 stringify!($expected),
                 expected,

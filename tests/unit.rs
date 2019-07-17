@@ -8,9 +8,8 @@
 
 //! Unit tests
 
-extern crate url;
-#[macro_use]
 extern crate percent_encoding;
+extern crate url;
 
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
@@ -427,41 +426,6 @@ fn test_leading_dots() {
         Host::Domain(".org".to_owned())
     );
     assert_eq!(Url::parse("file://./foo").unwrap().domain(), Some("."));
-}
-
-// This is testing that the macro produces buildable code when invoked
-// inside both a module and a function
-#[test]
-fn define_encode_set_scopes() {
-    use percent_encoding::{utf8_percent_encode, SIMPLE_ENCODE_SET};
-
-    define_encode_set! {
-        /// This encode set is used in the URL parser for query strings.
-        pub QUERY_ENCODE_SET = [SIMPLE_ENCODE_SET] | {' ', '"', '#', '<', '>'}
-    }
-
-    assert_eq!(
-        utf8_percent_encode("foo bar", QUERY_ENCODE_SET).collect::<String>(),
-        "foo%20bar"
-    );
-
-    mod m {
-        use percent_encoding::{utf8_percent_encode, SIMPLE_ENCODE_SET};
-
-        define_encode_set! {
-            /// This encode set is used in the URL parser for query strings.
-            pub QUERY_ENCODE_SET = [SIMPLE_ENCODE_SET] | {' ', '"', '#', '<', '>'}
-        }
-
-        pub fn test() {
-            assert_eq!(
-                utf8_percent_encode("foo bar", QUERY_ENCODE_SET).collect::<String>(),
-                "foo%20bar"
-            );
-        }
-    }
-
-    m::test();
 }
 
 #[test]

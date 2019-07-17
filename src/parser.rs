@@ -11,18 +11,38 @@ use std::fmt::{self, Formatter, Write};
 use std::str;
 
 use host::{Host, HostInternal};
-use percent_encoding::{
-    percent_encode, utf8_percent_encode, DEFAULT_ENCODE_SET, PATH_SEGMENT_ENCODE_SET,
-    QUERY_ENCODE_SET, SIMPLE_ENCODE_SET, USERINFO_ENCODE_SET,
-};
+use percent_encoding::{percent_encode, utf8_percent_encode, AsciiSet, CONTROLS};
 use query_encoding::EncodingOverride;
 use Url;
 
-define_encode_set! {
-    // The backslash (\) character is treated as a path separator in special URLs
-    // so it needs to be additionally escaped in that case.
-    pub SPECIAL_PATH_SEGMENT_ENCODE_SET = [PATH_SEGMENT_ENCODE_SET] | {'\\'}
-}
+/// https://url.spec.whatwg.org/#fragment-percent-encode-set
+const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'<').add(b'>').add(b'`');
+
+/// https://url.spec.whatwg.org/#path-percent-encode-set
+const PATH: &AsciiSet = &FRAGMENT.add(b'#').add(b'?').add(b'{').add(b'}');
+
+/// https://url.spec.whatwg.org/#userinfo-percent-encode-set
+pub(crate) const USERINFO: &AsciiSet = &PATH
+    .add(b'/')
+    .add(b':')
+    .add(b';')
+    .add(b'=')
+    .add(b'@')
+    .add(b'[')
+    .add(b'\\')
+    .add(b']')
+    .add(b'^')
+    .add(b'|');
+
+pub(crate) const PATH_SEGMENT: &AsciiSet = &PATH.add(b'/').add(b'%');
+
+// The backslash (\) character is treated as a path separator in special URLs
+// so it needs to be additionally escaped in that case.
+pub(crate) const SPECIAL_PATH_SEGMENT: &AsciiSet = &PATH_SEGMENT.add(b'\\');
+
+// https://url.spec.whatwg.org/#query-state
+const QUERY: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'#').add(b'<').add(b'>');
+const SPECIAL_QUERY: &AsciiSet = &QUERY.add(b'\'');
 
 pub type ParseResult<T> = Result<T, ParseError>;
 
@@ -327,7 +347,7 @@ impl<'a> Parser<'a> {
             } else {
                 let scheme_type = SchemeType::from(base_url.scheme());
                 if scheme_type.is_file() {
-                    self.parse_file(input, Some(base_url))
+                    self.parse_file(input, scheme_type, Some(base_url))
                 } else {
                     self.parse_relative(input, scheme_type, base_url)
                 }
@@ -379,7 +399,7 @@ impl<'a> Parser<'a> {
                     }
                 });
                 self.serialization.clear();
-                self.parse_file(input, base_file_url)
+                self.parse_file(input, scheme_type, base_file_url)
             }
             SchemeType::SpecialNotFile => {
                 // special relative or authority state
@@ -434,6 +454,7 @@ impl<'a> Parser<'a> {
             self.parse_cannot_be_a_base_path(input)
         };
         self.with_query_and_fragment(
+            scheme_type,
             scheme_end,
             username_end,
             host_start,
@@ -445,7 +466,12 @@ impl<'a> Parser<'a> {
         )
     }
 
-    fn parse_file(mut self, input: Input, mut base_file_url: Option<&Url>) -> ParseResult<Url> {
+    fn parse_file(
+        mut self,
+        input: Input,
+        scheme_type: SchemeType,
+        mut base_file_url: Option<&Url>,
+    ) -> ParseResult<Url> {
         use SyntaxViolation::Backslash;
         // file state
         debug_assert!(self.serialization.is_empty());
@@ -491,7 +517,7 @@ impl<'a> Parser<'a> {
                     };
                     self.serialization.push_str(before_query);
                     let (query_start, fragment_start) =
-                        self.parse_query_and_fragment(base_url.scheme_end, input)?;
+                        self.parse_query_and_fragment(scheme_type, base_url.scheme_end, input)?;
                     Ok(Url {
                         serialization: self.serialization,
                         query_start: query_start,
@@ -503,7 +529,7 @@ impl<'a> Parser<'a> {
                     let scheme_end = "file".len() as u32;
                     let path_start = "file://".len() as u32;
                     let (query_start, fragment_start) =
-                        self.parse_query_and_fragment(scheme_end, input)?;
+                        self.parse_query_and_fragment(scheme_type, scheme_end, input)?;
                     Ok(Url {
                         serialization: self.serialization,
                         scheme_end: scheme_end,
@@ -572,7 +598,7 @@ impl<'a> Parser<'a> {
                         host = HostInternal::None;
                     }
                     let (query_start, fragment_start) =
-                        self.parse_query_and_fragment(scheme_end, remaining)?;
+                        self.parse_query_and_fragment(scheme_type, scheme_end, remaining)?;
                     Ok(Url {
                         serialization: self.serialization,
                         scheme_end: scheme_end,
@@ -604,7 +630,7 @@ impl<'a> Parser<'a> {
                         input_after_first_char,
                     );
                     let (query_start, fragment_start) =
-                        self.parse_query_and_fragment(scheme_end, remaining)?;
+                        self.parse_query_and_fragment(scheme_type, scheme_end, remaining)?;
                     let path_start = path_start as u32;
                     Ok(Url {
                         serialization: self.serialization,
@@ -638,6 +664,7 @@ impl<'a> Parser<'a> {
                         input,
                     );
                     self.with_query_and_fragment(
+                        SchemeType::File,
                         base_url.scheme_end,
                         base_url.username_end,
                         base_url.host_start,
@@ -654,7 +681,7 @@ impl<'a> Parser<'a> {
                     let remaining =
                         self.parse_path(SchemeType::File, &mut false, path_start, input);
                     let (query_start, fragment_start) =
-                        self.parse_query_and_fragment(scheme_end, remaining)?;
+                        self.parse_query_and_fragment(SchemeType::File, scheme_end, remaining)?;
                     let path_start = path_start as u32;
                     Ok(Url {
                         serialization: self.serialization,
@@ -704,7 +731,7 @@ impl<'a> Parser<'a> {
                 };
                 self.serialization.push_str(before_query);
                 let (query_start, fragment_start) =
-                    self.parse_query_and_fragment(base_url.scheme_end, input)?;
+                    self.parse_query_and_fragment(scheme_type, base_url.scheme_end, input)?;
                 Ok(Url {
                     serialization: self.serialization,
                     query_start: query_start,
@@ -740,6 +767,7 @@ impl<'a> Parser<'a> {
                     input_after_first_char,
                 );
                 self.with_query_and_fragment(
+                    scheme_type,
                     base_url.scheme_end,
                     base_url.username_end,
                     base_url.host_start,
@@ -761,6 +789,7 @@ impl<'a> Parser<'a> {
                 let remaining =
                     self.parse_path(scheme_type, &mut true, base_url.path_start as usize, input);
                 self.with_query_and_fragment(
+                    scheme_type,
                     base_url.scheme_end,
                     base_url.username_end,
                     base_url.host_start,
@@ -792,6 +821,7 @@ impl<'a> Parser<'a> {
         let path_start = to_u32(self.serialization.len())?;
         let remaining = self.parse_path_start(scheme_type, &mut true, remaining);
         self.with_query_and_fragment(
+            scheme_type,
             scheme_end,
             username_end,
             host_start,
@@ -854,7 +884,7 @@ impl<'a> Parser<'a> {
                 }
                 self.check_url_code_point(c, &input);
                 self.serialization
-                    .extend(utf8_percent_encode(utf8_c, USERINFO_ENCODE_SET));
+                    .extend(utf8_percent_encode(utf8_c, USERINFO));
             }
         }
         let username_end = match username_end {
@@ -1082,17 +1112,14 @@ impl<'a> Parser<'a> {
                         self.check_url_code_point(c, &input);
                         if self.context == Context::PathSegmentSetter {
                             if scheme_type.is_special() {
-                                self.serialization.extend(utf8_percent_encode(
-                                    utf8_c,
-                                    SPECIAL_PATH_SEGMENT_ENCODE_SET,
-                                ));
+                                self.serialization
+                                    .extend(utf8_percent_encode(utf8_c, SPECIAL_PATH_SEGMENT));
                             } else {
                                 self.serialization
-                                    .extend(utf8_percent_encode(utf8_c, PATH_SEGMENT_ENCODE_SET));
+                                    .extend(utf8_percent_encode(utf8_c, PATH_SEGMENT));
                             }
                         } else {
-                            self.serialization
-                                .extend(utf8_percent_encode(utf8_c, DEFAULT_ENCODE_SET));
+                            self.serialization.extend(utf8_percent_encode(utf8_c, PATH));
                         }
                     }
                 }
@@ -1161,7 +1188,7 @@ impl<'a> Parser<'a> {
                 Some((c, utf8_c)) => {
                     self.check_url_code_point(c, &input);
                     self.serialization
-                        .extend(utf8_percent_encode(utf8_c, SIMPLE_ENCODE_SET));
+                        .extend(utf8_percent_encode(utf8_c, CONTROLS));
                 }
                 None => return input,
             }
@@ -1170,6 +1197,7 @@ impl<'a> Parser<'a> {
 
     fn with_query_and_fragment(
         mut self,
+        scheme_type: SchemeType,
         scheme_end: u32,
         username_end: u32,
         host_start: u32,
@@ -1179,7 +1207,8 @@ impl<'a> Parser<'a> {
         path_start: u32,
         remaining: Input,
     ) -> ParseResult<Url> {
-        let (query_start, fragment_start) = self.parse_query_and_fragment(scheme_end, remaining)?;
+        let (query_start, fragment_start) =
+            self.parse_query_and_fragment(scheme_type, scheme_end, remaining)?;
         Ok(Url {
             serialization: self.serialization,
             scheme_end: scheme_end,
@@ -1197,6 +1226,7 @@ impl<'a> Parser<'a> {
     /// Return (query_start, fragment_start)
     fn parse_query_and_fragment(
         &mut self,
+        scheme_type: SchemeType,
         scheme_end: u32,
         mut input: Input,
     ) -> ParseResult<(Option<u32>, Option<u32>)> {
@@ -1206,7 +1236,7 @@ impl<'a> Parser<'a> {
             Some('?') => {
                 query_start = Some(to_u32(self.serialization.len())?);
                 self.serialization.push('?');
-                let remaining = self.parse_query(scheme_end, input);
+                let remaining = self.parse_query(scheme_type, scheme_end, input);
                 if let Some(remaining) = remaining {
                     input = remaining
                 } else {
@@ -1223,7 +1253,12 @@ impl<'a> Parser<'a> {
         Ok((query_start, Some(fragment_start)))
     }
 
-    pub fn parse_query<'i>(&mut self, scheme_end: u32, mut input: Input<'i>) -> Option<Input<'i>> {
+    pub fn parse_query<'i>(
+        &mut self,
+        scheme_type: SchemeType,
+        scheme_end: u32,
+        mut input: Input<'i>,
+    ) -> Option<Input<'i>> {
         let mut query = String::new(); // FIXME: use a streaming decoder instead
         let mut remaining = None;
         while let Some(c) = input.next() {
@@ -1241,8 +1276,12 @@ impl<'a> Parser<'a> {
             _ => None,
         };
         let query_bytes = ::query_encoding::encode(encoding, &query);
-        self.serialization
-            .extend(percent_encode(&query_bytes, QUERY_ENCODE_SET));
+        let set = if scheme_type.is_special() {
+            SPECIAL_QUERY
+        } else {
+            QUERY
+        };
+        self.serialization.extend(percent_encode(&query_bytes, set));
         remaining
     }
 
@@ -1272,8 +1311,14 @@ impl<'a> Parser<'a> {
                 self.log_violation(SyntaxViolation::NullInFragment)
             } else {
                 self.check_url_code_point(c, &input);
-                self.serialization
-                    .extend(utf8_percent_encode(utf8_c, SIMPLE_ENCODE_SET));
+                self.serialization.extend(utf8_percent_encode(
+                    utf8_c,
+                    // FIXME: tests fail when we use the FRAGMENT set here
+                    // as defined in the spec as of 2019-07-17,
+                    // likely because tests are out of date.
+                    // See https://github.com/servo/rust-url/issues/290
+                    CONTROLS,
+                ));
             }
         }
     }
