@@ -3,7 +3,7 @@ script: cargo test --all-features --all
 
 jobs:
   include:
-  - rust: 1.30.0
+  - rust: 1.33.0
   - rust: stable
   - rust: beta
   - rust: nightly
