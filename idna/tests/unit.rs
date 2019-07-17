@@ -1,18 +1,13 @@
 extern crate idna;
 extern crate unicode_normalization;
 
-use idna::uts46;
 use unicode_normalization::char::is_combining_mark;
 
-fn _to_ascii(domain: &str) -> Result<String, uts46::Errors> {
-    uts46::to_ascii(
-        domain,
-        uts46::Flags {
-            transitional_processing: false,
-            use_std3_ascii_rules: true,
-            verify_dns_length: true,
-        },
-    )
+fn _to_ascii(domain: &str) -> Result<String, idna::Errors> {
+    idna::Config::default()
+        .verify_dns_length(true)
+        .use_std3_ascii_rules(true)
+        .to_ascii(domain)
 }
 
 #[test]

@@ -6,7 +6,6 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use idna::uts46;
 use std::char;
 use test::TestFn;
 
@@ -49,14 +48,12 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
         add_test(
             test_name,
             TestFn::dyn_test_fn(move || {
-                let result = uts46::to_ascii(
-                    &source,
-                    uts46::Flags {
-                        use_std3_ascii_rules: true,
-                        transitional_processing: test_type == "T",
-                        verify_dns_length: true,
-                    },
-                );
+                let result = idna::Config::default()
+                    .use_std3_ascii_rules(true)
+                    .verify_dns_length(true)
+                    .check_hyphens(true)
+                    .transitional_processing(test_type == "T")
+                    .to_ascii(&source);
 
                 if to_ascii.starts_with("[") {
                     if to_ascii.starts_with("[C") {
