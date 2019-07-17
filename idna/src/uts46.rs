@@ -81,13 +81,13 @@ fn find_char(codepoint: char) -> &'static Mapping {
         .unwrap()
 }
 
-fn map_char(codepoint: char, flags: Flags, output: &mut String, errors: &mut Vec<Error>) {
+fn map_char(codepoint: char, config: Config, output: &mut String, errors: &mut Vec<Error>) {
     match *find_char(codepoint) {
         Mapping::Valid => output.push(codepoint),
         Mapping::Ignored => {}
         Mapping::Mapped(ref slice) => output.push_str(decode_slice(slice)),
         Mapping::Deviation(ref slice) => {
-            if flags.transitional_processing {
+            if config.transitional_processing {
                 output.push_str(decode_slice(slice))
             } else {
                 output.push(codepoint)
@@ -98,13 +98,13 @@ fn map_char(codepoint: char, flags: Flags, output: &mut String, errors: &mut Vec
             output.push(codepoint);
         }
         Mapping::DisallowedStd3Valid => {
-            if flags.use_std3_ascii_rules {
+            if config.use_std3_ascii_rules {
                 errors.push(Error::DissallowedByStd3AsciiRules);
             }
             output.push(codepoint)
         }
         Mapping::DisallowedStd3Mapped(ref slice) => {
-            if flags.use_std3_ascii_rules {
+            if config.use_std3_ascii_rules {
                 errors.push(Error::DissallowedMappedInStd3);
             }
             output.push_str(decode_slice(slice))
@@ -293,8 +293,8 @@ fn validate(label: &str, is_bidi_domain: bool, config: Config, errors: &mut Vec<
     // V6: Check against Mapping Table
     else if label.chars().any(|c| match *find_char(c) {
         Mapping::Valid => false,
-        Mapping::Deviation(_) => config.flags.transitional_processing,
-        Mapping::DisallowedStd3Valid => config.flags.use_std3_ascii_rules,
+        Mapping::Deviation(_) => config.transitional_processing,
+        Mapping::DisallowedStd3Valid => config.use_std3_ascii_rules,
         _ => true,
     }) {
         errors.push(Error::ValidityCriteria);
@@ -315,7 +315,7 @@ fn validate(label: &str, is_bidi_domain: bool, config: Config, errors: &mut Vec<
 fn processing(domain: &str, config: Config, errors: &mut Vec<Error>) -> String {
     let mut mapped = String::with_capacity(domain.len());
     for c in domain.chars() {
-        map_char(c, config.flags, &mut mapped, errors)
+        map_char(c, config, &mut mapped, errors)
     }
     let mut normalized = String::with_capacity(mapped.len());
     normalized.extend(mapped.nfc());
@@ -371,35 +371,30 @@ fn processing(domain: &str, config: Config, errors: &mut Vec<Error>) -> String {
     validated
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct Config {
-    flags: Flags,
+    use_std3_ascii_rules: bool,
+    transitional_processing: bool,
+    verify_dns_length: bool,
     check_hyphens: bool,
-}
-
-impl From<Flags> for Config {
-    #[inline]
-    fn from(flags: Flags) -> Self {
-        Self { flags, check_hyphens: true }
-    }
 }
 
 impl Config {
     #[inline]
     pub fn use_std3_ascii_rules(mut self, value: bool) -> Self {
-        self.flags.use_std3_ascii_rules = value;
+        self.use_std3_ascii_rules = value;
         self
     }
 
     #[inline]
     pub fn transitional_processing(mut self, value: bool) -> Self {
-        self.flags.transitional_processing = value;
+        self.transitional_processing = value;
         self
     }
 
     #[inline]
     pub fn verify_dns_length(mut self, value: bool) -> Self {
-        self.flags.verify_dns_length = value;
+        self.verify_dns_length = value;
         self
     }
 
@@ -432,7 +427,7 @@ impl Config {
             }
         }
 
-        if self.flags.verify_dns_length {
+        if self.verify_dns_length {
             let domain = if result.ends_with(".") { &result[..result.len()-1] } else { &*result };
             if domain.len() < 1 || domain.split('.').any(|label| label.len() < 1) {
                 errors.push(Error::TooShortForDns)
@@ -462,13 +457,6 @@ impl Config {
 
 }
 
-#[derive(Copy, Clone)]
-pub struct Flags {
-   pub use_std3_ascii_rules: bool,
-   pub transitional_processing: bool,
-   pub verify_dns_length: bool,
-}
-
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 enum Error {
     PunycodeError,
@@ -486,16 +474,3 @@ enum Error {
 /// More details may be exposed in the future.
 #[derive(Debug)]
 pub struct Errors(Vec<Error>);
-
-/// http://www.unicode.org/reports/tr46/#ToASCII
-pub fn to_ascii(domain: &str, flags: Flags) -> Result<String, Errors> {
-    Config::from(flags).to_ascii(domain)
-}
-
-/// http://www.unicode.org/reports/tr46/#ToUnicode
-///
-/// Only `use_std3_ascii_rules` is used in `flags`.
-pub fn to_unicode(domain: &str, mut flags: Flags) -> (String, Result<(), Errors>) {
-    flags.transitional_processing = false;
-    Config::from(flags).to_unicode(domain)
-}
