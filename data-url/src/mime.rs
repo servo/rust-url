@@ -41,7 +41,7 @@ fn parse(s: &str) -> Option<Mime> {
     require!(only_http_token_code_points(type_) && !type_.is_empty());
 
     let (subtype, rest) = split2(rest?, ';');
-    let subtype = subtype.trim_right_matches(ascii_whitespace);
+    let subtype = subtype.trim_end_matches(ascii_whitespace);
     require!(only_http_token_code_points(subtype) && !subtype.is_empty());
 
     let mut parameters = Vec::new();
@@ -66,7 +66,7 @@ fn parse_parameters(s: &str, parameters: &mut Vec<(String, String)>) {
     let mut semicolon_separated = s.split(';');
 
     while let Some(piece) = semicolon_separated.next() {
-        let piece = piece.trim_left_matches(ascii_whitespace);
+        let piece = piece.trim_start_matches(ascii_whitespace);
         let (name, value) = split2(piece, '=');
         if name.is_empty() || !only_http_token_code_points(name) || contains(&parameters, name) {
             continue;
@@ -98,7 +98,7 @@ fn parse_parameters(s: &str, parameters: &mut Vec<(String, String)>) {
                 }
                 unescaped_value
             } else {
-                let value = value.trim_right_matches(ascii_whitespace);
+                let value = value.trim_end_matches(ascii_whitespace);
                 if !valid_value(value) {
                     continue;
                 }

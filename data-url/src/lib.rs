@@ -128,7 +128,7 @@ impl<'a> FragmentIdentifier<'a> {
 ///   - ASCII tabs and newlines in the middle are **not** removed
 fn pretend_parse_data_url(input: &str) -> Option<&str> {
     // Trim C0 control or space
-    let left_trimmed = input.trim_left_matches(|ch| ch <= ' ');
+    let left_trimmed = input.trim_start_matches(|ch| ch <= ' ');
 
     let mut bytes = left_trimmed.bytes();
     {
@@ -146,7 +146,7 @@ fn pretend_parse_data_url(input: &str) -> Option<&str> {
     let after_colon = &left_trimmed[bytes_consumed..];
 
     // Trim C0 control or space
-    Some(after_colon.trim_right_matches(|ch| ch <= ' '))
+    Some(after_colon.trim_end_matches(|ch| ch <= ' '))
 }
 
 fn find_comma_before_fragment(after_colon: &str) -> Option<(&str, &str)> {
