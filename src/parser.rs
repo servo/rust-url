@@ -49,11 +49,17 @@ pub type ParseResult<T> = Result<T, ParseError>;
 macro_rules! simple_enum_error {
     ($($name: ident => $description: expr,)+) => {
         /// Errors that can occur during parsing.
+        ///
+        /// This may be extended in the future so exhaustive matching is
+        /// discouraged with an unused variant.
         #[derive(PartialEq, Eq, Clone, Copy, Debug)]
         pub enum ParseError {
             $(
                 $name,
             )+
+            /// Unused variant enable non-exhaustive matching
+            #[doc(hidden)]
+            __FutureProof,
         }
 
         impl Error for ParseError {
@@ -62,6 +68,9 @@ macro_rules! simple_enum_error {
                     $(
                         ParseError::$name => $description,
                     )+
+                    ParseError::__FutureProof => {
+                        unreachable!("Don't abuse the FutureProof!");
+                    }
                 }
             }
         }
@@ -96,11 +105,17 @@ impl From<::idna::Errors> for ParseError {
 macro_rules! syntax_violation_enum {
     ($($name: ident => $description: expr,)+) => {
         /// Non-fatal syntax violations that can occur during parsing.
+        ///
+        /// This may be extended in the future so exhaustive matching is
+        /// discouraged with an unused variant.
         #[derive(PartialEq, Eq, Clone, Copy, Debug)]
         pub enum SyntaxViolation {
             $(
                 $name,
             )+
+            /// Unused variant enable non-exhaustive matching
+            #[doc(hidden)]
+            __FutureProof,
         }
 
         impl SyntaxViolation {
@@ -109,6 +124,9 @@ macro_rules! syntax_violation_enum {
                     $(
                         SyntaxViolation::$name => $description,
                     )+
+                    SyntaxViolation::__FutureProof => {
+                        unreachable!("Don't abuse the FutureProof!");
+                    }
                 }
             }
         }
