@@ -474,7 +474,7 @@ impl Url {
                     assert_eq!(host_str, h.to_string())
                 }
                 HostInternal::Domain => {
-                    if SchemeType::from(self.scheme()).is_special() {
+                    if self.is_special() {
                         assert!(!host_str.is_empty())
                     }
                 }
@@ -1566,16 +1566,16 @@ impl Url {
         }
 
         if let Some(host) = host {
-            if host == "" && SchemeType::from(self.scheme()).is_special() {
+            if host == "" && self.is_special() {
                 return Err(ParseError::EmptyHost);
             }
-            if SchemeType::from(self.scheme()).is_special() {
+            if self.is_special() {
                 self.set_host_internal(Host::parse(host)?, None)
             } else {
                 self.set_host_internal(Host::parse_opaque(host)?, None)
             }
         } else if self.has_host() {
-            if SchemeType::from(self.scheme()).is_special() {
+            if self.is_special() {
                 return Err(ParseError::EmptyHost);
             }
             debug_assert!(self.byte_at(self.scheme_end) == b':');
@@ -1949,6 +1949,68 @@ impl Url {
         parser.serialization.push_str(self.slice(old_scheme_end..));
         self.serialization = parser.serialization;
         Ok(())
+    }
+
+    /// Return whether the URL is special.
+    ///
+    /// A URL is special if its scheme is one of the following:
+    ///
+    /// "http" | "https" | "ws" | "wss" | "ftp" | "gopher" | "file"
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use url::Url;
+    /// # use url::ParseError;
+    ///
+    /// # fn run() -> Result<(), ParseError> {
+    /// let url = Url::parse("ftp://rms@example.com")?;
+    /// assert!(url.is_special());
+    ///
+    /// let url = Url::parse("file://foo.bar")?;
+    /// assert!(url.is_special());
+    ///
+    /// let url = Url::parse("unix:/run/foo.socket")?;
+    /// assert!(!url.is_special());
+    ///
+    /// let url = Url::parse("data:text/plain,Stuff")?;
+    /// assert!(!url.is_special());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
+    /// ```
+    pub fn is_special(&self) -> bool {
+        SchemeType::from(self.scheme()).is_special()
+    }
+
+    /// Return whether the URL includes credentials.
+    ///
+    /// A URL includes credentials if its username or password is not the empty string.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use url::Url;
+    /// # use url::ParseError;
+    ///
+    /// # fn run() -> Result<(), ParseError> {
+    /// let url = Url::parse("https://username:password@www.my_site.com")?;
+    /// assert!(url.includes_credentials());
+    ///
+    /// let url = Url::parse("https://username@www.my_site.com")?;
+    /// assert!(url.includes_credentials());
+    ///
+    /// let url = Url::parse("https://www.my_site.com")?;
+    /// assert!(!url.includes_credentials());
+    ///
+    /// let url = Url::parse("https://@www.my_site.com")?;
+    /// assert!(!url.includes_credentials());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
+    /// ```
+    pub fn includes_credentials(&self) -> bool {
+        self.username() != "" || self.password().unwrap_or(&"") != ""
     }
 
     /// Convert a file name as `std::path::Path` into an URL in the `file` scheme.
