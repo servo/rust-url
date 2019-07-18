@@ -2320,7 +2320,7 @@ fn path_to_file_url_segments(
 fn path_to_file_url_segments(
     path: &Path,
     serialization: &mut String,
-) -> Result<(u32, HostInternal), ()> {
+) -> Result<(u32, HostInternal), ParseError> {
     path_to_file_url_segments_windows(path, serialization)
 }
 
@@ -2329,10 +2329,10 @@ fn path_to_file_url_segments(
 fn path_to_file_url_segments_windows(
     path: &Path,
     serialization: &mut String,
-) -> Result<(u32, HostInternal), ()> {
+) -> Result<(u32, HostInternal), ParseError> {
     use std::path::{Component, Prefix};
     if !path.is_absolute() {
-        return Err(());
+        return Err(ParseError::PathNotAbsolute);
     }
     let mut components = path.components();
 
@@ -2348,18 +2348,18 @@ fn path_to_file_url_segments_windows(
                 serialization.push(':');
             }
             Prefix::UNC(server, share) | Prefix::VerbatimUNC(server, share) => {
-                let host = Host::parse(server.to_str().ok_or(())?).map_err(|_| ())?;
+                let host = Host::parse(server.to_str().ok_or(ParseError::PathNotAbsolute)?)?;
                 write!(serialization, "{}", host).unwrap();
                 host_end = to_u32(serialization.len()).unwrap();
                 host_internal = host.into();
                 serialization.push('/');
-                let share = share.to_str().ok_or(())?;
+                let share = share.to_str().ok_or(ParseError::PathNotAbsolute)?;
                 serialization.extend(percent_encode(share.as_bytes(), PATH_SEGMENT));
             }
-            _ => return Err(()),
+            _ => return Err(ParseError::PathNotAbsolute),
         },
 
-        _ => return Err(()),
+        _ => return Err(ParseError::PathNotAbsolute),
     }
 
     for component in components {
@@ -2367,7 +2367,7 @@ fn path_to_file_url_segments_windows(
             continue;
         }
         // FIXME: somehow work with non-unicode?
-        let component = component.as_os_str().to_str().ok_or(())?;
+        let component = component.as_os_str().to_str().ok_or(ParseError::PathNotAbsolute)?;
         serialization.push('/');
         serialization.extend(percent_encode(component.as_bytes(), PATH_SEGMENT));
     }
