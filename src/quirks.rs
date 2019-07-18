@@ -39,9 +39,12 @@ pub fn href(url: &Url) -> &str {
 }
 
 /// Setter for https://url.spec.whatwg.org/#dom-url-href
-pub fn set_href(url: &mut Url, value: &str) -> Result<(), ParseError> {
+pub fn set_href<'this>(
+    url: &'this mut Url,
+    value: &str,
+) -> Result<&'this mut Url, ParseError> {
     *url = Url::parse(value)?;
-    Ok(())
+    Ok(url)
 }
 
 /// Getter for https://url.spec.whatwg.org/#dom-url-origin
@@ -56,7 +59,10 @@ pub fn protocol(url: &Url) -> &str {
 }
 
 /// Setter for https://url.spec.whatwg.org/#dom-url-protocol
-pub fn set_protocol(url: &mut Url, mut new_protocol: &str) -> Result<(), ()> {
+pub fn set_protocol<'this>(
+    url: &'this mut Url,
+    mut new_protocol: &str,
+) -> Result<&'this mut Url, ()> {
     // The scheme state in the spec ignores everything after the first `:`,
     // but `set_scheme` errors if there is more.
     if let Some(position) = new_protocol.find(':') {
@@ -72,7 +78,10 @@ pub fn username(url: &Url) -> &str {
 }
 
 /// Setter for https://url.spec.whatwg.org/#dom-url-username
-pub fn set_username(url: &mut Url, new_username: &str) -> Result<(), ()> {
+pub fn set_username<'this>(
+    url: &'this mut Url,
+    new_username: &str,
+) -> Result<&'this mut Url, ()> {
     url.set_username(new_username)
 }
 
@@ -83,7 +92,10 @@ pub fn password(url: &Url) -> &str {
 }
 
 /// Setter for https://url.spec.whatwg.org/#dom-url-password
-pub fn set_password(url: &mut Url, new_password: &str) -> Result<(), ()> {
+pub fn set_password<'this>(
+    url: &'this mut Url,
+    new_password: &str,
+) -> Result<&'this mut Url, ()> {
     url.set_password(if new_password.is_empty() {
         None
     } else {
@@ -98,7 +110,10 @@ pub fn host(url: &Url) -> &str {
 }
 
 /// Setter for https://url.spec.whatwg.org/#dom-url-host
-pub fn set_host(url: &mut Url, new_host: &str) -> Result<(), ()> {
+pub fn set_host<'this>(
+    url: &'this mut Url,
+    new_host: &str,
+) -> Result<&'this mut Url, ()> {
     if url.cannot_be_a_base() {
         return Err(());
     }
@@ -122,7 +137,7 @@ pub fn set_host(url: &mut Url, new_host: &str) -> Result<(), ()> {
         }
     }
     url.set_host_internal(host, opt_port);
-    Ok(())
+    Ok(url)
 }
 
 /// Getter for https://url.spec.whatwg.org/#dom-url-hostname
@@ -132,14 +147,17 @@ pub fn hostname(url: &Url) -> &str {
 }
 
 /// Setter for https://url.spec.whatwg.org/#dom-url-hostname
-pub fn set_hostname(url: &mut Url, new_hostname: &str) -> Result<(), ()> {
+pub fn set_hostname<'this>(
+    url: &'this mut Url,
+    new_hostname: &str,
+) -> Result<&'this mut Url, ()> {
     if url.cannot_be_a_base() {
         return Err(());
     }
     let result = Parser::parse_host(Input::new(new_hostname), SchemeType::from(url.scheme()));
     if let Ok((host, _remaining)) = result {
         url.set_host_internal(host, None);
-        Ok(())
+        Ok(url)
     } else {
         Err(())
     }
@@ -152,7 +170,10 @@ pub fn port(url: &Url) -> &str {
 }
 
 /// Setter for https://url.spec.whatwg.org/#dom-url-port
-pub fn set_port(url: &mut Url, new_port: &str) -> Result<(), ()> {
+pub fn set_port<'this>(
+    url: &'this mut Url,
+    new_port: &str,
+) -> Result<&'this mut Url, ()> {
     let result;
     {
         // has_host implies !cannot_be_a_base
@@ -168,7 +189,7 @@ pub fn set_port(url: &mut Url, new_port: &str) -> Result<(), ()> {
     }
     if let Ok((new_port, _remaining)) = result {
         url.set_port_internal(new_port);
-        Ok(())
+        Ok(url)
     } else {
         Err(())
     }

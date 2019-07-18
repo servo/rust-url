@@ -105,7 +105,7 @@ assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css");
 # run().unwrap();
 */
 
-#![doc(html_root_url = "https://docs.rs/url/2.0.0")]
+// #![doc(html_root_url = "https://docs.rs/url/2.0.0")]
 
 #[macro_use]
 extern crate matches;
@@ -1428,7 +1428,7 @@ impl Url {
     /// # }
     /// # run().unwrap();
     /// ```
-    pub fn set_port(&mut self, mut port: Option<u16>) -> Result<(), ()> {
+    pub fn set_port(&mut self, mut port: Option<u16>) -> Result<&mut Self, ()> {
         // has_host implies !cannot_be_a_base
         if !self.has_host() || self.host() == Some(Host::Domain("")) || self.scheme() == "file" {
             return Err(());
@@ -1437,7 +1437,7 @@ impl Url {
             port = None
         }
         self.set_port_internal(port);
-        Ok(())
+        Ok(self)
     }
 
     fn set_port_internal(&mut self, port: Option<u16>) {
@@ -1561,7 +1561,7 @@ impl Url {
     /// a [`ParseError`] variant will be returned.
     ///
     /// [`ParseError`]: enum.ParseError.html
-    pub fn set_host(&mut self, host: Option<&str>) -> Result<(), ParseError> {
+    pub fn set_host(&mut self, host: Option<&str>) -> Result<&mut Self, ParseError> {
         if self.cannot_be_a_base() {
             return Err(ParseError::SetHostOnCannotBeABaseUrl);
         }
@@ -1597,7 +1597,7 @@ impl Url {
                 *index -= offset
             }
         }
-        Ok(())
+        Ok(self)
     }
 
     /// opt_new_port: None means leave unchanged, Some(None) means remove any port number.
@@ -1680,7 +1680,7 @@ impl Url {
     /// # run().unwrap();
     /// ```
     ///
-    pub fn set_ip_host(&mut self, address: IpAddr) -> Result<(), ()> {
+    pub fn set_ip_host(&mut self, address: IpAddr) -> Result<&mut Self, ()> {
         if self.cannot_be_a_base() {
             return Err(());
         }
@@ -1690,7 +1690,7 @@ impl Url {
             IpAddr::V6(address) => Host::Ipv6(address),
         };
         self.set_host_internal(address, None);
-        Ok(())
+        Ok(self)
     }
 
     /// Change this URL’s password.
@@ -1719,7 +1719,7 @@ impl Url {
     /// # }
     /// # run().unwrap();
     /// ```
-    pub fn set_password(&mut self, password: Option<&str>) -> Result<(), ()> {
+    pub fn set_password(&mut self, password: Option<&str>) -> Result<&mut Self, ()> {
         // has_host implies !cannot_be_a_base
         if !self.has_host() || self.host() == Some(Host::Domain("")) || self.scheme() == "file" {
             return Err(());
@@ -1773,7 +1773,7 @@ impl Url {
                 *index -= offset
             }
         }
-        Ok(())
+        Ok(self)
     }
 
     /// Change this URL’s username.
@@ -1811,7 +1811,7 @@ impl Url {
     /// # }
     /// # run().unwrap();
     /// ```
-    pub fn set_username(&mut self, username: &str) -> Result<(), ()> {
+    pub fn set_username(&mut self, username: &str) -> Result<&mut Self, ()> {
         // has_host implies !cannot_be_a_base
         if !self.has_host() || self.host() == Some(Host::Domain("")) || self.scheme() == "file" {
             return Err(());
@@ -1819,7 +1819,7 @@ impl Url {
         let username_start = self.scheme_end + 3;
         debug_assert!(self.slice(self.scheme_end..username_start) == "://");
         if self.slice(username_start..self.username_end) == username {
-            return Ok(());
+            return Ok(self);
         }
         let after_username = self.slice(self.username_end..).to_owned();
         self.serialization.truncate(username_start as usize);
@@ -1859,7 +1859,7 @@ impl Url {
         if let Some(ref mut index) = self.fragment_start {
             adjust(index)
         }
-        Ok(())
+        Ok(self)
     }
 
     /// Change this URL’s scheme.
@@ -1920,7 +1920,7 @@ impl Url {
     /// # }
     /// # run().unwrap();
     /// ```
-    pub fn set_scheme(&mut self, scheme: &str) -> Result<(), ()> {
+    pub fn set_scheme(&mut self, scheme: &str) -> Result<&mut Self, ()> {
         let mut parser = Parser::for_setter(String::new());
         let remaining = parser.parse_scheme(parser::Input::new(scheme))?;
         if !remaining.is_empty()
@@ -1949,7 +1949,7 @@ impl Url {
 
         parser.serialization.push_str(self.slice(old_scheme_end..));
         self.serialization = parser.serialization;
-        Ok(())
+        Ok(self)
     }
 
     /// Convert a file name as `std::path::Path` into an URL in the `file` scheme.
