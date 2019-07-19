@@ -972,7 +972,7 @@ impl<'a> Parser<'a> {
         Ok((host, input))
     }
 
-    pub fn parse_file_host<'i>(
+    pub(crate) fn parse_file_host<'i>(
         &mut self,
         input: Input<'i>,
     ) -> ParseResult<(bool, HostInternal, Input<'i>)> {

@@ -14,7 +14,7 @@ use std::fmt::{self, Formatter};
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum HostInternal {
+pub(crate) enum HostInternal {
     None,
     Domain,
     Ipv4(Ipv4Addr),
