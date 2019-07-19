@@ -153,7 +153,7 @@
   {
     "input": "http://f:21/ b ? d # e ",
     "base": "http://example.org/foo/bar",
-    "href": "http://f:21/%20b%20?%20d%20# e",
+    "href": "http://f:21/%20b%20?%20d%20#%20e",
     "origin": "http://f:21",
     "protocol": "http:",
     "username": "",
@@ -163,12 +163,12 @@
     "port": "21",
     "pathname": "/%20b%20",
     "search": "?%20d%20",
-    "hash": "# e"
+    "hash": "#%20e"
   },
   {
     "input": "lolscheme:x x#x x",
     "base": "about:blank",
-    "href": "lolscheme:x x#x x",
+    "href": "lolscheme:x x#x%20x",
     "protocol": "lolscheme:",
     "username": "",
     "password": "",
@@ -177,7 +177,7 @@
     "port": "",
     "pathname": "x x",
     "search": "",
-    "hash": "#x x"
+    "hash": "#x%20x"
   },
   {
     "input": "http://f:/c",
@@ -572,7 +572,7 @@
   {
     "input": "foo://",
     "base": "http://example.org/foo/bar",
-    "href": "foo:///",
+    "href": "foo://",
     "origin": "null",
     "protocol": "foo:",
     "username": "",
@@ -580,7 +580,7 @@
     "host": "",
     "hostname": "",
     "port": "",
-    "pathname": "/",
+    "pathname": "",
     "search": "",
     "hash": ""
   },
@@ -1433,6 +1433,22 @@
     "search": "",
     "hash": ""
   },
+  "# Based on https://felixfbecker.github.io/whatwg-url-custom-host-repro/",
+  {
+    "input": "ssh://example.com/foo/bar.git",
+    "base": "http://example.org/",
+    "href": "ssh://example.com/foo/bar.git",
+    "origin": "null",
+    "protocol": "ssh:",
+    "username": "",
+    "password": "",
+    "host": "example.com",
+    "hostname": "example.com",
+    "port": "",
+    "pathname": "/foo/bar.git",
+    "search": "",
+    "hash": ""
+  },
   "# Based on http://trac.webkit.org/browser/trunk/LayoutTests/fast/url/file.html",
   {
     "input": "file:c:\\foo\\bar.html",
@@ -2260,7 +2276,7 @@
   {
     "input": "http://www.google.com/foo?bar=baz# »",
     "base": "about:blank",
-    "href": "http://www.google.com/foo?bar=baz# %C2%BB",
+    "href": "http://www.google.com/foo?bar=baz#%20%C2%BB",
     "origin": "http://www.google.com",
     "protocol": "http:",
     "username": "",
@@ -2270,12 +2286,12 @@
     "port": "",
     "pathname": "/foo",
     "search": "?bar=baz",
-    "hash": "# %C2%BB"
+    "hash": "#%20%C2%BB"
   },
   {
     "input": "data:test# »",
     "base": "about:blank",
-    "href": "data:test# %C2%BB",
+    "href": "data:test#%20%C2%BB",
     "origin": "null",
     "protocol": "data:",
     "username": "",
@@ -2285,7 +2301,7 @@
     "port": "",
     "pathname": "test",
     "search": "",
-    "hash": "# %C2%BB"
+    "hash": "#%20%C2%BB"
   },
   {
     "input": "http://www.google.com",
@@ -4015,6 +4031,37 @@
     "search": "?`{}",
     "hash": ""
   },
+  "byte is ' and url is special",
+  {
+    "input": "http://host/?'",
+    "base": "about:blank",
+    "href": "http://host/?%27",
+    "origin": "http://host",
+    "protocol": "http:",
+    "username": "",
+    "password": "",
+    "host": "host",
+    "hostname": "host",
+    "port": "",
+    "pathname": "/",
+    "search": "?%27",
+    "hash": ""
+  },
+  {
+    "input": "notspecial://host/?'",
+    "base": "about:blank",
+    "href": "notspecial://host/?'",
+    "origin": "null",
+    "protocol": "notspecial:",
+    "username": "",
+    "password": "",
+    "host": "host",
+    "hostname": "host",
+    "port": "",
+    "pathname": "/",
+    "search": "?'",
+    "hash": ""
+  },
   "# Credentials in base",
   {
     "input": "/some/path",
@@ -4474,6 +4521,26 @@
     "hash": ""
   },
   {
+    "input": "sc://@/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "sc://te@s:t@/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "sc://:/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "sc://:12/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
     "input": "sc://[/",
     "base": "about:blank",
     "failure": true
@@ -4563,6 +4630,22 @@
     "hostname": "",
     "port": "",
     "pathname": "%1G",
+    "search": "",
+    "hash": ""
+  },
+  "# unknown scheme with non-URL characters in the path",
+  {
+    "input": "wow:\uFFFF",
+    "base": "about:blank",
+    "href": "wow:%EF%BF%BF",
+    "origin": "null",
+    "protocol": "wow:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "%EF%BF%BF",
     "search": "",
     "hash": ""
   },
@@ -4767,6 +4850,70 @@
     "searchParams": "qux=",
     "hash": "#foo%08bar"
   },
+  {
+    "input": "http://foo.bar/baz?qux#foo\"bar",
+    "base": "about:blank",
+    "href": "http://foo.bar/baz?qux#foo%22bar",
+    "origin": "http://foo.bar",
+    "protocol": "http:",
+    "username": "",
+    "password": "",
+    "host": "foo.bar",
+    "hostname": "foo.bar",
+    "port": "",
+    "pathname": "/baz",
+    "search": "?qux",
+    "searchParams": "qux=",
+    "hash": "#foo%22bar"
+  },
+  {
+    "input": "http://foo.bar/baz?qux#foo<bar",
+    "base": "about:blank",
+    "href": "http://foo.bar/baz?qux#foo%3Cbar",
+    "origin": "http://foo.bar",
+    "protocol": "http:",
+    "username": "",
+    "password": "",
+    "host": "foo.bar",
+    "hostname": "foo.bar",
+    "port": "",
+    "pathname": "/baz",
+    "search": "?qux",
+    "searchParams": "qux=",
+    "hash": "#foo%3Cbar"
+  },
+  {
+    "input": "http://foo.bar/baz?qux#foo>bar",
+    "base": "about:blank",
+    "href": "http://foo.bar/baz?qux#foo%3Ebar",
+    "origin": "http://foo.bar",
+    "protocol": "http:",
+    "username": "",
+    "password": "",
+    "host": "foo.bar",
+    "hostname": "foo.bar",
+    "port": "",
+    "pathname": "/baz",
+    "search": "?qux",
+    "searchParams": "qux=",
+    "hash": "#foo%3Ebar"
+  },
+  {
+    "input": "http://foo.bar/baz?qux#foo`bar",
+    "base": "about:blank",
+    "href": "http://foo.bar/baz?qux#foo%60bar",
+    "origin": "http://foo.bar",
+    "protocol": "http:",
+    "username": "",
+    "password": "",
+    "host": "foo.bar",
+    "hostname": "foo.bar",
+    "port": "",
+    "pathname": "/baz",
+    "search": "?qux",
+    "searchParams": "qux=",
+    "hash": "#foo%60bar"
+  },
   "# IPv4 parsing (via https://github.com/nodejs/node/pull/10317)",
   {
     "input": "http://192.168.257",
@@ -4954,6 +5101,11 @@
     "hash": ""
   },
   "More IPv4 parsing (via https://github.com/jsdom/whatwg-url/issues/92)",
+  {
+    "input": "https://0x100000000/test",
+    "base": "about:blank",
+    "failure": true
+  },
   {
     "input": "https://256.0.0.1/test",
     "base": "about:blank",
@@ -5188,6 +5340,90 @@
   },
   "# File URLs and many (back)slashes",
   {
+    "input": "file:\\\\//",
+    "base": "about:blank",
+    "href": "file:///",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "file:\\\\\\\\",
+    "base": "about:blank",
+    "href": "file:///",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "file:\\\\\\\\?fox",
+    "base": "about:blank",
+    "href": "file:///?fox",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "/",
+    "search": "?fox",
+    "hash": ""
+  },
+  {
+    "input": "file:\\\\\\\\#guppy",
+    "base": "about:blank",
+    "href": "file:///#guppy",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "hash": "#guppy"
+  },
+  {
+    "input": "file://spider///",
+    "base": "about:blank",
+    "href": "file://spider/",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "spider",
+    "hostname": "spider",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "file:\\\\localhost//",
+    "base": "about:blank",
+    "href": "file:///",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "hash": ""
+  },
+  {
     "input": "file:///localhost//cat",
     "base": "about:blank",
     "href": "file:///localhost//cat",
@@ -5198,6 +5434,48 @@
     "hostname": "",
     "port": "",
     "pathname": "/localhost//cat",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "file://\\/localhost//cat",
+    "base": "about:blank",
+    "href": "file:///localhost//cat",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "/localhost//cat",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "file://localhost//a//../..//",
+    "base": "about:blank",
+    "href": "file:///",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "/////mouse",
+    "base": "file:///elephant",
+    "href": "file:///mouse",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "/mouse",
     "search": "",
     "hash": ""
   },
@@ -5216,6 +5494,48 @@
     "hash": ""
   },
   {
+    "input": "\\/localhost//pig",
+    "base": "file://lion/",
+    "href": "file:///pig",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "/pig",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "//localhost//pig",
+    "base": "file://lion/",
+    "href": "file:///pig",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "/pig",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "/..//localhost//pig",
+    "base": "file://lion/",
+    "href": "file://lion/localhost//pig",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "lion",
+    "hostname": "lion",
+    "port": "",
+    "pathname": "/localhost//pig",
+    "search": "",
+    "hash": ""
+  },
+  {
     "input": "file://",
     "base": "file://ape/",
     "href": "file:///",
@@ -5229,7 +5549,50 @@
     "search": "",
     "hash": ""
   },
+  "# File URLs with non-empty hosts",
+  {
+    "input": "/rooibos",
+    "base": "file://tea/",
+    "href": "file://tea/rooibos",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "tea",
+    "hostname": "tea",
+    "port": "",
+    "pathname": "/rooibos",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "/?chai",
+    "base": "file://tea/",
+    "href": "file://tea/?chai",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "tea",
+    "hostname": "tea",
+    "port": "",
+    "pathname": "/",
+    "search": "?chai",
+    "hash": ""
+  },
   "# Windows drive letter handling with the 'file:' base URL",
+  {
+    "input": "C|",
+    "base": "file://host/dir/file",
+    "href": "file:///C:",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "/C:",
+    "search": "",
+    "hash": ""
+  },
   {
     "input": "C|#",
     "base": "file://host/dir/file",
@@ -5331,7 +5694,7 @@
   "# Windows drive letter quirk in the file slash state",
   {
     "input": "/c:/foo/bar",
-    "base": "file://host/path",
+    "base": "file:///c:/baz/qux",
     "href": "file:///c:/foo/bar",
     "protocol": "file:",
     "username": "",
@@ -5343,32 +5706,45 @@
     "search": "",
     "hash": ""
   },
-  "# Windows drive letter quirk (no host)",
   {
-    "input": "file:/C|/",
-    "base": "about:blank",
-    "href": "file:///C:/",
+    "input": "/c|/foo/bar",
+    "base": "file:///c:/baz/qux",
+    "href": "file:///c:/foo/bar",
     "protocol": "file:",
     "username": "",
     "password": "",
     "host": "",
     "hostname": "",
     "port": "",
-    "pathname": "/C:/",
+    "pathname": "/c:/foo/bar",
     "search": "",
     "hash": ""
   },
   {
-    "input": "file://C|/",
-    "base": "about:blank",
-    "href": "file:///C:/",
+    "input": "file:\\c:\\foo\\bar",
+    "base": "file:///c:/baz/qux",
+    "href": "file:///c:/foo/bar",
     "protocol": "file:",
     "username": "",
     "password": "",
     "host": "",
     "hostname": "",
     "port": "",
-    "pathname": "/C:/",
+    "pathname": "/c:/foo/bar",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "/c:/foo/bar",
+    "base": "file://host/path",
+    "href": "file:///c:/foo/bar",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "/c:/foo/bar",
     "search": "",
     "hash": ""
   },
@@ -5403,6 +5779,35 @@
   },
   {
     "input": "file://[1::8]/C:/",
+    "base": "about:blank",
+    "href": "file:///C:/",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "/C:/",
+    "search": "",
+    "hash": ""
+  },
+  "# Windows drive letter quirk (no host)",
+  {
+    "input": "file:/C|/",
+    "base": "about:blank",
+    "href": "file:///C:/",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "/C:/",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "file://C|/",
     "base": "about:blank",
     "href": "file:///C:/",
     "protocol": "file:",
@@ -5545,6 +5950,109 @@
   },
   "# Non-special-URL path tests",
   {
+    "input": "sc://ñ",
+    "base": "about:blank",
+    "href": "sc://%C3%B1",
+    "origin": "null",
+    "protocol": "sc:",
+    "username": "",
+    "password": "",
+    "host": "%C3%B1",
+    "hostname": "%C3%B1",
+    "port": "",
+    "pathname": "",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "sc://ñ?x",
+    "base": "about:blank",
+    "href": "sc://%C3%B1?x",
+    "origin": "null",
+    "protocol": "sc:",
+    "username": "",
+    "password": "",
+    "host": "%C3%B1",
+    "hostname": "%C3%B1",
+    "port": "",
+    "pathname": "",
+    "search": "?x",
+    "hash": ""
+  },
+  {
+    "input": "sc://ñ#x",
+    "base": "about:blank",
+    "href": "sc://%C3%B1#x",
+    "origin": "null",
+    "protocol": "sc:",
+    "username": "",
+    "password": "",
+    "host": "%C3%B1",
+    "hostname": "%C3%B1",
+    "port": "",
+    "pathname": "",
+    "search": "",
+    "hash": "#x"
+  },
+  {
+    "input": "#x",
+    "base": "sc://ñ",
+    "href": "sc://%C3%B1#x",
+    "origin": "null",
+    "protocol": "sc:",
+    "username": "",
+    "password": "",
+    "host": "%C3%B1",
+    "hostname": "%C3%B1",
+    "port": "",
+    "pathname": "",
+    "search": "",
+    "hash": "#x"
+  },
+  {
+    "input": "?x",
+    "base": "sc://ñ",
+    "href": "sc://%C3%B1?x",
+    "origin": "null",
+    "protocol": "sc:",
+    "username": "",
+    "password": "",
+    "host": "%C3%B1",
+    "hostname": "%C3%B1",
+    "port": "",
+    "pathname": "",
+    "search": "?x",
+    "hash": ""
+  },
+  {
+    "input": "sc://?",
+    "base": "about:blank",
+    "href": "sc://?",
+    "protocol": "sc:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "sc://#",
+    "base": "about:blank",
+    "href": "sc://#",
+    "protocol": "sc:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "",
+    "search": "",
+    "hash": ""
+  },
+  {
     "input": "///",
     "base": "sc://x/",
     "href": "sc:///",
@@ -5555,6 +6063,34 @@
     "hostname": "",
     "port": "",
     "pathname": "/",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "////",
+    "base": "sc://x/",
+    "href": "sc:////",
+    "protocol": "sc:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "//",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "////x/",
+    "base": "sc://x/",
+    "href": "sc:////x/",
+    "protocol": "sc:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "//x/",
     "search": "",
     "hash": ""
   },
@@ -6048,27 +6584,34 @@
     "search": "?a",
     "hash": "#%GH"
   },
-  "Bad bases",
+  "URLs that require a non-about:blank base. (Also serve as invalid base tests.)",
   {
-    "input": "test-a.html",
-    "base": "a",
+    "input": "a",
+    "base": "about:blank",
     "failure": true
   },
   {
-    "input": "test-a-slash.html",
-    "base": "a/",
+    "input": "a/",
+    "base": "about:blank",
     "failure": true
   },
   {
-    "input": "test-a-slash-slash.html",
-    "base": "a//",
+    "input": "a//",
+    "base": "about:blank",
     "failure": true
   },
+  "Bases that don't fail to parse but fail to be bases",
   {
     "input": "test-a-colon.html",
     "base": "a:",
     "failure": true
   },
+  {
+    "input": "test-a-colon-b.html",
+    "base": "a:b",
+    "failure": true
+  },
+  "Other base URL tests, that must succeed",
   {
     "input": "test-a-colon-slash.html",
     "base": "a:/",
@@ -6096,11 +6639,6 @@
     "pathname": "/test-a-colon-slash-slash.html",
     "search": "",
     "hash": ""
-  },
-  {
-    "input": "test-a-colon-b.html",
-    "base": "a:b",
-    "failure": true
   },
   {
     "input": "test-a-colon-slash-b.html",
