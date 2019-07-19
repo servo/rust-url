@@ -2281,11 +2281,28 @@ impl<'de> serde::Deserialize<'de> for Url {
     where
         D: serde::Deserializer<'de>,
     {
-        use serde::de::{Error, Unexpected};
-        let string_representation: String = serde::Deserialize::deserialize(deserializer)?;
-        Url::parse(&string_representation).map_err(|err| {
-            Error::invalid_value(Unexpected::Str(&string_representation), &err.description())
-        })
+        use serde::de::{Error, Unexpected, Visitor};
+
+        struct UrlVisitor;
+
+        impl<'de> Visitor<'de> for UrlVisitor {
+            type Value = Url;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a string representing an URL")
+            }
+
+            fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+            where
+                E: Error,
+            {
+                Url::parse(s).map_err(|err| {
+                    Error::invalid_value(Unexpected::Str(s), &err.description())
+                })
+            }
+        }
+
+        deserializer.deserialize_str(UrlVisitor)
     }
 }
 
