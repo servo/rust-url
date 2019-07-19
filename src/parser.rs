@@ -1329,14 +1329,8 @@ impl<'a> Parser<'a> {
                 self.log_violation(SyntaxViolation::NullInFragment)
             } else {
                 self.check_url_code_point(c, &input);
-                self.serialization.extend(utf8_percent_encode(
-                    utf8_c,
-                    // FIXME: tests fail when we use the FRAGMENT set here
-                    // as defined in the spec as of 2019-07-17,
-                    // likely because tests are out of date.
-                    // See https://github.com/servo/rust-url/issues/290
-                    CONTROLS,
-                ));
+                self.serialization
+                    .extend(utf8_percent_encode(utf8_c, FRAGMENT));
             }
         }
     }
