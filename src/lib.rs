@@ -1497,8 +1497,7 @@ impl Url {
     /// # run().unwrap();
     /// ```
     pub fn set_port(&mut self, mut port: Option<u16>) -> Result<(), ()> {
-        // has_host implies !cannot_be_a_base
-        if !self.has_host() || self.host() == Some(Host::Domain("")) || self.scheme() == "file" {
+        if self.cannot_have_username_password_port() {
             return Err(());
         }
         if port.is_some() && port == parser::default_port(self.scheme()) {
@@ -1807,8 +1806,7 @@ impl Url {
     /// # run().unwrap();
     /// ```
     pub fn set_password(&mut self, password: Option<&str>) -> Result<(), ()> {
-        // has_host implies !cannot_be_a_base
-        if !self.has_host() || self.host() == Some(Host::Domain("")) || self.scheme() == "file" {
+        if self.cannot_have_username_password_port() {
             return Err(());
         }
         if let Some(password) = password {
@@ -1899,8 +1897,7 @@ impl Url {
     /// # run().unwrap();
     /// ```
     pub fn set_username(&mut self, username: &str) -> Result<(), ()> {
-        // has_host implies !cannot_be_a_base
-        if !self.has_host() || self.host() == Some(Host::Domain("")) || self.scheme() == "file" {
+        if self.cannot_have_username_password_port() {
             return Err(());
         }
         let username_start = self.scheme_end + 3;
@@ -2360,6 +2357,12 @@ impl Url {
     }
 
     // Private helper methods:
+
+    fn cannot_have_username_password_port(&self) -> bool {
+        self.host().unwrap_or(Host::Domain("")) == Host::Domain("")
+            || self.cannot_be_a_base()
+            || self.scheme() == "file"
+    }
 
     #[inline]
     fn slice<R>(&self, range: R) -> &str
