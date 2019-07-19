@@ -9,55 +9,19 @@
 use idna;
 use parser::{ParseError, ParseResult};
 use percent_encoding::{percent_decode, utf8_percent_encode, CONTROLS};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 use std::cmp;
 use std::fmt::{self, Formatter};
 use std::net::{Ipv4Addr, Ipv6Addr};
 
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub(crate) enum HostInternal {
     None,
     Domain,
     Ipv4(Ipv4Addr),
     Ipv6(Ipv6Addr),
-}
-
-#[cfg(feature = "serde")]
-impl ::serde::Serialize for HostInternal {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: ::serde::Serializer,
-    {
-        // This doesn’t use `derive` because that involves
-        // large dependencies (that take a long time to build), and
-        // either Macros 1.1 which are not stable yet or a cumbersome build script.
-        //
-        // Implementing `Serializer` correctly for an enum is tricky,
-        // so let’s use existing enums that already do.
-        use std::net::IpAddr;
-        match *self {
-            HostInternal::None => None,
-            HostInternal::Domain => Some(None),
-            HostInternal::Ipv4(addr) => Some(Some(IpAddr::V4(addr))),
-            HostInternal::Ipv6(addr) => Some(Some(IpAddr::V6(addr))),
-        }
-        .serialize(serializer)
-    }
-}
-
-#[cfg(feature = "serde")]
-impl<'de> ::serde::Deserialize<'de> for HostInternal {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: ::serde::Deserializer<'de>,
-    {
-        use std::net::IpAddr;
-        Ok(match ::serde::Deserialize::deserialize(deserializer)? {
-            None => HostInternal::None,
-            Some(None) => HostInternal::Domain,
-            Some(Some(IpAddr::V4(addr))) => HostInternal::Ipv4(addr),
-            Some(Some(IpAddr::V6(addr))) => HostInternal::Ipv6(addr),
-        })
-    }
 }
 
 impl<S> From<Host<S>> for HostInternal {
@@ -71,6 +35,7 @@ impl<S> From<Host<S>> for HostInternal {
 }
 
 /// The host name of an URL.
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum Host<S = String> {
     /// A DNS domain name, as '.' dot-separated labels.
@@ -90,37 +55,6 @@ pub enum Host<S = String> {
     /// for IPv6 Address Text Representation*](https://tools.ietf.org/html/rfc5952):
     /// lowercase hexadecimal with maximal `::` compression.
     Ipv6(Ipv6Addr),
-}
-
-#[cfg(feature = "serde")]
-impl<S: ::serde::Serialize> ::serde::Serialize for Host<S> {
-    fn serialize<R>(&self, serializer: R) -> Result<R::Ok, R::Error>
-    where
-        R: ::serde::Serializer,
-    {
-        use std::net::IpAddr;
-        match *self {
-            Host::Domain(ref s) => Ok(s),
-            Host::Ipv4(addr) => Err(IpAddr::V4(addr)),
-            Host::Ipv6(addr) => Err(IpAddr::V6(addr)),
-        }
-        .serialize(serializer)
-    }
-}
-
-#[cfg(feature = "serde")]
-impl<'de, S: ::serde::Deserialize<'de>> ::serde::Deserialize<'de> for Host<S> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: ::serde::Deserializer<'de>,
-    {
-        use std::net::IpAddr;
-        Ok(match ::serde::Deserialize::deserialize(deserializer)? {
-            Ok(s) => Host::Domain(s),
-            Err(IpAddr::V4(addr)) => Host::Ipv4(addr),
-            Err(IpAddr::V6(addr)) => Host::Ipv6(addr),
-        })
-    }
 }
 
 impl<'a> Host<&'a str> {
