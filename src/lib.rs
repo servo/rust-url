@@ -1954,6 +1954,13 @@ impl Url {
 
         parser.serialization.push_str(self.slice(old_scheme_end..));
         self.serialization = parser.serialization;
+
+        // Update the port so it ca be removed
+        // If it is the scheme's default
+        if self.set_port(self.port_or_known_default()).is_err() {
+            return Err(());
+        };
+
         Ok(())
     }
 
