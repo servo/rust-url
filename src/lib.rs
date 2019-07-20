@@ -2348,18 +2348,18 @@ fn path_to_file_url_segments_windows(
                 serialization.push(':');
             }
             Prefix::UNC(server, share) | Prefix::VerbatimUNC(server, share) => {
-                let host = Host::parse(server.to_str().ok_or(ParseError::PathNotAbsolute)?)?;
+                let host = Host::parse(server.to_str().ok_or(ParseError::InvalidLocalPath)?)?;
                 write!(serialization, "{}", host).unwrap();
                 host_end = to_u32(serialization.len()).unwrap();
                 host_internal = host.into();
                 serialization.push('/');
-                let share = share.to_str().ok_or(ParseError::PathNotAbsolute)?;
+                let share = share.to_str().ok_or(ParseError::InvalidLocalPath)?;
                 serialization.extend(percent_encode(share.as_bytes(), PATH_SEGMENT));
             }
-            _ => return Err(ParseError::PathNotAbsolute),
+            _ => return Err(ParseError::InvalidLocalPath),
         },
 
-        _ => return Err(ParseError::PathNotAbsolute),
+        _ => return Err(ParseError::InvalidLocalPath),
     }
 
     for component in components {
@@ -2367,7 +2367,7 @@ fn path_to_file_url_segments_windows(
             continue;
         }
         // FIXME: somehow work with non-unicode?
-        let component = component.as_os_str().to_str().ok_or(ParseError::PathNotAbsolute)?;
+        let component = component.as_os_str().to_str().ok_or(ParseError::InvalidLocalPath)?;
         serialization.push('/');
         serialization.extend(percent_encode(component.as_bytes(), PATH_SEGMENT));
     }
@@ -2408,7 +2408,7 @@ fn file_url_segments_to_pathbuf(
 fn file_url_segments_to_pathbuf(
     host: Option<&str>,
     segments: str::Split<char>,
-) -> Result<PathBuf, ()> {
+) -> Result<PathBuf, ParseError> {
     file_url_segments_to_pathbuf_windows(host, segments)
 }
 
@@ -2417,16 +2417,16 @@ fn file_url_segments_to_pathbuf(
 fn file_url_segments_to_pathbuf_windows(
     host: Option<&str>,
     mut segments: str::Split<char>,
-) -> Result<PathBuf, ()> {
+) -> Result<PathBuf, ParseError> {
     let mut string = if let Some(host) = host {
         r"\\".to_owned() + host
     } else {
-        let first = segments.next().ok_or(())?;
+        let first = segments.next().ok_or(ParseError::InvalidLocalPath)?;
 
         match first.len() {
             2 => {
                 if !first.starts_with(parser::ascii_alpha) || first.as_bytes()[1] != b':' {
-                    return Err(());
+                    return Err(ParseError::InvalidLocalPath);
                 }
 
                 first.to_owned()
@@ -2434,17 +2434,17 @@ fn file_url_segments_to_pathbuf_windows(
 
             4 => {
                 if !first.starts_with(parser::ascii_alpha) {
-                    return Err(());
+                    return Err(ParseError::InvalidLocalPath);
                 }
                 let bytes = first.as_bytes();
                 if bytes[1] != b'%' || bytes[2] != b'3' || (bytes[3] != b'a' && bytes[3] != b'A') {
-                    return Err(());
+                    return Err(ParseError::InvalidLocalPath);
                 }
 
                 first[0..1].to_owned() + ":"
             }
 
-            _ => return Err(()),
+            _ => return Err(ParseError::InvalidLocalPath),
         }
     };
 
@@ -2454,7 +2454,7 @@ fn file_url_segments_to_pathbuf_windows(
         // Currently non-unicode windows paths cannot be represented
         match String::from_utf8(percent_decode(segment.as_bytes()).collect()) {
             Ok(s) => string.push_str(&s),
-            Err(..) => return Err(()),
+            Err(..) => return Err(ParseError::InvalidLocalPath),
         }
     }
     let path = PathBuf::from(string);
