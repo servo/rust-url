@@ -692,7 +692,7 @@ impl Url {
     /// ```
     #[inline]
     pub fn cannot_be_a_base(&self) -> bool {
-        !self.slice(self.path_start..).starts_with('/')
+        !self.slice(self.scheme_end + 1..).starts_with('/')
     }
 
     /// Return the username for this URL (typically the empty string)
@@ -1643,10 +1643,25 @@ impl Url {
             if host == "" && SchemeType::from(self.scheme()).is_special() {
                 return Err(ParseError::EmptyHost);
             }
+            let mut host_substr = host;
+            // Otherwise, if c is U+003A (:) and the [] flag is unset, then
+            if !host.starts_with('[') || !host.ends_with(']') {
+                match host.find(':') {
+                    Some(0) => {
+                        // If buffer is the empty string, validation error, return failure.
+                        return Err(ParseError::InvalidDomainCharacter);
+                    }
+                    // Let host be the result of host parsing buffer
+                    Some(colon_index) => {
+                        host_substr = &host[..colon_index];
+                    }
+                    None => {}
+                }
+            }
             if SchemeType::from(self.scheme()).is_special() {
-                self.set_host_internal(Host::parse(host)?, None)
+                self.set_host_internal(Host::parse(host_substr)?, None);
             } else {
-                self.set_host_internal(Host::parse_opaque(host)?, None)
+                self.set_host_internal(Host::parse_opaque(host_substr)?, None);
             }
         } else if self.has_host() {
             if SchemeType::from(self.scheme()).is_special() {
