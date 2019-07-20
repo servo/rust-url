@@ -541,12 +541,13 @@ impl<'a> Parser<'a> {
                 self.serialization.push_str("file:///");
                 let scheme_end = "file".len() as u32;
                 let path_start = "file://".len();
-                if let Some(base_url) = base_file_url {
-                    let first_segment = base_url.path_segments().unwrap().next().unwrap();
-                    // FIXME: *normalized* drive letter
-                    if is_windows_drive_letter(first_segment) {
-                        self.serialization.push_str(first_segment);
-                        self.serialization.push('/');
+                if !starts_with_windows_drive_letter_segment(&input_after_first_char) {
+                    if let Some(base_url) = base_file_url {
+                        let first_segment = base_url.path_segments().unwrap().next().unwrap();
+                        if is_normalized_windows_drive_letter(first_segment) {
+                            self.serialization.push_str(first_segment);
+                            self.serialization.push('/');
+                        }
                     }
                 }
                 let remaining = self.parse_path(
@@ -1359,6 +1360,10 @@ pub fn to_u32(i: usize) -> ParseResult<u32> {
     } else {
         Err(ParseError::Overflow)
     }
+}
+
+fn is_normalized_windows_drive_letter(segment: &str) -> bool {
+    is_windows_drive_letter(segment) && segment.as_bytes()[1] == b':'
 }
 
 /// Wether the scheme is file:, the path has a single segment, and that segment
