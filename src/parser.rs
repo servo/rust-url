@@ -520,36 +520,44 @@ impl<'a> Parser<'a> {
                     fragment_start: fragment_start,
                 });
             } else {
-                self.serialization.push_str("file:///");
+                self.serialization.push_str("file://");
                 let scheme_end = "file".len() as u32;
-                let path_start = "file://".len();
+                let host_start = "file://".len();
+                let mut host_end = host_start;
+                let mut host = HostInternal::None;
                 if !starts_with_windows_drive_letter_segment(&input_after_first_char) {
                     if let Some(base_url) = base_file_url {
                         let first_segment = base_url.path_segments().unwrap().next().unwrap();
                         if is_normalized_windows_drive_letter(first_segment) {
-                            self.serialization.push_str(first_segment);
                             self.serialization.push('/');
+                            self.serialization.push_str(first_segment);
+                        } else if let Some(host_str) = base_url.host_str() {
+                            self.serialization.push_str(host_str);
+                            host_end = self.serialization.len();
+                            host = base_url.host.clone();
                         }
                     }
                 }
+                self.serialization.push('/');
                 let remaining = self.parse_path(
                     SchemeType::File,
                     &mut false,
-                    path_start,
+                    host_end,
                     input_after_first_char,
                 );
                 let (query_start, fragment_start) =
                     self.parse_query_and_fragment(scheme_type, scheme_end, remaining)?;
-                let path_start = path_start as u32;
+                let host_start = host_start as u32;
+                let host_end = host_end as u32;
                 return Ok(Url {
                     serialization: self.serialization,
                     scheme_end: scheme_end,
-                    username_end: path_start,
-                    host_start: path_start,
-                    host_end: path_start,
-                    host: HostInternal::None,
+                    username_end: host_start,
+                    host_start,
+                    host_end,
+                    host,
                     port: None,
-                    path_start: path_start,
+                    path_start: host_end,
                     query_start: query_start,
                     fragment_start: fragment_start,
                 });
