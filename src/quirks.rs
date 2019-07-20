@@ -12,6 +12,8 @@
 //! you probably want to use `Url` method instead.
 
 use parser::{default_port, Context, Input, Parser, SchemeType};
+use std::cell::RefCell;
+use SyntaxViolation;
 use {idna, Host, ParseError, Position, Url};
 
 /// https://url.spec.whatwg.org/#dom-url-domaintoascii
@@ -110,19 +112,22 @@ pub fn set_host(url: &mut Url, new_host: &str) -> Result<(), ()> {
     let opt_port;
     {
         let scheme = url.scheme();
-        let result = Parser::parse_host(Input::new(new_host), SchemeType::from(scheme));
-        match result {
-            Ok((h, remaining)) => {
-                host = h;
-                opt_port = if let Some(remaining) = remaining.split_prefix(':') {
+        let scheme_type = SchemeType::from(scheme);
+        if let Ok((h, remaining)) = Parser::parse_host(input, scheme_type) {
+            host = h;
+            opt_port = if let Some(remaining) = remaining.split_prefix(':') {
+                if remaining.is_empty() {
+                    None
+                } else {
                     Parser::parse_port(remaining, || default_port(scheme), Context::Setter)
                         .ok()
                         .map(|(port, _remaining)| port)
-                } else {
-                    None
-                };
-            }
-            Err(_) => return Err(()),
+                }
+            } else {
+                None
+            };
+        } else {
+            return Err(());
         }
     }
     // Make sure we won't set an empty host to a url with a username or a port
@@ -154,8 +159,25 @@ pub fn set_hostname(url: &mut Url, new_hostname: &str) -> Result<(), ()> {
     if url.cannot_be_a_base() {
         return Err(());
     }
-    let result = Parser::parse_host(Input::new(new_hostname), SchemeType::from(url.scheme()));
-    if let Ok((host, _remaining)) = result {
+    // Host parsing rules are strict,
+    // We don't want to trim the input
+    let input = Input::no_trim(new_hostname);
+    let scheme_type = SchemeType::from(url.scheme());
+    if let Ok((host, _remaining)) = Parser::parse_host(input, scheme_type) {
+        if let Host::Domain(h) = &host {
+            if h.is_empty() {
+                // Empty host on special not file url
+                if SchemeType::from(url.scheme()) == SchemeType::SpecialNotFile
+                    // Port with an empty host
+                    ||!port(&url).is_empty()
+                    // Empty host with includes credentials
+                    || !url.username().is_empty()
+                    || !url.password().unwrap_or(&"").is_empty()
+                {
+                    return Err(());
+                }
+            }
+        }
         url.set_host_internal(host, None);
         Ok(())
     } else {
@@ -209,6 +231,10 @@ pub fn set_pathname(url: &mut Url, new_pathname: &str) {
         && Some('\\') == new_pathname.chars().nth(0)
     {
         url.set_path(new_pathname)
+    } else {
+        let mut path_to_set = String::from("/");
+        path_to_set.push_str(new_pathname);
+        url.set_path(&path_to_set)
     }
 }
 
