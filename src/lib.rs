@@ -1922,9 +1922,15 @@ impl Url {
     pub fn set_scheme(&mut self, scheme: &str) -> Result<(), ()> {
         let mut parser = Parser::for_setter(String::new());
         let remaining = parser.parse_scheme(parser::Input::new(scheme))?;
-        if !remaining.is_empty()
-            || (!self.has_host() && SchemeType::from(&parser.serialization).is_special())
-        {
+        let new_scheme_type = SchemeType::from(&parser.serialization);
+        let old_scheme_type = SchemeType::from(self.scheme());
+        // Switching from special scheme to non special scheme
+        // and switching from file to non file is not allowed
+        if old_scheme_type != new_scheme_type {
+            return Err(());
+        }
+
+        if !remaining.is_empty() || (!self.has_host() && new_scheme_type.is_special()) {
             return Err(());
         }
         let old_scheme_end = self.scheme_end;
