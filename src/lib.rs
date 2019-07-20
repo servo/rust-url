@@ -1664,8 +1664,13 @@ impl Url {
                 self.set_host_internal(Host::parse_opaque(host_substr)?, None);
             }
         } else if self.has_host() {
-            if SchemeType::from(self.scheme()).is_special() {
+            let scheme_type = SchemeType::from(self.scheme());
+            if scheme_type.is_special() {
                 return Err(ParseError::EmptyHost);
+            } else {
+                if self.serialization.len() == self.path_start as usize {
+                    self.serialization.push('/');
+                }
             }
             debug_assert!(self.byte_at(self.scheme_end) == b':');
             debug_assert!(self.byte_at(self.path_start) == b'/');
@@ -1968,14 +1973,28 @@ impl Url {
     ///
     /// # fn run() -> Result<(), ParseError> {
     /// let mut url = Url::parse("https://example.net")?;
-    /// let result = url.set_scheme("foo");
-    /// assert_eq!(url.as_str(), "foo://example.net/");
+    /// let result = url.set_scheme("http");
+    /// assert_eq!(url.as_str(), "http://example.net/");
     /// assert!(result.is_ok());
     /// # Ok(())
     /// # }
     /// # run().unwrap();
     /// ```
+    /// Change the URL’s scheme from `foo` to `bar`:
     ///
+    /// ```
+    /// use url::Url;
+    /// # use url::ParseError;
+    ///
+    /// # fn run() -> Result<(), ParseError> {
+    /// let mut url = Url::parse("foo://example.net")?;
+    /// let result = url.set_scheme("bar");
+    /// assert_eq!(url.as_str(), "bar://example.net");
+    /// assert!(result.is_ok());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
+    /// ```
     ///
     /// Cannot change URL’s scheme from `https` to `foõ`:
     ///
@@ -2008,12 +2027,53 @@ impl Url {
     /// # }
     /// # run().unwrap();
     /// ```
+    /// Cannot change the URL’s scheme from `foo` to `https`:
+    ///
+    /// ```
+    /// use url::Url;
+    /// # use url::ParseError;
+    ///
+    /// # fn run() -> Result<(), ParseError> {
+    /// let mut url = Url::parse("foo://example.net")?;
+    /// let result = url.set_scheme("https");
+    /// assert_eq!(url.as_str(), "foo://example.net");
+    /// assert!(result.is_err());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
+    /// ```
+    /// Cannot change the URL’s scheme from `http` to `foo`:
+    ///
+    /// ```
+    /// use url::Url;
+    /// # use url::ParseError;
+    ///
+    /// # fn run() -> Result<(), ParseError> {
+    /// let mut url = Url::parse("http://example.net")?;
+    /// let result = url.set_scheme("foo");
+    /// assert_eq!(url.as_str(), "http://example.net/");
+    /// assert!(result.is_err());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
+    /// ```
     pub fn set_scheme(&mut self, scheme: &str) -> Result<(), ()> {
         let mut parser = Parser::for_setter(String::new());
         let remaining = parser.parse_scheme(parser::Input::new(scheme))?;
-        if !remaining.is_empty()
-            || (!self.has_host() && SchemeType::from(&parser.serialization).is_special())
+        let new_scheme_type = SchemeType::from(&parser.serialization);
+        let old_scheme_type = SchemeType::from(self.scheme());
+        // If url’s scheme is a special scheme and buffer is not a special scheme, then return.
+        if new_scheme_type.is_special() && !old_scheme_type.is_special() ||
+            // If url’s scheme is not a special scheme and buffer is a special scheme, then return.
+            !new_scheme_type.is_special() && old_scheme_type.is_special() ||
+            // If url includes credentials or has a non-null port, and buffer is "file", then return.
+            // If url’s scheme is "file" and its host is an empty host or null, then return.
+            new_scheme_type.is_file() && self.has_authority()
         {
+            return Err(());
+        }
+
+        if !remaining.is_empty() || (!self.has_host() && new_scheme_type.is_special()) {
             return Err(());
         }
         let old_scheme_end = self.scheme_end;
@@ -2037,6 +2097,13 @@ impl Url {
 
         parser.serialization.push_str(self.slice(old_scheme_end..));
         self.serialization = parser.serialization;
+
+        // Update the port so it can be removed
+        // If it is the scheme's default
+        // We don't mind it silently failing
+        // If there was no port in the first place
+        let _ = self.set_port(self.port());
+
         Ok(())
     }
 
