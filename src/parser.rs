@@ -138,7 +138,7 @@ impl fmt::Display for SyntaxViolation {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum SchemeType {
     File,
     SpecialNotFile,
