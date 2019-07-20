@@ -156,7 +156,7 @@ impl fmt::Display for SyntaxViolation {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum SchemeType {
     File,
     SpecialNotFile,
@@ -852,11 +852,16 @@ impl<'a> Parser<'a> {
         self.serialization.push('/');
         self.serialization.push('/');
         // authority state
+        let before_authority = self.serialization.len();
         let (username_end, remaining) = self.parse_userinfo(input, scheme_type)?;
+        let has_authority = before_authority != self.serialization.len();
         // host state
         let host_start = to_u32(self.serialization.len())?;
         let (host_end, host, port, remaining) =
             self.parse_host_and_port(remaining, scheme_end, scheme_type)?;
+        if host == HostInternal::None && has_authority {
+            return Err(ParseError::EmptyHost);
+        }
         // path state
         let path_start = to_u32(self.serialization.len())?;
         let remaining = self.parse_path_start(scheme_type, &mut true, remaining);
@@ -900,7 +905,18 @@ impl<'a> Parser<'a> {
         }
         let (mut userinfo_char_count, remaining) = match last_at {
             None => return Ok((to_u32(self.serialization.len())?, input)),
-            Some((0, remaining)) => return Ok((to_u32(self.serialization.len())?, remaining)),
+            Some((0, remaining)) => {
+                // Otherwise, if one of the following is true
+                // c is the EOF code point, U+002F (/), U+003F (?), or U+0023 (#)
+                // url is special and c is U+005C (\)
+                // If @ flag is set and buffer is the empty string, validation error, return failure.
+                if let (Some(c), _) = remaining.split_first() {
+                    if c == '/' || c == '?' || c == '#' || scheme_type.is_special() && c == '\\' {
+                        return Err(ParseError::EmptyHost);
+                    }
+                }
+                return Ok((to_u32(self.serialization.len())?, remaining));
+            }
             Some(x) => x,
         };
 
@@ -946,6 +962,18 @@ impl<'a> Parser<'a> {
         let (host, remaining) = Parser::parse_host(input, scheme_type)?;
         write!(&mut self.serialization, "{}", host).unwrap();
         let host_end = to_u32(self.serialization.len())?;
+        if let Host::Domain(h) = &host {
+            if h.is_empty() {
+                // Port with an empty host
+                if remaining.starts_with(":") {
+                    return Err(ParseError::EmptyHost);
+                }
+                if scheme_type.is_special() {
+                    return Err(ParseError::EmptyHost);
+                }
+            }
+        };
+
         let (port, remaining) = if let Some(remaining) = remaining.split_prefix(':') {
             let scheme = || default_port(&self.serialization[..scheme_end as usize]);
             Parser::parse_port(remaining, scheme, self.context)?
@@ -962,6 +990,9 @@ impl<'a> Parser<'a> {
         mut input: Input,
         scheme_type: SchemeType,
     ) -> ParseResult<(Host<String>, Input)> {
+        if scheme_type.is_file() {
+            return Parser::get_file_host(input);
+        }
         // Undo the Input abstraction here to avoid allocating in the common case
         // where the host part of the input does not contain any tab or newline
         let input_str = input.chars.as_str();
@@ -1012,10 +1043,41 @@ impl<'a> Parser<'a> {
         Ok((host, input))
     }
 
-    pub(crate) fn parse_file_host<'i>(
+    fn get_file_host<'i>(input: Input<'i>) -> ParseResult<(Host<String>, Input)> {
+        let (_, host_str, remaining) = Parser::file_host(input)?;
+        let host = match Host::parse(&host_str)? {
+            Host::Domain(ref d) if d == "localhost" => Host::Domain("".to_string()),
+            host => host,
+        };
+        Ok((host, remaining))
+    }
+
+    fn parse_file_host<'i>(
         &mut self,
         input: Input<'i>,
     ) -> ParseResult<(bool, HostInternal, Input<'i>)> {
+        let has_host;
+        let (_, host_str, remaining) = Parser::file_host(input)?;
+        let host = if host_str.is_empty() {
+            has_host = false;
+            HostInternal::None
+        } else {
+            match Host::parse(&host_str)? {
+                Host::Domain(ref d) if d == "localhost" => {
+                    has_host = false;
+                    HostInternal::None
+                }
+                host => {
+                    write!(&mut self.serialization, "{}", host).unwrap();
+                    has_host = true;
+                    host.into()
+                }
+            }
+        };
+        Ok((has_host, host, remaining))
+    }
+
+    pub fn file_host<'i>(input: Input<'i>) -> ParseResult<(bool, String, Input<'i>)> {
         // Undo the Input abstraction here to avoid allocating in the common case
         // where the host part of the input does not contain any tab or newline
         let input_str = input.chars.as_str();
@@ -1044,20 +1106,9 @@ impl<'a> Parser<'a> {
             }
         }
         if is_windows_drive_letter(host_str) {
-            return Ok((false, HostInternal::None, input));
+            return Ok((false, "".to_string(), input));
         }
-        let host = if host_str.is_empty() {
-            HostInternal::None
-        } else {
-            match Host::parse(host_str)? {
-                Host::Domain(ref d) if d == "localhost" => HostInternal::None,
-                host => {
-                    write!(&mut self.serialization, "{}", host).unwrap();
-                    host.into()
-                }
-            }
-        };
-        Ok((true, host, remaining))
+        Ok((true, host_str.to_string(), remaining))
     }
 
     pub fn parse_port<P>(
@@ -1492,7 +1543,7 @@ fn c0_control_or_space(ch: char) -> bool {
 
 /// https://infra.spec.whatwg.org/#ascii-tab-or-newline
 #[inline]
-pub fn ascii_tab_or_new_line(ch: char) -> bool {
+fn ascii_tab_or_new_line(ch: char) -> bool {
     matches!(ch, '\t' | '\r' | '\n')
 }
 
