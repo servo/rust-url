@@ -470,15 +470,93 @@ impl<'a> Parser<'a> {
         mut self,
         input: Input,
         scheme_type: SchemeType,
-        mut base_file_url: Option<&Url>,
+        base_file_url: Option<&Url>,
     ) -> ParseResult<Url> {
         use SyntaxViolation::Backslash;
         // file state
         debug_assert!(self.serialization.is_empty());
         let (first_char, input_after_first_char) = input.split_first();
-        match first_char {
-            None => {
+        if matches!(first_char, Some('/') | Some('\\')) {
+            self.log_violation_if(SyntaxViolation::Backslash, || first_char == Some('\\'));
+            // file slash state
+            let (next_char, input_after_next_char) = input_after_first_char.split_first();
+            if matches!(next_char, Some('/') | Some('\\')) {
+                self.log_violation_if(Backslash, || next_char == Some('\\'));
+                // file host state
+                self.serialization.push_str("file://");
+                let scheme_end = "file".len() as u32;
+                let host_start = "file://".len() as u32;
+                let (path_start, mut host, remaining) =
+                    self.parse_file_host(input_after_next_char)?;
+                let mut host_end = to_u32(self.serialization.len())?;
+                let mut has_host = !matches!(host, HostInternal::None);
+                let remaining = if path_start {
+                    self.parse_path_start(SchemeType::File, &mut has_host, remaining)
+                } else {
+                    let path_start = self.serialization.len();
+                    self.serialization.push('/');
+                    self.parse_path(SchemeType::File, &mut has_host, path_start, remaining)
+                };
+                // For file URLs that have a host and whose path starts
+                // with the windows drive letter we just remove the host.
+                if !has_host {
+                    self.serialization
+                        .drain(host_start as usize..host_end as usize);
+                    host_end = host_start;
+                    host = HostInternal::None;
+                }
+                let (query_start, fragment_start) =
+                    self.parse_query_and_fragment(scheme_type, scheme_end, remaining)?;
+                return Ok(Url {
+                    serialization: self.serialization,
+                    scheme_end: scheme_end,
+                    username_end: host_start,
+                    host_start: host_start,
+                    host_end: host_end,
+                    host: host,
+                    port: None,
+                    path_start: host_end,
+                    query_start: query_start,
+                    fragment_start: fragment_start,
+                });
+            } else {
+                self.serialization.push_str("file:///");
+                let scheme_end = "file".len() as u32;
+                let path_start = "file://".len();
                 if let Some(base_url) = base_file_url {
+                    let first_segment = base_url.path_segments().unwrap().next().unwrap();
+                    // FIXME: *normalized* drive letter
+                    if is_windows_drive_letter(first_segment) {
+                        self.serialization.push_str(first_segment);
+                        self.serialization.push('/');
+                    }
+                }
+                let remaining = self.parse_path(
+                    SchemeType::File,
+                    &mut false,
+                    path_start,
+                    input_after_first_char,
+                );
+                let (query_start, fragment_start) =
+                    self.parse_query_and_fragment(scheme_type, scheme_end, remaining)?;
+                let path_start = path_start as u32;
+                return Ok(Url {
+                    serialization: self.serialization,
+                    scheme_end: scheme_end,
+                    username_end: path_start,
+                    host_start: path_start,
+                    host_end: path_start,
+                    host: HostInternal::None,
+                    port: None,
+                    path_start: path_start,
+                    query_start: query_start,
+                    fragment_start: fragment_start,
+                });
+            }
+        }
+        if let Some(base_url) = base_file_url {
+            match first_char {
+                None => {
                     // Copy everything except the fragment
                     let before_fragment = match base_url.fragment_start {
                         Some(i) => &base_url.serialization[..i as usize],
@@ -490,26 +568,8 @@ impl<'a> Parser<'a> {
                         fragment_start: None,
                         ..*base_url
                     })
-                } else {
-                    self.serialization.push_str("file:///");
-                    let scheme_end = "file".len() as u32;
-                    let path_start = "file://".len() as u32;
-                    Ok(Url {
-                        serialization: self.serialization,
-                        scheme_end: scheme_end,
-                        username_end: path_start,
-                        host_start: path_start,
-                        host_end: path_start,
-                        host: HostInternal::None,
-                        port: None,
-                        path_start: path_start,
-                        query_start: None,
-                        fragment_start: None,
-                    })
                 }
-            }
-            Some('?') => {
-                if let Some(base_url) = base_file_url {
+                Some('?') => {
                     // Copy everything up to the query string
                     let before_query = match (base_url.query_start, base_url.fragment_start) {
                         (None, None) => &*base_url.serialization,
@@ -524,179 +584,77 @@ impl<'a> Parser<'a> {
                         fragment_start: fragment_start,
                         ..*base_url
                     })
-                } else {
-                    self.serialization.push_str("file:///");
-                    let scheme_end = "file".len() as u32;
-                    let path_start = "file://".len() as u32;
-                    let (query_start, fragment_start) =
-                        self.parse_query_and_fragment(scheme_type, scheme_end, input)?;
-                    Ok(Url {
-                        serialization: self.serialization,
-                        scheme_end: scheme_end,
-                        username_end: path_start,
-                        host_start: path_start,
-                        host_end: path_start,
-                        host: HostInternal::None,
-                        port: None,
-                        path_start: path_start,
-                        query_start: query_start,
-                        fragment_start: fragment_start,
-                    })
                 }
-            }
-            Some('#') => {
-                if let Some(base_url) = base_file_url {
-                    self.fragment_only(base_url, input)
-                } else {
-                    self.serialization.push_str("file:///");
-                    let scheme_end = "file".len() as u32;
-                    let path_start = "file://".len() as u32;
-                    let fragment_start = "file:///".len() as u32;
-                    self.serialization.push('#');
-                    self.parse_fragment(input_after_first_char);
-                    Ok(Url {
-                        serialization: self.serialization,
-                        scheme_end: scheme_end,
-                        username_end: path_start,
-                        host_start: path_start,
-                        host_end: path_start,
-                        host: HostInternal::None,
-                        port: None,
-                        path_start: path_start,
-                        query_start: None,
-                        fragment_start: Some(fragment_start),
-                    })
-                }
-            }
-            Some('/') | Some('\\') => {
-                self.log_violation_if(Backslash, || first_char == Some('\\'));
-                // file slash state
-                let (next_char, input_after_next_char) = input_after_first_char.split_first();
-                self.log_violation_if(Backslash, || next_char == Some('\\'));
-                if matches!(next_char, Some('/') | Some('\\')) {
-                    // file host state
-                    self.serialization.push_str("file://");
-                    let scheme_end = "file".len() as u32;
-                    let host_start = "file://".len() as u32;
-                    let (path_start, mut host, remaining) =
-                        self.parse_file_host(input_after_next_char)?;
-                    let mut host_end = to_u32(self.serialization.len())?;
-                    let mut has_host = !matches!(host, HostInternal::None);
-                    let remaining = if path_start {
-                        self.parse_path_start(SchemeType::File, &mut has_host, remaining)
+                Some('#') => self.fragment_only(base_url, input),
+                _ => {
+                    if !starts_with_windows_drive_letter_segment(&input) {
+                        let before_query = match (base_url.query_start, base_url.fragment_start) {
+                            (None, None) => &*base_url.serialization,
+                            (Some(i), _) | (None, Some(i)) => base_url.slice(..i),
+                        };
+                        self.serialization.push_str(before_query);
+                        self.pop_path(SchemeType::File, base_url.path_start as usize);
+                        let remaining = self.parse_path(
+                            SchemeType::File,
+                            &mut true,
+                            base_url.path_start as usize,
+                            input,
+                        );
+                        self.with_query_and_fragment(
+                            SchemeType::File,
+                            base_url.scheme_end,
+                            base_url.username_end,
+                            base_url.host_start,
+                            base_url.host_end,
+                            base_url.host,
+                            base_url.port,
+                            base_url.path_start,
+                            remaining,
+                        )
                     } else {
-                        let path_start = self.serialization.len();
-                        self.serialization.push('/');
-                        self.parse_path(SchemeType::File, &mut has_host, path_start, remaining)
-                    };
-                    // For file URLs that have a host and whose path starts
-                    // with the windows drive letter we just remove the host.
-                    if !has_host {
-                        self.serialization
-                            .drain(host_start as usize..host_end as usize);
-                        host_end = host_start;
-                        host = HostInternal::None;
+                        self.serialization.push_str("file:///");
+                        let scheme_end = "file".len() as u32;
+                        let path_start = "file://".len();
+                        let remaining =
+                            self.parse_path(SchemeType::File, &mut false, path_start, input);
+                        let (query_start, fragment_start) =
+                            self.parse_query_and_fragment(SchemeType::File, scheme_end, remaining)?;
+                        let path_start = path_start as u32;
+                        Ok(Url {
+                            serialization: self.serialization,
+                            scheme_end: scheme_end,
+                            username_end: path_start,
+                            host_start: path_start,
+                            host_end: path_start,
+                            host: HostInternal::None,
+                            port: None,
+                            path_start: path_start,
+                            query_start: query_start,
+                            fragment_start: fragment_start,
+                        })
                     }
-                    let (query_start, fragment_start) =
-                        self.parse_query_and_fragment(scheme_type, scheme_end, remaining)?;
-                    Ok(Url {
-                        serialization: self.serialization,
-                        scheme_end: scheme_end,
-                        username_end: host_start,
-                        host_start: host_start,
-                        host_end: host_end,
-                        host: host,
-                        port: None,
-                        path_start: host_end,
-                        query_start: query_start,
-                        fragment_start: fragment_start,
-                    })
-                } else {
-                    self.serialization.push_str("file:///");
-                    let scheme_end = "file".len() as u32;
-                    let path_start = "file://".len();
-                    if let Some(base_url) = base_file_url {
-                        let first_segment = base_url.path_segments().unwrap().next().unwrap();
-                        // FIXME: *normalized* drive letter
-                        if is_windows_drive_letter(first_segment) {
-                            self.serialization.push_str(first_segment);
-                            self.serialization.push('/');
-                        }
-                    }
-                    let remaining = self.parse_path(
-                        SchemeType::File,
-                        &mut false,
-                        path_start,
-                        input_after_first_char,
-                    );
-                    let (query_start, fragment_start) =
-                        self.parse_query_and_fragment(scheme_type, scheme_end, remaining)?;
-                    let path_start = path_start as u32;
-                    Ok(Url {
-                        serialization: self.serialization,
-                        scheme_end: scheme_end,
-                        username_end: path_start,
-                        host_start: path_start,
-                        host_end: path_start,
-                        host: HostInternal::None,
-                        port: None,
-                        path_start: path_start,
-                        query_start: query_start,
-                        fragment_start: fragment_start,
-                    })
                 }
             }
-            _ => {
-                if starts_with_windows_drive_letter_segment(&input) {
-                    base_file_url = None;
-                }
-                if let Some(base_url) = base_file_url {
-                    let before_query = match (base_url.query_start, base_url.fragment_start) {
-                        (None, None) => &*base_url.serialization,
-                        (Some(i), _) | (None, Some(i)) => base_url.slice(..i),
-                    };
-                    self.serialization.push_str(before_query);
-                    self.pop_path(SchemeType::File, base_url.path_start as usize);
-                    let remaining = self.parse_path(
-                        SchemeType::File,
-                        &mut true,
-                        base_url.path_start as usize,
-                        input,
-                    );
-                    self.with_query_and_fragment(
-                        SchemeType::File,
-                        base_url.scheme_end,
-                        base_url.username_end,
-                        base_url.host_start,
-                        base_url.host_end,
-                        base_url.host,
-                        base_url.port,
-                        base_url.path_start,
-                        remaining,
-                    )
-                } else {
-                    self.serialization.push_str("file:///");
-                    let scheme_end = "file".len() as u32;
-                    let path_start = "file://".len();
-                    let remaining =
-                        self.parse_path(SchemeType::File, &mut false, path_start, input);
-                    let (query_start, fragment_start) =
-                        self.parse_query_and_fragment(SchemeType::File, scheme_end, remaining)?;
-                    let path_start = path_start as u32;
-                    Ok(Url {
-                        serialization: self.serialization,
-                        scheme_end: scheme_end,
-                        username_end: path_start,
-                        host_start: path_start,
-                        host_end: path_start,
-                        host: HostInternal::None,
-                        port: None,
-                        path_start: path_start,
-                        query_start: query_start,
-                        fragment_start: fragment_start,
-                    })
-                }
-            }
+        } else {
+            self.serialization.push_str("file:///");
+            let scheme_end = "file".len() as u32;
+            let path_start = "file://".len();
+            let remaining = self.parse_path(SchemeType::File, &mut false, path_start, input);
+            let (query_start, fragment_start) =
+                self.parse_query_and_fragment(SchemeType::File, scheme_end, remaining)?;
+            let path_start = path_start as u32;
+            Ok(Url {
+                serialization: self.serialization,
+                scheme_end: scheme_end,
+                username_end: path_start,
+                host_start: path_start,
+                host_end: path_start,
+                host: HostInternal::None,
+                port: None,
+                path_start: path_start,
+                query_start: query_start,
+                fragment_start: fragment_start,
+            })
         }
     }
 
