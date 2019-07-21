@@ -111,9 +111,13 @@ pub fn set_host(url: &mut Url, new_host: &str) -> Result<(), ()> {
             Ok((h, remaining)) => {
                 host = h;
                 opt_port = if let Some(remaining) = remaining.split_prefix(':') {
-                    Parser::parse_port(remaining, || default_port(scheme), Context::Setter)
-                        .ok()
-                        .map(|(port, _remaining)| port)
+                    if remaining.is_empty() {
+                        None
+                    } else {
+                        Parser::parse_port(remaining, || default_port(scheme), Context::Setter)
+                            .ok()
+                            .map(|(port, _remaining)| port)
+                    }
                 } else {
                     None
                 };
