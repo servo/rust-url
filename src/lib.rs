@@ -1282,7 +1282,7 @@ impl Url {
 
         let query = UrlQuery {
             url: Some(self),
-            fragment: fragment,
+            fragment,
         };
         form_urlencoded::Serializer::for_suffix(query, query_start + "?".len())
     }
@@ -1984,12 +1984,12 @@ impl Url {
         let host_start = serialization.len() as u32;
         let (host_end, host) = path_to_file_url_segments(path.as_ref(), &mut serialization)?;
         Ok(Url {
-            serialization: serialization,
+            serialization,
             scheme_end: "file".len() as u32,
             username_end: host_start,
-            host_start: host_start,
-            host_end: host_end,
-            host: host,
+            host_start,
+            host_end,
+            host,
             port: None,
             path_start: host_end,
             query_start: None,
@@ -2091,16 +2091,16 @@ impl Url {
             fragment_start,
         ) = Deserialize::deserialize(deserializer)?;
         let url = Url {
-            serialization: serialization,
-            scheme_end: scheme_end,
-            username_end: username_end,
-            host_start: host_start,
-            host_end: host_end,
-            host: host,
-            port: port,
-            path_start: path_start,
-            query_start: query_start,
-            fragment_start: fragment_start,
+            serialization,
+            scheme_end,
+            username_end,
+            host_start,
+            host_end,
+            host,
+            port,
+            path_start,
+            query_start,
+            fragment_start,
         };
         if cfg!(debug_assertions) {
             url.check_invariants().map_err(|reason| {

@@ -48,9 +48,9 @@ pub fn new(url: &mut Url) -> PathSegmentsMut {
     debug_assert!(url.byte_at(url.path_start) == b'/');
     PathSegmentsMut {
         after_first_slash: url.path_start as usize + "/".len(),
-        url: url,
-        old_after_path_position: old_after_path_position,
-        after_path: after_path,
+        url,
+        old_after_path_position,
+        after_path,
     }
 }
 
