@@ -91,8 +91,8 @@ simple_enum_error! {
 }
 
 impl fmt::Display for ParseError {
-    fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-        self.description().fmt(fmt)
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        fmt::Display::fmt(self.description(), f)
     }
 }
 
@@ -151,8 +151,8 @@ syntax_violation_enum! {
 }
 
 impl fmt::Display for SyntaxViolation {
-    fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-        self.description().fmt(fmt)
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        fmt::Display::fmt(self.description(), f)
     }
 }
 
