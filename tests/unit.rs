@@ -512,6 +512,7 @@ fn test_syntax_violation_callback() {
     let v = violation.take().unwrap();
     assert_eq!(v, ExpectedDoubleSlash);
     assert_eq!(v.description(), "expected //");
+    assert_eq!(v.to_string(), "expected //");
 }
 
 #[test]
