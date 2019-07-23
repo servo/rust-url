@@ -27,7 +27,7 @@ use std::str;
 /// converted to `[("#first", "%try%")]`.
 #[inline]
 pub fn parse(input: &[u8]) -> Parse {
-    Parse { input: input }
+    Parse { input }
 }
 /// The return type of `parse()`.
 #[derive(Copy, Clone)]
@@ -233,7 +233,7 @@ impl<'a, T: Target> Serializer<'a, T> {
         &target.as_mut_string()[start_position..]; // Panic if out of bounds
         Serializer {
             target: Some(target),
-            start_position: start_position,
+            start_position,
             encoding: None,
         }
     }

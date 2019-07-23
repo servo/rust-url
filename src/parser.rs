@@ -323,7 +323,7 @@ impl<'a> Parser<'a> {
 
     pub fn for_setter(serialization: String) -> Parser<'a> {
         Parser {
-            serialization: serialization,
+            serialization,
             base_url: None,
             query_encoding_override: None,
             violation_fn: None,
@@ -496,13 +496,13 @@ impl<'a> Parser<'a> {
                     let path_start = "file://".len() as u32;
                     Ok(Url {
                         serialization: self.serialization,
-                        scheme_end: scheme_end,
+                        scheme_end,
                         username_end: path_start,
                         host_start: path_start,
                         host_end: path_start,
                         host: HostInternal::None,
                         port: None,
-                        path_start: path_start,
+                        path_start,
                         query_start: None,
                         fragment_start: None,
                     })
@@ -520,8 +520,8 @@ impl<'a> Parser<'a> {
                         self.parse_query_and_fragment(scheme_type, base_url.scheme_end, input)?;
                     Ok(Url {
                         serialization: self.serialization,
-                        query_start: query_start,
-                        fragment_start: fragment_start,
+                        query_start,
+                        fragment_start,
                         ..*base_url
                     })
                 } else {
@@ -532,15 +532,15 @@ impl<'a> Parser<'a> {
                         self.parse_query_and_fragment(scheme_type, scheme_end, input)?;
                     Ok(Url {
                         serialization: self.serialization,
-                        scheme_end: scheme_end,
+                        scheme_end,
                         username_end: path_start,
                         host_start: path_start,
                         host_end: path_start,
                         host: HostInternal::None,
                         port: None,
-                        path_start: path_start,
-                        query_start: query_start,
-                        fragment_start: fragment_start,
+                        path_start,
+                        query_start,
+                        fragment_start,
                     })
                 }
             }
@@ -556,13 +556,13 @@ impl<'a> Parser<'a> {
                     self.parse_fragment(input_after_first_char);
                     Ok(Url {
                         serialization: self.serialization,
-                        scheme_end: scheme_end,
+                        scheme_end,
                         username_end: path_start,
                         host_start: path_start,
                         host_end: path_start,
                         host: HostInternal::None,
                         port: None,
-                        path_start: path_start,
+                        path_start,
                         query_start: None,
                         fragment_start: Some(fragment_start),
                     })
@@ -601,15 +601,15 @@ impl<'a> Parser<'a> {
                         self.parse_query_and_fragment(scheme_type, scheme_end, remaining)?;
                     Ok(Url {
                         serialization: self.serialization,
-                        scheme_end: scheme_end,
+                        scheme_end,
                         username_end: host_start,
-                        host_start: host_start,
-                        host_end: host_end,
-                        host: host,
+                        host_start,
+                        host_end,
+                        host,
                         port: None,
                         path_start: host_end,
-                        query_start: query_start,
-                        fragment_start: fragment_start,
+                        query_start,
+                        fragment_start,
                     })
                 } else {
                     self.serialization.push_str("file:///");
@@ -634,15 +634,15 @@ impl<'a> Parser<'a> {
                     let path_start = path_start as u32;
                     Ok(Url {
                         serialization: self.serialization,
-                        scheme_end: scheme_end,
+                        scheme_end,
                         username_end: path_start,
                         host_start: path_start,
                         host_end: path_start,
                         host: HostInternal::None,
                         port: None,
-                        path_start: path_start,
-                        query_start: query_start,
-                        fragment_start: fragment_start,
+                        path_start,
+                        query_start,
+                        fragment_start,
                     })
                 }
             }
@@ -685,15 +685,15 @@ impl<'a> Parser<'a> {
                     let path_start = path_start as u32;
                     Ok(Url {
                         serialization: self.serialization,
-                        scheme_end: scheme_end,
+                        scheme_end,
                         username_end: path_start,
                         host_start: path_start,
                         host_end: path_start,
                         host: HostInternal::None,
                         port: None,
-                        path_start: path_start,
-                        query_start: query_start,
-                        fragment_start: fragment_start,
+                        path_start,
+                        query_start,
+                        fragment_start,
                     })
                 }
             }
@@ -734,8 +734,8 @@ impl<'a> Parser<'a> {
                     self.parse_query_and_fragment(scheme_type, base_url.scheme_end, input)?;
                 Ok(Url {
                     serialization: self.serialization,
-                    query_start: query_start,
-                    fragment_start: fragment_start,
+                    query_start,
+                    fragment_start,
                     ..*base_url
                 })
             }
@@ -1211,15 +1211,15 @@ impl<'a> Parser<'a> {
             self.parse_query_and_fragment(scheme_type, scheme_end, remaining)?;
         Ok(Url {
             serialization: self.serialization,
-            scheme_end: scheme_end,
-            username_end: username_end,
-            host_start: host_start,
-            host_end: host_end,
-            host: host,
-            port: port,
-            path_start: path_start,
-            query_start: query_start,
-            fragment_start: fragment_start,
+            scheme_end,
+            username_end,
+            host_start,
+            host_end,
+            host,
+            port,
+            path_start,
+            query_start,
+            fragment_start,
         })
     }
 
