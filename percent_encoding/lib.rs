@@ -68,7 +68,7 @@ const BITS_PER_CHUNK: usize = 8 * std::mem::size_of::<Chunk>();
 impl AsciiSet {
     /// Called with UTF-8 bytes rather than code points.
     /// Not used for non-ASCII bytes.
-    pub const fn contains(&self, byte: u8) -> bool {
+    const fn contains(&self, byte: u8) -> bool {
         let chunk = self.mask[byte as usize / BITS_PER_CHUNK];
         let mask = 1 << (byte as usize % BITS_PER_CHUNK);
         (chunk & mask) != 0
