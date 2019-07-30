@@ -456,13 +456,15 @@ impl Url {
 
         if self.slice(self.scheme_end + 1..).starts_with("//") {
             // URL with authority
-            match self.byte_at(self.username_end) {
-                b':' => {
-                    assert!(self.host_start >= self.username_end + 2);
-                    assert_eq!(self.byte_at(self.host_start - 1), b'@');
+            if self.username_end < self.serialization.len() as u32 {
+                match self.byte_at(self.username_end) {
+                    b':' => {
+                        assert!(self.host_start >= self.username_end + 2);
+                        assert_eq!(self.byte_at(self.host_start - 1), b'@');
+                    }
+                    b'@' => assert!(self.host_start == self.username_end + 1),
+                    _ => assert_eq!(self.username_end, self.scheme_end + 3),
                 }
-                b'@' => assert!(self.host_start == self.username_end + 1),
-                _ => assert_eq!(self.username_end, self.scheme_end + 3),
             }
             assert!(self.host_start >= self.username_end);
             assert!(self.host_end >= self.host_start);
@@ -490,7 +492,12 @@ impl Url {
                     Some(port_str.parse::<u16>().expect("Couldn't parse port?"))
                 );
             }
-            assert_eq!(self.byte_at(self.path_start), b'/');
+            assert!(
+                self.path_start as usize == self.serialization.len()
+                    || self.byte_at(self.path_start) == b'/'
+                    || self.byte_at(self.path_start) == b'#'
+                    || self.byte_at(self.path_start) == b'?'
+            );
         } else {
             // Anarchist URL (no authority)
             assert_eq!(self.username_end, self.scheme_end + 1);
@@ -501,11 +508,11 @@ impl Url {
             assert_eq!(self.path_start, self.scheme_end + 1);
         }
         if let Some(start) = self.query_start {
-            assert!(start > self.path_start);
+            assert!(start >= self.path_start);
             assert_eq!(self.byte_at(start), b'?');
         }
         if let Some(start) = self.fragment_start {
-            assert!(start > self.path_start);
+            assert!(start >= self.path_start);
             assert_eq!(self.byte_at(start), b'#');
         }
         if let (Some(query_start), Some(fragment_start)) = (self.query_start, self.fragment_start) {
@@ -745,7 +752,10 @@ impl Url {
     pub fn password(&self) -> Option<&str> {
         // This ':' is not the one marking a port number since a host can not be empty.
         // (Except for file: URLs, which do not have port numbers.)
-        if self.has_authority() && self.byte_at(self.username_end) == b':' {
+        if self.has_authority()
+            && self.username_end < self.serialization.len() as u32
+            && self.byte_at(self.username_end) == b':'
+        {
             debug_assert!(self.byte_at(self.host_start - 1) == b'@');
             Some(self.slice(self.username_end + 1..self.host_start - 1))
         } else {
@@ -1226,7 +1236,7 @@ impl Url {
         if let Some(input) = fragment {
             self.fragment_start = Some(to_u32(self.serialization.len()).unwrap());
             self.serialization.push('#');
-            self.mutate(|parser| parser.parse_fragment(parser::Input::new(input)))
+            self.mutate(|parser| parser.parse_fragment(parser::Input::no_trim(input)))
         } else {
             self.fragment_start = None
         }
@@ -1284,7 +1294,11 @@ impl Url {
             let scheme_type = SchemeType::from(self.scheme());
             let scheme_end = self.scheme_end;
             self.mutate(|parser| {
-                parser.parse_query(scheme_type, scheme_end, parser::Input::new(input))
+                parser.parse_query(
+                    scheme_type,
+                    scheme_end,
+                    parser::Input::trim_tab_and_newlines(input),
+                )
             });
         }
 
@@ -1390,8 +1404,12 @@ impl Url {
                 }
                 parser.parse_cannot_be_a_base_path(parser::Input::new(path));
             } else {
+                let path_start = parser.serialization.len();
                 let mut has_host = true; // FIXME
                 parser.parse_path_start(scheme_type, &mut has_host, parser::Input::new(path));
+                if scheme_type.is_file() {
+                    parser::trim_path(&mut parser.serialization, path_start);
+                }
             }
         });
         self.restore_after_path(old_after_path_pos, &after_path);

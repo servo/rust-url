@@ -413,9 +413,9 @@ fn test_set_host() {
     assert_eq!(url.as_str(), "foobar:/hello");
 
     let mut url = Url::parse("foo://ș").unwrap();
-    assert_eq!(url.as_str(), "foo://%C8%99/");
+    assert_eq!(url.as_str(), "foo://%C8%99");
     url.set_host(Some("goșu.ro")).unwrap();
-    assert_eq!(url.as_str(), "foo://go%C8%99u.ro/");
+    assert_eq!(url.as_str(), "foo://go%C8%99u.ro");
 }
 
 #[test]
