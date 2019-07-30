@@ -45,7 +45,15 @@ pub struct PathSegmentsMut<'a> {
 pub fn new(url: &mut Url) -> PathSegmentsMut {
     let after_path = url.take_after_path();
     let old_after_path_position = to_u32(url.serialization.len()).unwrap();
-    debug_assert!(url.byte_at(url.path_start) == b'/');
+    // Special urls always have a non empty path
+    if SchemeType::from(url.scheme()).is_special() {
+        debug_assert!(url.byte_at(url.path_start) == b'/');
+    } else {
+        debug_assert!(
+            url.serialization.len() == url.path_start as usize
+                || url.byte_at(url.path_start) == b'/'
+        );
+    }
     PathSegmentsMut {
         after_first_slash: url.path_start as usize + "/".len(),
         url,
@@ -212,7 +220,10 @@ impl<'a> PathSegmentsMut<'a> {
                 if matches!(segment, "." | "..") {
                     continue;
                 }
-                if parser.serialization.len() > path_start + 1 {
+                if parser.serialization.len() > path_start + 1
+                    // Non special url's path might still be empty
+                    || parser.serialization.len() == path_start
+                {
                     parser.serialization.push('/');
                 }
                 let mut has_host = true; // FIXME account for this?

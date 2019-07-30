@@ -23,6 +23,20 @@ fn size() {
     assert_eq!(size_of::<Url>(), size_of::<Option<Url>>());
 }
 
+#[test]
+fn test_relative() {
+    let base: Url = "sc://%C3%B1".parse().unwrap();
+    let url = base.join("/resources/testharness.js").unwrap();
+    assert_eq!(url.as_str(), "sc://%C3%B1/resources/testharness.js");
+}
+
+#[test]
+fn test_relative_empty() {
+    let base: Url = "sc://%C3%B1".parse().unwrap();
+    let url = base.join("").unwrap();
+    assert_eq!(url.as_str(), "sc://%C3%B1");
+}
+
 macro_rules! assert_from_file_path {
     ($path: expr) => {
         assert_from_file_path!($path, $path)
@@ -413,9 +427,9 @@ fn test_set_host() {
     assert_eq!(url.as_str(), "foobar:/hello");
 
     let mut url = Url::parse("foo://ș").unwrap();
-    assert_eq!(url.as_str(), "foo://%C8%99/");
+    assert_eq!(url.as_str(), "foo://%C8%99");
     url.set_host(Some("goșu.ro")).unwrap();
-    assert_eq!(url.as_str(), "foo://go%C8%99u.ro/");
+    assert_eq!(url.as_str(), "foo://go%C8%99u.ro");
 }
 
 #[test]

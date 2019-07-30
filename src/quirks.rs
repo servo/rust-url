@@ -99,9 +99,13 @@ pub fn host(url: &Url) -> &str {
 
 /// Setter for https://url.spec.whatwg.org/#dom-url-host
 pub fn set_host(url: &mut Url, new_host: &str) -> Result<(), ()> {
+    // If context object’s url’s cannot-be-a-base-URL flag is set, then return.
     if url.cannot_be_a_base() {
         return Err(());
     }
+    // Host parsing rules are strict,
+    // We don't want to trim the input
+    let input = Input::no_trim(new_host);
     let host;
     let opt_port;
     {
@@ -119,6 +123,20 @@ pub fn set_host(url: &mut Url, new_host: &str) -> Result<(), ()> {
                 };
             }
             Err(_) => return Err(()),
+        }
+    }
+    // Make sure we won't set an empty host to a url with a username or a port
+    if host == Host::Domain("".to_string()) {
+        if !username(&url).is_empty() {
+            return Err(());
+        }
+        if let Some(p) = opt_port {
+            if let Some(_) = p {
+                return Err(());
+            }
+        }
+        if url.port().is_some() {
+            return Err(());
         }
     }
     url.set_host_internal(host, opt_port);
@@ -182,7 +200,14 @@ pub fn pathname(url: &Url) -> &str {
 
 /// Setter for https://url.spec.whatwg.org/#dom-url-pathname
 pub fn set_pathname(url: &mut Url, new_pathname: &str) {
-    if !url.cannot_be_a_base() {
+    if url.cannot_be_a_base() {
+        return;
+    }
+    if Some('/') == new_pathname.chars().nth(0)
+        || SchemeType::from(url.scheme()).is_special()
+        // \ is a segment delimiter for 'special' URLs"
+        && Some('\\') == new_pathname.chars().nth(0)
+    {
         url.set_path(new_pathname)
     }
 }
