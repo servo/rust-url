@@ -123,11 +123,13 @@ use std::cmp;
 use std::error::Error;
 use std::fmt::{self, Write};
 use std::hash;
+use std::io;
 use std::mem;
-use std::net::IpAddr;
+use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
 use std::ops::{Range, RangeFrom, RangeTo};
 use std::path::{Path, PathBuf};
 use std::str;
+use std::vec;
 
 pub use host::Host;
 pub use origin::{OpaqueOrigin, Origin};
@@ -943,6 +945,50 @@ impl Url {
     #[inline]
     pub fn port_or_known_default(&self) -> Option<u16> {
         self.port.or_else(|| parser::default_port(self.scheme()))
+    }
+
+    /// If the URL has a host, return something that implements `ToSocketAddrs`.
+    ///
+    /// If the URL has no port number and the scheme’s default port number is not known
+    /// (see `Url::port_or_known_default`),
+    /// the closure is called to obtain a port number.
+    /// Typically, this closure can match on the result `Url::scheme`
+    /// to have per-scheme default port numbers,
+    /// and panic for schemes it’s not prepared to handle.
+    /// For example:
+    ///
+    /// ```rust
+    /// # use url::Url;
+    /// # use std::net::TcpStream;
+    /// # use std::io;
+    /// fn connect(url: &Url) -> io::Result<TcpStream> {
+    ///     TcpStream::connect(url.with_default_port(default_port)?)
+    /// }
+    ///
+    /// fn default_port(url: &Url) -> Result<u16, ()> {
+    ///     match url.scheme() {
+    ///         "git" => Ok(9418),
+    ///         "git+ssh" => Ok(22),
+    ///         "git+https" => Ok(443),
+    ///         "git+http" => Ok(80),
+    ///         _ => Err(()),
+    ///     }
+    /// }
+    /// ```
+    pub fn with_default_port<F>(&self, f: F) -> io::Result<(&str, u16)>
+    where
+        F: FnOnce(&Url) -> Result<u16, ()>,
+    {
+        Ok((self
+                .host_str()
+                .ok_or(())
+                .or_else(|()| io_error("URL has no host"))?,
+            self
+                .port_or_known_default()
+                .ok_or(())
+                .or_else(|()| f(self))
+                .or_else(|()| io_error("URL has no port number"))?,
+        ))
     }
 
     /// Return the path for this URL, as a percent-encoded ASCII string.
@@ -2162,6 +2208,16 @@ impl Url {
     }
 }
 
+/// Return an error if `Url::host` or `Url::port_or_known_default` return `None`.
+impl ToSocketAddrs for Url {
+    type Iter = vec::IntoIter<SocketAddr>;
+
+    fn to_socket_addrs(&self) -> io::Result<Self::Iter> {
+        self.with_default_port(|_| Err(()))?.to_socket_addrs()
+    }
+}
+
+
 /// Parse a string as an URL, without a base URL or encoding override.
 impl str::FromStr for Url {
     type Err = ParseError;
@@ -2170,6 +2226,10 @@ impl str::FromStr for Url {
     fn from_str(input: &str) -> Result<Url, ::ParseError> {
         Url::parse(input)
     }
+}
+
+fn io_error<T>(reason: &str) -> io::Result<T> {
+    Err(io::Error::new(io::ErrorKind::InvalidData, reason))
 }
 
 /// Display the serialization of this URL.
