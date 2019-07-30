@@ -1,4 +1,113 @@
-# Guide to upgrading from url 0.x to 1.x
+# Upgrade guide
+
+This guide contains steps for upgrading crates in this project between major
+versions. Only the most common issues are covered here. For full details of
+changes, see the [changelog](CHANGELOG.md).
+
+## Upgrading from url 1.x to 2.x
+
+* The minimum supported Rust version is now v1.33.0. Verify that you can bump
+  your library or application to the same MSRV.
+
+* `Url` no longer implements `std::net::ToSocketAddrs`. You will instead need to
+  explicitly convert your `Url` to a type that implements `ToSocketAddrs`.
+
+    Before upgrading:
+
+    ```rust
+    let url = Url::parse("http://github.com:80").unwrap();
+    let stream = TcpStream::connect(url).unwrap();
+    ```
+
+    After upgrading:
+
+    ```rust
+    let url = Url::parse("http://github.com:80").unwrap();
+    let port = url.port_or_known_default().unwrap();
+    let addrs;
+    let addr;
+    let addrs = match url.host().unwrap() {
+        url::Host::Domain(domain) => {
+            addrs = (domain, port).to_socket_addrs().unwrap();
+            addrs.as_slice()
+        }
+        url::Host::Ipv4(ip) => {
+            addr = (ip, port).into();
+            std::slice::from_ref(&addr)
+        }
+        url::Host::Ipv6(ip) => {
+            addr = (ip, port).into();
+            std::slice::from_ref(&addr)
+        }
+    };
+    let stream = TcpStream::connect(addrs).unwrap();
+    ```
+
+* `url_serde` is no longer required to use `Url` with Serde 1.x. Remove
+  references to `url_serde` and enable the `serde` feature instead.
+
+     ```toml
+     # Cargo.toml
+     [dependencies]
+     url = { version = "2.0", features = ["serde"] }
+     ```
+
+* The `idna` and `percent_export` crates are no longer exported by the `url`
+  crate. Depend on those crates directly instead. See below for additional
+  breaking changes in the percent-export package.
+
+    Before upgrading:
+
+    ```rust
+    use url::percent_encoding::percent_decode;
+    ```
+
+    After upgrading:
+
+    ```rust
+    use percent_encoding::percent_decode;
+    ```
+
+## Upgrading from percent-encoding 1.x to 2.x
+
+* Prepackaged encoding sets, like `QUERY_ENCODE_SET` and
+  `PATH_SEGMENT_ENCODE_SET`, are no longer provided. You will need to read You
+  will need to read the specifications relevant to your domain and construct
+  your own encoding sets by using the `percent_encoding::AsciiSet` builder
+  methods on either of the base encoding sets, `percent_encoding::CONTROLS` or
+  `percent_encoding::NON_ALPHANUMERIC`.
+
+    Before upgrading:
+
+    ```rust
+    use percent_encoding::PATH_SEGMENT_ENCODE_SET;
+
+    percent_encoding::utf8_percent_encode(value, PATH_SEGMENT_ENCODE_SET);
+    ```
+
+    After upgrading:
+
+    ```rust
+    /// https://url.spec.whatwg.org/#fragment-percent-encode-set
+    const FRAGMENT_ENCODE_SET: &AsciiSet = &percent_encoding::CONTROLS
+        .add(b' ').add(b'"').add(b'<').add(b'>').add(b'`');
+
+    /// https://url.spec.whatwg.org/#path-percent-encode-set
+    const PATH_ENCODE_SET: &AsciiSet = &FRAGMENT_ENCODE_SET
+        .add(b'#').add(b'?').add(b'{').add(b'}');
+
+    const PATH_SEGMENT_ENCODE_SET: &AsciiSet = &PATH_ENCODE_SET.add(b'/').add(b'%');
+
+    percent_encoding::utf8_percent_encode(value, PATH_SEGMENT_ENCODE_SET);
+    ```
+
+  You can use the [private encoding sets in the URL parser][encoding-sets] as
+  a basis.
+
+  [encoding-sets]: https://github.com/servo/rust-url/blob/f491cb442edab75be54ff5961af6458a474f1f9a/src/parser.rs#L18-L45
+
+
+## Upgrading from url 0.x to 1.x
 
 * The fields of `Url` are now private because the `Url` constructor, parser,
   and setters maintain invariants that could be violated if you were to set the fields directly.
