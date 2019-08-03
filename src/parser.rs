@@ -1230,12 +1230,13 @@ impl<'a> Parser<'a> {
                     }
                 }
             }
-
-            let segment_before_slash = if ends_with_slash {
-                &self.serialization[segment_start..self.serialization.len() - 1]
+            // Going from &str to String to &str to please the 1.33.0 borrow checker
+            let before_slash_string = if ends_with_slash {
+                self.serialization[segment_start..self.serialization.len() - 1].to_owned()
             } else {
-                &self.serialization[segment_start..self.serialization.len()]
+                self.serialization[segment_start..self.serialization.len()].to_owned()
             };
+            let segment_before_slash: &str = &before_slash_string;
             match segment_before_slash {
                 // If buffer is a double-dot path segment, shorten url’s path,
                 ".." | "%2e%2e" | "%2e%2E" | "%2E%2e" | "%2E%2E" | "%2e." | "%2E." | ".%2e"
@@ -1308,16 +1309,18 @@ impl<'a> Parser<'a> {
         if self.serialization.len() == path_start {
             return;
         }
-        // If url’s scheme is "file", path’s size is 1, and path[0] is a normalized Windows drive letter, then return.
-        let segments: Vec<&str> = self.serialization[path_start..]
-            .split('/')
-            .filter(|s| !s.is_empty())
-            .collect();
-        if scheme_type.is_file()
-            && segments.len() == 1
-            && is_normalized_windows_drive_letter(segments[0])
         {
-            return;
+            // If url’s scheme is "file", path’s size is 1, and path[0] is a normalized Windows drive letter, then return.
+            let segments: Vec<&str> = self.serialization[path_start..]
+                .split('/')
+                .filter(|s| !s.is_empty())
+                .collect();
+            if scheme_type.is_file()
+                && segments.len() == 1
+                && is_normalized_windows_drive_letter(segments[0])
+            {
+                return;
+            }
         }
         // Remove path’s last item.
         self.pop_path(scheme_type, path_start);
