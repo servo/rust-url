@@ -2101,7 +2101,8 @@ impl Url {
         // If it is the scheme's default
         // We don't mind it silently failing
         // If there was no port in the first place
-        let _ = self.set_port(self.port());
+        let previous_port = self.port();
+        let _ = self.set_port(previous_port);
 
         Ok(())
     }
