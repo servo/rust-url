@@ -1571,7 +1571,8 @@ fn is_normalized_windows_drive_letter(segment: &str) -> bool {
 
 /// Wether the scheme is file:, the path has a single segment, and that segment
 /// is a Windows drive letter
-fn is_windows_drive_letter(segment: &str) -> bool {
+#[inline]
+pub fn is_windows_drive_letter(segment: &str) -> bool {
     segment.len() == 2 && starts_with_windows_drive_letter(segment)
 }
 
