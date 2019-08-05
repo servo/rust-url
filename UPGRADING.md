@@ -4,13 +4,17 @@ This guide contains steps for upgrading crates in this project between major
 versions. Only the most common issues are covered here. For full details of
 changes, see the [changelog](CHANGELOG.md).
 
-## Upgrading from url 1.x to 2.x
+## Upgrading from url 1.x to 2.1+
 
 * The minimum supported Rust version is now v1.33.0. Verify that you can bump
   your library or application to the same MSRV.
 
 * `Url` no longer implements `std::net::ToSocketAddrs`. You will instead need to
-  explicitly convert your `Url` to a type that implements `ToSocketAddrs`.
+  explicitly call `socket_addrs` to convert your `Url` to a type that implements
+  `ToSocketAddrs`.
+
+  Note that v2.0 removed support for `std::net::ToSocketAddrs` with no
+  replacement; the `socket_addrs` method was not added until v2.1.
 
     Before upgrading:
 
@@ -23,24 +27,28 @@ changes, see the [changelog](CHANGELOG.md).
 
     ```rust
     let url = Url::parse("http://github.com:80").unwrap();
-    let port = url.port_or_known_default().unwrap();
-    let addrs;
-    let addr;
-    let addrs = match url.host().unwrap() {
-        url::Host::Domain(domain) => {
-            addrs = (domain, port).to_socket_addrs().unwrap();
-            addrs.as_slice()
-        }
-        url::Host::Ipv4(ip) => {
-            addr = (ip, port).into();
-            std::slice::from_ref(&addr)
-        }
-        url::Host::Ipv6(ip) => {
-            addr = (ip, port).into();
-            std::slice::from_ref(&addr)
-        }
-    };
+    let addrs = url.socket_addrs(|| None).unwrap();
     let stream = TcpStream::connect(addrs).unwrap();
+    ```
+
+    Before upgrading:
+
+    ```rust
+    let url = Url::parse("socks5://localhost").unwrap();
+    let stream = TcpStream::connect(url.with_default_port(|url| match url.scheme() {
+        "socks5" => Ok(1080),
+        _ => Err(()),
+    })).unwrap();
+    ```
+
+    After upgrading:
+
+    ```rust
+    let url = Url::parse("http://github.com:80").unwrap();
+    let stream = TcpStream::connect(url.socket_addrs(|| match url.scheme() {
+        "socks5" => Some(1080),
+        _ => Err(()),
+    })).unwrap();
     ```
 
 * `url_serde` is no longer required to use `Url` with Serde 1.x. Remove
@@ -71,7 +79,7 @@ changes, see the [changelog](CHANGELOG.md).
 ## Upgrading from percent-encoding 1.x to 2.x
 
 * Prepackaged encoding sets, like `QUERY_ENCODE_SET` and
-  `PATH_SEGMENT_ENCODE_SET`, are no longer provided. You will need to read You
+  `PATH_SEGMENT_ENCODE_SET`, are no longer provided. You
   will need to read the specifications relevant to your domain and construct
   your own encoding sets by using the `percent_encoding::AsciiSet` builder
   methods on either of the base encoding sets, `percent_encoding::CONTROLS` or
