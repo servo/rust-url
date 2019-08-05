@@ -549,3 +549,29 @@ fn test_options_reuse() {
     assert_eq!(url.as_str(), "http://mozilla.org/sub/path");
     assert_eq!(*violations.borrow(), vec!(ExpectedDoubleSlash, Backslash));
 }
+
+/// https://github.com/servo/rust-url/issues/505
+#[cfg(windows)]
+#[test]
+fn test_url_from_file_path() {
+    use std::path::PathBuf;
+    use url::Url;
+
+    let p = PathBuf::from("c:///");
+    let u = Url::from_file_path(p).unwrap();
+    let path = u.to_file_path().unwrap();
+    assert_eq!("C:\\", path.to_str().unwrap());
+}
+
+/// https://github.com/servo/rust-url/issues/505
+#[cfg(not(windows))]
+#[test]
+fn test_url_from_file_path() {
+    use std::path::PathBuf;
+    use url::Url;
+
+    let p = PathBuf::from("/c:/");
+    let u = Url::from_file_path(p).unwrap();
+    let path = u.to_file_path().unwrap();
+    assert_eq!("/c:/", path.to_str().unwrap());
+}

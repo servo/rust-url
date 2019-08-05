@@ -2336,6 +2336,7 @@ fn path_to_file_url_segments_windows(
     }
     let mut components = path.components();
 
+    let host_start = serialization.len() + 1;
     let host_end;
     let host_internal;
     match components.next() {
@@ -2362,14 +2363,23 @@ fn path_to_file_url_segments_windows(
         _ => return Err(()),
     }
 
+    let mut path_only_has_prefix = true;
     for component in components {
         if component == Component::RootDir {
             continue;
         }
+        path_only_has_prefix = false;
         // FIXME: somehow work with non-unicode?
         let component = component.as_os_str().to_str().ok_or(())?;
         serialization.push('/');
         serialization.extend(percent_encode(component.as_bytes(), PATH_SEGMENT));
+    }
+    // A windows drive letter must end with a slash.
+    if serialization.len() > host_start
+        && parser::is_windows_drive_letter(&serialization[host_start..])
+        && path_only_has_prefix
+    {
+        serialization.push('/');
     }
     Ok((host_end, host_internal))
 }
@@ -2394,6 +2404,14 @@ fn file_url_segments_to_pathbuf(
     for segment in segments {
         bytes.push(b'/');
         bytes.extend(percent_decode(segment.as_bytes()));
+    }
+    // A windows drive letter must end with a slash.
+    if bytes.len() > 2 {
+        if matches!(bytes[bytes.len() -2], b'a'..=b'z' | b'A'..=b'Z')
+            && matches!(bytes[bytes.len() - 1], b':' | b'|')
+        {
+            bytes.push(b'/');
+        }
     }
     let os_str = OsStr::from_bytes(&bytes);
     let path = PathBuf::from(os_str);
