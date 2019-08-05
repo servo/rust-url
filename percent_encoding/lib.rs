@@ -83,6 +83,12 @@ impl AsciiSet {
         mask[byte as usize / BITS_PER_CHUNK] |= 1 << (byte as usize % BITS_PER_CHUNK);
         AsciiSet { mask }
     }
+
+    pub const fn remove(&self, byte: u8) -> Self {
+        let mut mask = self.mask;
+        mask[byte as usize / BITS_PER_CHUNK] &= !(1 << (byte as usize % BITS_PER_CHUNK));
+        AsciiSet { mask }
+    }
 }
 
 /// The set of 0x00 to 0x1F (C0 controls), and 0x7F (DEL).
