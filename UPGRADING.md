@@ -41,7 +41,7 @@ versions.
     ```
 
     After upgrading:
-
+	
     ```rust
     let url = Url::parse("http://github.com:80").unwrap();
     let stream = TcpStream::connect(url.socket_addrs(|| match url.scheme() {
@@ -96,7 +96,7 @@ versions.
 
     ```rust
     /// https://url.spec.whatwg.org/#query-state
-	const QUERY: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'#').add(b'<').add(b'>');
+    const QUERY: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'#').add(b'<').add(b'>');
 
     percent_encoding::utf8_percent_encode(value, QUERY);
     ```
