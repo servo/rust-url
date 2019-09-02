@@ -1,4 +1,108 @@
-# Guide to upgrading from url 0.x to 1.x
+# Upgrade guide
+
+This guide contains steps for upgrading crates in this project between major
+versions.
+
+## Upgrading from url 1.x to 2.1+
+
+* The minimum supported Rust version is now v1.33.0. Verify that you can bump
+  your library or application to the same MSRV.
+
+* `Url` no longer implements `std::net::ToSocketAddrs`. You will instead need to
+  explicitly call `socket_addrs` to convert your `Url` to a type that implements
+  `ToSocketAddrs`.
+
+  Note that v2.0 removed support for `std::net::ToSocketAddrs` with no
+  replacement; the `socket_addrs` method was not added until v2.1.
+
+    Before upgrading:
+
+    ```rust
+    let url = Url::parse("http://github.com:80").unwrap();
+    let stream = TcpStream::connect(url).unwrap();
+    ```
+
+    After upgrading:
+
+    ```rust
+    let url = Url::parse("http://github.com:80").unwrap();
+    let addrs = url.socket_addrs(|| None).unwrap();
+    let stream = TcpStream::connect(addrs).unwrap();
+    ```
+
+    Before upgrading:
+
+    ```rust
+    let url = Url::parse("socks5://localhost").unwrap();
+    let stream = TcpStream::connect(url.with_default_port(|url| match url.scheme() {
+        "socks5" => Ok(1080),
+        _ => Err(()),
+    })).unwrap();
+    ```
+
+    After upgrading:
+	
+    ```rust
+    let url = Url::parse("http://github.com:80").unwrap();
+    let stream = TcpStream::connect(url.socket_addrs(|| match url.scheme() {
+        "socks5" => Some(1080),
+        _ => Err(()),
+    })).unwrap();
+    ```
+
+* `url_serde` is no longer required to use `Url` with Serde 1.x. Remove
+  references to `url_serde` and enable the `serde` feature instead.
+
+     ```toml
+     # Cargo.toml
+     [dependencies]
+     url = { version = "2.0", features = ["serde"] }
+     ```
+
+* The `idna` and `percent_export` crates are no longer exported by the `url`
+  crate. Depend on those crates directly instead. See below for additional
+  breaking changes in the percent-export package.
+
+    Before upgrading:
+
+    ```rust
+    use url::percent_encoding::percent_decode;
+    ```
+
+    After upgrading:
+
+    ```rust
+    use percent_encoding::percent_decode;
+    ```
+
+## Upgrading from percent-encoding 1.x to 2.x
+
+* Prepackaged encoding sets, like `QUERY_ENCODE_SET` and
+  `PATH_SEGMENT_ENCODE_SET`, are no longer provided. You
+  will need to read the specifications relevant to your domain and construct
+  your own encoding sets by using the `percent_encoding::AsciiSet` builder
+  methods on either of the base encoding sets, `percent_encoding::CONTROLS` or
+  `percent_encoding::NON_ALPHANUMERIC`.
+
+    Before upgrading:
+
+    ```rust
+    use percent_encoding::QUERY_ENCODE_SET;
+
+    percent_encoding::utf8_percent_encode(value, QUERY_ENCODE_SET);
+    ```
+
+    After upgrading:
+
+    ```rust
+    /// https://url.spec.whatwg.org/#query-state
+    const QUERY: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'#').add(b'<').add(b'>');
+
+    percent_encoding::utf8_percent_encode(value, QUERY);
+    ```
+
+
+## Upgrading from url 0.x to 1.x
 
 * The fields of `Url` are now private because the `Url` constructor, parser,
   and setters maintain invariants that could be violated if you were to set the fields directly.
