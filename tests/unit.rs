@@ -315,8 +315,9 @@ fn test_form_serialize() {
         .append_pair("foo", "é&")
         .append_pair("bar", "")
         .append_pair("foo", "#")
+        .append_key_only("json")
         .finish();
-    assert_eq!(encoded, "foo=%C3%A9%26&bar=&foo=%23");
+    assert_eq!(encoded, "foo=%C3%A9%26&bar=&foo=%23&json");
 }
 
 #[test]
@@ -324,8 +325,9 @@ fn form_urlencoded_encoding_override() {
     let encoded = form_urlencoded::Serializer::new(String::new())
         .encoding_override(Some(&|s| s.as_bytes().to_ascii_uppercase().into()))
         .append_pair("foo", "bar")
+        .append_key_only("xml")
         .finish();
-    assert_eq!(encoded, "FOO=BAR");
+    assert_eq!(encoded, "FOO=BAR&XML");
 }
 
 #[test]
