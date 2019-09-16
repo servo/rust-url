@@ -266,6 +266,19 @@ impl<'a, T: Target> Serializer<'a, T> {
         self
     }
 
+    /// Serialize and append a name of parameter without any value.
+    ///
+    /// Panics if called after `.finish()`.
+    pub fn append_key_only(&mut self, name: &str) -> &mut Self {
+        append_key_only(
+            string(&mut self.target),
+            self.start_position,
+            self.encoding,
+            name,
+        );
+        self
+    }
+
     /// Serialize and append a number of name/value pairs.
     ///
     /// This simply calls `append_pair` repeatedly.
@@ -290,6 +303,34 @@ impl<'a, T: Target> Serializer<'a, T> {
                     self.encoding,
                     k.as_ref(),
                     v.as_ref(),
+                );
+            }
+        }
+        self
+    }
+
+    /// Serialize and append a number of name/value pairs.
+    ///
+    /// This simply calls `append_key_only` repeatedly.
+    /// This can be more convenient, so the user doesn’t need to introduce a block
+    /// to limit the scope of `Serializer`’s borrow of its string.
+    ///
+    /// Panics if called after `.finish()`.
+    pub fn extend_keys_only<I, K>(&mut self, iter: I) -> &mut Self
+    where
+        I: IntoIterator,
+        I::Item: Borrow<K>,
+        K: AsRef<str>,
+    {
+        {
+            let string = string(&mut self.target);
+            for key in iter {
+                let ref k = key.borrow();
+                append_key_only(
+                    string,
+                    self.start_position,
+                    self.encoding,
+                    k.as_ref(),
                 );
             }
         }
@@ -340,6 +381,16 @@ fn append_pair(
     append_encoded(name, string, encoding);
     string.push('=');
     append_encoded(value, string, encoding);
+}
+
+fn append_key_only(
+    string: &mut String,
+    start_position: usize,
+    encoding: EncodingOverride,
+    name: &str,
+) {
+    append_separator_if_needed(string, start_position);
+    append_encoded(name, string, encoding);
 }
 
 fn append_encoded(s: &str, string: &mut String, encoding: EncodingOverride) {
