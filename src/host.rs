@@ -80,7 +80,7 @@ impl Host<String> {
             return parse_ipv6addr(&input[1..input.len() - 1]).map(Host::Ipv6);
         }
         let domain = percent_decode(input.as_bytes()).decode_utf8_lossy();
-        let domain = idna::domain_to_ascii(&domain)?;
+        let domain = idna::domain_to_ascii_strict(&domain)?;
         if domain
             .find(|c| {
                 matches!(
