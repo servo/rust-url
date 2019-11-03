@@ -256,6 +256,8 @@ impl<'a> Iterator for PercentEncode<'a> {
                 self.bytes = remaining;
                 Some(percent_encode_byte(first_byte))
             } else {
+                // The unsafe blocks here are appropriate because the bytes are
+                // confirmed as a subset of UTF-8 in should_percent_encode.
                 for (i, &byte) in remaining.iter().enumerate() {
                     if self.ascii_set.should_percent_encode(byte) {
                         // 1 for first_byte + i for previous iterations of this loop
@@ -440,18 +442,34 @@ impl<'a> PercentDecode<'a> {
 
 #[cfg(feature = "std")]
 fn decode_utf8_lossy(input: Cow<[u8]>) -> Cow<str> {
+    // Note: This function is duplicated in `form_urlencoded/src/query_encoding.rs`.
     match input {
         Cow::Borrowed(bytes) => String::from_utf8_lossy(bytes),
         Cow::Owned(bytes) => {
-            let raw_utf8: *const [u8];
             match String::from_utf8_lossy(&bytes) {
-                Cow::Borrowed(utf8) => raw_utf8 = utf8.as_bytes(),
-                Cow::Owned(s) => return s.into(),
+                Cow::Borrowed(utf8) => {
+                    // If from_utf8_lossy returns a Cow::Borrowed, then we can
+                    // be sure our original bytes were valid UTF-8. This is because
+                    // if the bytes were invalid UTF-8 from_utf8_lossy would have
+                    // to allocate a new owned string to back the Cow so it could
+                    // replace invalid bytes with a placeholder.
+
+                    // First we do a debug_assert to confirm our description above.
+                    let raw_utf8: *const [u8];
+                    raw_utf8 = utf8.as_bytes();
+                    debug_assert!(raw_utf8 == &*bytes as *const [u8]);
+
+                    // Given we know the original input bytes are valid UTF-8,
+                    // and we have ownership of those bytes, we re-use them and
+                    // return a Cow::Owned here. Ideally we'd put our return statement
+                    // right below this line, but to support the old lexically scoped
+                    // borrow checker the return must be moved to outside the match
+                    // statement.
+                }
+                Cow::Owned(s) => return Cow::Owned(s),
             }
-            // from_utf8_lossy returned a borrow of `bytes` unchanged.
-            debug_assert!(raw_utf8 == &*bytes as *const [u8]);
-            // Reuse the existing `Vec` allocation.
-            unsafe { String::from_utf8_unchecked(bytes) }.into()
+
+            Cow::Owned(unsafe { String::from_utf8_unchecked(bytes) })
         }
     }
 }
