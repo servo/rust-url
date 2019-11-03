@@ -143,11 +143,10 @@ pub fn encode_str(input: &str) -> Option<String> {
 /// 63 encoded bytes, the DNS limit on domain name labels.
 pub fn encode(input: &[char]) -> Option<String> {
     // Handle "basic" (ASCII) code points. They are encoded as-is.
-    let output_bytes = input
+    let mut output : String = input
         .iter()
-        .filter_map(|&c| if c.is_ascii() { Some(c as u8) } else { None })
+        .filter(|&c| c.is_ascii())
         .collect();
-    let mut output = unsafe { String::from_utf8_unchecked(output_bytes) };
     let basic_length = output.len() as u32;
     if basic_length > 0 {
         output.push_str("-")

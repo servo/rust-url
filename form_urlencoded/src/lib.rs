@@ -150,6 +150,10 @@ impl<'a> Iterator for ByteSerialize<'a> {
                 None => (self.bytes, &[][..]),
             };
             self.bytes = remaining;
+            // This unsafe is appropriate because we have already checked these
+            // bytes in byte_serialized_unchanged, which checks for a subset
+            // of UTF-8. So we know these bytes are valid UTF-8, and doing
+            // another UTF-8 check would be wasteful.
             Some(unsafe { str::from_utf8_unchecked(unchanged_slice) })
         } else {
             None
