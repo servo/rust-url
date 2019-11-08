@@ -9,3 +9,7 @@ license = "MIT/Apache-2.0"
 [lib]
 test = false
 path = "lib.rs"
+
+[features]
+default = ["std"]
+std = []
