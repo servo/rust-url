@@ -540,7 +540,6 @@ impl<'a> Parser<'a> {
                     self.parse_path(SchemeType::File, &mut has_host, path_start, remaining)
                 };
 
-                trim_path(&mut self.serialization, host_end as usize);
                 // For file URLs that have a host and whose path starts
                 // with the windows drive letter we just remove the host.
                 if !has_host {
@@ -597,8 +596,6 @@ impl<'a> Parser<'a> {
                     self.parse_path(SchemeType::File, &mut false, host_end, parse_path_input);
 
                 let host_start = host_start as u32;
-
-                trim_path(&mut self.serialization, host_end);
 
                 let (query_start, fragment_start) =
                     self.parse_query_and_fragment(scheme_type, scheme_end, remaining)?;
@@ -1287,6 +1284,15 @@ impl<'a> Parser<'a> {
                 break;
             }
         }
+        if scheme_type.is_file() {
+            // while url’s path’s size is greater than 1
+            // and url’s path[0] is the empty string,
+            // validation error, remove the first item from url’s path.
+            //FIXME: log violation
+            let path = self.serialization.split_off(path_start);
+            self.serialization.push('/');
+            self.serialization.push_str(&path.trim_start_matches("/"));
+        }
         input
     }
 
@@ -1492,18 +1498,6 @@ impl<'a> Parser<'a> {
                 vfn(SyntaxViolation::NonUrlCodePoint)
             }
         }
-    }
-}
-
-// Trim path start forward slashes when no authority is present
-// https://github.com/whatwg/url/issues/232
-pub fn trim_path(serialization: &mut String, path_start: usize) {
-    let path = serialization.split_off(path_start);
-    if path.starts_with("/") {
-        serialization.push('/');
-        serialization.push_str(&path.trim_start_matches("/"));
-    } else {
-        serialization.push_str(&path);
     }
 }
 
