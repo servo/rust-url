@@ -1403,12 +1403,8 @@ impl Url {
                 }
                 parser.parse_cannot_be_a_base_path(parser::Input::new(path));
             } else {
-                let path_start = parser.serialization.len();
                 let mut has_host = true; // FIXME
                 parser.parse_path_start(scheme_type, &mut has_host, parser::Input::new(path));
-                if scheme_type.is_file() {
-                    parser::trim_path(&mut parser.serialization, path_start);
-                }
             }
         });
         self.restore_after_path(old_after_path_pos, &after_path);
