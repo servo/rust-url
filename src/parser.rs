@@ -1315,18 +1315,11 @@ impl<'a> Parser<'a> {
         if self.serialization.len() == path_start {
             return;
         }
+        // If url’s scheme is "file", path’s size is 1, and path[0] is a normalized Windows drive letter, then return.
+        if scheme_type.is_file()
+            && is_normalized_windows_drive_letter(&self.serialization[path_start..])
         {
-            // If url’s scheme is "file", path’s size is 1, and path[0] is a normalized Windows drive letter, then return.
-            let segments: Vec<&str> = self.serialization[path_start..]
-                .split('/')
-                .filter(|s| !s.is_empty())
-                .collect();
-            if scheme_type.is_file()
-                && segments.len() == 1
-                && is_normalized_windows_drive_letter(segments[0])
-            {
-                return;
-            }
+            return;
         }
         // Remove path’s last item.
         self.pop_path(scheme_type, path_start);
