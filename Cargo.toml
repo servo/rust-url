@@ -30,6 +30,9 @@ harness = false
 [lib]
 test = false
 
+[features]
+try_from = []
+
 [dev-dependencies]
 rustc-test = "0.3"
 serde_json = "1.0"
