@@ -37,6 +37,35 @@ fn test_relative_empty() {
     assert_eq!(url.as_str(), "sc://%C3%B1");
 }
 
+#[test]
+fn test_set_empty_host() {
+    let mut base: Url = "moz://foo:bar@servo/baz".parse().unwrap();
+    base.set_username("").unwrap();
+    assert_eq!(base.as_str(), "moz://:bar@servo/baz");
+    base.set_host(None).unwrap();
+    assert_eq!(base.as_str(), "moz:/baz");
+    base.set_host(Some("servo")).unwrap();
+    assert_eq!(base.as_str(), "moz://servo/baz");
+}
+
+#[test]
+fn test_set_empty_hostname() {
+    use url::quirks;
+    let mut base: Url = "moz://foo@servo/baz".parse().unwrap();
+    assert!(
+        quirks::set_hostname(&mut base, "").is_err(),
+        "setting an empty hostname to a url with a username should fail"
+    );
+    base = "moz://:pass@servo/baz".parse().unwrap();
+    assert!(
+        quirks::set_hostname(&mut base, "").is_err(),
+        "setting an empty hostname to a url with a password should fail"
+    );
+    base = "moz://servo/baz".parse().unwrap();
+    quirks::set_hostname(&mut base, "").unwrap();
+    assert_eq!(base.as_str(), "moz:///baz");
+}
+
 macro_rules! assert_from_file_path {
     ($path: expr) => {
         assert_from_file_path!($path, $path)

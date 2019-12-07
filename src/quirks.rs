@@ -157,8 +157,7 @@ pub fn set_hostname(url: &mut Url, new_hostname: &str) -> Result<(), ()> {
     if url.cannot_be_a_base() {
         return Err(());
     }
-    // Host parsing rules are strict,
-    // We don't want to trim the input
+    // Host parsing rules are strict we don't want to trim the input
     let input = Input::no_trim(new_hostname);
     let scheme_type = SchemeType::from(url.scheme());
     if let Ok((host, _remaining)) = Parser::parse_host(input, scheme_type) {
@@ -168,7 +167,7 @@ pub fn set_hostname(url: &mut Url, new_hostname: &str) -> Result<(), ()> {
                 if SchemeType::from(url.scheme()) == SchemeType::SpecialNotFile
                     // Port with an empty host
                     ||!port(&url).is_empty()
-                    // Empty host with includes credentials
+                    // Empty host that includes credentials
                     || !url.username().is_empty()
                     || !url.password().unwrap_or(&"").is_empty()
                 {
@@ -224,9 +223,9 @@ pub fn set_pathname(url: &mut Url, new_pathname: &str) {
         return;
     }
     if Some('/') == new_pathname.chars().nth(0)
-        || SchemeType::from(url.scheme()).is_special()
-        // \ is a segment delimiter for 'special' URLs"
-        && Some('\\') == new_pathname.chars().nth(0)
+        || (SchemeType::from(url.scheme()).is_special()
+            // \ is a segment delimiter for 'special' URLs"
+            && Some('\\') == new_pathname.chars().nth(0))
     {
         url.set_path(new_pathname)
     } else {
