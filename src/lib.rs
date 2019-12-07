@@ -2063,7 +2063,7 @@ impl Url {
             !new_scheme_type.is_special() && old_scheme_type.is_special() ||
             // If url includes credentials or has a non-null port, and buffer is "file", then return.
             // If url’s scheme is "file" and its host is an empty host or null, then return.
-            new_scheme_type.is_file() && self.has_authority()
+            (new_scheme_type.is_file() && self.has_authority())
         {
             return Err(());
         }
@@ -2095,8 +2095,8 @@ impl Url {
 
         // Update the port so it can be removed
         // If it is the scheme's default
-        // We don't mind it silently failing
-        // If there was no port in the first place
+        // we don't mind it silently failing
+        // if there was no port in the first place
         let previous_port = self.port();
         let _ = self.set_port(previous_port);
 
@@ -2575,7 +2575,7 @@ fn file_url_segments_to_pathbuf(
     }
     // A windows drive letter must end with a slash.
     if bytes.len() > 2 {
-        if matches!(bytes[bytes.len() -2], b'a'..=b'z' | b'A'..=b'Z')
+        if matches!(bytes[bytes.len() - 2], b'a'..=b'z' | b'A'..=b'Z')
             && matches!(bytes[bytes.len() - 1], b':' | b'|')
         {
             bytes.push(b'/');

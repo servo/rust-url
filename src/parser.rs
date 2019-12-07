@@ -908,7 +908,7 @@ impl<'a> Parser<'a> {
                 // url is special and c is U+005C (\)
                 // If @ flag is set and buffer is the empty string, validation error, return failure.
                 if let (Some(c), _) = remaining.split_first() {
-                    if c == '/' || c == '?' || c == '#' || scheme_type.is_special() && c == '\\' {
+                    if c == '/' || c == '?' || c == '#' || (scheme_type.is_special() && c == '\\') {
                         return Err(ParseError::EmptyHost);
                     }
                 }
