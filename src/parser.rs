@@ -8,6 +8,7 @@
 
 use std::error::Error;
 use std::fmt::{self, Formatter, Write};
+use std::io;
 use std::str;
 
 use host::{Host, HostInternal};
@@ -99,6 +100,12 @@ impl fmt::Display for ParseError {
 impl From<::idna::Errors> for ParseError {
     fn from(_: ::idna::Errors) -> ParseError {
         ParseError::IdnaError
+    }
+}
+
+impl From<ParseError> for io::Error {
+    fn from(error: ParseError) -> io::Error {
+        io::Error::new(io::ErrorKind::InvalidData, error)
     }
 }
 
