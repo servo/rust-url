@@ -4,6 +4,11 @@ script: cargo test --all-features --all
 jobs:
   include:
   - rust: 1.33.0
+    script: |
+      cargo update &&
+      cargo update -p unicode-normalization --precise 0.1.9 &&
+      cargo test --all-features --all &&
+      cargo update
   - rust: stable
   - rust: beta
   - rust: nightly
