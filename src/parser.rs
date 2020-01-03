@@ -62,7 +62,7 @@ macro_rules! simple_enum_error {
             __FutureProof,
         }
 
-        impl Error for ParseError {
+        impl ParseError {
             fn description(&self) -> &str {
                 match *self {
                     $(
@@ -74,6 +74,8 @@ macro_rules! simple_enum_error {
                 }
             }
         }
+
+        impl Error for ParseError {}
     }
 }
 
