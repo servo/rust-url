@@ -456,13 +456,15 @@ impl Url {
 
         if self.slice(self.scheme_end + 1..).starts_with("//") {
             // URL with authority
-            match self.byte_at(self.username_end) {
-                b':' => {
-                    assert!(self.host_start >= self.username_end + 2);
-                    assert_eq!(self.byte_at(self.host_start - 1), b'@');
+            if self.username_end != self.serialization.len() as u32 {
+                match self.byte_at(self.username_end) {
+                    b':' => {
+                        assert!(self.host_start >= self.username_end + 2);
+                        assert_eq!(self.byte_at(self.host_start - 1), b'@');
+                    }
+                    b'@' => assert!(self.host_start == self.username_end + 1),
+                    _ => assert_eq!(self.username_end, self.scheme_end + 3),
                 }
-                b'@' => assert!(self.host_start == self.username_end + 1),
-                _ => assert_eq!(self.username_end, self.scheme_end + 3),
             }
             assert!(self.host_start >= self.username_end);
             assert!(self.host_end >= self.host_start);
@@ -490,7 +492,10 @@ impl Url {
                     Some(port_str.parse::<u16>().expect("Couldn't parse port?"))
                 );
             }
-            assert_eq!(self.byte_at(self.path_start), b'/');
+            assert!(
+                self.path_start as usize == self.serialization.len()
+                    || matches!(self.byte_at(self.path_start), b'/' | b'#' | b'?')
+            );
         } else {
             // Anarchist URL (no authority)
             assert_eq!(self.username_end, self.scheme_end + 1);
@@ -501,11 +506,11 @@ impl Url {
             assert_eq!(self.path_start, self.scheme_end + 1);
         }
         if let Some(start) = self.query_start {
-            assert!(start > self.path_start);
+            assert!(start >= self.path_start);
             assert_eq!(self.byte_at(start), b'?');
         }
         if let Some(start) = self.fragment_start {
-            assert!(start > self.path_start);
+            assert!(start >= self.path_start);
             assert_eq!(self.byte_at(start), b'#');
         }
         if let (Some(query_start), Some(fragment_start)) = (self.query_start, self.fragment_start) {
@@ -685,7 +690,7 @@ impl Url {
     /// ```
     #[inline]
     pub fn cannot_be_a_base(&self) -> bool {
-        !self.slice(self.path_start..).starts_with('/')
+        !self.slice(self.scheme_end + 1..).starts_with('/')
     }
 
     /// Return the username for this URL (typically the empty string)
@@ -745,7 +750,10 @@ impl Url {
     pub fn password(&self) -> Option<&str> {
         // This ':' is not the one marking a port number since a host can not be empty.
         // (Except for file: URLs, which do not have port numbers.)
-        if self.has_authority() && self.byte_at(self.username_end) == b':' {
+        if self.has_authority()
+            && self.username_end != self.serialization.len() as u32
+            && self.byte_at(self.username_end) == b':'
+        {
             debug_assert!(self.byte_at(self.host_start - 1) == b'@');
             Some(self.slice(self.username_end + 1..self.host_start - 1))
         } else {
@@ -1226,7 +1234,7 @@ impl Url {
         if let Some(input) = fragment {
             self.fragment_start = Some(to_u32(self.serialization.len()).unwrap());
             self.serialization.push('#');
-            self.mutate(|parser| parser.parse_fragment(parser::Input::new(input)))
+            self.mutate(|parser| parser.parse_fragment(parser::Input::no_trim(input)))
         } else {
             self.fragment_start = None
         }
@@ -1284,7 +1292,12 @@ impl Url {
             let scheme_type = SchemeType::from(self.scheme());
             let scheme_end = self.scheme_end;
             self.mutate(|parser| {
-                parser.parse_query(scheme_type, scheme_end, parser::Input::new(input))
+                let vfn = parser.violation_fn;
+                parser.parse_query(
+                    scheme_type,
+                    scheme_end,
+                    parser::Input::trim_tab_and_newlines(input, vfn),
+                )
             });
         }
 
@@ -1625,14 +1638,34 @@ impl Url {
             if host == "" && SchemeType::from(self.scheme()).is_special() {
                 return Err(ParseError::EmptyHost);
             }
+            let mut host_substr = host;
+            // Otherwise, if c is U+003A (:) and the [] flag is unset, then
+            if !host.starts_with('[') || !host.ends_with(']') {
+                match host.find(':') {
+                    Some(0) => {
+                        // If buffer is the empty string, validation error, return failure.
+                        return Err(ParseError::InvalidDomainCharacter);
+                    }
+                    // Let host be the result of host parsing buffer
+                    Some(colon_index) => {
+                        host_substr = &host[..colon_index];
+                    }
+                    None => {}
+                }
+            }
             if SchemeType::from(self.scheme()).is_special() {
-                self.set_host_internal(Host::parse(host)?, None)
+                self.set_host_internal(Host::parse(host_substr)?, None);
             } else {
-                self.set_host_internal(Host::parse_opaque(host)?, None)
+                self.set_host_internal(Host::parse_opaque(host_substr)?, None);
             }
         } else if self.has_host() {
-            if SchemeType::from(self.scheme()).is_special() {
+            let scheme_type = SchemeType::from(self.scheme());
+            if scheme_type.is_special() {
                 return Err(ParseError::EmptyHost);
+            } else {
+                if self.serialization.len() == self.path_start as usize {
+                    self.serialization.push('/');
+                }
             }
             debug_assert!(self.byte_at(self.scheme_end) == b':');
             debug_assert!(self.byte_at(self.path_start) == b'/');
@@ -1935,14 +1968,28 @@ impl Url {
     ///
     /// # fn run() -> Result<(), ParseError> {
     /// let mut url = Url::parse("https://example.net")?;
-    /// let result = url.set_scheme("foo");
-    /// assert_eq!(url.as_str(), "foo://example.net/");
+    /// let result = url.set_scheme("http");
+    /// assert_eq!(url.as_str(), "http://example.net/");
     /// assert!(result.is_ok());
     /// # Ok(())
     /// # }
     /// # run().unwrap();
     /// ```
+    /// Change the URL’s scheme from `foo` to `bar`:
     ///
+    /// ```
+    /// use url::Url;
+    /// # use url::ParseError;
+    ///
+    /// # fn run() -> Result<(), ParseError> {
+    /// let mut url = Url::parse("foo://example.net")?;
+    /// let result = url.set_scheme("bar");
+    /// assert_eq!(url.as_str(), "bar://example.net");
+    /// assert!(result.is_ok());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
+    /// ```
     ///
     /// Cannot change URL’s scheme from `https` to `foõ`:
     ///
@@ -1975,12 +2022,53 @@ impl Url {
     /// # }
     /// # run().unwrap();
     /// ```
+    /// Cannot change the URL’s scheme from `foo` to `https`:
+    ///
+    /// ```
+    /// use url::Url;
+    /// # use url::ParseError;
+    ///
+    /// # fn run() -> Result<(), ParseError> {
+    /// let mut url = Url::parse("foo://example.net")?;
+    /// let result = url.set_scheme("https");
+    /// assert_eq!(url.as_str(), "foo://example.net");
+    /// assert!(result.is_err());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
+    /// ```
+    /// Cannot change the URL’s scheme from `http` to `foo`:
+    ///
+    /// ```
+    /// use url::Url;
+    /// # use url::ParseError;
+    ///
+    /// # fn run() -> Result<(), ParseError> {
+    /// let mut url = Url::parse("http://example.net")?;
+    /// let result = url.set_scheme("foo");
+    /// assert_eq!(url.as_str(), "http://example.net/");
+    /// assert!(result.is_err());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
+    /// ```
     pub fn set_scheme(&mut self, scheme: &str) -> Result<(), ()> {
         let mut parser = Parser::for_setter(String::new());
         let remaining = parser.parse_scheme(parser::Input::new(scheme))?;
-        if !remaining.is_empty()
-            || (!self.has_host() && SchemeType::from(&parser.serialization).is_special())
+        let new_scheme_type = SchemeType::from(&parser.serialization);
+        let old_scheme_type = SchemeType::from(self.scheme());
+        // If url’s scheme is a special scheme and buffer is not a special scheme, then return.
+        if (new_scheme_type.is_special() && !old_scheme_type.is_special()) ||
+            // If url’s scheme is not a special scheme and buffer is a special scheme, then return.
+            (!new_scheme_type.is_special() && old_scheme_type.is_special()) ||
+            // If url includes credentials or has a non-null port, and buffer is "file", then return.
+            // If url’s scheme is "file" and its host is an empty host or null, then return.
+            (new_scheme_type.is_file() && self.has_authority())
         {
+            return Err(());
+        }
+
+        if !remaining.is_empty() || (!self.has_host() && new_scheme_type.is_special()) {
             return Err(());
         }
         let old_scheme_end = self.scheme_end;
@@ -2004,6 +2092,14 @@ impl Url {
 
         parser.serialization.push_str(self.slice(old_scheme_end..));
         self.serialization = parser.serialization;
+
+        // Update the port so it can be removed
+        // If it is the scheme's default
+        // we don't mind it silently failing
+        // if there was no port in the first place
+        let previous_port = self.port();
+        let _ = self.set_port(previous_port);
+
         Ok(())
     }
 
@@ -2408,6 +2504,7 @@ fn path_to_file_url_segments_windows(
     }
     let mut components = path.components();
 
+    let host_start = serialization.len() + 1;
     let host_end;
     let host_internal;
     match components.next() {
@@ -2434,14 +2531,23 @@ fn path_to_file_url_segments_windows(
         _ => return Err(()),
     }
 
+    let mut path_only_has_prefix = true;
     for component in components {
         if component == Component::RootDir {
             continue;
         }
+        path_only_has_prefix = false;
         // FIXME: somehow work with non-unicode?
         let component = component.as_os_str().to_str().ok_or(())?;
         serialization.push('/');
         serialization.extend(percent_encode(component.as_bytes(), PATH_SEGMENT));
+    }
+    // A windows drive letter must end with a slash.
+    if serialization.len() > host_start
+        && parser::is_windows_drive_letter(&serialization[host_start..])
+        && path_only_has_prefix
+    {
+        serialization.push('/');
     }
     Ok((host_end, host_internal))
 }
@@ -2466,6 +2572,14 @@ fn file_url_segments_to_pathbuf(
     for segment in segments {
         bytes.push(b'/');
         bytes.extend(percent_decode(segment.as_bytes()));
+    }
+    // A windows drive letter must end with a slash.
+    if bytes.len() > 2 {
+        if matches!(bytes[bytes.len() - 2], b'a'..=b'z' | b'A'..=b'Z')
+            && matches!(bytes[bytes.len() - 1], b':' | b'|')
+        {
+            bytes.push(b'/');
+        }
     }
     let os_str = OsStr::from_bytes(&bytes);
     let path = PathBuf::from(os_str);

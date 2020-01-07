@@ -23,6 +23,49 @@ fn size() {
     assert_eq!(size_of::<Url>(), size_of::<Option<Url>>());
 }
 
+#[test]
+fn test_relative() {
+    let base: Url = "sc://%C3%B1".parse().unwrap();
+    let url = base.join("/resources/testharness.js").unwrap();
+    assert_eq!(url.as_str(), "sc://%C3%B1/resources/testharness.js");
+}
+
+#[test]
+fn test_relative_empty() {
+    let base: Url = "sc://%C3%B1".parse().unwrap();
+    let url = base.join("").unwrap();
+    assert_eq!(url.as_str(), "sc://%C3%B1");
+}
+
+#[test]
+fn test_set_empty_host() {
+    let mut base: Url = "moz://foo:bar@servo/baz".parse().unwrap();
+    base.set_username("").unwrap();
+    assert_eq!(base.as_str(), "moz://:bar@servo/baz");
+    base.set_host(None).unwrap();
+    assert_eq!(base.as_str(), "moz:/baz");
+    base.set_host(Some("servo")).unwrap();
+    assert_eq!(base.as_str(), "moz://servo/baz");
+}
+
+#[test]
+fn test_set_empty_hostname() {
+    use url::quirks;
+    let mut base: Url = "moz://foo@servo/baz".parse().unwrap();
+    assert!(
+        quirks::set_hostname(&mut base, "").is_err(),
+        "setting an empty hostname to a url with a username should fail"
+    );
+    base = "moz://:pass@servo/baz".parse().unwrap();
+    assert!(
+        quirks::set_hostname(&mut base, "").is_err(),
+        "setting an empty hostname to a url with a password should fail"
+    );
+    base = "moz://servo/baz".parse().unwrap();
+    quirks::set_hostname(&mut base, "").unwrap();
+    assert_eq!(base.as_str(), "moz:///baz");
+}
+
 macro_rules! assert_from_file_path {
     ($path: expr) => {
         assert_from_file_path!($path, $path)
@@ -413,9 +456,9 @@ fn test_set_host() {
     assert_eq!(url.as_str(), "foobar:/hello");
 
     let mut url = Url::parse("foo://ș").unwrap();
-    assert_eq!(url.as_str(), "foo://%C8%99/");
+    assert_eq!(url.as_str(), "foo://%C8%99");
     url.set_host(Some("goșu.ro")).unwrap();
-    assert_eq!(url.as_str(), "foo://go%C8%99u.ro/");
+    assert_eq!(url.as_str(), "foo://go%C8%99u.ro");
 }
 
 #[test]
@@ -549,4 +592,30 @@ fn test_options_reuse() {
     let url = options.parse("/sub\\path").unwrap();
     assert_eq!(url.as_str(), "http://mozilla.org/sub/path");
     assert_eq!(*violations.borrow(), vec!(ExpectedDoubleSlash, Backslash));
+}
+
+/// https://github.com/servo/rust-url/issues/505
+#[cfg(windows)]
+#[test]
+fn test_url_from_file_path() {
+    use std::path::PathBuf;
+    use url::Url;
+
+    let p = PathBuf::from("c:///");
+    let u = Url::from_file_path(p).unwrap();
+    let path = u.to_file_path().unwrap();
+    assert_eq!("C:\\", path.to_str().unwrap());
+}
+
+/// https://github.com/servo/rust-url/issues/505
+#[cfg(not(windows))]
+#[test]
+fn test_url_from_file_path() {
+    use std::path::PathBuf;
+    use url::Url;
+
+    let p = PathBuf::from("/c:/");
+    let u = Url::from_file_path(p).unwrap();
+    let path = u.to_file_path().unwrap();
+    assert_eq!("/c:/", path.to_str().unwrap());
 }
