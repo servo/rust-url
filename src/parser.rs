@@ -81,6 +81,7 @@ simple_enum_error! {
     EmptyHost => "empty host",
     IdnaError => "invalid international domain name",
     InvalidPort => "invalid port number",
+    InvalidScheme => "invalid scheme",
     InvalidIpv4Address => "invalid IPv4 address",
     InvalidIpv6Address => "invalid IPv6 address",
     InvalidDomainCharacter => "invalid domain character",
@@ -88,6 +89,8 @@ simple_enum_error! {
     RelativeUrlWithCannotBeABaseBase => "relative URL with a cannot-be-a-base base",
     SetHostOnCannotBeABaseUrl => "a cannot-be-a-base URL doesn’t have a host to set",
     Overflow => "URLs more than 4 GB are not supported",
+    InvalidLocalPath => "the url is not a valid local path",
+    PathNotAbsolute => "path component of url is not absolute",
 }
 
 impl fmt::Display for ParseError {
@@ -375,9 +378,9 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse_scheme<'i>(&mut self, mut input: Input<'i>) -> Result<Input<'i>, ()> {
+    pub fn parse_scheme<'i>(&mut self, mut input: Input<'i>) -> Result<Input<'i>, ParseError> {
         if input.is_empty() || !input.starts_with(ascii_alpha) {
-            return Err(());
+            return Err(ParseError::InvalidScheme);
         }
         debug_assert!(self.serialization.is_empty());
         while let Some(c) = input.next() {
@@ -388,7 +391,7 @@ impl<'a> Parser<'a> {
                 ':' => return Ok(input),
                 _ => {
                     self.serialization.clear();
-                    return Err(());
+                    return Err(ParseError::InvalidScheme);
                 }
             }
         }
@@ -397,7 +400,7 @@ impl<'a> Parser<'a> {
             Ok(input)
         } else {
             self.serialization.clear();
-            Err(())
+            Err(ParseError::InvalidScheme)
         }
     }
 

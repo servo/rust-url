@@ -15,7 +15,7 @@ use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::path::{Path, PathBuf};
-use url::{form_urlencoded, Host, Url};
+use url::{form_urlencoded, Host, ParseError, Url};
 
 #[test]
 fn size() {
@@ -38,14 +38,32 @@ macro_rules! assert_from_file_path {
 #[test]
 fn new_file_paths() {
     if cfg!(unix) {
-        assert_eq!(Url::from_file_path(Path::new("relative")), Err(()));
-        assert_eq!(Url::from_file_path(Path::new("../relative")), Err(()));
+        assert_eq!(
+            Url::from_file_path(Path::new("relative")),
+            Err(ParseError::PathNotAbsolute)
+        );
+        assert_eq!(
+            Url::from_file_path(Path::new("../relative")),
+            Err(ParseError::PathNotAbsolute)
+        );
     }
     if cfg!(windows) {
-        assert_eq!(Url::from_file_path(Path::new("relative")), Err(()));
-        assert_eq!(Url::from_file_path(Path::new(r"..\relative")), Err(()));
-        assert_eq!(Url::from_file_path(Path::new(r"\drive-relative")), Err(()));
-        assert_eq!(Url::from_file_path(Path::new(r"\\ucn\")), Err(()));
+        assert_eq!(
+            Url::from_file_path(Path::new("relative")),
+            Err(ParseError::PathNotAbsolute)
+        );
+        assert_eq!(
+            Url::from_file_path(Path::new(r"..\relative")),
+            Err(ParseError::PathNotAbsolute)
+        );
+        assert_eq!(
+            Url::from_file_path(Path::new(r"\drive-relative")),
+            Err(ParseError::PathNotAbsolute)
+        );
+        assert_eq!(
+            Url::from_file_path(Path::new(r"\\ucn\")),
+            Err(ParseError::PathNotAbsolute)
+        );
     }
 
     if cfg!(unix) {
@@ -90,22 +108,38 @@ fn new_path_windows_fun() {
 
 #[test]
 fn new_directory_paths() {
+    use url::ParseError;
     if cfg!(unix) {
-        assert_eq!(Url::from_directory_path(Path::new("relative")), Err(()));
-        assert_eq!(Url::from_directory_path(Path::new("../relative")), Err(()));
+        assert_eq!(
+            Url::from_directory_path(Path::new("relative")),
+            Err(ParseError::PathNotAbsolute)
+        );
+        assert_eq!(
+            Url::from_directory_path(Path::new("../relative")),
+            Err(ParseError::PathNotAbsolute)
+        );
 
         let url = Url::from_directory_path(Path::new("/foo/bar")).unwrap();
         assert_eq!(url.host(), None);
         assert_eq!(url.path(), "/foo/bar/");
     }
     if cfg!(windows) {
-        assert_eq!(Url::from_directory_path(Path::new("relative")), Err(()));
-        assert_eq!(Url::from_directory_path(Path::new(r"..\relative")), Err(()));
+        assert_eq!(
+            Url::from_directory_path(Path::new("relative")),
+            Err(ParseError::PathNotAbsolute)
+        );
+        assert_eq!(
+            Url::from_directory_path(Path::new(r"..\relative")),
+            Err(ParseError::PathNotAbsolute)
+        );
         assert_eq!(
             Url::from_directory_path(Path::new(r"\drive-relative")),
-            Err(())
+            Err(ParseError::PathNotAbsolute)
         );
-        assert_eq!(Url::from_directory_path(Path::new(r"\\ucn\")), Err(()));
+        assert_eq!(
+            Url::from_directory_path(Path::new(r"\\ucn\")),
+            Err(ParseError::PathNotAbsolute)
+        );
 
         let url = Url::from_directory_path(Path::new(r"C:\foo\bar")).unwrap();
         assert_eq!(url.host(), None);
