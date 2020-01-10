@@ -130,7 +130,6 @@ use std::ops::{Range, RangeFrom, RangeTo};
 use std::path::{Path, PathBuf};
 use std::str;
 
-#[cfg(feature = "try_from")]
 use std::convert::TryFrom;
 
 pub use host::Host;
@@ -2231,7 +2230,6 @@ impl str::FromStr for Url {
     }
 }
 
-#[cfg(feature = "try_from")]
 impl<'a> TryFrom<&'a str> for Url {
     type Error = ParseError;
 
