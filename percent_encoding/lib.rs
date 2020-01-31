@@ -368,7 +368,7 @@ impl<'a> Iterator for PercentDecode<'a> {
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         let bytes = self.bytes.len();
-        (bytes / 3, Some(bytes))
+        ((bytes + 2) / 3, Some(bytes))
     }
 }
 
