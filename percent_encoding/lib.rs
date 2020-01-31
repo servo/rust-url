@@ -434,7 +434,7 @@ fn decode_utf8_lossy(input: Cow<[u8]>) -> Cow<str> {
                 Cow::Owned(s) => return s.into(),
             }
             // from_utf8_lossy returned a borrow of `bytes` unchanged.
-            debug_assert!(raw_utf8 == &*bytes as *const [u8]);
+            assert!(raw_utf8 == &*bytes as *const [u8]);
             // Reuse the existing `Vec` allocation.
             unsafe { String::from_utf8_unchecked(bytes) }.into()
         }
