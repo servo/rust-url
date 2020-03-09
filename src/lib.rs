@@ -130,6 +130,8 @@ use std::ops::{Range, RangeFrom, RangeTo};
 use std::path::{Path, PathBuf};
 use std::str;
 
+use std::convert::TryFrom;
+
 pub use host::Host;
 pub use origin::{OpaqueOrigin, Origin};
 pub use parser::{ParseError, SyntaxViolation};
@@ -2321,6 +2323,14 @@ impl str::FromStr for Url {
     #[inline]
     fn from_str(input: &str) -> Result<Url, ::ParseError> {
         Url::parse(input)
+    }
+}
+
+impl<'a> TryFrom<&'a str> for Url {
+    type Error = ParseError;
+
+    fn try_from(s: &'a str) -> Result<Self, Self::Error> {
+        Url::parse(s)
     }
 }
 
