@@ -98,7 +98,7 @@ fn replace_plus(input: &[u8]) -> Cow<[u8]> {
     }
 }
 
-impl<'a, K: Clone, V: Clone> Parse<'a, K, V> {
+impl<'a, K, V> Parse<'a, K, V> {
     /// Return a new iterator that yields pairs of `String` instead of pairs of `Cow<str>`.
     pub fn into_owned(self) -> ParseIntoOwned<'a, K, V> {
         ParseIntoOwned { inner: self }
