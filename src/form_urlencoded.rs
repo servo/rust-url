@@ -116,15 +116,15 @@ pub struct ParseIntoOwned<'a, K, V> {
 
 impl<'a, K, V> Iterator for ParseIntoOwned<'a, K, V>
 where
-    K: ToString,
-    V: ToString,
+    K: ToOwned + ToString,
+    V: ToOwned + ToString,
 {
     type Item = (String, String);
 
     fn next(&mut self) -> Option<Self::Item> {
         self.inner
             .next()
-            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .map(|(k, v)| (k.to_owned().to_string(), v.to_owned().to_string()))
     }
 }
 
