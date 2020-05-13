@@ -337,15 +337,16 @@ fn test_serialization() {
 
 #[test]
 fn test_form_urlencoded() {
-    let pairs: &[(Cow<str>, Cow<str>)] = &[
-        ("foo".into(), "é&".into()),
-        ("bar".into(), "".into()),
-        ("foo".into(), "#".into()),
+    let pairs: &[(Cow<str>, Option<Cow<str>>)] = &[
+        ("foo".into(), Some("é&".into())),
+        ("bar".into(), Some("".into())),
+        ("foo".into(), Some("#".into())),
+        ("baz".into(), None),
     ];
     let encoded = form_urlencoded::Serializer::new(String::new())
         .extend_pairs(pairs)
         .finish();
-    assert_eq!(encoded, "foo=%C3%A9%26&bar=&foo=%23");
+    assert_eq!(encoded, "foo=%C3%A9%26&bar=&foo=%23&baz");
     assert_eq!(
         form_urlencoded::parse(encoded.as_bytes()).collect::<Vec<_>>(),
         pairs.to_vec()
