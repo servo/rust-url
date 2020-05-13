@@ -36,7 +36,7 @@ pub struct Parse<'a> {
 }
 
 impl<'a> Iterator for Parse<'a> {
-    type Item = (Cow<'a, str>, Cow<'a, str>);
+    type Item = (Cow<'a, str>, Option<Cow<'a, str>>);
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -51,8 +51,11 @@ impl<'a> Iterator for Parse<'a> {
             }
             let mut split2 = sequence.splitn(2, |&b| b == b'=');
             let name = split2.next().unwrap();
-            let value = split2.next().unwrap_or(&[][..]);
-            return Some((decode(name), decode(value)));
+            let value = split2.next();
+            return match value {
+                None => Some((decode(name), None)),
+                Some(value) => Some((decode(name), Some(decode(value)))),
+            };
         }
     }
 }
@@ -95,12 +98,15 @@ pub struct ParseIntoOwned<'a> {
 }
 
 impl<'a> Iterator for ParseIntoOwned<'a> {
-    type Item = (String, String);
+    type Item = (String, Option<String>);
 
     fn next(&mut self) -> Option<Self::Item> {
         self.inner
             .next()
-            .map(|(k, v)| (k.into_owned(), v.into_owned()))
+            .map(|(k, v)| match v {
+                None => (k.into_owned(), None),
+                Some(v) => (k.into_owned(), Some(v.into_owned())),
+            })
     }
 }
 
@@ -276,21 +282,28 @@ impl<'a, T: Target> Serializer<'a, T> {
     pub fn extend_pairs<I, K, V>(&mut self, iter: I) -> &mut Self
     where
         I: IntoIterator,
-        I::Item: Borrow<(K, V)>,
+        I::Item: Borrow<(K, Option<V>)>,
         K: AsRef<str>,
         V: AsRef<str>,
     {
         {
             let string = string(&mut self.target);
             for pair in iter {
-                let &(ref k, ref v) = pair.borrow();
-                append_pair(
-                    string,
-                    self.start_position,
-                    self.encoding,
-                    k.as_ref(),
-                    v.as_ref(),
-                );
+                match pair.borrow() {
+                    (k, None) => append_name(
+                        string,
+                        self.start_position,
+                        self.encoding,
+                        k.as_ref(),
+                    ),
+                    (k, Some(v)) => append_pair(
+                        string,
+                        self.start_position,
+                        self.encoding,
+                        k.as_ref(),
+                        v.as_ref(),
+                    )
+                }
             }
         }
         self
@@ -336,9 +349,27 @@ fn append_pair(
     name: &str,
     value: &str,
 ) {
+    append_name(string, start_position, encoding, name);
+    string.push('=');
+    append_value(string, start_position, encoding, value);
+}
+
+fn append_name(
+    string: &mut String,
+    start_position: usize,
+    encoding: EncodingOverride,
+    name: &str,
+) {
     append_separator_if_needed(string, start_position);
     append_encoded(name, string, encoding);
-    string.push('=');
+}
+
+fn append_value(
+    string: &mut String,
+    start_position: usize,
+    encoding: EncodingOverride,
+    value: &str,
+) {
     append_encoded(value, string, encoding);
 }
 

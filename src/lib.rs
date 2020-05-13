@@ -277,7 +277,7 @@ impl Url {
     ///
     /// # fn run() -> Result<(), ParseError> {
     /// let url = Url::parse_with_params("https://example.net?dont=clobberme",
-    ///                                  &[("lang", "rust"), ("browser", "servo")])?;
+    ///                                  &[("lang", Some("rust")), ("browser", Some("servo"))])?;
     /// # Ok(())
     /// # }
     /// # run().unwrap();
@@ -293,7 +293,7 @@ impl Url {
     pub fn parse_with_params<I, K, V>(input: &str, iter: I) -> Result<Url, ::ParseError>
     where
         I: IntoIterator,
-        I::Item: Borrow<(K, V)>,
+        I::Item: Borrow<(K, Option<V>)>,
         K: AsRef<str>,
         V: AsRef<str>,
     {
