@@ -347,7 +347,7 @@ fn test_form_urlencoded() {
         .finish();
     assert_eq!(encoded, "foo=%C3%A9%26&bar=&foo=%23");
     assert_eq!(
-        form_urlencoded::parse(encoded.as_bytes()).collect::<Vec<_>>(),
+        form_urlencoded::parse::<Cow<'_, str>, Cow<'_, str>>(encoded.as_bytes()).collect::<Vec<_>>(),
         pairs.to_vec()
     );
 }

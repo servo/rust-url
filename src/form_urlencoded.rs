@@ -16,6 +16,7 @@
 use percent_encoding::{percent_decode, percent_encode_byte};
 use query_encoding::{self, decode_utf8_lossy, EncodingOverride};
 use std::borrow::{Borrow, Cow};
+use std::marker::PhantomData;
 use std::str;
 
 /// Convert a byte string in the `application/x-www-form-urlencoded` syntax
@@ -26,16 +27,18 @@ use std::str;
 /// The names and values are percent-decoded. For instance, `%23first=%25try%25` will be
 /// converted to `[("#first", "%try%")]`.
 #[inline]
-pub fn parse(input: &[u8]) -> Parse {
-    Parse { input }
-}
-/// The return type of `parse()`.
-#[derive(Copy, Clone)]
-pub struct Parse<'a> {
-    input: &'a [u8],
+pub fn parse<K, V>(input: &[u8]) -> Parse<K, V> {
+    Parse::<K, V> { input, phantom: PhantomData }
 }
 
-impl<'a> Iterator for Parse<'a> {
+/// The return type of `parse()`.
+#[derive(Copy, Clone)]
+pub struct Parse<'a, K, V> {
+    input: &'a [u8],
+    phantom: PhantomData<(K, V)>,
+}
+
+impl<'a, K: ToString, V: ToString> Iterator for Parse<'a, K, V> {
     type Item = (Cow<'a, str>, Cow<'a, str>);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -82,25 +85,25 @@ fn replace_plus(input: &[u8]) -> Cow<[u8]> {
     }
 }
 
-impl<'a> Parse<'a> {
+impl<'a, K: Clone, V: Clone> Parse<'a, K, V> {
     /// Return a new iterator that yields pairs of `String` instead of pairs of `Cow<str>`.
-    pub fn into_owned(self) -> ParseIntoOwned<'a> {
+    pub fn into_owned(self) -> ParseIntoOwned<'a, K, V> {
         ParseIntoOwned { inner: self }
     }
 }
 
 /// Like `Parse`, but yields pairs of `String` instead of pairs of `Cow<str>`.
-pub struct ParseIntoOwned<'a> {
-    inner: Parse<'a>,
+pub struct ParseIntoOwned<'a, K, V> {
+    inner: Parse<'a, K, V>,
 }
 
-impl<'a> Iterator for ParseIntoOwned<'a> {
+impl<'a, K: ToString, V: ToString> Iterator for ParseIntoOwned<'a, K, V> {
     type Item = (String, String);
 
     fn next(&mut self) -> Option<Self::Item> {
         self.inner
             .next()
-            .map(|(k, v)| (k.into_owned(), v.into_owned()))
+            .map(|(k, v)| (k.to_string(), v.to_string()))
     }
 }
 

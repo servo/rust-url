@@ -117,7 +117,7 @@ extern crate serde;
 use host::HostInternal;
 use parser::{to_u32, Context, Parser, SchemeType, PATH_SEGMENT, USERINFO};
 use percent_encoding::{percent_decode, percent_encode, utf8_percent_encode};
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::cmp;
 #[cfg(feature = "serde")]
 use std::error::Error;
@@ -1153,7 +1153,7 @@ impl Url {
     ///
 
     #[inline]
-    pub fn query_pairs(&self) -> form_urlencoded::Parse {
+    pub fn query_pairs(&self) -> form_urlencoded::Parse<Cow<'_, str>, Cow<'_, str>> {
         form_urlencoded::parse(self.query().unwrap_or("").as_bytes())
     }
 
