@@ -349,9 +349,10 @@ fn append_pair(
     name: &str,
     value: &str,
 ) {
-    append_name(string, start_position, encoding, name);
+    append_separator_if_needed(string, start_position);
+    append_encoded(name, string, encoding);
     string.push('=');
-    append_value(string, start_position, encoding, value);
+    append_encoded(value, string, encoding);
 }
 
 fn append_name(
@@ -362,15 +363,6 @@ fn append_name(
 ) {
     append_separator_if_needed(string, start_position);
     append_encoded(name, string, encoding);
-}
-
-fn append_value(
-    string: &mut String,
-    start_position: usize,
-    encoding: EncodingOverride,
-    value: &str,
-) {
-    append_encoded(value, string, encoding);
 }
 
 fn append_encoded(s: &str, string: &mut String, encoding: EncodingOverride) {
