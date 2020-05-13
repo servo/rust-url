@@ -176,7 +176,7 @@ fn from_str() {
 fn parse_with_params() {
     let url = Url::parse_with_params(
         "http://testing.com/this?dont=clobberme",
-        &[("lang", "rust")],
+        &[("lang", Some("rust"))],
     )
     .unwrap();
 
@@ -417,7 +417,7 @@ fn append_trailing_slash() {
 fn extend_query_pairs_then_mutate() {
     let mut url: Url = "http://localhost:6767/foo/bar".parse().unwrap();
     url.query_pairs_mut()
-        .extend_pairs(vec![("auth", "my-token")].into_iter());
+        .extend_pairs(vec![("auth", Some("my-token"))].into_iter());
     url.check_invariants().unwrap();
     assert_eq!(
         url.to_string(),

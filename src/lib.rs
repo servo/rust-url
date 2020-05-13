@@ -1145,8 +1145,8 @@ impl Url {
     ///
     /// assert_eq!(pairs.count(), 2);
     ///
-    /// assert_eq!(pairs.next(), Some((Cow::Borrowed("page"), Cow::Borrowed("2"))));
-    /// assert_eq!(pairs.next(), Some((Cow::Borrowed("sort"), Cow::Borrowed("desc"))));
+    /// assert_eq!(pairs.next(), Some((Cow::Borrowed("page"), Some(Cow::Borrowed("2")))));
+    /// assert_eq!(pairs.next(), Some((Cow::Borrowed("sort"), Some(Cow::Borrowed("desc")))));
     /// # Ok(())
     /// # }
     /// # run().unwrap();
