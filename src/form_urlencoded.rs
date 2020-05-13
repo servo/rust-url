@@ -32,11 +32,24 @@ pub fn parse<K, V>(input: &[u8]) -> Parse<K, V> {
 }
 
 /// The return type of `parse()`.
-#[derive(Copy, Clone)]
+/// todo(uncomment): #[derive(Copy, Clone)]
 pub struct Parse<'a, K, V> {
     input: &'a [u8],
     phantom: PhantomData<(K, V)>,
 }
+
+/// todo(delete): Workaround for derive() issues
+/// https://github.com/rust-lang/rust/issues/26925
+impl <K, V> Clone for Parse<'_, K, V>
+{
+    fn clone(&self) -> Self {
+        Parse {
+            input: self.input.clone(),
+            phantom: self.phantom.clone(),
+        }
+    }
+}
+impl <K, V> Copy for Parse<'_, K, V> {}
 
 impl<'a, K: ToString, V: ToString> Iterator for Parse<'a, K, V> {
     type Item = (Cow<'a, str>, Cow<'a, str>);
