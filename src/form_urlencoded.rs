@@ -51,7 +51,11 @@ impl <K, V> Clone for Parse<'_, K, V>
 }
 impl <K, V> Copy for Parse<'_, K, V> {}
 
-impl<'a, K: ToString, V: ToString> Iterator for Parse<'a, K, V> {
+impl<'a, K, V> Iterator for Parse<'a, K, V>
+where
+    K: ToString,
+    V: ToString,
+{
     type Item = (Cow<'a, str>, Cow<'a, str>);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -110,7 +114,11 @@ pub struct ParseIntoOwned<'a, K, V> {
     inner: Parse<'a, K, V>,
 }
 
-impl<'a, K: ToString, V: ToString> Iterator for ParseIntoOwned<'a, K, V> {
+impl<'a, K, V> Iterator for ParseIntoOwned<'a, K, V>
+where
+    K: ToString,
+    V: ToString,
+{
     type Item = (String, String);
 
     fn next(&mut self) -> Option<Self::Item> {
