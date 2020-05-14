@@ -309,7 +309,7 @@ impl<'a, T: Target> Serializer<'a, T> {
         self
     }
 
-    /// Serialize and append a number of name/value pairs.
+    /// Serialize and append a number of names without values.
     ///
     /// This simply calls `append_key_only` repeatedly.
     /// This can be more convenient, so the user doesn’t need to introduce a block
