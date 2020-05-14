@@ -52,10 +52,7 @@ impl<'a> Iterator for Parse<'a> {
             let mut split2 = sequence.splitn(2, |&b| b == b'=');
             let name = split2.next().unwrap();
             let value = split2.next();
-            return match value {
-                None => Some((decode(name), None)),
-                Some(value) => Some((decode(name), Some(decode(value)))),
-            };
+            return Some((decode(name), value.map(|v| decode(v))));
         }
     }
 }
@@ -103,10 +100,7 @@ impl<'a> Iterator for ParseIntoOwned<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         self.inner
             .next()
-            .map(|(k, v)| match v {
-                None => (k.into_owned(), None),
-                Some(v) => (k.into_owned(), Some(v.into_owned())),
-            })
+            .map(|(k, v)| (k.into_owned(), v.map(|v| v.into_owned())))
     }
 }
 
