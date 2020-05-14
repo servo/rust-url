@@ -1318,14 +1318,14 @@ impl Url {
     /// let mut url = Url::parse("https://example.net?lang=fr#nav")?;
     /// assert_eq!(url.query(), Some("lang=fr"));
     ///
-    /// url.query_pairs_mut().append_pair("foo", "bar");
+    /// url.query_pairs_mut().append_pair("foo", Some("bar"));
     /// assert_eq!(url.query(), Some("lang=fr&foo=bar"));
     /// assert_eq!(url.as_str(), "https://example.net/?lang=fr&foo=bar#nav");
     ///
     /// url.query_pairs_mut()
     ///     .clear()
-    ///     .append_pair("foo", "bar & baz")
-    ///     .append_pair("saisons", "\u{00C9}t\u{00E9}+hiver");
+    ///     .append_pair("foo", Some("bar & baz"))
+    ///     .append_pair("saisons", Some("\u{00C9}t\u{00E9}+hiver"));
     /// assert_eq!(url.query(), Some("foo=bar+%26+baz&saisons=%C3%89t%C3%A9%2Bhiver"));
     /// assert_eq!(url.as_str(),
     ///            "https://example.net/?foo=bar+%26+baz&saisons=%C3%89t%C3%A9%2Bhiver#nav");

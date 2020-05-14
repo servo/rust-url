@@ -255,7 +255,7 @@ impl<'a, T: Target> Serializer<'a, T> {
     /// Serialize and append a name/value pair.
     ///
     /// Panics if called after `.finish()`.
-    pub fn append_pair(&mut self, name: &str, value: &str) -> &mut Self {
+    pub fn append_pair(&mut self, name: &str, value: Option<&str>) -> &mut Self {
         append_pair(
             string(&mut self.target),
             self.start_position,
@@ -284,18 +284,19 @@ impl<'a, T: Target> Serializer<'a, T> {
             let string = string(&mut self.target);
             for pair in iter {
                 match pair.borrow() {
-                    (k, None) => append_name(
+                    (k, None) => append_pair(
                         string,
                         self.start_position,
                         self.encoding,
                         k.as_ref(),
+                        None,
                     ),
                     (k, Some(v)) => append_pair(
                         string,
                         self.start_position,
                         self.encoding,
                         k.as_ref(),
-                        v.as_ref(),
+                        Some(v.as_ref()),
                     )
                 }
             }
@@ -308,8 +309,8 @@ impl<'a, T: Target> Serializer<'a, T> {
     /// ```rust
     /// use url::form_urlencoded;
     /// let encoded: String = form_urlencoded::Serializer::new(String::new())
-    ///     .append_pair("foo", "bar & baz")
-    ///     .append_pair("saison", "Été+hiver")
+    ///     .append_pair("foo", Some("bar & baz"))
+    ///     .append_pair("saison", Some("Été+hiver"))
     ///     .finish();
     /// assert_eq!(encoded, "foo=bar+%26+baz&saison=%C3%89t%C3%A9%2Bhiver");
     /// ```
@@ -341,24 +342,18 @@ fn append_pair(
     start_position: usize,
     encoding: EncodingOverride,
     name: &str,
-    value: &str,
+    value: Option<&str>,
 ) {
     append_separator_if_needed(string, start_position);
-    append_encoded(name, string, encoding);
-    string.push('=');
-    append_encoded(value, string, encoding);
+    append_encoded(name.to_string(), string, encoding);
+    append_literal(value.map_or("", |_| "=").to_string(), string);
+    append_encoded(value.map_or("", |v| v).to_string(), string, encoding);
 }
 
-fn append_name(
-    string: &mut String,
-    start_position: usize,
-    encoding: EncodingOverride,
-    name: &str,
-) {
-    append_separator_if_needed(string, start_position);
-    append_encoded(name, string, encoding);
+fn append_literal(s: String, string: &mut String) {
+    string.extend(s.chars())
 }
 
-fn append_encoded(s: &str, string: &mut String, encoding: EncodingOverride) {
-    string.extend(byte_serialize(&query_encoding::encode(encoding, s.into())))
+fn append_encoded(s: String, string: &mut String, encoding: EncodingOverride) {
+    string.extend(byte_serialize(&query_encoding::encode(encoding, &s)))
 }
