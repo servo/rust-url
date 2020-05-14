@@ -356,9 +356,9 @@ fn test_form_urlencoded() {
 #[test]
 fn test_form_serialize() {
     let encoded = form_urlencoded::Serializer::new(String::new())
-        .append_pair("foo", Some("é&"))
-        .append_pair("bar", Some(""))
-        .append_pair("foo", Some("#"))
+        .append_pair("foo", "é&")
+        .append_pair("bar", "")
+        .append_pair("foo", "#")
         .finish();
     assert_eq!(encoded, "foo=%C3%A9%26&bar=&foo=%23");
 }
@@ -367,7 +367,7 @@ fn test_form_serialize() {
 fn form_urlencoded_encoding_override() {
     let encoded = form_urlencoded::Serializer::new(String::new())
         .encoding_override(Some(&|s| s.as_bytes().to_ascii_uppercase().into()))
-        .append_pair("foo", Some("bar"))
+        .append_pair("foo", "bar")
         .finish();
     assert_eq!(encoded, "FOO=BAR");
 }

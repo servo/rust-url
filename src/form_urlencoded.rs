@@ -255,13 +255,13 @@ impl<'a, T: Target> Serializer<'a, T> {
     /// Serialize and append a name/value pair.
     ///
     /// Panics if called after `.finish()`.
-    pub fn append_pair(&mut self, name: &str, value: Option<&str>) -> &mut Self {
+    pub fn append_pair(&mut self, name: &str, value: &str) -> &mut Self {
         append_pair(
             string(&mut self.target),
             self.start_position,
             self.encoding,
             name,
-            value,
+            Some(value),
         );
         self
     }
@@ -309,8 +309,8 @@ impl<'a, T: Target> Serializer<'a, T> {
     /// ```rust
     /// use url::form_urlencoded;
     /// let encoded: String = form_urlencoded::Serializer::new(String::new())
-    ///     .append_pair("foo", Some("bar & baz"))
-    ///     .append_pair("saison", Some("Été+hiver"))
+    ///     .append_pair("foo", "bar & baz")
+    ///     .append_pair("saison", "Été+hiver")
     ///     .finish();
     /// assert_eq!(encoded, "foo=bar+%26+baz&saison=%C3%89t%C3%A9%2Bhiver");
     /// ```
