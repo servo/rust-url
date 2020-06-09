@@ -8,10 +8,11 @@ publish = false
 [package.metadata]
 cargo-fuzz = true
 
+[dependencies]
+libfuzzer-sys = "0.3"
+
 [dependencies.url]
 path = ".."
-[dependencies.libfuzzer-sys]
-git = "https://github.com/rust-fuzz/libfuzzer-sys.git"
 
 [[bin]]
 name = "parse"
