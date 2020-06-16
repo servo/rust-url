@@ -18,7 +18,7 @@ travis-ci = { repository = "servo/rust-url" }
 appveyor = { repository = "Manishearth/rust-url" }
 
 [workspace]
-members = [".", "idna", "percent_encoding", "data-url"]
+members = [".", "form_urlencoded", "idna", "percent_encoding", "data-url"]
 
 [[test]]
 name = "unit"
@@ -37,6 +37,7 @@ serde_json = "1.0"
 bencher = "0.1"
 
 [dependencies]
+form_urlencoded = { version = "1.0.0", path = "./form_urlencoded" }
 idna = { version = "0.2.0", path = "./idna" }
 matches = "0.1"
 percent-encoding = { version = "2.1.0", path = "./percent_encoding" }

@@ -109,6 +109,7 @@ assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css");
 
 #[macro_use]
 extern crate matches;
+pub extern crate form_urlencoded;
 extern crate idna;
 extern crate percent_encoding;
 #[cfg(feature = "serde")]
@@ -132,21 +133,19 @@ use std::str;
 
 use std::convert::TryFrom;
 
+pub use form_urlencoded::query_encoding::EncodingOverride;
 pub use host::Host;
 pub use origin::{OpaqueOrigin, Origin};
 pub use parser::{ParseError, SyntaxViolation};
 pub use path_segments::PathSegmentsMut;
-pub use query_encoding::EncodingOverride;
 pub use slicing::Position;
 
 mod host;
 mod origin;
 mod parser;
 mod path_segments;
-mod query_encoding;
 mod slicing;
 
-pub mod form_urlencoded;
 #[doc(hidden)]
 pub mod quirks;
 
@@ -2666,6 +2665,30 @@ fn file_url_segments_to_pathbuf_windows(
 pub struct UrlQuery<'a> {
     url: Option<&'a mut Url>,
     fragment: Option<String>,
+}
+
+// `as_mut_string` string here exposes the internal serialization of an `Url`,
+// which should not be exposed to users.
+// We achieve that by not giving users direct access to `UrlQuery`:
+// * Its fields are private
+//   (and so can not be constructed with struct literal syntax outside of this crate),
+// * It has no constructor
+// * It is only visible (on the type level) to users in the return type of
+//   `Url::query_pairs_mut` which is `Serializer<UrlQuery>`
+// * `Serializer` keeps its target in a private field
+// * Unlike in other `Target` impls, `UrlQuery::finished` does not return `Self`.
+impl<'a> form_urlencoded::Target for UrlQuery<'a> {
+    fn as_mut_string(&mut self) -> &mut String {
+        &mut self.url.as_mut().unwrap().serialization
+    }
+
+    fn finish(mut self) -> &'a mut Url {
+        let url = self.url.take().unwrap();
+        url.restore_already_parsed_fragment(self.fragment.take());
+        url
+    }
+
+    type Finished = &'a mut Url;
 }
 
 impl<'a> Drop for UrlQuery<'a> {

@@ -1,0 +1,14 @@
+[package]
+name = "form_urlencoded"
+version = "1.0.0"
+authors = ["The rust-url developers"]
+description = "Parser and serializer for the application/x-www-form-urlencoded syntax, as used by HTML forms."
+repository = "https://github.com/servo/rust-url"
+license = "MIT/Apache-2.0"
+
+[lib]
+test = false
+
+[dependencies]
+matches = "0.1"
+percent-encoding = { version = "2.1.0", path = "../percent_encoding" }
