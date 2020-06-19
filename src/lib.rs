@@ -133,7 +133,7 @@ use std::str;
 
 use std::convert::TryFrom;
 
-pub use form_urlencoded::query_encoding::EncodingOverride;
+pub use form_urlencoded::EncodingOverride;
 pub use host::Host;
 pub use origin::{OpaqueOrigin, Origin};
 pub use parser::{ParseError, SyntaxViolation};

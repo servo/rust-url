@@ -16,3 +16,20 @@ pub fn encode<'a>(encoding_override: EncodingOverride, input: &'a str) -> Cow<'a
     }
     input.as_bytes().into()
 }
+
+pub fn decode_utf8_lossy(input: Cow<[u8]>) -> Cow<str> {
+    match input {
+        Cow::Borrowed(bytes) => String::from_utf8_lossy(bytes),
+        Cow::Owned(bytes) => {
+            let raw_utf8: *const [u8];
+            match String::from_utf8_lossy(&bytes) {
+                Cow::Borrowed(utf8) => raw_utf8 = utf8.as_bytes(),
+                Cow::Owned(s) => return s.into(),
+            }
+            // from_utf8_lossy returned a borrow of `bytes` unchanged.
+            debug_assert!(raw_utf8 == &*bytes as *const [u8]);
+            // Reuse the existing `Vec` allocation.
+            unsafe { String::from_utf8_unchecked(bytes) }.into()
+        }
+    }
+}

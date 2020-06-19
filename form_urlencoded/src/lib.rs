@@ -18,11 +18,13 @@ extern crate percent_encoding;
 extern crate matches;
 
 use percent_encoding::{percent_decode, percent_encode_byte};
-use query_encoding::EncodingOverride;
+use query_encoding::decode_utf8_lossy;
 use std::borrow::{Borrow, Cow};
 use std::str;
 
-pub mod query_encoding;
+mod query_encoding;
+
+pub use query_encoding::EncodingOverride;
 
 /// Convert a byte string in the `application/x-www-form-urlencoded` syntax
 /// into a iterator of (name, value) pairs.
@@ -326,21 +328,4 @@ fn append_pair(
 
 fn append_encoded(s: &str, string: &mut String, encoding: EncodingOverride) {
     string.extend(byte_serialize(&query_encoding::encode(encoding, s.into())))
-}
-
-fn decode_utf8_lossy(input: Cow<[u8]>) -> Cow<str> {
-    match input {
-        Cow::Borrowed(bytes) => String::from_utf8_lossy(bytes),
-        Cow::Owned(bytes) => {
-            let raw_utf8: *const [u8];
-            match String::from_utf8_lossy(&bytes) {
-                Cow::Borrowed(utf8) => raw_utf8 = utf8.as_bytes(),
-                Cow::Owned(s) => return s.into(),
-            }
-            // from_utf8_lossy returned a borrow of `bytes` unchanged.
-            debug_assert!(raw_utf8 == &*bytes as *const [u8]);
-            // Reuse the existing `Vec` allocation.
-            unsafe { String::from_utf8_unchecked(bytes) }.into()
-        }
-    }
 }
