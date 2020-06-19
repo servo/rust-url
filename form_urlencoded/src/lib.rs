@@ -13,10 +13,18 @@
 //! Converts between a string (such as an URL’s query string)
 //! and a sequence of (name, value) pairs.
 
+extern crate percent_encoding;
+#[macro_use]
+extern crate matches;
+
 use percent_encoding::{percent_decode, percent_encode_byte};
-use query_encoding::{self, decode_utf8_lossy, EncodingOverride};
+use query_encoding::decode_utf8_lossy;
 use std::borrow::{Borrow, Cow};
 use std::str;
+
+mod query_encoding;
+
+pub use query_encoding::EncodingOverride;
 
 /// Convert a byte string in the `application/x-www-form-urlencoded` syntax
 /// into a iterator of (name, value) pairs.
@@ -191,30 +199,6 @@ impl<'a> Target for &'a mut String {
     type Finished = Self;
 }
 
-// `as_mut_string` string here exposes the internal serialization of an `Url`,
-// which should not be exposed to users.
-// We achieve that by not giving users direct access to `UrlQuery`:
-// * Its fields are private
-//   (and so can not be constructed with struct literal syntax outside of this crate),
-// * It has no constructor
-// * It is only visible (on the type level) to users in the return type of
-//   `Url::query_pairs_mut` which is `Serializer<UrlQuery>`
-// * `Serializer` keeps its target in a private field
-// * Unlike in other `Target` impls, `UrlQuery::finished` does not return `Self`.
-impl<'a> Target for ::UrlQuery<'a> {
-    fn as_mut_string(&mut self) -> &mut String {
-        &mut self.url.as_mut().unwrap().serialization
-    }
-
-    fn finish(mut self) -> &'a mut ::Url {
-        let url = self.url.take().unwrap();
-        url.restore_already_parsed_fragment(self.fragment.take());
-        url
-    }
-
-    type Finished = &'a mut ::Url;
-}
-
 impl<'a, T: Target> Serializer<'a, T> {
     /// Create a new `application/x-www-form-urlencoded` serializer for the given target.
     ///
@@ -299,7 +283,7 @@ impl<'a, T: Target> Serializer<'a, T> {
     /// If this serializer was constructed with a string, take and return that string.
     ///
     /// ```rust
-    /// use url::form_urlencoded;
+    /// use form_urlencoded;
     /// let encoded: String = form_urlencoded::Serializer::new(String::new())
     ///     .append_pair("foo", "bar & baz")
     ///     .append_pair("saison", "Été+hiver")

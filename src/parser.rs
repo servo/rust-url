@@ -10,9 +10,9 @@ use std::error::Error;
 use std::fmt::{self, Formatter, Write};
 use std::str;
 
+use form_urlencoded::EncodingOverride;
 use host::{Host, HostInternal};
 use percent_encoding::{percent_encode, utf8_percent_encode, AsciiSet, CONTROLS};
-use query_encoding::EncodingOverride;
 use Url;
 
 /// https://url.spec.whatwg.org/#fragment-percent-encode-set
@@ -1441,7 +1441,11 @@ impl<'a> Parser<'a> {
             "http" | "https" | "file" | "ftp" | "gopher" => self.query_encoding_override,
             _ => None,
         };
-        let query_bytes = ::query_encoding::encode(encoding, &query);
+        let query_bytes = if let Some(o) = encoding {
+            o(&query)
+        } else {
+            query.as_bytes().into()
+        };
         let set = if scheme_type.is_special() {
             SPECIAL_QUERY
         } else {
