@@ -10,14 +10,14 @@ use std::borrow::Cow;
 
 pub type EncodingOverride<'a> = Option<&'a dyn Fn(&str) -> Cow<[u8]>>;
 
-pub fn encode<'a>(encoding_override: EncodingOverride, input: &'a str) -> Cow<'a, [u8]> {
+pub(crate) fn encode<'a>(encoding_override: EncodingOverride, input: &'a str) -> Cow<'a, [u8]> {
     if let Some(o) = encoding_override {
         return o(input);
     }
     input.as_bytes().into()
 }
 
-pub fn decode_utf8_lossy(input: Cow<[u8]>) -> Cow<str> {
+pub(crate) fn decode_utf8_lossy(input: Cow<[u8]>) -> Cow<str> {
     match input {
         Cow::Borrowed(bytes) => String::from_utf8_lossy(bytes),
         Cow::Owned(bytes) => {
