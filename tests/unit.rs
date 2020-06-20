@@ -620,3 +620,39 @@ fn test_url_from_file_path() {
     let path = u.to_file_path().unwrap();
     assert_eq!("/c:/", path.to_str().unwrap());
 }
+
+#[test]
+fn test_non_special_path() {
+    let mut db_url = url::Url::parse("postgres://postgres@localhost/").unwrap();
+    assert_eq!(db_url.as_str(), "postgres://postgres@localhost/");
+    db_url.set_path("diesel_foo");
+    assert_eq!(db_url.as_str(), "postgres://postgres@localhost/diesel_foo");
+    assert_eq!(db_url.path(), "/diesel_foo");
+}
+
+#[test]
+fn test_non_special_path2() {
+    let mut db_url = url::Url::parse("postgres://postgres@localhost/").unwrap();
+    assert_eq!(db_url.as_str(), "postgres://postgres@localhost/");
+    db_url.set_path("");
+    assert_eq!(db_url.path(), "");
+    assert_eq!(db_url.as_str(), "postgres://postgres@localhost");
+    db_url.set_path("foo");
+    assert_eq!(db_url.path(), "/foo");
+    assert_eq!(db_url.as_str(), "postgres://postgres@localhost/foo");
+    db_url.set_path("/bar");
+    assert_eq!(db_url.path(), "/bar");
+    assert_eq!(db_url.as_str(), "postgres://postgres@localhost/bar");
+}
+
+#[test]
+fn test_non_special_path3() {
+    let mut db_url = url::Url::parse("postgres://postgres@localhost/").unwrap();
+    assert_eq!(db_url.as_str(), "postgres://postgres@localhost/");
+    db_url.set_path("/");
+    assert_eq!(db_url.as_str(), "postgres://postgres@localhost/");
+    assert_eq!(db_url.path(), "/");
+    db_url.set_path("/foo");
+    assert_eq!(db_url.as_str(), "postgres://postgres@localhost/foo");
+    assert_eq!(db_url.path(), "/foo");
+}
