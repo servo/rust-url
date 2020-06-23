@@ -23,7 +23,7 @@
 //!
 //! This crate delibarately does not provide many different sets.
 //! Users should consider in what context the encoded string will be used,
-//! real relevant specifications, and define their own set.
+//! read relevant specifications, and define their own set.
 //! This is done by using the `add` method of an existing set.
 //!
 //! # Examples
