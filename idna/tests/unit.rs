@@ -26,10 +26,7 @@ fn test_v8_bidi_rules() {
     assert_eq!(_to_ascii("אבּג").unwrap(), "xn--kdb3bdf");
     assert_eq!(_to_ascii("ابج").unwrap(), "xn--mgbcm");
     assert_eq!(_to_ascii("abc.ابج").unwrap(), "abc.xn--mgbcm");
-    assert_eq!(
-        _to_ascii("אבּג.ابج").unwrap(),
-        "xn--kdb3bdf.xn--mgbcm"
-    );
+    assert_eq!(_to_ascii("אבּג.ابج").unwrap(), "xn--kdb3bdf.xn--mgbcm");
 
     // Bidi domain names cannot start with digits
     assert!(_to_ascii("0a.\u{05D0}").is_err());
