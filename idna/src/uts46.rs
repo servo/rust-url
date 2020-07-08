@@ -372,6 +372,7 @@ fn processing(domain: &str, config: Config) -> (String, Errors) {
     let mut normalized = String::with_capacity(domain.len());
     normalized.extend(iter.nfc());
 
+    let mut decoder = punycode::Decoder::default();
     let mut validated = String::new();
     let non_transitional = config.transitional_processing(false);
     let (mut first, mut valid, mut has_bidi_labels) = (true, true, false);
@@ -381,20 +382,23 @@ fn processing(domain: &str, config: Config) -> (String, Errors) {
         }
         first = false;
         if label.starts_with(PUNYCODE_PREFIX) {
-            match punycode::decode_to_string(&label[PUNYCODE_PREFIX.len()..]) {
-                Some(decoded_label) => {
+            match decoder.decode(&label[PUNYCODE_PREFIX.len()..]) {
+                Ok(decode) => {
+                    let start = validated.len();
+                    validated.extend(decode);
+                    let decoded_label = &validated[start..];
+
                     if !has_bidi_labels {
-                        has_bidi_labels |= is_bidi_domain(&decoded_label);
+                        has_bidi_labels |= is_bidi_domain(decoded_label);
                     }
 
                     if valid
-                        && (!is_nfc(&decoded_label) || !is_valid(&decoded_label, non_transitional))
+                        && (!is_nfc(&decoded_label) || !is_valid(decoded_label, non_transitional))
                     {
                         valid = false;
                     }
-                    validated.push_str(&decoded_label)
                 }
-                None => {
+                Err(()) => {
                     has_bidi_labels = true;
                     errors.punycode = true;
                 }

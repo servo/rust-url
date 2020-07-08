@@ -52,128 +52,157 @@ pub fn decode_to_string(input: &str) -> Option<String> {
 /// Overflow can only happen on inputs that take more than
 /// 63 encoded bytes, the DNS limit on domain name labels.
 pub fn decode(input: &str) -> Option<Vec<char>> {
-    let (base, mut buf) = insertions(input).ok()?;
-    Some(merge(base, &mut buf))
+    Some(Decoder::default().decode(input).ok()?.collect())
 }
 
-/// Split the input iterator and return a Vec with insertions of decoded characters
-fn insertions<'a>(input: &'a str) -> Result<(&'a str, Vec<(usize, char)>), ()> {
-    // Handle "basic" (ASCII) code points.
-    // They are encoded as-is before the last delimiter, if any.
-    let (base, input) = match input.rfind(DELIMITER) {
-        None => ("", input),
-        Some(position) => (
-            &input[..position],
-            if position > 0 {
-                &input[position + 1..]
-            } else {
-                input
-            },
-        ),
-    };
+#[derive(Default)]
+pub(crate) struct Decoder {
+    insertions: Vec<(usize, char)>,
+}
 
-    let mut length = base.len() as u32;
-    let mut buf = Vec::new();
-    let mut code_point = INITIAL_N;
-    let mut bias = INITIAL_BIAS;
-    let mut i = 0;
-    let mut iter = input.bytes();
-    loop {
-        let previous_i = i;
-        let mut weight = 1;
-        let mut k = BASE;
-        let mut byte = match iter.next() {
-            None => break,
-            Some(byte) => byte,
+impl Decoder {
+    /// Split the input iterator and return a Vec with insertions of encoded characters
+    pub(crate) fn decode<'a>(&'a mut self, input: &'a str) -> Result<Decode<'a>, ()> {
+        self.insertions.clear();
+        // Handle "basic" (ASCII) code points.
+        // They are encoded as-is before the last delimiter, if any.
+        let (base, input) = match input.rfind(DELIMITER) {
+            None => ("", input),
+            Some(position) => (
+                &input[..position],
+                if position > 0 {
+                    &input[position + 1..]
+                } else {
+                    input
+                },
+            ),
         };
-        // Decode a generalized variable-length integer into delta,
-        // which gets added to i.
+
+        let base_len = base.len();
+        let mut length = base_len as u32;
+        let mut code_point = INITIAL_N;
+        let mut bias = INITIAL_BIAS;
+        let mut i = 0;
+        let mut iter = input.bytes();
         loop {
-            let digit = match byte {
-                byte @ b'0'..=b'9' => byte - b'0' + 26,
-                byte @ b'A'..=b'Z' => byte - b'A',
-                byte @ b'a'..=b'z' => byte - b'a',
-                _ => return Err(()),
-            } as u32;
-            if digit > (u32::MAX - i) / weight {
-                return Err(()); // Overflow
-            }
-            i += digit * weight;
-            let t = if k <= bias {
-                T_MIN
-            } else if k >= bias + T_MAX {
-                T_MAX
-            } else {
-                k - bias
-            };
-            if digit < t {
-                break;
-            }
-            if weight > u32::MAX / (BASE - t) {
-                return Err(()); // Overflow
-            }
-            weight *= BASE - t;
-            k += BASE;
-            byte = match iter.next() {
-                None => return Err(()), // End of input before the end of this delta
+            let previous_i = i;
+            let mut weight = 1;
+            let mut k = BASE;
+            let mut byte = match iter.next() {
+                None => break,
                 Some(byte) => byte,
             };
-        }
-        bias = adapt(i - previous_i, length + 1, previous_i == 0);
-        if i / (length + 1) > u32::MAX - code_point {
-            return Err(()); // Overflow
-        }
-        // i was supposed to wrap around from length+1 to 0,
-        // incrementing code_point each time.
-        code_point += i / (length + 1);
-        i %= length + 1;
-        let c = match char::from_u32(code_point) {
-            Some(c) => c,
-            None => return Err(()),
-        };
 
-        // Move earlier insertions farther out in the string
-        for (idx, _) in &mut buf {
-            if *idx >= i as usize {
-                *idx += 1;
+            // Decode a generalized variable-length integer into delta,
+            // which gets added to i.
+            loop {
+                let digit = match byte {
+                    byte @ b'0'..=b'9' => byte - b'0' + 26,
+                    byte @ b'A'..=b'Z' => byte - b'A',
+                    byte @ b'a'..=b'z' => byte - b'a',
+                    _ => return Err(()),
+                } as u32;
+                if digit > (u32::MAX - i) / weight {
+                    return Err(()); // Overflow
+                }
+                i += digit * weight;
+                let t = if k <= bias {
+                    T_MIN
+                } else if k >= bias + T_MAX {
+                    T_MAX
+                } else {
+                    k - bias
+                };
+                if digit < t {
+                    break;
+                }
+                if weight > u32::MAX / (BASE - t) {
+                    return Err(()); // Overflow
+                }
+                weight *= BASE - t;
+                k += BASE;
+                byte = match iter.next() {
+                    None => return Err(()), // End of input before the end of this delta
+                    Some(byte) => byte,
+                };
             }
-        }
-        buf.push((i as usize, c));
-        length += 1;
-        i += 1;
-    }
 
-    buf.sort_by_key(|(i, _)| *i);
-    Ok((base, buf))
+            bias = adapt(i - previous_i, length + 1, previous_i == 0);
+            if i / (length + 1) > u32::MAX - code_point {
+                return Err(()); // Overflow
+            }
+
+            // i was supposed to wrap around from length+1 to 0,
+            // incrementing code_point each time.
+            code_point += i / (length + 1);
+            i %= length + 1;
+            let c = match char::from_u32(code_point) {
+                Some(c) => c,
+                None => return Err(()),
+            };
+
+            // Move earlier insertions farther out in the string
+            for (idx, _) in &mut self.insertions {
+                if *idx >= i as usize {
+                    *idx += 1;
+                }
+            }
+            self.insertions.push((i as usize, c));
+            length += 1;
+            i += 1;
+        }
+
+        self.insertions.sort_by_key(|(i, _)| *i);
+        Ok(Decode {
+            base: base.chars(),
+            insertions: &self.insertions,
+            inserted: 0,
+            position: 0,
+            len: base_len + self.insertions.len(),
+        })
+    }
 }
 
-/// Merge base character iterator and decoded character insertions
-fn merge(input: &str, insertions: &[(usize, char)]) -> Vec<char> {
-    let mut insertions = insertions.iter();
-    let mut position = 0;
-    let mut output = Vec::with_capacity(input.len());
-    let mut next = insertions.next();
-    let mut base = input.chars();
+pub(crate) struct Decode<'a> {
+    base: std::str::Chars<'a>,
+    pub(crate) insertions: &'a [(usize, char)],
+    inserted: usize,
+    position: usize,
+    len: usize,
+}
 
-    loop {
-        match next {
-            Some((pos, c)) if *pos == position => {
-                output.push(*c);
-                next = insertions.next();
-                position += 1;
-                continue;
+impl<'a> Iterator for Decode<'a> {
+    type Item = char;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            match self.insertions.get(self.inserted) {
+                Some((pos, c)) if *pos == self.position => {
+                    self.inserted += 1;
+                    self.position += 1;
+                    return Some(*c);
+                }
+                _ => {}
             }
-            _ => {}
-        }
-        if let Some(c) = base.next() {
-            position += 1;
-            output.push(c);
-        } else if next.is_none() {
-            break;
+            if let Some(c) = self.base.next() {
+                self.position += 1;
+                return Some(c);
+            } else if self.inserted >= self.insertions.len() {
+                return None;
+            }
         }
     }
 
-    output
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len - self.position;
+        (len, Some(len))
+    }
+}
+
+impl<'a> ExactSizeIterator for Decode<'a> {
+    fn len(&self) -> usize {
+        self.len - self.position
+    }
 }
 
 /// Convert an Unicode `str` to Punycode.
