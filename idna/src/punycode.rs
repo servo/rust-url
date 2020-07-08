@@ -52,6 +52,12 @@ pub fn decode_to_string(input: &str) -> Option<String> {
 /// Overflow can only happen on inputs that take more than
 /// 63 encoded bytes, the DNS limit on domain name labels.
 pub fn decode(input: &str) -> Option<Vec<char>> {
+    let (base, mut buf) = insertions(input).ok()?;
+    Some(merge(base, &mut buf))
+}
+
+/// Split the input iterator and return a Vec with insertions of decoded characters
+fn insertions<'a>(input: &'a str) -> Result<(&'a str, Vec<(usize, char)>), ()> {
     // Handle "basic" (ASCII) code points.
     // They are encoded as-is before the last delimiter, if any.
     let (base, input) = match input.rfind(DELIMITER) {
@@ -87,10 +93,10 @@ pub fn decode(input: &str) -> Option<Vec<char>> {
                 byte @ b'0'..=b'9' => byte - b'0' + 26,
                 byte @ b'A'..=b'Z' => byte - b'A',
                 byte @ b'a'..=b'z' => byte - b'a',
-                _ => return None,
+                _ => return Err(()),
             } as u32;
             if digit > (u32::MAX - i) / weight {
-                return None; // Overflow
+                return Err(()); // Overflow
             }
             i += digit * weight;
             let t = if k <= bias {
@@ -104,18 +110,18 @@ pub fn decode(input: &str) -> Option<Vec<char>> {
                 break;
             }
             if weight > u32::MAX / (BASE - t) {
-                return None; // Overflow
+                return Err(()); // Overflow
             }
             weight *= BASE - t;
             k += BASE;
             byte = match iter.next() {
-                None => return None, // End of input before the end of this delta
+                None => return Err(()), // End of input before the end of this delta
                 Some(byte) => byte,
             };
         }
         bias = adapt(i - previous_i, length + 1, previous_i == 0);
         if i / (length + 1) > u32::MAX - code_point {
-            return None; // Overflow
+            return Err(()); // Overflow
         }
         // i was supposed to wrap around from length+1 to 0,
         // incrementing code_point each time.
@@ -123,7 +129,7 @@ pub fn decode(input: &str) -> Option<Vec<char>> {
         i %= length + 1;
         let c = match char::from_u32(code_point) {
             Some(c) => c,
-            None => return None,
+            None => return Err(()),
         };
 
         // Move earlier insertions farther out in the string
@@ -137,16 +143,23 @@ pub fn decode(input: &str) -> Option<Vec<char>> {
         i += 1;
     }
 
-    buf.sort_by_key(|(i, _)| -(*i as i32));
+    buf.sort_by_key(|(i, _)| *i);
+    Ok((base, buf))
+}
+
+/// Merge base character iterator and decoded character insertions
+fn merge(input: &str, insertions: &[(usize, char)]) -> Vec<char> {
+    let mut insertions = insertions.iter();
     let mut position = 0;
     let mut output = Vec::with_capacity(input.len());
-    let mut next = buf.pop();
-    let mut base = base.chars();
+    let mut next = insertions.next();
+    let mut base = input.chars();
+
     loop {
         match next {
-            Some((pos, c)) if pos == position => {
-                output.push(c);
-                next = buf.pop();
+            Some((pos, c)) if *pos == position => {
+                output.push(*c);
+                next = insertions.next();
                 position += 1;
                 continue;
             }
@@ -160,7 +173,7 @@ pub fn decode(input: &str) -> Option<Vec<char>> {
         }
     }
 
-    Some(output)
+    output
 }
 
 /// Convert an Unicode `str` to Punycode.
