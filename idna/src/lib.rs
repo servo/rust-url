@@ -38,7 +38,7 @@ extern crate matches;
 pub mod punycode;
 mod uts46;
 
-pub use crate::uts46::{Config, Errors};
+pub use crate::uts46::{Codec, Config, Errors};
 
 /// The [domain to ASCII](https://url.spec.whatwg.org/#concept-domain-to-ascii) algorithm.
 ///
