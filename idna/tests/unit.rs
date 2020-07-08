@@ -1,3 +1,4 @@
+use assert_matches::assert_matches;
 use unicode_normalization::char::is_combining_mark;
 
 /// https://github.com/servo/rust-url/issues/373
@@ -36,6 +37,48 @@ fn test_punycode_prefix_without_length_check() {
     assert_eq!(config.to_ascii("...xn--").unwrap(), "...");
     assert_eq!(config.to_ascii("xn--.xn--").unwrap(), ".");
     assert_eq!(config.to_ascii("xn--.example.org").unwrap(), ".example.org");
+}
+
+// http://www.unicode.org/reports/tr46/#Table_Example_Processing
+#[test]
+fn test_examples() {
+    let mut codec = idna::Idna::default();
+    let mut out = String::new();
+
+    assert_matches!(codec.to_unicode("Bloß.de", &mut out), Ok(()));
+    assert_eq!(out, "bloß.de");
+
+    out.clear();
+    assert_matches!(codec.to_unicode("xn--blo-7ka.de", &mut out), Ok(()));
+    assert_eq!(out, "bloß.de");
+
+    out.clear();
+    assert_matches!(codec.to_unicode("u\u{308}.com", &mut out), Ok(()));
+    assert_eq!(out, "ü.com");
+
+    out.clear();
+    assert_matches!(codec.to_unicode("xn--tda.com", &mut out), Ok(()));
+    assert_eq!(out, "ü.com");
+
+    out.clear();
+    assert_matches!(codec.to_unicode("xn--u-ccb.com", &mut out), Err(_));
+
+    out.clear();
+    assert_matches!(codec.to_unicode("a⒈com", &mut out), Err(_));
+
+    out.clear();
+    assert_matches!(codec.to_unicode("xn--a-ecp.ru", &mut out), Err(_));
+
+    out.clear();
+    assert_matches!(codec.to_unicode("xn--0.pt", &mut out), Err(_));
+
+    out.clear();
+    assert_matches!(codec.to_unicode("日本語。ＪＰ", &mut out), Ok(()));
+    assert_eq!(out, "日本語.jp");
+
+    out.clear();
+    assert_matches!(codec.to_unicode("☕.us", &mut out), Ok(()));
+    assert_eq!(out, "☕.us");
 }
 
 #[test]
