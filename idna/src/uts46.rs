@@ -326,7 +326,12 @@ fn is_valid(label: &str, config: Config) -> bool {
 
 /// http://www.unicode.org/reports/tr46/#Processing
 #[allow(clippy::manual_strip)] // introduced in 1.45, MSRV is 1.36
-fn processing(domain: &str, config: Config) -> (String, Errors) {
+fn processing(
+    domain: &str,
+    config: Config,
+    normalized: &mut String,
+    output: &mut String,
+) -> Errors {
     // Weed out the simple cases: only allow all lowercase ASCII characters and digits where none
     // of the labels start with PUNYCODE_PREFIX and labels don't start or end with hyphen.
     let (mut prev, mut simple, mut puny_prefix) = ('?', !domain.is_empty(), 0);
@@ -358,11 +363,16 @@ fn processing(domain: &str, config: Config) -> (String, Errors) {
         }
         prev = c;
     }
+
     if simple {
-        return (domain.to_owned(), Errors::default());
+        output.push_str(domain);
+        return Errors::default();
     }
 
+    normalized.clear();
     let mut errors = Errors::default();
+    let offset = output.len();
+
     let iter = Mapper {
         chars: domain.chars(),
         config,
@@ -370,24 +380,22 @@ fn processing(domain: &str, config: Config) -> (String, Errors) {
         slice: None,
     };
 
-    let mut normalized = String::with_capacity(domain.len());
     normalized.extend(iter.nfc());
 
     let mut decoder = punycode::Decoder::default();
-    let mut validated = String::new();
     let non_transitional = config.transitional_processing(false);
     let (mut first, mut valid, mut has_bidi_labels) = (true, true, false);
     for label in normalized.split('.') {
         if !first {
-            validated.push('.');
+            output.push('.');
         }
         first = false;
         if label.starts_with(PUNYCODE_PREFIX) {
             match decoder.decode(&label[PUNYCODE_PREFIX.len()..]) {
                 Ok(decode) => {
-                    let start = validated.len();
-                    validated.extend(decode);
-                    let decoded_label = &validated[start..];
+                    let start = output.len();
+                    output.extend(decode);
+                    let decoded_label = &output[start..];
 
                     if !has_bidi_labels {
                         has_bidi_labels |= is_bidi_domain(decoded_label);
@@ -411,11 +419,11 @@ fn processing(domain: &str, config: Config) -> (String, Errors) {
 
             // `normalized` is already `NFC` so we can skip that check
             valid &= is_valid(label, config);
-            validated.push_str(label)
+            output.push_str(label)
         }
     }
 
-    for label in validated.split('.') {
+    for label in output[offset..].split('.') {
         // V8: Bidi rules
         //
         // TODO: Add *CheckBidi* flag
@@ -429,7 +437,71 @@ fn processing(domain: &str, config: Config) -> (String, Errors) {
         errors.validity_criteria = true;
     }
 
-    (validated, errors)
+    errors
+}
+
+#[derive(Default)]
+pub struct Idna {
+    config: Config,
+    normalized: String,
+    output: String,
+}
+
+impl Idna {
+    pub fn new(config: Config) -> Self {
+        Self {
+            config,
+            normalized: String::new(),
+            output: String::new(),
+        }
+    }
+
+    /// http://www.unicode.org/reports/tr46/#ToASCII
+    #[allow(clippy::wrong_self_convention)]
+    pub fn to_ascii<'a>(&'a mut self, domain: &str, out: &mut String) -> Result<(), Errors> {
+        let mut errors = processing(domain, self.config, &mut self.normalized, &mut self.output);
+
+        let mut first = true;
+        for label in self.output.split('.') {
+            if !first {
+                out.push('.');
+            }
+            first = false;
+
+            if label.is_ascii() {
+                out.push_str(label);
+            } else {
+                let offset = out.len();
+                out.push_str(PUNYCODE_PREFIX);
+                if let Err(()) = punycode::encode_into(label.chars(), out) {
+                    errors.punycode = true;
+                    out.truncate(offset);
+                }
+            }
+        }
+
+        if self.config.verify_dns_length {
+            let domain = if out.ends_with('.') {
+                &out[..out.len() - 1]
+            } else {
+                &*out
+            };
+            if domain.is_empty() || domain.split('.').any(|label| label.is_empty()) {
+                errors.too_short_for_dns = true;
+            }
+            if domain.len() > 253 || domain.split('.').any(|label| label.len() > 63) {
+                errors.too_long_for_dns = true;
+            }
+        }
+
+        errors.into()
+    }
+
+    /// http://www.unicode.org/reports/tr46/#ToUnicode
+    #[allow(clippy::wrong_self_convention)]
+    pub fn to_unicode<'a>(&'a mut self, domain: &str, out: &mut String) -> Result<(), Errors> {
+        processing(domain, self.config, &mut self.normalized, out).into()
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -484,49 +556,16 @@ impl Config {
     /// http://www.unicode.org/reports/tr46/#ToASCII
     pub fn to_ascii(self, domain: &str) -> Result<String, Errors> {
         let mut result = String::new();
-        let mut first = true;
-        let (domain, mut errors) = processing(domain, self);
-        for label in domain.split('.') {
-            if !first {
-                result.push('.');
-            }
-            first = false;
-            if label.is_ascii() {
-                result.push_str(label);
-            } else {
-                match punycode::encode_str(label) {
-                    Some(x) => {
-                        result.push_str(PUNYCODE_PREFIX);
-                        result.push_str(&x);
-                    }
-                    None => {
-                        errors.punycode = true;
-                    }
-                }
-            }
-        }
-
-        if self.verify_dns_length {
-            let domain = if result.ends_with('.') {
-                &result[..result.len() - 1]
-            } else {
-                &*result
-            };
-            if domain.is_empty() || domain.split('.').any(|label| label.is_empty()) {
-                errors.too_short_for_dns = true;
-            }
-            if domain.len() > 253 || domain.split('.').any(|label| label.len() > 63) {
-                errors.too_long_for_dns = true;
-            }
-        }
-
-        Result::from(errors).map(|()| result)
+        let mut codec = Idna::new(self);
+        codec.to_ascii(domain, &mut result).map(|()| result)
     }
 
     /// http://www.unicode.org/reports/tr46/#ToUnicode
     pub fn to_unicode(self, domain: &str) -> (String, Result<(), Errors>) {
-        let (domain, errors) = processing(domain, self);
-        (domain, errors.into())
+        let mut codec = Idna::new(self);
+        let mut out = String::with_capacity(domain.len());
+        let result = codec.to_unicode(domain, &mut out);
+        (out, result)
     }
 }
 
