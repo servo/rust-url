@@ -225,7 +225,7 @@ pub fn encode(input: &[char]) -> Option<String> {
         .map(|()| buf)
 }
 
-fn encode_into<I>(input: I, output: &mut String) -> Result<(), ()>
+pub(crate) fn encode_into<I>(input: I, output: &mut String) -> Result<(), ()>
 where
     I: Iterator<Item = char> + Clone,
 {

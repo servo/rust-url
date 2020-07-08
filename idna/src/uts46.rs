@@ -325,7 +325,13 @@ fn is_valid(label: &str, config: Config) -> bool {
 }
 
 /// http://www.unicode.org/reports/tr46/#Processing
-fn processing(domain: &str, config: Config, errors: &mut Vec<Error>) -> String {
+fn processing(
+    domain: &str,
+    config: Config,
+    normalized: &mut String,
+    output: &mut String,
+    errors: &mut Vec<Error>,
+) {
     // Weed out the simple cases: only allow all lowercase ASCII characters and digits where none
     // of the labels start with PUNYCODE_PREFIX and labels don't start or end with hyphen.
     let (mut prev, mut simple, mut puny_prefix) = ('?', !domain.is_empty(), 0);
@@ -358,8 +364,13 @@ fn processing(domain: &str, config: Config, errors: &mut Vec<Error>) -> String {
         prev = c;
     }
     if simple {
-        return domain.to_owned();
+        output.push_str(domain);
+        return;
     }
+
+    normalized.clear();
+    errors.clear();
+    let offset = output.len();
 
     let iter = Mapper {
         chars: domain.chars(),
@@ -368,24 +379,22 @@ fn processing(domain: &str, config: Config, errors: &mut Vec<Error>) -> String {
         slice: None,
     };
 
-    let mut normalized = String::with_capacity(domain.len());
     normalized.extend(iter.nfc());
 
     let mut decoder = punycode::Decoder::default();
-    let mut validated = String::new();
     let non_transitional = config.transitional_processing(false);
     let (mut first, mut valid, mut has_bidi_labels) = (true, true, false);
     for label in normalized.split('.') {
         if !first {
-            validated.push('.');
+            output.push('.');
         }
         first = false;
         if label.starts_with(PUNYCODE_PREFIX) {
             match decoder.decode(&label[PUNYCODE_PREFIX.len()..]) {
                 Ok(decode) => {
-                    let start = validated.len();
-                    validated.extend(decode);
-                    let decoded_label = &validated[start..];
+                    let start = output.len();
+                    output.extend(decode);
+                    let decoded_label = &output[start..];
 
                     if !has_bidi_labels {
                         has_bidi_labels |= is_bidi_domain(decoded_label);
@@ -409,11 +418,11 @@ fn processing(domain: &str, config: Config, errors: &mut Vec<Error>) -> String {
 
             // `normalized` is already `NFC` so we can skip that check
             valid &= is_valid(label, config);
-            validated.push_str(label)
+            output.push_str(label)
         }
     }
 
-    for label in validated.split('.') {
+    for label in output[offset..].split('.') {
         // V8: Bidi rules
         //
         // TODO: Add *CheckBidi* flag
@@ -426,8 +435,97 @@ fn processing(domain: &str, config: Config, errors: &mut Vec<Error>) -> String {
     if !valid {
         errors.push(Error::ValidityCriteria);
     }
+}
 
-    validated
+#[derive(Default)]
+pub struct Idna {
+    config: Config,
+    normalized: String,
+    output: String,
+    errors: Vec<Error>,
+}
+
+impl Idna {
+    pub fn new(config: Config) -> Self {
+        Self {
+            config,
+            normalized: String::new(),
+            output: String::new(),
+            errors: Vec::new(),
+        }
+    }
+
+    /// http://www.unicode.org/reports/tr46/#ToASCII
+    #[allow(clippy::wrong_self_convention)]
+    pub fn to_ascii<'a>(&'a mut self, domain: &str, out: &mut String) -> Result<(), ErrorsRef<'a>> {
+        processing(
+            domain,
+            self.config,
+            &mut self.normalized,
+            &mut self.output,
+            &mut self.errors,
+        );
+
+        let mut first = true;
+        for label in self.output.split('.') {
+            if !first {
+                out.push('.');
+            }
+            first = false;
+
+            if label.is_ascii() {
+                out.push_str(label);
+            } else {
+                let offset = out.len();
+                out.push_str(PUNYCODE_PREFIX);
+                if let Err(()) = punycode::encode_into(label.chars(), out) {
+                    self.errors.push(Error::PunycodeError);
+                    out.truncate(offset);
+                }
+            }
+        }
+
+        if self.config.verify_dns_length {
+            let domain = if out.ends_with('.') {
+                &out[..out.len() - 1]
+            } else {
+                &*out
+            };
+            if domain.is_empty() || domain.split('.').any(|label| label.is_empty()) {
+                self.errors.push(Error::TooShortForDns)
+            }
+            if domain.len() > 253 || domain.split('.').any(|label| label.len() > 63) {
+                self.errors.push(Error::TooLongForDns)
+            }
+        }
+
+        if self.errors.is_empty() {
+            Ok(())
+        } else {
+            Err(ErrorsRef(&self.errors))
+        }
+    }
+
+    /// http://www.unicode.org/reports/tr46/#ToUnicode
+    #[allow(clippy::wrong_self_convention)]
+    pub fn to_unicode<'a>(
+        &'a mut self,
+        domain: &str,
+        out: &mut String,
+    ) -> Result<(), ErrorsRef<'a>> {
+        processing(
+            domain,
+            self.config,
+            &mut self.normalized,
+            out,
+            &mut self.errors,
+        );
+        if self.errors.is_empty() {
+            Ok(())
+        } else {
+            Err(ErrorsRef(&self.errors))
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -481,57 +579,20 @@ impl Config {
 
     /// http://www.unicode.org/reports/tr46/#ToASCII
     pub fn to_ascii(self, domain: &str) -> Result<String, Errors> {
-        let mut errors = Vec::new();
         let mut result = String::new();
-        let mut first = true;
-        for label in processing(domain, self, &mut errors).split('.') {
-            if !first {
-                result.push('.');
-            }
-            first = false;
-            if label.is_ascii() {
-                result.push_str(label);
-            } else {
-                match punycode::encode_str(label) {
-                    Some(x) => {
-                        result.push_str(PUNYCODE_PREFIX);
-                        result.push_str(&x);
-                    }
-                    None => errors.push(Error::PunycodeError),
-                }
-            }
-        }
-
-        if self.verify_dns_length {
-            let domain = if result.ends_with('.') {
-                &result[..result.len() - 1]
-            } else {
-                &*result
-            };
-            if domain.is_empty() || domain.split('.').any(|label| label.is_empty()) {
-                errors.push(Error::TooShortForDns)
-            }
-            if domain.len() > 253 || domain.split('.').any(|label| label.len() > 63) {
-                errors.push(Error::TooLongForDns)
-            }
-        }
-        if errors.is_empty() {
-            Ok(result)
-        } else {
-            Err(Errors(errors))
-        }
+        let mut codec = Idna::new(self);
+        codec
+            .to_ascii(domain, &mut result)
+            .map(|()| result)
+            .map_err(|e| e.into())
     }
 
     /// http://www.unicode.org/reports/tr46/#ToUnicode
     pub fn to_unicode(self, domain: &str) -> (String, Result<(), Errors>) {
-        let mut errors = Vec::new();
-        let domain = processing(domain, self, &mut errors);
-        let errors = if errors.is_empty() {
-            Ok(())
-        } else {
-            Err(Errors(errors))
-        };
-        (domain, errors)
+        let mut codec = Idna::new(self);
+        let mut out = String::with_capacity(domain.len());
+        let result = codec.to_unicode(domain, &mut out);
+        (out, result.map_err(|e| e.into()))
     }
 }
 
@@ -580,6 +641,17 @@ fn is_bidi_domain(s: &str) -> bool {
     false
 }
 
+#[derive(Debug)]
+pub struct ErrorsRef<'a>(&'a [Error]);
+
+impl<'a> StdError for ErrorsRef<'a> {}
+
+impl<'a> fmt::Display for ErrorsRef<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
 /// Errors recorded during UTS #46 processing.
 ///
 /// This is opaque for now, only indicating the presence of at least one error.
@@ -598,6 +670,12 @@ impl fmt::Display for Errors {
             f.write_str(err.as_str())?;
         }
         Ok(())
+    }
+}
+
+impl From<ErrorsRef<'_>> for Errors {
+    fn from(r: ErrorsRef<'_>) -> Errors {
+        Errors(r.0.to_owned())
     }
 }
 
