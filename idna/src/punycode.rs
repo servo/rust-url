@@ -54,10 +54,10 @@ pub fn decode_to_string(input: &str) -> Option<String> {
 pub fn decode(input: &str) -> Option<Vec<char>> {
     // Handle "basic" (ASCII) code points.
     // They are encoded as-is before the last delimiter, if any.
-    let (mut output, input) = match input.rfind(DELIMITER) {
-        None => (Vec::new(), input),
+    let (base, input) = match input.rfind(DELIMITER) {
+        None => ("", input),
         Some(position) => (
-            input[..position].chars().collect(),
+            &input[..position],
             if position > 0 {
                 &input[position + 1..]
             } else {
@@ -65,6 +65,9 @@ pub fn decode(input: &str) -> Option<Vec<char>> {
             },
         ),
     };
+
+    let mut length = base.len() as u32;
+    let mut buf = Vec::new();
     let mut code_point = INITIAL_N;
     let mut bias = INITIAL_BIAS;
     let mut i = 0;
@@ -110,7 +113,6 @@ pub fn decode(input: &str) -> Option<Vec<char>> {
                 Some(byte) => byte,
             };
         }
-        let length = output.len() as u32;
         bias = adapt(i - previous_i, length + 1, previous_i == 0);
         if i / (length + 1) > u32::MAX - code_point {
             return None; // Overflow
@@ -123,9 +125,41 @@ pub fn decode(input: &str) -> Option<Vec<char>> {
             Some(c) => c,
             None => return None,
         };
-        output.insert(i as usize, c);
+
+        // Move earlier insertions farther out in the string
+        for (idx, _) in &mut buf {
+            if *idx >= i as usize {
+                *idx += 1;
+            }
+        }
+        buf.push((i as usize, c));
+        length += 1;
         i += 1;
     }
+
+    buf.sort_by_key(|(i, _)| -(*i as i32));
+    let mut position = 0;
+    let mut output = Vec::with_capacity(input.len());
+    let mut next = buf.pop();
+    let mut base = base.chars();
+    loop {
+        match next {
+            Some((pos, c)) if pos == position => {
+                output.push(c);
+                next = buf.pop();
+                position += 1;
+                continue;
+            }
+            _ => {}
+        }
+        if let Some(c) = base.next() {
+            position += 1;
+            output.push(c);
+        } else if next.is_none() {
+            break;
+        }
+    }
+
     Some(output)
 }
 
