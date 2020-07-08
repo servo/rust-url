@@ -82,38 +82,65 @@ fn find_char(codepoint: char) -> &'static Mapping {
         .unwrap()
 }
 
-fn map_char(codepoint: char, config: Config, output: &mut String, errors: &mut Vec<Error>) {
-    if let '.' | '-' | 'a'..='z' | '0'..='9' = codepoint {
-        output.push(codepoint);
-        return;
-    }
+struct Mapper<'a> {
+    chars: std::str::Chars<'a>,
+    config: Config,
+    errors: &'a mut Vec<Error>,
+    slice: Option<std::str::Chars<'static>>,
+}
 
-    match *find_char(codepoint) {
-        Mapping::Valid => output.push(codepoint),
-        Mapping::Ignored => {}
-        Mapping::Mapped(ref slice) => output.push_str(decode_slice(slice)),
-        Mapping::Deviation(ref slice) => {
-            if config.transitional_processing {
-                output.push_str(decode_slice(slice))
-            } else {
-                output.push(codepoint)
+impl<'a> Iterator for Mapper<'a> {
+    type Item = char;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some(s) = &mut self.slice {
+                match s.next() {
+                    Some(c) => return Some(c),
+                    None => {
+                        self.slice = None;
+                    }
+                }
             }
-        }
-        Mapping::Disallowed => {
-            errors.push(Error::DisallowedCharacter);
-            output.push(codepoint);
-        }
-        Mapping::DisallowedStd3Valid => {
-            if config.use_std3_ascii_rules {
-                errors.push(Error::DisallowedByStd3AsciiRules);
+
+            let codepoint = self.chars.next()?;
+            if let '.' | '-' | 'a'..='z' | '0'..='9' = codepoint {
+                return Some(codepoint);
             }
-            output.push(codepoint)
-        }
-        Mapping::DisallowedStd3Mapped(ref slice) => {
-            if config.use_std3_ascii_rules {
-                errors.push(Error::DisallowedMappedInStd3);
-            }
-            output.push_str(decode_slice(slice))
+
+            return Some(match *find_char(codepoint) {
+                Mapping::Valid => codepoint,
+                Mapping::Ignored => continue,
+                Mapping::Mapped(ref slice) => {
+                    self.slice = Some(decode_slice(slice).chars());
+                    continue;
+                }
+                Mapping::Deviation(ref slice) => {
+                    if self.config.transitional_processing {
+                        self.slice = Some(decode_slice(slice).chars());
+                        continue;
+                    } else {
+                        codepoint
+                    }
+                }
+                Mapping::Disallowed => {
+                    self.errors.push(Error::DisallowedCharacter);
+                    codepoint
+                }
+                Mapping::DisallowedStd3Valid => {
+                    if self.config.use_std3_ascii_rules {
+                        self.errors.push(Error::DisallowedByStd3AsciiRules);
+                    };
+                    codepoint
+                }
+                Mapping::DisallowedStd3Mapped(ref slice) => {
+                    if self.config.use_std3_ascii_rules {
+                        self.errors.push(Error::DisallowedMappedInStd3);
+                    };
+                    self.slice = Some(decode_slice(slice).chars());
+                    continue;
+                }
+            });
         }
     }
 }
@@ -334,12 +361,15 @@ fn processing(domain: &str, config: Config, errors: &mut Vec<Error>) -> String {
         return domain.to_owned();
     }
 
-    let mut mapped = String::with_capacity(domain.len());
-    for c in domain.chars() {
-        map_char(c, config, &mut mapped, errors)
-    }
-    let mut normalized = String::with_capacity(mapped.len());
-    normalized.extend(mapped.nfc());
+    let iter = Mapper {
+        chars: domain.chars(),
+        config,
+        errors,
+        slice: None,
+    };
+
+    let mut normalized = String::with_capacity(domain.len());
+    normalized.extend(iter.nfc());
 
     let mut validated = String::new();
     let non_transitional = config.transitional_processing(false);
