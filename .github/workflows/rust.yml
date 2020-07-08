@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: ['master']
+  pull_request:
+
+jobs:
+  Test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        rust: [1.36.0, stable, beta, nightly]
+        exclude:
+          - os: macos-latest
+            rust: 1.36.0
+          - os: windows-latest
+            rust: 1.36.0
+          - os: macos-latest
+            rust: beta
+          - os: windows-latest
+            rust: beta
+          - os: macos-latest
+            rust: nightly
+          - os: windows-latest
+            rust: nightly
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --all-targets
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
