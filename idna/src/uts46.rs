@@ -296,6 +296,41 @@ fn is_valid(label: &str, is_bidi_domain: bool, config: Config) -> bool {
 
 /// http://www.unicode.org/reports/tr46/#Processing
 fn processing(domain: &str, config: Config, errors: &mut Vec<Error>) -> String {
+    // Weed out the simple cases: only allow all lowercase ASCII characters and digits where none
+    // of the labels start with PUNYCODE_PREFIX and labels don't start or end with hyphen.
+    let (mut prev, mut simple, mut puny_prefix) = ('?', !domain.is_empty(), 0);
+    for c in domain.chars() {
+        if c == '.' {
+            if prev == '-' {
+                simple = false;
+                break;
+            }
+            puny_prefix = 0;
+            continue;
+        } else if puny_prefix == 0 && c == '-' {
+            simple = false;
+            break;
+        } else if puny_prefix < 5 {
+            if c == ['x', 'n', '-', '-'][puny_prefix] {
+                puny_prefix += 1;
+                if puny_prefix == 4 {
+                    simple = false;
+                    break;
+                }
+            } else {
+                puny_prefix = 5;
+            }
+        }
+        if !c.is_ascii_lowercase() && !c.is_ascii_digit() {
+            simple = false;
+            break;
+        }
+        prev = c;
+    }
+    if simple {
+        return domain.to_owned();
+    }
+
     let mut mapped = String::with_capacity(domain.len());
     for c in domain.chars() {
         map_char(c, config, &mut mapped, errors)
