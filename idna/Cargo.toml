@@ -10,7 +10,6 @@ edition = "2018"
 
 [lib]
 doctest = false
-test = false
 
 [[test]]
 name = "tests"

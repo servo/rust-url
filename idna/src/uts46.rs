@@ -83,6 +83,11 @@ fn find_char(codepoint: char) -> &'static Mapping {
 }
 
 fn map_char(codepoint: char, config: Config, output: &mut String, errors: &mut Vec<Error>) {
+    if let '.' | '-' | 'a'..='z' | '0'..='9' = codepoint {
+        output.push(codepoint);
+        return;
+    }
+
     match *find_char(codepoint) {
         Mapping::Valid => output.push(codepoint),
         Mapping::Ignored => {}
@@ -556,5 +561,25 @@ impl fmt::Display for Errors {
             f.write_str(err.as_str())?;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{find_char, Mapping};
+
+    #[test]
+    fn mapping_fast_path() {
+        assert_matches!(find_char('-'), &Mapping::Valid);
+        assert_matches!(find_char('.'), &Mapping::Valid);
+        for c in &['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'] {
+            assert_matches!(find_char(*c), &Mapping::Valid);
+        }
+        for c in &[
+            'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q',
+            'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+        ] {
+            assert_matches!(find_char(*c), &Mapping::Valid);
+        }
     }
 }
