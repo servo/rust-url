@@ -535,6 +535,9 @@ impl fmt::Display for Error {
 
 fn is_bidi_domain(s: &str) -> bool {
     for c in s.chars() {
+        if c.is_ascii_graphic() {
+            continue;
+        }
         match bidi_class(c) {
             BidiClass::R | BidiClass::AL | BidiClass::AN => return true,
             _ => {}
