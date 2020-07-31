@@ -12,6 +12,7 @@
 use self::Mapping::*;
 use punycode;
 use std::cmp::Ordering::{Equal, Greater, Less};
+use std::{error::Error as StdError, fmt};
 use unicode_bidi::{bidi_class, BidiClass};
 use unicode_normalization::char::is_combining_mark;
 use unicode_normalization::UnicodeNormalization;
@@ -493,3 +494,11 @@ enum Error {
 /// More details may be exposed in the future.
 #[derive(Debug)]
 pub struct Errors(Vec<Error>);
+
+impl StdError for Errors {}
+
+impl fmt::Display for Errors {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
