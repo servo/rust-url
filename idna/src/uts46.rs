@@ -480,12 +480,32 @@ impl Config {
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 enum Error {
     PunycodeError,
+
+    // https://unicode.org/reports/tr46/#Validity_Criteria
     ValidityCriteria,
     DissallowedByStd3AsciiRules,
     DissallowedMappedInStd3,
     DissallowedCharacter,
     TooLongForDns,
     TooShortForDns,
+}
+impl Error {
+    fn as_str(&self) -> &str {
+        match self {
+            PunycodeError => "punycode error",
+            ValidityCriteria => "failed UTS #46 validity criteria",
+            DissallowedByStd3AsciiRules => "disallowed ASCII character",
+            DissallowedMappedInStd3 => "disallowed mapped ASCII character",
+            DissallowedCharacter => "disallowed non-ASCII character",
+            TooLongForDns => "too long for DNS",
+            TooShortForDns => "too short for DNS",
+        }
+    }
+}
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
 }
 
 /// Errors recorded during UTS #46 processing.
@@ -499,6 +519,12 @@ impl StdError for Errors {}
 
 impl fmt::Display for Errors {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        let (first, rest) = self.0.split_first().expect("should be at least one error");
+        f.write_str(first.as_str())?;
+        for x in rest {
+            f.write_str(", ")?;
+            f.write_str(x.as_str())?;
+        }
+        Ok(())
     }
 }
