@@ -174,7 +174,7 @@ impl SchemeType {
 
     pub fn from(s: &str) -> Self {
         match s {
-            "http" | "https" | "ws" | "wss" | "ftp" | "gopher" => SchemeType::SpecialNotFile,
+            "http" | "https" | "ws" | "wss" | "ftp" => SchemeType::SpecialNotFile,
             "file" => SchemeType::File,
             _ => SchemeType::NotSpecial,
         }
@@ -186,7 +186,6 @@ pub fn default_port(scheme: &str) -> Option<u16> {
         "http" | "ws" => Some(80),
         "https" | "wss" => Some(443),
         "ftp" => Some(21),
-        "gopher" => Some(70),
         _ => None,
     }
 }
@@ -1438,7 +1437,7 @@ impl<'a> Parser<'a> {
         }
 
         let encoding = match &self.serialization[..scheme_end as usize] {
-            "http" | "https" | "file" | "ftp" | "gopher" => self.query_encoding_override,
+            "http" | "https" | "file" | "ftp" => self.query_encoding_override,
             _ => None,
         };
         let query_bytes = if let Some(o) = encoding {

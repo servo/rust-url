@@ -22,7 +22,7 @@ pub fn url_origin(url: &Url) -> Origin {
                 Err(_) => Origin::new_opaque(),
             }
         }
-        "ftp" | "gopher" | "http" | "https" | "ws" | "wss" => Origin::Tuple(
+        "ftp" | "http" | "https" | "ws" | "wss" => Origin::Tuple(
             scheme.to_owned(),
             url.host().unwrap().to_owned(),
             url.port_or_known_default().unwrap(),
