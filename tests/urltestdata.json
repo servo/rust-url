@@ -6562,20 +6562,5 @@
     "pathname": "/test-a-colon-slash-slash-b.html",
     "search": "",
     "hash": ""
-  },
-  "Null code point in fragment",
-  {
-    "input": "http://example.org/test?a#b\u0000c",
-    "base": "about:blank",
-    "href": "http://example.org/test?a#bc",
-    "protocol": "http:",
-    "username": "",
-    "password": "",
-    "host": "example.org",
-    "hostname": "example.org",
-    "port": "",
-    "pathname": "/test",
-    "search": "?a",
-    "hash": "#bc"
   }
 ]
