@@ -82,6 +82,9 @@ impl Host<String> {
         }
         let domain = percent_decode(input.as_bytes()).decode_utf8_lossy();
         let domain = idna::domain_to_ascii(&domain)?;
+        if domain.is_empty() {
+            return Err(ParseError::EmptyHost);
+        }
         if domain
             .find(|c| {
                 matches!(
