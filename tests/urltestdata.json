@@ -4482,21 +4482,6 @@
     "hash": ""
   },
   {
-    "input": "sc://\u001F!\"$&'()*+,-.;<=>^_`{|}~/",
-    "base": "about:blank",
-    "href": "sc://%1F!\"$&'()*+,-.;<=>^_`{|}~/",
-    "origin": "null",
-    "protocol": "sc:",
-    "username": "",
-    "password": "",
-    "host": "%1F!\"$&'()*+,-.;<=>^_`{|}~",
-    "hostname": "%1F!\"$&'()*+,-.;<=>^_`{|}~",
-    "port": "",
-    "pathname": "/",
-    "search": "",
-    "hash": ""
-  },
-  {
     "input": "sc://\u0000/",
     "base": "about:blank",
     "failure": true
