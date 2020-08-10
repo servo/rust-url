@@ -1480,9 +1480,9 @@ impl<'a> Parser<'a> {
                 self.log_violation(SyntaxViolation::NullInFragment)
             } else {
                 self.check_url_code_point(c, &input);
-                self.serialization
-                    .extend(utf8_percent_encode(utf8_c, FRAGMENT));
             }
+            self.serialization
+                .extend(utf8_percent_encode(utf8_c, FRAGMENT));
         }
     }
 
