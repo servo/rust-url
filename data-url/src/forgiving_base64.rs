@@ -38,7 +38,10 @@ impl From<DecodeError<Impossible>> for InvalidBase64 {
 pub fn decode_to_vec(input: &[u8]) -> Result<Vec<u8>, InvalidBase64> {
     let mut v = Vec::new();
     {
-        let mut decoder = Decoder::new(|bytes| Ok(v.extend_from_slice(bytes)));
+        let mut decoder = Decoder::new(|bytes| {
+            v.extend_from_slice(bytes);
+            Ok(())
+        });
         decoder.feed(input)?;
         decoder.finish()?;
     }
@@ -86,10 +89,10 @@ where
                     continue;
                 }
 
-                Err(InvalidBase64Details::UnexpectedSymbol(byte))?
+                return Err(InvalidBase64Details::UnexpectedSymbol(byte).into());
             }
             if self.padding_symbols > 0 {
-                Err(InvalidBase64Details::AlphabetSymbolAfterPadding)?
+                return Err(InvalidBase64Details::AlphabetSymbolAfterPadding.into());
             }
             self.bit_buffer <<= 6;
             self.bit_buffer |= value as u32;
@@ -130,8 +133,8 @@ where
                 let byte_buffer = [(self.bit_buffer >> 10) as u8, (self.bit_buffer >> 2) as u8];
                 (self.write_bytes)(&byte_buffer).map_err(DecodeError::WriteError)?;
             }
-            (6, _) => Err(InvalidBase64Details::LoneAlphabetSymbol)?,
-            _ => Err(InvalidBase64Details::Padding)?,
+            (6, _) => return Err(InvalidBase64Details::LoneAlphabetSymbol.into()),
+            _ => return Err(InvalidBase64Details::Padding.into()),
         }
         Ok(())
     }

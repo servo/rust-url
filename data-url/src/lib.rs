@@ -87,7 +87,10 @@ impl<'a> DataUrl<'a> {
         &self,
     ) -> Result<(Vec<u8>, Option<FragmentIdentifier<'a>>), forgiving_base64::InvalidBase64> {
         let mut body = Vec::new();
-        let fragment = self.decode(|bytes| Ok(body.extend_from_slice(bytes)))?;
+        let fragment = self.decode(|bytes| {
+            body.extend_from_slice(bytes);
+            Ok(())
+        })?;
         Ok((body, fragment))
     }
 }
@@ -213,6 +216,7 @@ fn parse_header(from_colon_to_comma: &str) -> (mime::Mime, bool) {
 }
 
 /// None: no base64 suffix
+#[allow(clippy::skip_while_next)]
 fn remove_base64_suffix(s: &str) -> Option<&str> {
     let mut bytes = s.bytes();
     {
