@@ -105,7 +105,6 @@ impl Host<String> {
                         | '\\'
                         | ']'
                         | '^'
-
                 )
             })
             .is_some()
