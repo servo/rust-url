@@ -1663,10 +1663,8 @@ impl Url {
             let scheme_type = SchemeType::from(self.scheme());
             if scheme_type.is_special() {
                 return Err(ParseError::EmptyHost);
-            } else {
-                if self.serialization.len() == self.path_start as usize {
-                    self.serialization.push('/');
-                }
+            } else if self.serialization.len() == self.path_start as usize {
+                self.serialization.push('/');
             }
             debug_assert!(self.byte_at(self.scheme_end) == b':');
             debug_assert!(self.byte_at(self.path_start) == b'/');
@@ -2583,12 +2581,11 @@ fn file_url_segments_to_pathbuf(
         bytes.extend(percent_decode(segment.as_bytes()));
     }
     // A windows drive letter must end with a slash.
-    if bytes.len() > 2 {
-        if matches!(bytes[bytes.len() - 2], b'a'..=b'z' | b'A'..=b'Z')
-            && matches!(bytes[bytes.len() - 1], b':' | b'|')
-        {
-            bytes.push(b'/');
-        }
+    if bytes.len() > 2
+        && matches!(bytes[bytes.len() - 2], b'a'..=b'z' | b'A'..=b'Z')
+        && matches!(bytes[bytes.len() - 1], b':' | b'|')
+    {
+        bytes.push(b'/');
     }
     let os_str = OsStr::from_bytes(&bytes);
     let path = PathBuf::from(os_str);
