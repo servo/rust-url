@@ -255,7 +255,7 @@ fn passes_bidi(label: &str, is_bidi_domain: bool) -> bool {
         }
     }
 
-    return true;
+    true
 }
 
 /// http://www.unicode.org/reports/tr46/#Validity_Criteria
@@ -477,6 +477,7 @@ impl Config {
     }
 }
 
+#[allow(clippy::enum_variant_names)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 enum Error {
     PunycodeError,
