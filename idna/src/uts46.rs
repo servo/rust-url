@@ -95,18 +95,18 @@ fn map_char(codepoint: char, config: Config, output: &mut String, errors: &mut V
             }
         }
         Mapping::Disallowed => {
-            errors.push(Error::DissallowedCharacter);
+            errors.push(Error::DisallowedCharacter);
             output.push(codepoint);
         }
         Mapping::DisallowedStd3Valid => {
             if config.use_std3_ascii_rules {
-                errors.push(Error::DissallowedByStd3AsciiRules);
+                errors.push(Error::DisallowedByStd3AsciiRules);
             }
             output.push(codepoint)
         }
         Mapping::DisallowedStd3Mapped(ref slice) => {
             if config.use_std3_ascii_rules {
-                errors.push(Error::DissallowedMappedInStd3);
+                errors.push(Error::DisallowedMappedInStd3);
             }
             output.push_str(decode_slice(slice))
         }
@@ -481,12 +481,32 @@ impl Config {
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 enum Error {
     PunycodeError,
+
+    // https://unicode.org/reports/tr46/#Validity_Criteria
     ValidityCriteria,
-    DissallowedByStd3AsciiRules,
-    DissallowedMappedInStd3,
-    DissallowedCharacter,
+    DisallowedByStd3AsciiRules,
+    DisallowedMappedInStd3,
+    DisallowedCharacter,
     TooLongForDns,
     TooShortForDns,
+}
+impl Error {
+    fn as_str(&self) -> &str {
+        match self {
+            Error::PunycodeError => "punycode error",
+            Error::ValidityCriteria => "failed UTS #46 validity criteria",
+            Error::DisallowedByStd3AsciiRules => "disallowed ASCII character",
+            Error::DisallowedMappedInStd3 => "disallowed mapped ASCII character",
+            Error::DisallowedCharacter => "disallowed non-ASCII character",
+            Error::TooLongForDns => "too long for DNS",
+            Error::TooShortForDns => "too short for DNS",
+        }
+    }
+}
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
 }
 
 /// Errors recorded during UTS #46 processing.
@@ -500,6 +520,12 @@ impl StdError for Errors {}
 
 impl fmt::Display for Errors {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        for (i, err) in self.0.iter().enumerate() {
+            if i > 0 {
+                f.write_str(", ")?;
+            }
+            f.write_str(err.as_str());
+        }
+        Ok(())
     }
 }
