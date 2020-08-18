@@ -104,7 +104,7 @@ impl<'a> FragmentIdentifier<'a> {
                 // Ignore ASCII tabs or newlines like the URL parser would
                 b'\t' | b'\n' | b'\r' => continue,
                 // https://url.spec.whatwg.org/#fragment-percent-encode-set
-                b'\0'...b' ' | b'"' | b'<' | b'>' | b'`' | b'\x7F'...b'\xFF' => {
+                b'\0'..=b' ' | b'"' | b'<' | b'>' | b'`' | b'\x7F'..=b'\xFF' => {
                     percent_encode(byte, &mut string)
                 }
                 // Printable ASCII
@@ -183,7 +183,7 @@ fn parse_header(from_colon_to_comma: &str) -> (mime::Mime, bool) {
             b'\t' | b'\n' | b'\r' => continue,
 
             // https://url.spec.whatwg.org/#c0-control-percent-encode-set
-            b'\0'...b'\x1F' | b'\x7F'...b'\xFF' => percent_encode(byte, &mut string),
+            b'\0'..=b'\x1F' | b'\x7F'..=b'\xFF' => percent_encode(byte, &mut string),
 
             // Bytes other than the C0 percent-encode set that are percent-encoded
             // by the URL parser in the query state.

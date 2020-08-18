@@ -62,11 +62,11 @@ macro_rules! simple_enum_error {
             __FutureProof,
         }
 
-        impl Error for ParseError {
-            fn description(&self) -> &str {
+        impl fmt::Display for ParseError {
+            fn fmt(&self, fmt: &mut Formatter<'_>) -> fmt::Result {
                 match *self {
                     $(
-                        ParseError::$name => $description,
+                        ParseError::$name => fmt.write_str($description),
                     )+
                     ParseError::__FutureProof => {
                         unreachable!("Don't abuse the FutureProof!");
@@ -76,6 +76,8 @@ macro_rules! simple_enum_error {
         }
     }
 }
+
+impl Error for ParseError {}
 
 simple_enum_error! {
     EmptyHost => "empty host",
@@ -88,12 +90,6 @@ simple_enum_error! {
     RelativeUrlWithCannotBeABaseBase => "relative URL with a cannot-be-a-base base",
     SetHostOnCannotBeABaseUrl => "a cannot-be-a-base URL doesn’t have a host to set",
     Overflow => "URLs more than 4 GB are not supported",
-}
-
-impl fmt::Display for ParseError {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        fmt::Display::fmt(self.description(), f)
-    }
 }
 
 impl From<::idna::Errors> for ParseError {
