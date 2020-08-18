@@ -52,6 +52,7 @@ macro_rules! simple_enum_error {
         ///
         /// This may be extended in the future so exhaustive matching is
         /// discouraged with an unused variant.
+        #[allow(clippy::manual_non_exhaustive)] // introduced in 1.40, MSRV is 1.36
         #[derive(PartialEq, Eq, Clone, Copy, Debug)]
         pub enum ParseError {
             $(
@@ -547,15 +548,15 @@ impl<'a> Parser<'a> {
                     self.parse_query_and_fragment(scheme_type, scheme_end, remaining)?;
                 return Ok(Url {
                     serialization: self.serialization,
-                    scheme_end: scheme_end,
+                    scheme_end,
                     username_end: host_start,
-                    host_start: host_start,
-                    host_end: host_end,
-                    host: host,
+                    host_start,
+                    host_end,
+                    host,
                     port: None,
                     path_start: host_end,
-                    query_start: query_start,
-                    fragment_start: fragment_start,
+                    query_start,
+                    fragment_start,
                 });
             } else {
                 self.serialization.push_str("file://");
@@ -598,15 +599,15 @@ impl<'a> Parser<'a> {
                 let host_end = host_end as u32;
                 return Ok(Url {
                     serialization: self.serialization,
-                    scheme_end: scheme_end,
+                    scheme_end,
                     username_end: host_start,
                     host_start,
                     host_end,
                     host,
                     port: None,
                     path_start: host_end,
-                    query_start: query_start,
-                    fragment_start: fragment_start,
+                    query_start,
+                    fragment_start,
                 });
             }
         }
@@ -678,15 +679,15 @@ impl<'a> Parser<'a> {
                         let path_start = path_start as u32;
                         Ok(Url {
                             serialization: self.serialization,
-                            scheme_end: scheme_end,
+                            scheme_end,
                             username_end: path_start,
                             host_start: path_start,
                             host_end: path_start,
                             host: HostInternal::None,
                             port: None,
-                            path_start: path_start,
-                            query_start: query_start,
-                            fragment_start: fragment_start,
+                            path_start,
+                            query_start,
+                            fragment_start,
                         })
                     }
                 }
@@ -701,15 +702,15 @@ impl<'a> Parser<'a> {
             let path_start = path_start as u32;
             Ok(Url {
                 serialization: self.serialization,
-                scheme_end: scheme_end,
+                scheme_end,
                 username_end: path_start,
                 host_start: path_start,
                 host_end: path_start,
                 host: HostInternal::None,
                 port: None,
-                path_start: path_start,
-                query_start: query_start,
-                fragment_start: fragment_start,
+                path_start,
+                query_start,
+                fragment_start,
             })
         }
     }
@@ -804,10 +805,10 @@ impl<'a> Parser<'a> {
                 self.pop_path(scheme_type, base_url.path_start as usize);
                 // A special url always has a path.
                 // A path always starts with '/'
-                if self.serialization.len() == base_url.path_start as usize {
-                    if SchemeType::from(base_url.scheme()).is_special() || !input.is_empty() {
-                        self.serialization.push('/');
-                    }
+                if self.serialization.len() == base_url.path_start as usize
+                    && (SchemeType::from(base_url.scheme()).is_special() || !input.is_empty())
+                {
+                    self.serialization.push('/');
                 }
                 let remaining = match input.split_first() {
                     (Some('/'), remaining) => self.parse_path(
