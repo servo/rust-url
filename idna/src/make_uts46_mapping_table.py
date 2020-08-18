@@ -149,7 +149,7 @@ def merge_single_char_ranges(ranges):
 optimized_ranges = list(merge_single_char_ranges(optimized_ranges))
 
 
-print("static TABLE: &'static [Range] = &[")
+print("static TABLE: &[Range] = &[")
 
 for ranges in optimized_ranges:
     first = ranges[0][0]
@@ -159,7 +159,7 @@ for ranges in optimized_ranges:
 
 print("];\n")
 
-print("static INDEX_TABLE: &'static [u16] = &[")
+print("static INDEX_TABLE: &[u16] = &[")
 
 SINGLE_MARKER = 1 << 15
 
@@ -174,7 +174,7 @@ for ranges in optimized_ranges:
 
 print("];\n")
 
-print("static MAPPING_TABLE: &'static [Mapping] = &[")
+print("static MAPPING_TABLE: &[Mapping] = &[")
 
 for ranges in optimized_ranges:
     for (first, last, mapping, unicode_str) in ranges:
@@ -187,5 +187,5 @@ print("];\n")
 def escape_str(s):
     return [escape_char(c) for c in s]
 
-print("static STRING_TABLE: &'static str = \"%s\";"
+print("static STRING_TABLE: &str = \"%s\";"
       % '\\\n  '.join(itertools.chain(*[escape_str(s) for s in strtab.keys()])))
