@@ -524,7 +524,7 @@ impl fmt::Display for Errors {
             if i > 0 {
                 f.write_str(", ")?;
             }
-            f.write_str(err.as_str());
+            f.write_str(err.as_str())?;
         }
         Ok(())
     }
