@@ -336,12 +336,12 @@ fn append_pair(
     value: Option<&str>,
 ) {
     append_separator_if_needed(string, start_position);
-    append_encoded(name.to_string(), string, encoding);
-    append_literal(value.map_or("", |_| "=").to_string(), string);
-    append_encoded(value.map_or("", |v| v).to_string(), string, encoding);
+    append_encoded(name, string, encoding);
+    append_literal(value.map_or("", |_| "="), string);
+    append_encoded(value.map_or("", |v| v), string, encoding);
 }
 
-fn append_literal(s: String, string: &mut String) {
+fn append_literal(s: &str, string: &mut String) {
     string.extend(s.chars())
 }
 
