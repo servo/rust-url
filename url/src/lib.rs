@@ -277,6 +277,7 @@ impl Url {
     /// # fn run() -> Result<(), ParseError> {
     /// let url = Url::parse_with_params("https://example.net?dont=clobberme",
     ///                                  &[("lang", Some("rust")), ("browser", Some("servo"))])?;
+    /// assert_eq!("https://example.net/?dont=clobberme&lang=rust&browser=servo", url.as_str());
     /// # Ok(())
     /// # }
     /// # run().unwrap();
