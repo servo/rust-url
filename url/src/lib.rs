@@ -927,7 +927,7 @@ impl Url {
     /// Return the port number for this URL, or the default port number if it is known.
     ///
     /// This method only knows the default port number
-    /// of the `http`, `https`, `ws`, `wss`, `ftp`, and `gopher` schemes.
+    /// of the `http`, `https`, `ws`, `wss` and `ftp` schemes.
     ///
     /// For URLs in these schemes, this method always returns `Some(_)`.
     /// For other schemes, it is the same as `Url::port()`.
@@ -1956,9 +1956,9 @@ impl Url {
     ///
     /// * If the new scheme is not in `[a-zA-Z][a-zA-Z0-9+.-]+`
     /// * If this URL is cannot-be-a-base and the new scheme is one of
-    ///   `http`, `https`, `ws`, `wss`, `ftp`, or `gopher`
+    ///   `http`, `https`, `ws`, `wss` or `ftp`
     /// * If either the old or new scheme is `http`, `https`, `ws`,
-    ///   `wss`, `ftp`, or `gopher` and the other is not one of these
+    ///   `wss` or `ftp` and the other is not one of these
     /// * If the new scheme is `file` and this URL includes credentials
     ///   or has a non-null port
     /// * If this URL's scheme is `file` and its host is empty or null

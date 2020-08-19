@@ -466,7 +466,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Scheme other than file, http, https, ws, ws, ftp, gopher.
+    /// Scheme other than file, http, https, ws, ws, ftp.
     fn parse_non_special(
         mut self,
         input: Input,
