@@ -52,6 +52,7 @@ macro_rules! simple_enum_error {
         ///
         /// This may be extended in the future so exhaustive matching is
         /// discouraged with an unused variant.
+        #[allow(clippy::manual_non_exhaustive)] // introduced in 1.40, MSRV is 1.36
         #[derive(PartialEq, Eq, Clone, Copy, Debug)]
         pub enum ParseError {
             $(
@@ -62,11 +63,11 @@ macro_rules! simple_enum_error {
             __FutureProof,
         }
 
-        impl Error for ParseError {
-            fn description(&self) -> &str {
+        impl fmt::Display for ParseError {
+            fn fmt(&self, fmt: &mut Formatter<'_>) -> fmt::Result {
                 match *self {
                     $(
-                        ParseError::$name => $description,
+                        ParseError::$name => fmt.write_str($description),
                     )+
                     ParseError::__FutureProof => {
                         unreachable!("Don't abuse the FutureProof!");
@@ -76,6 +77,8 @@ macro_rules! simple_enum_error {
         }
     }
 }
+
+impl Error for ParseError {}
 
 simple_enum_error! {
     EmptyHost => "empty host",
@@ -88,12 +91,6 @@ simple_enum_error! {
     RelativeUrlWithCannotBeABaseBase => "relative URL with a cannot-be-a-base base",
     SetHostOnCannotBeABaseUrl => "a cannot-be-a-base URL doesn’t have a host to set",
     Overflow => "URLs more than 4 GB are not supported",
-}
-
-impl fmt::Display for ParseError {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        fmt::Display::fmt(self.description(), f)
-    }
 }
 
 impl From<::idna::Errors> for ParseError {
@@ -174,7 +171,7 @@ impl SchemeType {
 
     pub fn from(s: &str) -> Self {
         match s {
-            "http" | "https" | "ws" | "wss" | "ftp" | "gopher" => SchemeType::SpecialNotFile,
+            "http" | "https" | "ws" | "wss" | "ftp" => SchemeType::SpecialNotFile,
             "file" => SchemeType::File,
             _ => SchemeType::NotSpecial,
         }
@@ -186,7 +183,6 @@ pub fn default_port(scheme: &str) -> Option<u16> {
         "http" | "ws" => Some(80),
         "https" | "wss" => Some(443),
         "ftp" => Some(21),
-        "gopher" => Some(70),
         _ => None,
     }
 }
@@ -552,15 +548,15 @@ impl<'a> Parser<'a> {
                     self.parse_query_and_fragment(scheme_type, scheme_end, remaining)?;
                 return Ok(Url {
                     serialization: self.serialization,
-                    scheme_end: scheme_end,
+                    scheme_end,
                     username_end: host_start,
-                    host_start: host_start,
-                    host_end: host_end,
-                    host: host,
+                    host_start,
+                    host_end,
+                    host,
                     port: None,
                     path_start: host_end,
-                    query_start: query_start,
-                    fragment_start: fragment_start,
+                    query_start,
+                    fragment_start,
                 });
             } else {
                 self.serialization.push_str("file://");
@@ -603,15 +599,15 @@ impl<'a> Parser<'a> {
                 let host_end = host_end as u32;
                 return Ok(Url {
                     serialization: self.serialization,
-                    scheme_end: scheme_end,
+                    scheme_end,
                     username_end: host_start,
                     host_start,
                     host_end,
                     host,
                     port: None,
                     path_start: host_end,
-                    query_start: query_start,
-                    fragment_start: fragment_start,
+                    query_start,
+                    fragment_start,
                 });
             }
         }
@@ -683,15 +679,15 @@ impl<'a> Parser<'a> {
                         let path_start = path_start as u32;
                         Ok(Url {
                             serialization: self.serialization,
-                            scheme_end: scheme_end,
+                            scheme_end,
                             username_end: path_start,
                             host_start: path_start,
                             host_end: path_start,
                             host: HostInternal::None,
                             port: None,
-                            path_start: path_start,
-                            query_start: query_start,
-                            fragment_start: fragment_start,
+                            path_start,
+                            query_start,
+                            fragment_start,
                         })
                     }
                 }
@@ -706,15 +702,15 @@ impl<'a> Parser<'a> {
             let path_start = path_start as u32;
             Ok(Url {
                 serialization: self.serialization,
-                scheme_end: scheme_end,
+                scheme_end,
                 username_end: path_start,
                 host_start: path_start,
                 host_end: path_start,
                 host: HostInternal::None,
                 port: None,
-                path_start: path_start,
-                query_start: query_start,
-                fragment_start: fragment_start,
+                path_start,
+                query_start,
+                fragment_start,
             })
         }
     }
@@ -809,10 +805,10 @@ impl<'a> Parser<'a> {
                 self.pop_path(scheme_type, base_url.path_start as usize);
                 // A special url always has a path.
                 // A path always starts with '/'
-                if self.serialization.len() == base_url.path_start as usize {
-                    if SchemeType::from(base_url.scheme()).is_special() || !input.is_empty() {
-                        self.serialization.push('/');
-                    }
+                if self.serialization.len() == base_url.path_start as usize
+                    && (SchemeType::from(base_url.scheme()).is_special() || !input.is_empty())
+                {
+                    self.serialization.push('/');
                 }
                 let remaining = match input.split_first() {
                     (Some('/'), remaining) => self.parse_path(
@@ -1438,7 +1434,7 @@ impl<'a> Parser<'a> {
         }
 
         let encoding = match &self.serialization[..scheme_end as usize] {
-            "http" | "https" | "file" | "ftp" | "gopher" => self.query_encoding_override,
+            "http" | "https" | "file" | "ftp" => self.query_encoding_override,
             _ => None,
         };
         let query_bytes = if let Some(o) = encoding {
@@ -1481,9 +1477,9 @@ impl<'a> Parser<'a> {
                 self.log_violation(SyntaxViolation::NullInFragment)
             } else {
                 self.check_url_code_point(c, &input);
-                self.serialization
-                    .extend(utf8_percent_encode(utf8_c, FRAGMENT));
             }
+            self.serialization
+                .extend(utf8_percent_encode(utf8_c, FRAGMENT));
         }
     }
 

@@ -61,7 +61,7 @@ fn run_parsing(input: &str, base: &str, expected: Result<ExpectedAttributes, ()>
             {
                 $(
                     assert_eq!(expected.$attr, quirks::$attr(&url));
-                )+;
+                )+
             }
         }
     }

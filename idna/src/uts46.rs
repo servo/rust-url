@@ -12,6 +12,7 @@
 use self::Mapping::*;
 use punycode;
 use std::cmp::Ordering::{Equal, Greater, Less};
+use std::{error::Error as StdError, fmt};
 use unicode_bidi::{bidi_class, BidiClass};
 use unicode_normalization::char::is_combining_mark;
 use unicode_normalization::UnicodeNormalization;
@@ -94,18 +95,18 @@ fn map_char(codepoint: char, config: Config, output: &mut String, errors: &mut V
             }
         }
         Mapping::Disallowed => {
-            errors.push(Error::DissallowedCharacter);
+            errors.push(Error::DisallowedCharacter);
             output.push(codepoint);
         }
         Mapping::DisallowedStd3Valid => {
             if config.use_std3_ascii_rules {
-                errors.push(Error::DissallowedByStd3AsciiRules);
+                errors.push(Error::DisallowedByStd3AsciiRules);
             }
             output.push(codepoint)
         }
         Mapping::DisallowedStd3Mapped(ref slice) => {
             if config.use_std3_ascii_rules {
-                errors.push(Error::DissallowedMappedInStd3);
+                errors.push(Error::DisallowedMappedInStd3);
             }
             output.push_str(decode_slice(slice))
         }
@@ -254,7 +255,7 @@ fn passes_bidi(label: &str, is_bidi_domain: bool) -> bool {
         }
     }
 
-    return true;
+    true
 }
 
 /// http://www.unicode.org/reports/tr46/#Validity_Criteria
@@ -476,15 +477,36 @@ impl Config {
     }
 }
 
+#[allow(clippy::enum_variant_names)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 enum Error {
     PunycodeError,
+
+    // https://unicode.org/reports/tr46/#Validity_Criteria
     ValidityCriteria,
-    DissallowedByStd3AsciiRules,
-    DissallowedMappedInStd3,
-    DissallowedCharacter,
+    DisallowedByStd3AsciiRules,
+    DisallowedMappedInStd3,
+    DisallowedCharacter,
     TooLongForDns,
     TooShortForDns,
+}
+impl Error {
+    fn as_str(&self) -> &str {
+        match self {
+            Error::PunycodeError => "punycode error",
+            Error::ValidityCriteria => "failed UTS #46 validity criteria",
+            Error::DisallowedByStd3AsciiRules => "disallowed ASCII character",
+            Error::DisallowedMappedInStd3 => "disallowed mapped ASCII character",
+            Error::DisallowedCharacter => "disallowed non-ASCII character",
+            Error::TooLongForDns => "too long for DNS",
+            Error::TooShortForDns => "too short for DNS",
+        }
+    }
+}
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
 }
 
 /// Errors recorded during UTS #46 processing.
@@ -493,3 +515,17 @@ enum Error {
 /// More details may be exposed in the future.
 #[derive(Debug)]
 pub struct Errors(Vec<Error>);
+
+impl StdError for Errors {}
+
+impl fmt::Display for Errors {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for (i, err) in self.0.iter().enumerate() {
+            if i > 0 {
+                f.write_str(", ")?;
+            }
+            f.write_str(err.as_str())?;
+        }
+        Ok(())
+    }
+}

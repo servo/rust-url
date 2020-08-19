@@ -46,7 +46,7 @@ versions.
     let url = Url::parse("http://github.com:80").unwrap();
     let stream = TcpStream::connect(url.socket_addrs(|| match url.scheme() {
         "socks5" => Some(1080),
-        _ => Err(()),
+        _ => None,
     })).unwrap();
     ```
 
