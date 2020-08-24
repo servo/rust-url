@@ -41,11 +41,10 @@ pub(crate) fn decode_utf8_lossy(input: Cow<[u8]>) -> Cow<str> {
                     // right below this line, but to support the old lexically scoped
                     // borrow checker the return must be moved to outside the match
                     // statement.
+                    Cow::Owned(unsafe { String::from_utf8_unchecked(bytes) })
                 }
-                Cow::Owned(s) => return Cow::Owned(s),
+                Cow::Owned(s) => Cow::Owned(s),
             }
-
-            Cow::Owned(unsafe { String::from_utf8_unchecked(bytes) })
         }
     }
 }
