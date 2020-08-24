@@ -9,6 +9,7 @@
 use std::error::Error;
 use std::fmt::{self, Formatter, Write};
 use std::str;
+use std::convert::TryInto;
 
 use form_urlencoded::EncodingOverride;
 use host::{Host, HostInternal};
@@ -484,10 +485,11 @@ impl<'a> Parser<'a> {
         let host_end = path_start;
         let host = HostInternal::None;
         let port = None;
+        let mut path_start : usize = path_start.try_into().unwrap();
         let remaining = if let Some(input) = input.split_prefix('/') {
-            let path_start = self.serialization.len();
+            path_start = self.serialization.len().try_into().unwrap();
             self.serialization.push('/');
-            self.parse_path(scheme_type, &mut false, path_start, input)
+            self.parse_path(scheme_type, &mut false, &mut path_start, input)
         } else {
             self.parse_cannot_be_a_base_path(input)
         };
@@ -499,7 +501,7 @@ impl<'a> Parser<'a> {
             host_end,
             host,
             port,
-            path_start,
+            path_start as u32,
             remaining,
         )
     }
@@ -531,9 +533,9 @@ impl<'a> Parser<'a> {
                 let remaining = if path_start {
                     self.parse_path_start(SchemeType::File, &mut has_host, remaining)
                 } else {
-                    let path_start = self.serialization.len();
+                    let mut path_start = self.serialization.len();
                     self.serialization.push('/');
-                    self.parse_path(SchemeType::File, &mut has_host, path_start, remaining)
+                    self.parse_path(SchemeType::File, &mut has_host, &mut path_start, remaining)
                 };
 
                 // For file URLs that have a host and whose path starts
@@ -588,8 +590,9 @@ impl<'a> Parser<'a> {
                     input_after_first_char
                 };
 
+                let mut path_start = host_end;
                 let remaining =
-                    self.parse_path(SchemeType::File, &mut false, host_end, parse_path_input);
+                    self.parse_path(SchemeType::File, &mut false, &mut path_start, parse_path_input);
 
                 let host_start = host_start as u32;
 
@@ -605,7 +608,7 @@ impl<'a> Parser<'a> {
                     host_end,
                     host,
                     port: None,
-                    path_start: host_end,
+                    path_start: path_start as u32,
                     query_start,
                     fragment_start,
                 });
@@ -651,10 +654,11 @@ impl<'a> Parser<'a> {
                         };
                         self.serialization.push_str(before_query);
                         self.shorten_path(SchemeType::File, base_url.path_start as usize);
+                        let mut path_start : usize = base_url.path_start as usize;
                         let remaining = self.parse_path(
                             SchemeType::File,
                             &mut true,
-                            base_url.path_start as usize,
+                            &mut path_start,
                             input,
                         );
                         self.with_query_and_fragment(
@@ -665,15 +669,15 @@ impl<'a> Parser<'a> {
                             base_url.host_end,
                             base_url.host,
                             base_url.port,
-                            base_url.path_start,
+                            path_start as u32,
                             remaining,
                         )
                     } else {
                         self.serialization.push_str("file:///");
                         let scheme_end = "file".len() as u32;
-                        let path_start = "file://".len();
+                        let mut path_start = "file://".len();
                         let remaining =
-                            self.parse_path(SchemeType::File, &mut false, path_start, input);
+                            self.parse_path(SchemeType::File, &mut false, &mut path_start, input);
                         let (query_start, fragment_start) =
                             self.parse_query_and_fragment(SchemeType::File, scheme_end, remaining)?;
                         let path_start = path_start as u32;
@@ -695,8 +699,8 @@ impl<'a> Parser<'a> {
         } else {
             self.serialization.push_str("file:///");
             let scheme_end = "file".len() as u32;
-            let path_start = "file://".len();
-            let remaining = self.parse_path(SchemeType::File, &mut false, path_start, input);
+            let mut path_start = "file://".len();
+            let remaining = self.parse_path(SchemeType::File, &mut false, &mut path_start, input);
             let (query_start, fragment_start) =
                 self.parse_query_and_fragment(SchemeType::File, scheme_end, remaining)?;
             let path_start = path_start as u32;
@@ -774,13 +778,13 @@ impl<'a> Parser<'a> {
                     }
                     return self.after_double_slash(remaining, scheme_type, scheme_end);
                 }
-                let path_start = base_url.path_start;
-                self.serialization.push_str(base_url.slice(..path_start));
+                let mut path_start : usize = base_url.path_start as usize;
+                self.serialization.push_str(base_url.slice(..path_start as u32));
                 self.serialization.push_str("/");
                 let remaining = self.parse_path(
                     scheme_type,
                     &mut true,
-                    path_start as usize,
+                    &mut path_start,
                     input_after_first_char,
                 );
                 self.with_query_and_fragment(
@@ -810,15 +814,16 @@ impl<'a> Parser<'a> {
                 {
                     self.serialization.push('/');
                 }
+                let mut path_start = base_url.path_start as usize;
                 let remaining = match input.split_first() {
                     (Some('/'), remaining) => self.parse_path(
                         scheme_type,
                         &mut true,
-                        base_url.path_start as usize,
+                        &mut path_start,
                         remaining,
                     ),
                     _ => {
-                        self.parse_path(scheme_type, &mut true, base_url.path_start as usize, input)
+                        self.parse_path(scheme_type, &mut true, &mut path_start, input)
                     }
                 };
                 self.with_query_and_fragment(
@@ -1141,7 +1146,7 @@ impl<'a> Parser<'a> {
         has_host: &mut bool,
         input: Input<'i>,
     ) -> Input<'i> {
-        let path_start = self.serialization.len();
+        let mut path_start = self.serialization.len();
         let (maybe_c, remaining) = input.split_first();
         // If url is special, then:
         if scheme_type.is_special() {
@@ -1154,10 +1159,10 @@ impl<'a> Parser<'a> {
                 self.serialization.push('/');
                 // We have already made sure the forward slash is present.
                 if maybe_c == Some('/') || maybe_c == Some('\\') {
-                    return self.parse_path(scheme_type, has_host, path_start, remaining);
+                    return self.parse_path(scheme_type, has_host, &mut path_start, remaining);
                 }
             }
-            return self.parse_path(scheme_type, has_host, path_start, input);
+            return self.parse_path(scheme_type, has_host, &mut path_start, input);
         } else if maybe_c == Some('?') || maybe_c == Some('#') {
             // Otherwise, if state override is not given and c is U+003F (?),
             // set url’s query to the empty string and state to query state.
@@ -1171,14 +1176,14 @@ impl<'a> Parser<'a> {
             self.serialization.push('/');
         }
         // Otherwise, if c is not the EOF code point:
-        self.parse_path(scheme_type, has_host, path_start, input)
+        self.parse_path(scheme_type, has_host, &mut path_start, input)
     }
 
     pub fn parse_path<'i>(
         &mut self,
         scheme_type: SchemeType,
         has_host: &mut bool,
-        path_start: usize,
+        path_start: &mut usize,
         mut input: Input<'i>,
     ) -> Input<'i> {
         // Relative path state
@@ -1240,11 +1245,11 @@ impl<'a> Parser<'a> {
                     debug_assert!(self.serialization.as_bytes()[segment_start - 1] == b'/');
                     self.serialization.truncate(segment_start);
                     if self.serialization.ends_with("/")
-                        && Parser::last_slash_can_be_removed(&self.serialization, path_start)
+                        && Parser::last_slash_can_be_removed(&self.serialization, *path_start)
                     {
                         self.serialization.pop();
                     }
-                    self.shorten_path(scheme_type, path_start);
+                    self.shorten_path(scheme_type, *path_start);
 
                     // and then if neither c is U+002F (/), nor url is special and c is U+005C (\), append the empty string to url’s path.
                     if ends_with_slash && !self.serialization.ends_with("/") {
@@ -1283,13 +1288,17 @@ impl<'a> Parser<'a> {
             if !ends_with_slash {
                 break;
             }
+            if !scheme_type.is_special() && ends_with_slash && &self.serialization[*path_start..self.serialization.len()] == "/" && !input.is_empty() && !*has_host {
+                *path_start += 2;
+                self.serialization.push_str("./");
+            }
         }
         if scheme_type.is_file() {
             // while url’s path’s size is greater than 1
             // and url’s path[0] is the empty string,
             // validation error, remove the first item from url’s path.
             //FIXME: log violation
-            let path = self.serialization.split_off(path_start);
+            let path = self.serialization.split_off(*path_start);
             self.serialization.push('/');
             self.serialization.push_str(&path.trim_start_matches("/"));
         }

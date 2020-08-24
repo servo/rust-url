@@ -655,3 +655,25 @@ fn test_non_special_path3() {
     assert_eq!(db_url.as_str(), "postgres://postgres@localhost/foo");
     assert_eq!(db_url.path(), "/foo");
 }
+
+#[test]
+fn test_hostnew() {
+    let mut url = url::Url::parse("a:/a/..//a").unwrap();
+    assert_eq!(url.as_str(), "a:/.//a");
+    assert_eq!(url.path(), "//a");
+    url.set_host(Some("servo")).unwrap();
+    assert_eq!(url.as_str(), "a://servo//a");
+}
+
+#[test]
+fn test_hostnew2() {
+    let url = url::Url::parse("a://a/..//a").unwrap();
+    assert_eq!(url.as_str(), "a://a//a");
+    assert_eq!(url.path(), "//a");
+}
+
+#[test]
+fn test_hostnew3() {
+    let url = url::Url::parse("a:/a/../\r").unwrap();
+    assert_eq!(url.as_str(), "a:/");
+}

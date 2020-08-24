@@ -111,6 +111,7 @@ impl Host<String> {
         {
             return Err(ParseError::InvalidDomainCharacter);
         }
+
         if let Some(address) = parse_ipv4addr(&domain)? {
             Ok(Host::Ipv4(address))
         } else {

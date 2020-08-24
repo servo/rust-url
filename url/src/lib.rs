@@ -1693,7 +1693,11 @@ impl Url {
         let old_suffix_pos = if opt_new_port.is_some() {
             self.path_start
         } else {
-            self.host_end
+            if self.has_authority() {
+                self.host_end
+            } else {
+                self.path_start
+            }
         };
         let suffix = self.slice(old_suffix_pos..).to_owned();
         self.serialization.truncate(self.host_start as usize);

@@ -212,7 +212,7 @@ impl<'a> PathSegmentsMut<'a> {
         I::Item: AsRef<str>,
     {
         let scheme_type = SchemeType::from(self.url.scheme());
-        let path_start = self.url.path_start as usize;
+        let mut path_start = self.url.path_start as usize;
         self.url.mutate(|parser| {
             parser.context = parser::Context::PathSegmentSetter;
             for segment in segments {
@@ -230,7 +230,7 @@ impl<'a> PathSegmentsMut<'a> {
                 parser.parse_path(
                     scheme_type,
                     &mut has_host,
-                    path_start,
+                    &mut path_start,
                     parser::Input::new(segment),
                 );
             }
