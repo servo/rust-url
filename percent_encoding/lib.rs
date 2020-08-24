@@ -285,7 +285,7 @@ impl<'a> Iterator for PercentEncode<'a> {
 }
 
 impl<'a> fmt::Display for PercentEncode<'a> {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         for c in (*self).clone() {
             formatter.write_str(c)?
         }
@@ -317,7 +317,7 @@ impl<'a> From<PercentEncode<'a>> for Cow<'a, str> {
 ///
 /// See [`percent_decode`] regarding the return type.
 #[inline]
-pub fn percent_decode_str(input: &str) -> PercentDecode {
+pub fn percent_decode_str(input: &str) -> PercentDecode<'_> {
     percent_decode(input.as_bytes())
 }
 
@@ -345,7 +345,7 @@ assert_eq!(percent_decode(b"foo%20bar%3f").decode_utf8().unwrap(), "foo bar?");
 "##
 )]
 #[inline]
-pub fn percent_decode(input: &[u8]) -> PercentDecode {
+pub fn percent_decode(input: &[u8]) -> PercentDecode<'_> {
     PercentDecode {
         bytes: input.iter(),
     }
@@ -357,7 +357,7 @@ pub struct PercentDecode<'a> {
     bytes: slice::Iter<'a, u8>,
 }
 
-fn after_percent_sign(iter: &mut slice::Iter<u8>) -> Option<u8> {
+fn after_percent_sign(iter: &mut slice::Iter<'_, u8>) -> Option<u8> {
     let mut cloned_iter = iter.clone();
     let h = char::from(*cloned_iter.next()?).to_digit(16)?;
     let l = char::from(*cloned_iter.next()?).to_digit(16)?;
@@ -441,7 +441,7 @@ impl<'a> PercentDecode<'a> {
 }
 
 #[cfg(feature = "std")]
-fn decode_utf8_lossy(input: Cow<[u8]>) -> Cow<str> {
+fn decode_utf8_lossy(input: Cow<'_, [u8]>) -> Cow<'_, str> {
     // Note: This function is duplicated in `form_urlencoded/src/query_encoding.rs`.
     match input {
         Cow::Borrowed(bytes) => String::from_utf8_lossy(bytes),

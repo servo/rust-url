@@ -6,8 +6,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use crate::test::TestFn;
 use std::char;
-use test::TestFn;
 
 pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
     // https://www.unicode.org/Public/idna/13.0.0/IdnaTestV2.txt

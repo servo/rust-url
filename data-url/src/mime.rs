@@ -122,7 +122,7 @@ fn valid_value(s: &str) -> bool {
 
 /// <https://mimesniff.spec.whatwg.org/#serializing-a-mime-type>
 impl fmt::Display for Mime {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.type_)?;
         f.write_str("/")?;
         f.write_str(&self.subtype)?;

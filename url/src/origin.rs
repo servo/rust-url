@@ -6,11 +6,11 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use host::Host;
+use crate::host::Host;
+use crate::parser::default_port;
+use crate::Url;
 use idna::domain_to_unicode;
-use parser::default_port;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use Url;
 
 pub fn url_origin(url: &Url) -> Origin {
     let scheme = url.scheme();

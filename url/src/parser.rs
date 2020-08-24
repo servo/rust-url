@@ -10,10 +10,10 @@ use std::error::Error;
 use std::fmt::{self, Formatter, Write};
 use std::str;
 
+use crate::host::{Host, HostInternal};
+use crate::Url;
 use form_urlencoded::EncodingOverride;
-use host::{Host, HostInternal};
 use percent_encoding::{percent_encode, utf8_percent_encode, AsciiSet, CONTROLS};
-use Url;
 
 /// https://url.spec.whatwg.org/#fragment-percent-encode-set
 const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'<').add(b'>').add(b'`');
@@ -149,7 +149,7 @@ syntax_violation_enum! {
 }
 
 impl fmt::Display for SyntaxViolation {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(self.description(), f)
     }
 }
@@ -422,8 +422,8 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_with_scheme(mut self, input: Input) -> ParseResult<Url> {
-        use SyntaxViolation::{ExpectedDoubleSlash, ExpectedFileDoubleSlash};
+    fn parse_with_scheme(mut self, input: Input<'_>) -> ParseResult<Url> {
+        use crate::SyntaxViolation::{ExpectedDoubleSlash, ExpectedFileDoubleSlash};
         let scheme_end = to_u32(self.serialization.len())?;
         let scheme_type = SchemeType::from(&self.serialization);
         self.serialization.push(':');
@@ -470,7 +470,7 @@ impl<'a> Parser<'a> {
     /// Scheme other than file, http, https, ws, ws, ftp.
     fn parse_non_special(
         mut self,
-        input: Input,
+        input: Input<'_>,
         scheme_type: SchemeType,
         scheme_end: u32,
     ) -> ParseResult<Url> {
@@ -507,11 +507,11 @@ impl<'a> Parser<'a> {
 
     fn parse_file(
         mut self,
-        input: Input,
+        input: Input<'_>,
         scheme_type: SchemeType,
         base_file_url: Option<&Url>,
     ) -> ParseResult<Url> {
-        use SyntaxViolation::Backslash;
+        use crate::SyntaxViolation::Backslash;
         // file state
         debug_assert!(self.serialization.is_empty());
         let (first_char, input_after_first_char) = input.split_first();
@@ -718,7 +718,7 @@ impl<'a> Parser<'a> {
 
     fn parse_relative(
         mut self,
-        input: Input,
+        input: Input<'_>,
         scheme_type: SchemeType,
         base_url: &Url,
     ) -> ParseResult<Url> {
@@ -839,7 +839,7 @@ impl<'a> Parser<'a> {
 
     fn after_double_slash(
         mut self,
-        input: Input,
+        input: Input<'_>,
         scheme_type: SchemeType,
         scheme_end: u32,
     ) -> ParseResult<Url> {
@@ -981,9 +981,9 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_host(
-        mut input: Input,
+        mut input: Input<'_>,
         scheme_type: SchemeType,
-    ) -> ParseResult<(Host<String>, Input)> {
+    ) -> ParseResult<(Host<String>, Input<'_>)> {
         if scheme_type.is_file() {
             return Parser::get_file_host(input);
         }
@@ -1037,7 +1037,7 @@ impl<'a> Parser<'a> {
         Ok((host, input))
     }
 
-    fn get_file_host(input: Input) -> ParseResult<(Host<String>, Input)> {
+    fn get_file_host(input: Input<'_>) -> ParseResult<(Host<String>, Input<'_>)> {
         let (_, host_str, remaining) = Parser::file_host(input)?;
         let host = match Host::parse(&host_str)? {
             Host::Domain(ref d) if d == "localhost" => Host::Domain("".to_string()),
@@ -1106,10 +1106,10 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_port<P>(
-        mut input: Input,
+        mut input: Input<'_>,
         default_port: P,
         context: Context,
-    ) -> ParseResult<(Option<u16>, Input)>
+    ) -> ParseResult<(Option<u16>, Input<'_>)>
     where
         P: Fn() -> Option<u16>,
     {
@@ -1369,7 +1369,7 @@ impl<'a> Parser<'a> {
         host: HostInternal,
         port: Option<u16>,
         path_start: u32,
-        remaining: Input,
+        remaining: Input<'_>,
     ) -> ParseResult<Url> {
         let (query_start, fragment_start) =
             self.parse_query_and_fragment(scheme_type, scheme_end, remaining)?;
@@ -1392,7 +1392,7 @@ impl<'a> Parser<'a> {
         &mut self,
         scheme_type: SchemeType,
         scheme_end: u32,
-        mut input: Input,
+        mut input: Input<'_>,
     ) -> ParseResult<(Option<u32>, Option<u32>)> {
         let mut query_start = None;
         match input.next() {
@@ -1453,7 +1453,7 @@ impl<'a> Parser<'a> {
         remaining
     }
 
-    fn fragment_only(mut self, base_url: &Url, mut input: Input) -> ParseResult<Url> {
+    fn fragment_only(mut self, base_url: &Url, mut input: Input<'_>) -> ParseResult<Url> {
         let before_fragment = match base_url.fragment_start {
             Some(i) => base_url.slice(..i),
             None => &*base_url.serialization,
@@ -1473,7 +1473,7 @@ impl<'a> Parser<'a> {
         })
     }
 
-    pub fn parse_fragment(&mut self, mut input: Input) {
+    pub fn parse_fragment(&mut self, mut input: Input<'_>) {
         while let Some((c, utf8_c)) = input.next_utf8() {
             if c == '\0' {
                 self.log_violation(SyntaxViolation::NullInFragment)
@@ -1485,7 +1485,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn check_url_code_point(&self, c: char, input: &Input) {
+    fn check_url_code_point(&self, c: char, input: &Input<'_>) {
         if let Some(vfn) = self.violation_fn {
             if c == '%' {
                 let mut input = input.clone();
@@ -1588,7 +1588,7 @@ fn starts_with_windows_drive_letter(s: &str) -> bool {
 }
 
 /// https://url.spec.whatwg.org/#start-with-a-windows-drive-letter
-fn starts_with_windows_drive_letter_segment(input: &Input) -> bool {
+fn starts_with_windows_drive_letter_segment(input: &Input<'_>) -> bool {
     let mut input = input.clone();
     match (input.next(), input.next(), input.next()) {
         // its first two code points are a Windows drive letter

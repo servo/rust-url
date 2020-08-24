@@ -13,18 +13,17 @@
 //! Converts between a string (such as an URL’s query string)
 //! and a sequence of (name, value) pairs.
 
-extern crate percent_encoding;
 #[macro_use]
 extern crate matches;
 
 use percent_encoding::{percent_decode, percent_encode_byte};
-use query_encoding::decode_utf8_lossy;
 use std::borrow::{Borrow, Cow};
 use std::str;
 
-mod query_encoding;
+use crate::query_encoding::decode_utf8_lossy;
+pub use crate::query_encoding::EncodingOverride;
 
-pub use query_encoding::EncodingOverride;
+mod query_encoding;
 
 /// Convert a byte string in the `application/x-www-form-urlencoded` syntax
 /// into a iterator of (name, value) pairs.
@@ -34,7 +33,7 @@ pub use query_encoding::EncodingOverride;
 /// The names and values are percent-decoded. For instance, `%23first=%25try%25` will be
 /// converted to `[("#first", "%try%")]`.
 #[inline]
-pub fn parse(input: &[u8]) -> Parse {
+pub fn parse(input: &[u8]) -> Parse<'_> {
     Parse { input }
 }
 /// The return type of `parse()`.
@@ -65,7 +64,7 @@ impl<'a> Iterator for Parse<'a> {
     }
 }
 
-fn decode(input: &[u8]) -> Cow<str> {
+fn decode(input: &[u8]) -> Cow<'_, str> {
     let replaced = replace_plus(input);
     decode_utf8_lossy(match percent_decode(&replaced).into() {
         Cow::Owned(vec) => Cow::Owned(vec),
@@ -74,7 +73,7 @@ fn decode(input: &[u8]) -> Cow<str> {
 }
 
 /// Replace b'+' with b' '
-fn replace_plus(input: &[u8]) -> Cow<[u8]> {
+fn replace_plus(input: &[u8]) -> Cow<'_, [u8]> {
     match input.iter().position(|&b| b == b'+') {
         None => Cow::Borrowed(input),
         Some(first_position) => {
@@ -116,7 +115,7 @@ impl<'a> Iterator for ParseIntoOwned<'a> {
 /// https://url.spec.whatwg.org/#concept-urlencoded-byte-serializer).
 ///
 /// Return an iterator of `&str` slices.
-pub fn byte_serialize(input: &[u8]) -> ByteSerialize {
+pub fn byte_serialize(input: &[u8]) -> ByteSerialize<'_> {
     ByteSerialize { bytes: input }
 }
 
@@ -327,7 +326,7 @@ fn string<T: Target>(target: &mut Option<T>) -> &mut String {
 fn append_pair(
     string: &mut String,
     start_position: usize,
-    encoding: EncodingOverride,
+    encoding: EncodingOverride<'_>,
     name: &str,
     value: &str,
 ) {
@@ -337,6 +336,6 @@ fn append_pair(
     append_encoded(value, string, encoding);
 }
 
-fn append_encoded(s: &str, string: &mut String, encoding: EncodingOverride) {
+fn append_encoded(s: &str, string: &mut String, encoding: EncodingOverride<'_>) {
     string.extend(byte_serialize(&query_encoding::encode(encoding, s)))
 }

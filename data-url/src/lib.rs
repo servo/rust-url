@@ -45,7 +45,7 @@ impl<'a> DataUrl<'a> {
     /// <https://fetch.spec.whatwg.org/#data-url-processor>
     /// but starting from a string rather than a parsed `Url`, to avoid extra string copies.
     pub fn process(input: &'a str) -> Result<Self, DataUrlError> {
-        use DataUrlError::*;
+        use crate::DataUrlError::*;
 
         let after_colon = pretend_parse_data_url(input).ok_or(NotADataUrl)?;
 
@@ -257,7 +257,7 @@ fn percent_encode(byte: u8, string: &mut String) {
 fn decode_without_base64<F, E>(
     encoded_body_plus_fragment: &str,
     mut write_bytes: F,
-) -> Result<Option<FragmentIdentifier>, E>
+) -> Result<Option<FragmentIdentifier<'_>>, E>
 where
     F: FnMut(&[u8]) -> Result<(), E>,
 {
@@ -310,7 +310,7 @@ where
 fn decode_with_base64<F, E>(
     encoded_body_plus_fragment: &str,
     write_bytes: F,
-) -> Result<Option<FragmentIdentifier>, forgiving_base64::DecodeError<E>>
+) -> Result<Option<FragmentIdentifier<'_>>, forgiving_base64::DecodeError<E>>
 where
     F: FnMut(&[u8]) -> Result<(), E>,
 {

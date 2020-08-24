@@ -11,8 +11,8 @@
 //! Unless you need to be interoperable with web browsers,
 //! you probably want to use `Url` method instead.
 
-use parser::{default_port, Context, Input, Parser, SchemeType};
-use {idna, Host, ParseError, Position, Url};
+use crate::parser::{default_port, Context, Input, Parser, SchemeType};
+use crate::{Host, ParseError, Position, Url};
 
 /// https://url.spec.whatwg.org/#dom-url-domaintoascii
 pub fn domain_to_ascii(domain: &str) -> String {

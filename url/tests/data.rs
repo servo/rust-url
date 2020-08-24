@@ -8,10 +8,7 @@
 
 //! Data-driven tests
 
-extern crate rustc_test as test;
-extern crate serde_json;
-extern crate url;
-
+use rustc_test as test;
 use serde_json::Value;
 use std::str::FromStr;
 use url::{quirks, Url};

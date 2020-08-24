@@ -10,7 +10,7 @@
 //! (Unicode Technical Standard #46)](http://www.unicode.org/reports/tr46/)
 
 use self::Mapping::*;
-use punycode;
+use crate::punycode;
 use std::cmp::Ordering::{Equal, Greater, Less};
 use std::{error::Error as StdError, fmt};
 use unicode_bidi::{bidi_class, BidiClass};
@@ -489,7 +489,7 @@ impl Error {
     }
 }
 impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
     }
 }
@@ -514,7 +514,7 @@ pub struct Errors(Vec<Error>);
 impl StdError for Errors {}
 
 impl fmt::Display for Errors {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for (i, err) in self.0.iter().enumerate() {
             if i > 0 {
                 f.write_str(", ")?;
