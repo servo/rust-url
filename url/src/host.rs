@@ -6,14 +6,15 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use idna;
-use parser::{ParseError, ParseResult};
-use percent_encoding::{percent_decode, utf8_percent_encode, CONTROLS};
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
 use std::cmp;
 use std::fmt::{self, Formatter};
 use std::net::{Ipv4Addr, Ipv6Addr};
+
+use percent_encoding::{percent_decode, utf8_percent_encode, CONTROLS};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
+use crate::parser::{ParseError, ParseResult};
 
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -158,7 +159,7 @@ impl Host<String> {
 }
 
 impl<S: AsRef<str>> fmt::Display for Host<S> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match *self {
             Host::Domain(ref domain) => domain.as_ref().fmt(f),
             Host::Ipv4(ref addr) => addr.fmt(f),
@@ -171,7 +172,7 @@ impl<S: AsRef<str>> fmt::Display for Host<S> {
     }
 }
 
-fn write_ipv6(addr: &Ipv6Addr, f: &mut Formatter) -> fmt::Result {
+fn write_ipv6(addr: &Ipv6Addr, f: &mut Formatter<'_>) -> fmt::Result {
     let segments = addr.segments();
     let (compress_start, compress_end) = longest_zero_sequence(&segments);
     let mut i = 0;

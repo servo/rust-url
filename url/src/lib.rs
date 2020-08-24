@@ -109,14 +109,13 @@ assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css");
 
 #[macro_use]
 extern crate matches;
-pub extern crate form_urlencoded;
-extern crate idna;
-extern crate percent_encoding;
+pub use form_urlencoded;
+
 #[cfg(feature = "serde")]
 extern crate serde;
 
-use host::HostInternal;
-use parser::{to_u32, Context, Parser, SchemeType, PATH_SEGMENT, USERINFO};
+use crate::host::HostInternal;
+use crate::parser::{to_u32, Context, Parser, SchemeType, PATH_SEGMENT, USERINFO};
 use percent_encoding::{percent_decode, percent_encode, utf8_percent_encode};
 use std::borrow::Borrow;
 use std::cmp;
@@ -133,12 +132,12 @@ use std::str;
 
 use std::convert::TryFrom;
 
+pub use crate::host::Host;
+pub use crate::origin::{OpaqueOrigin, Origin};
+pub use crate::parser::{ParseError, SyntaxViolation};
+pub use crate::path_segments::PathSegmentsMut;
+pub use crate::slicing::Position;
 pub use form_urlencoded::EncodingOverride;
-pub use host::Host;
-pub use origin::{OpaqueOrigin, Origin};
-pub use parser::{ParseError, SyntaxViolation};
-pub use path_segments::PathSegmentsMut;
-pub use slicing::Position;
 
 mod host;
 mod origin;
@@ -225,7 +224,7 @@ impl<'a> ParseOptions<'a> {
     }
 
     /// Parse an URL string with the configuration so far.
-    pub fn parse(self, input: &str) -> Result<Url, ::ParseError> {
+    pub fn parse(self, input: &str) -> Result<Url, crate::ParseError> {
         Parser {
             serialization: String::with_capacity(input.len()),
             base_url: self.base_url,
@@ -260,7 +259,7 @@ impl Url {
     ///
     /// [`ParseError`]: enum.ParseError.html
     #[inline]
-    pub fn parse(input: &str) -> Result<Url, ::ParseError> {
+    pub fn parse(input: &str) -> Result<Url, crate::ParseError> {
         Url::options().parse(input)
     }
 
@@ -290,7 +289,7 @@ impl Url {
     ///
     /// [`ParseError`]: enum.ParseError.html
     #[inline]
-    pub fn parse_with_params<I, K, V>(input: &str, iter: I) -> Result<Url, ::ParseError>
+    pub fn parse_with_params<I, K, V>(input: &str, iter: I) -> Result<Url, crate::ParseError>
     where
         I: IntoIterator,
         I::Item: Borrow<(K, V)>,
@@ -338,7 +337,7 @@ impl Url {
     ///
     /// [`ParseError`]: enum.ParseError.html
     #[inline]
-    pub fn join(&self, input: &str) -> Result<Url, ::ParseError> {
+    pub fn join(&self, input: &str) -> Result<Url, crate::ParseError> {
         Url::options().base_url(Some(self)).parse(input)
     }
 
@@ -1081,7 +1080,7 @@ impl Url {
     /// # }
     /// # run().unwrap();
     /// ```
-    pub fn path_segments(&self) -> Option<str::Split<char>> {
+    pub fn path_segments(&self) -> Option<str::Split<'_, char>> {
         let path = self.path();
         if path.starts_with('/') {
             Some(path[1..].split('/'))
@@ -1153,7 +1152,7 @@ impl Url {
     ///
 
     #[inline]
-    pub fn query_pairs(&self) -> form_urlencoded::Parse {
+    pub fn query_pairs(&self) -> form_urlencoded::Parse<'_> {
         form_urlencoded::parse(self.query().unwrap_or("").as_bytes())
     }
 
@@ -1196,7 +1195,7 @@ impl Url {
         })
     }
 
-    fn mutate<F: FnOnce(&mut Parser) -> R, R>(&mut self, f: F) -> R {
+    fn mutate<F: FnOnce(&mut Parser<'_>) -> R, R>(&mut self, f: F) -> R {
         let mut parser = Parser::for_setter(mem::replace(&mut self.serialization, String::new()));
         let result = f(&mut parser);
         self.serialization = parser.serialization;
@@ -1338,7 +1337,7 @@ impl Url {
     /// not `url.set_query(None)`.
     ///
     /// The state of `Url` is unspecified if this return value is leaked without being dropped.
-    pub fn query_pairs_mut(&mut self) -> form_urlencoded::Serializer<UrlQuery> {
+    pub fn query_pairs_mut(&mut self) -> form_urlencoded::Serializer<'_, UrlQuery<'_>> {
         let fragment = self.take_fragment();
 
         let query_start;
@@ -1415,7 +1414,7 @@ impl Url {
     /// Return an object with methods to manipulate this URL’s path segments.
     ///
     /// Return `Err(())` if this URL is cannot-be-a-base.
-    pub fn path_segments_mut(&mut self) -> Result<PathSegmentsMut, ()> {
+    pub fn path_segments_mut(&mut self) -> Result<PathSegmentsMut<'_>, ()> {
         if self.cannot_be_a_base() {
             Err(())
         } else {
@@ -2327,7 +2326,7 @@ impl str::FromStr for Url {
     type Err = ParseError;
 
     #[inline]
-    fn from_str(input: &str) -> Result<Url, ::ParseError> {
+    fn from_str(input: &str) -> Result<Url, crate::ParseError> {
         Url::parse(input)
     }
 }
@@ -2343,7 +2342,7 @@ impl<'a> TryFrom<&'a str> for Url {
 /// Display the serialization of this URL.
 impl fmt::Display for Url {
     #[inline]
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.serialization, formatter)
     }
 }
@@ -2351,7 +2350,7 @@ impl fmt::Display for Url {
 /// Debug the serialization of this URL.
 impl fmt::Debug for Url {
     #[inline]
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&self.serialization, formatter)
     }
 }
@@ -2571,7 +2570,7 @@ fn path_to_file_url_segments_windows(
 #[cfg(any(unix, target_os = "redox"))]
 fn file_url_segments_to_pathbuf(
     host: Option<&str>,
-    segments: str::Split<char>,
+    segments: str::Split<'_, char>,
 ) -> Result<PathBuf, ()> {
     use std::ffi::OsStr;
     use std::os::unix::prelude::OsStrExt;
@@ -2617,7 +2616,7 @@ fn file_url_segments_to_pathbuf(
 #[cfg_attr(not(windows), allow(dead_code))]
 fn file_url_segments_to_pathbuf_windows(
     host: Option<&str>,
-    mut segments: str::Split<char>,
+    mut segments: str::Split<'_, char>,
 ) -> Result<PathBuf, ()> {
     let mut string = if let Some(host) = host {
         r"\\".to_owned() + host

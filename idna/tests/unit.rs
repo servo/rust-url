@@ -1,6 +1,3 @@
-extern crate idna;
-extern crate unicode_normalization;
-
 use unicode_normalization::char::is_combining_mark;
 
 fn _to_ascii(domain: &str) -> Result<String, idna::Errors> {

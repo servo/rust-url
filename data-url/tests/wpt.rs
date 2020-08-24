@@ -1,8 +1,5 @@
-extern crate data_url;
-extern crate rustc_test;
 #[macro_use]
 extern crate serde;
-extern crate serde_json;
 
 fn run_data_url(input: String, expected_mime: Option<String>, expected_body: Option<Vec<u8>>) {
     let url = data_url::DataUrl::process(&input);

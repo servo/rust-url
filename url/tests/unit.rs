@@ -8,9 +8,6 @@
 
 //! Unit tests
 
-extern crate percent_encoding;
-extern crate url;
-
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::net::{Ipv4Addr, Ipv6Addr};
@@ -337,7 +334,7 @@ fn test_serialization() {
 
 #[test]
 fn test_form_urlencoded() {
-    let pairs: &[(Cow<str>, Cow<str>)] = &[
+    let pairs: &[(Cow<'_, str>, Cow<'_, str>)] = &[
         ("foo".into(), "é&".into()),
         ("bar".into(), "".into()),
         ("foo".into(), "#".into()),

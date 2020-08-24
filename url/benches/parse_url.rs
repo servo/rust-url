@@ -1,8 +1,6 @@
 #[macro_use]
 extern crate bencher;
 
-extern crate url;
-
 use bencher::{black_box, Bencher};
 
 use url::Url;

@@ -1,6 +1,4 @@
-extern crate idna;
-extern crate rustc_test as test;
-extern crate serde_json;
+use rustc_test as test;
 
 mod punycode;
 mod uts46;
