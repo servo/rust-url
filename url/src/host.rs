@@ -85,36 +85,35 @@ impl Host<String> {
         if domain.is_empty() {
             return Err(ParseError::EmptyHost);
         }
-        if domain
-            .find(|c| {
-                matches!(
-                    c,
-                    '\0' | '\t'
-                        | '\n'
-                        | '\r'
-                        | ' '
-                        | '#'
-                        | '%'
-                        | '/'
-                        | ':'
-                        | '<'
-                        | '>'
-                        | '?'
-                        | '@'
-                        | '['
-                        | '\\'
-                        | ']'
-                        | '^'
-                )
-            })
-            .is_some()
-        {
-            return Err(ParseError::InvalidDomainCharacter);
-        }
-        if let Some(address) = parse_ipv4addr(&domain)? {
+
+        let is_invalid_domain_char = |c| {
+            matches!(
+                c,
+                '\0' | '\t'
+                    | '\n'
+                    | '\r'
+                    | ' '
+                    | '#'
+                    | '%'
+                    | '/'
+                    | ':'
+                    | '<'
+                    | '>'
+                    | '?'
+                    | '@'
+                    | '['
+                    | '\\'
+                    | ']'
+                    | '^'
+            )
+        };
+
+        if domain.find(is_invalid_domain_char).is_some() {
+            Err(ParseError::InvalidDomainCharacter)
+        } else if let Some(address) = parse_ipv4addr(&domain)? {
             Ok(Host::Ipv4(address))
         } else {
-            Ok(Host::Domain(domain.into()))
+            Ok(Host::Domain(domain))
         }
     }
 
@@ -126,33 +125,35 @@ impl Host<String> {
             }
             return parse_ipv6addr(&input[1..input.len() - 1]).map(Host::Ipv6);
         }
-        if input
-            .find(|c| {
-                matches!(
-                    c,
-                    '\0' | '\t'
-                        | '\n'
-                        | '\r'
-                        | ' '
-                        | '#'
-                        | '/'
-                        | ':'
-                        | '<'
-                        | '>'
-                        | '?'
-                        | '@'
-                        | '['
-                        | '\\'
-                        | ']'
-                        | '^'
-                )
-            })
-            .is_some()
-        {
-            return Err(ParseError::InvalidDomainCharacter);
+
+        let is_invalid_host_char = |c| {
+            matches!(
+                c,
+                '\0' | '\t'
+                    | '\n'
+                    | '\r'
+                    | ' '
+                    | '#'
+                    | '/'
+                    | ':'
+                    | '<'
+                    | '>'
+                    | '?'
+                    | '@'
+                    | '['
+                    | '\\'
+                    | ']'
+                    | '^'
+            )
+        };
+
+        if input.find(is_invalid_host_char).is_some() {
+            Err(ParseError::InvalidDomainCharacter)
+        } else {
+            Ok(Host::Domain(
+                utf8_percent_encode(input, CONTROLS).to_string(),
+            ))
         }
-        let s = utf8_percent_encode(input, CONTROLS).to_string();
-        Ok(Host::Domain(s))
     }
 }
 

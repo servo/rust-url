@@ -19,7 +19,7 @@ use unicode_normalization::UnicodeNormalization;
 
 include!("uts46_mapping_table.rs");
 
-const PUNYCODE_PREFIX: &'static str = "xn--";
+const PUNYCODE_PREFIX: &str = "xn--";
 
 #[derive(Debug)]
 struct StringTableSlice {
@@ -131,26 +131,19 @@ fn passes_bidi(label: &str, is_bidi_domain: bool) -> bool {
         // LTR label
         BidiClass::L => {
             // Rule 5
-            loop {
-                match chars.next() {
-                    Some(c) => {
-                        if !matches!(
-                            bidi_class(c),
-                            BidiClass::L
-                                | BidiClass::EN
-                                | BidiClass::ES
-                                | BidiClass::CS
-                                | BidiClass::ET
-                                | BidiClass::ON
-                                | BidiClass::BN
-                                | BidiClass::NSM
-                        ) {
-                            return false;
-                        }
-                    }
-                    None => {
-                        break;
-                    }
+            while let Some(c) = chars.next() {
+                if !matches!(
+                    bidi_class(c),
+                    BidiClass::L
+                        | BidiClass::EN
+                        | BidiClass::ES
+                        | BidiClass::CS
+                        | BidiClass::ET
+                        | BidiClass::ON
+                        | BidiClass::BN
+                        | BidiClass::NSM
+                ) {
+                    return false;
                 }
             }
 
@@ -184,37 +177,28 @@ fn passes_bidi(label: &str, is_bidi_domain: bool) -> bool {
             let mut found_an = false;
 
             // Rule 2
-            loop {
-                match chars.next() {
-                    Some(c) => {
-                        let char_class = bidi_class(c);
+            for c in chars {
+                let char_class = bidi_class(c);
+                if char_class == BidiClass::EN {
+                    found_en = true;
+                } else if char_class == BidiClass::AN {
+                    found_an = true;
+                }
 
-                        if char_class == BidiClass::EN {
-                            found_en = true;
-                        }
-                        if char_class == BidiClass::AN {
-                            found_an = true;
-                        }
-
-                        if !matches!(
-                            char_class,
-                            BidiClass::R
-                                | BidiClass::AL
-                                | BidiClass::AN
-                                | BidiClass::EN
-                                | BidiClass::ES
-                                | BidiClass::CS
-                                | BidiClass::ET
-                                | BidiClass::ON
-                                | BidiClass::BN
-                                | BidiClass::NSM
-                        ) {
-                            return false;
-                        }
-                    }
-                    None => {
-                        break;
-                    }
+                if !matches!(
+                    char_class,
+                    BidiClass::R
+                        | BidiClass::AL
+                        | BidiClass::AN
+                        | BidiClass::EN
+                        | BidiClass::ES
+                        | BidiClass::CS
+                        | BidiClass::ET
+                        | BidiClass::ON
+                        | BidiClass::BN
+                        | BidiClass::NSM
+                ) {
+                    return false;
                 }
             }
             // Rule 3
@@ -280,7 +264,7 @@ fn validate(label: &str, is_bidi_domain: bool, config: Config, errors: &mut Vec<
     // https://github.com/whatwg/url/issues/53
 
     // V3: neither begin nor end with a U+002D HYPHEN-MINUS
-    else if config.check_hyphens && (label.starts_with("-") || label.ends_with("-")) {
+    else if config.check_hyphens && (label.starts_with('-') || label.ends_with('-')) {
         errors.push(Error::ValidityCriteria);
     }
     // V4: not contain a U+002E FULL STOP
@@ -445,12 +429,12 @@ impl Config {
         }
 
         if self.verify_dns_length {
-            let domain = if result.ends_with(".") {
+            let domain = if result.ends_with('.') {
                 &result[..result.len() - 1]
             } else {
                 &*result
             };
-            if domain.len() < 1 || domain.split('.').any(|label| label.len() < 1) {
+            if domain.is_empty() || domain.split('.').any(|label| label.is_empty()) {
                 errors.push(Error::TooShortForDns)
             }
             if domain.len() > 253 || domain.split('.').any(|label| label.len() > 63) {

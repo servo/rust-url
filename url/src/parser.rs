@@ -105,6 +105,7 @@ macro_rules! syntax_violation_enum {
         ///
         /// This may be extended in the future so exhaustive matching is
         /// discouraged with an unused variant.
+        #[allow(clippy::manual_non_exhaustive)] // introduced in 1.40, MSRV is 1.36
         #[derive(PartialEq, Eq, Clone, Copy, Debug)]
         pub enum SyntaxViolation {
             $(
@@ -573,7 +574,7 @@ impl<'a> Parser<'a> {
                         } else if let Some(host_str) = base_url.host_str() {
                             self.serialization.push_str(host_str);
                             host_end = self.serialization.len();
-                            host = base_url.host.clone();
+                            host = base_url.host;
                         }
                     }
                 }
@@ -776,7 +777,7 @@ impl<'a> Parser<'a> {
                 }
                 let path_start = base_url.path_start;
                 self.serialization.push_str(base_url.slice(..path_start));
-                self.serialization.push_str("/");
+                self.serialization.push('/');
                 let remaining = self.parse_path(
                     scheme_type,
                     &mut true,
@@ -1036,7 +1037,7 @@ impl<'a> Parser<'a> {
         Ok((host, input))
     }
 
-    fn get_file_host<'i>(input: Input<'i>) -> ParseResult<(Host<String>, Input)> {
+    fn get_file_host(input: Input) -> ParseResult<(Host<String>, Input)> {
         let (_, host_str, remaining) = Parser::file_host(input)?;
         let host = match Host::parse(&host_str)? {
             Host::Domain(ref d) if d == "localhost" => Host::Domain("".to_string()),
@@ -1150,7 +1151,7 @@ impl<'a> Parser<'a> {
                 self.log_violation(SyntaxViolation::Backslash);
             }
             // A special URL always has a non-empty path.
-            if !self.serialization.ends_with("/") {
+            if !self.serialization.ends_with('/') {
                 self.serialization.push('/');
                 // We have already made sure the forward slash is present.
                 if maybe_c == Some('/') || maybe_c == Some('\\') {
@@ -1239,7 +1240,7 @@ impl<'a> Parser<'a> {
                 | ".%2E" => {
                     debug_assert!(self.serialization.as_bytes()[segment_start - 1] == b'/');
                     self.serialization.truncate(segment_start);
-                    if self.serialization.ends_with("/")
+                    if self.serialization.ends_with('/')
                         && Parser::last_slash_can_be_removed(&self.serialization, path_start)
                     {
                         self.serialization.pop();
@@ -1247,7 +1248,7 @@ impl<'a> Parser<'a> {
                     self.shorten_path(scheme_type, path_start);
 
                     // and then if neither c is U+002F (/), nor url is special and c is U+005C (\), append the empty string to url’s path.
-                    if ends_with_slash && !self.serialization.ends_with("/") {
+                    if ends_with_slash && !self.serialization.ends_with('/') {
                         self.serialization.push('/');
                     }
                 }
@@ -1255,7 +1256,7 @@ impl<'a> Parser<'a> {
                 // nor url is special and c is U+005C (\), append the empty string to url’s path.
                 "." | "%2e" | "%2E" => {
                     self.serialization.truncate(segment_start);
-                    if !self.serialization.ends_with("/") {
+                    if !self.serialization.ends_with('/') {
                         self.serialization.push('/');
                     }
                 }
@@ -1263,7 +1264,7 @@ impl<'a> Parser<'a> {
                     // If url’s scheme is "file", url’s path is empty, and buffer is a Windows drive letter, then
                     if scheme_type.is_file() && is_windows_drive_letter(segment_before_slash) {
                         // Replace the second code point in buffer with U+003A (:).
-                        if let Some(c) = segment_before_slash.chars().nth(0) {
+                        if let Some(c) = segment_before_slash.chars().next() {
                             self.serialization.truncate(segment_start);
                             self.serialization.push(c);
                             self.serialization.push(':');
@@ -1291,15 +1292,15 @@ impl<'a> Parser<'a> {
             //FIXME: log violation
             let path = self.serialization.split_off(path_start);
             self.serialization.push('/');
-            self.serialization.push_str(&path.trim_start_matches("/"));
+            self.serialization.push_str(&path.trim_start_matches('/'));
         }
 
         input
     }
 
-    fn last_slash_can_be_removed(serialization: &String, path_start: usize) -> bool {
+    fn last_slash_can_be_removed(serialization: &str, path_start: usize) -> bool {
         let url_before_segment = &serialization[..serialization.len() - 1];
-        if let Some(segment_before_start) = url_before_segment.rfind("/") {
+        if let Some(segment_before_start) = url_before_segment.rfind('/') {
             // Do not remove the root slash
             segment_before_start >= path_start
                 // Or a windows drive letter slash
@@ -1357,6 +1358,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn with_query_and_fragment(
         mut self,
         scheme_type: SchemeType,

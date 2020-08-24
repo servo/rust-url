@@ -137,13 +137,9 @@ pub fn set_host(url: &mut Url, new_host: &str) -> Result<(), ()> {
     if host == Host::Domain("".to_string()) {
         if !username(&url).is_empty() {
             return Err(());
-        }
-        if let Some(p) = opt_port {
-            if let Some(_) = p {
-                return Err(());
-            }
-        }
-        if url.port().is_some() {
+        } else if let Some(Some(_)) = opt_port {
+            return Err(());
+        } else if url.port().is_some() {
             return Err(());
         }
     }
@@ -232,10 +228,10 @@ pub fn set_pathname(url: &mut Url, new_pathname: &str) {
     if url.cannot_be_a_base() {
         return;
     }
-    if Some('/') == new_pathname.chars().nth(0)
+    if new_pathname.starts_with('/')
         || (SchemeType::from(url.scheme()).is_special()
             // \ is a segment delimiter for 'special' URLs"
-            && Some('\\') == new_pathname.chars().nth(0))
+            && new_pathname.starts_with('\\'))
     {
         url.set_path(new_pathname)
     } else {
