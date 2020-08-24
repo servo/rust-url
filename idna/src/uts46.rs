@@ -308,23 +308,20 @@ fn processing(domain: &str, config: Config, errors: &mut Vec<Error>) -> String {
     // Find out if it's a Bidi Domain Name
     //
     // First, check for literal bidi chars
-    let mut is_bidi_domain = domain
-        .chars()
-        .any(|c| matches!(bidi_class(c), BidiClass::R | BidiClass::AL | BidiClass::AN));
-    if !is_bidi_domain {
+    let mut is_bidi_domain_name = is_bidi_domain(domain);
+    if !is_bidi_domain_name {
         // Then check for punycode-encoded bidi chars
         for label in normalized.split('.') {
             if label.starts_with(PUNYCODE_PREFIX) {
                 match punycode::decode_to_string(&label[PUNYCODE_PREFIX.len()..]) {
                     Some(decoded_label) => {
-                        if decoded_label.chars().any(|c| {
-                            matches!(bidi_class(c), BidiClass::R | BidiClass::AL | BidiClass::AN)
-                        }) {
-                            is_bidi_domain = true;
+                        if is_bidi_domain(&decoded_label) {
+                            is_bidi_domain_name = true;
+                            break;
                         }
                     }
                     None => {
-                        is_bidi_domain = true;
+                        is_bidi_domain_name = true;
                     }
                 }
             }
@@ -342,14 +339,14 @@ fn processing(domain: &str, config: Config, errors: &mut Vec<Error>) -> String {
             match punycode::decode_to_string(&label[PUNYCODE_PREFIX.len()..]) {
                 Some(decoded_label) => {
                     let config = config.transitional_processing(false);
-                    validate_full(&decoded_label, is_bidi_domain, config, errors);
+                    validate_full(&decoded_label, is_bidi_domain_name, config, errors);
                     validated.push_str(&decoded_label)
                 }
                 None => errors.push(Error::PunycodeError),
             }
         } else {
             // `normalized` is already `NFC` so we can skip that check
-            validate(label, is_bidi_domain, config, errors);
+            validate(label, is_bidi_domain_name, config, errors);
             validated.push_str(label)
         }
     }
@@ -491,6 +488,16 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(self.as_str())
     }
+}
+
+fn is_bidi_domain(s: &str) -> bool {
+    for c in s.chars() {
+        match bidi_class(c) {
+            BidiClass::R | BidiClass::AL | BidiClass::AN => return true,
+            _ => {}
+        }
+    }
+    false
 }
 
 /// Errors recorded during UTS #46 processing.
