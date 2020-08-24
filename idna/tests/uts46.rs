@@ -12,12 +12,12 @@ use test::TestFn;
 pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
     // https://www.unicode.org/Public/idna/13.0.0/IdnaTestV2.txt
     for (i, line) in include_str!("IdnaTestV2.txt").lines().enumerate() {
-        if line == "" || line.starts_with("#") {
+        if line == "" || line.starts_with('#') {
             continue;
         }
 
         // Remove comments
-        let line = match line.find("#") {
+        let line = match line.find('#') {
             Some(index) => &line[0..index],
             None => line,
         };
