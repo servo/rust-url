@@ -243,20 +243,13 @@ fn passes_bidi(label: &str, is_bidi_domain: bool) -> bool {
 }
 
 /// http://www.unicode.org/reports/tr46/#Validity_Criteria
-fn validate_full(label: &str, is_bidi_domain: bool, config: Config, errors: &mut Vec<Error>) {
-    // V1: Must be in NFC form.
-    if label.nfc().ne(label.chars()) {
-        errors.push(Error::ValidityCriteria);
-    } else {
-        validate(label, is_bidi_domain, config, errors);
-    }
-}
-
-fn validate(label: &str, is_bidi_domain: bool, config: Config, errors: &mut Vec<Error>) {
+fn is_valid(label: &str, is_bidi_domain: bool, config: Config) -> bool {
     let first_char = label.chars().next();
     if first_char == None {
         // Empty string, pass
+        return true;
     }
+
     // V2: No U+002D HYPHEN-MINUS in both third and fourth positions.
     //
     // NOTE: Spec says that the label must not contain a HYPHEN-MINUS character in both the
@@ -264,26 +257,29 @@ fn validate(label: &str, is_bidi_domain: bool, config: Config, errors: &mut Vec<
     // https://github.com/whatwg/url/issues/53
 
     // V3: neither begin nor end with a U+002D HYPHEN-MINUS
-    else if config.check_hyphens && (label.starts_with('-') || label.ends_with('-')) {
-        errors.push(Error::ValidityCriteria);
+    if config.check_hyphens && (label.starts_with('-') || label.ends_with('-')) {
+        return false;
     }
+
     // V4: not contain a U+002E FULL STOP
     //
     // Here, label can't contain '.' since the input is from .split('.')
 
     // V5: not begin with a GC=Mark
-    else if is_combining_mark(first_char.unwrap()) {
-        errors.push(Error::ValidityCriteria);
+    if is_combining_mark(first_char.unwrap()) {
+        return false;
     }
+
     // V6: Check against Mapping Table
-    else if label.chars().any(|c| match *find_char(c) {
+    if label.chars().any(|c| match *find_char(c) {
         Mapping::Valid => false,
         Mapping::Deviation(_) => config.transitional_processing,
         Mapping::DisallowedStd3Valid => config.use_std3_ascii_rules,
         _ => true,
     }) {
-        errors.push(Error::ValidityCriteria);
+        return false;
     }
+
     // V7: ContextJ rules
     //
     // TODO: Implement rules and add *CheckJoiners* flag.
@@ -291,9 +287,11 @@ fn validate(label: &str, is_bidi_domain: bool, config: Config, errors: &mut Vec<
     // V8: Bidi rules
     //
     // TODO: Add *CheckBidi* flag
-    else if !passes_bidi(label, is_bidi_domain) {
-        errors.push(Error::ValidityCriteria);
+    if !passes_bidi(label, is_bidi_domain) {
+        return false;
     }
+
+    true
 }
 
 /// http://www.unicode.org/reports/tr46/#Processing
@@ -339,14 +337,20 @@ fn processing(domain: &str, config: Config, errors: &mut Vec<Error>) -> String {
             match punycode::decode_to_string(&label[PUNYCODE_PREFIX.len()..]) {
                 Some(decoded_label) => {
                     let config = config.transitional_processing(false);
-                    validate_full(&decoded_label, is_bidi_domain_name, config, errors);
+                    if decoded_label.nfc().ne(decoded_label.chars())
+                        || !is_valid(&decoded_label, is_bidi_domain_name, config)
+                    {
+                        errors.push(Error::ValidityCriteria);
+                    }
                     validated.push_str(&decoded_label)
                 }
                 None => errors.push(Error::PunycodeError),
             }
         } else {
             // `normalized` is already `NFC` so we can skip that check
-            validate(label, is_bidi_domain_name, config, errors);
+            if !is_valid(label, is_bidi_domain_name, config) {
+                errors.push(Error::ValidityCriteria);
+            }
             validated.push_str(label)
         }
     }
