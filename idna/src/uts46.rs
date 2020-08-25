@@ -82,7 +82,7 @@ fn find_char(codepoint: char) -> &'static Mapping {
         .unwrap()
 }
 
-fn map_char(codepoint: char, config: Config, output: &mut String, errors: &mut Vec<Error>) {
+fn map_char(codepoint: char, config: Config, output: &mut String, errors: &mut Errors) {
     if let '.' | '-' | 'a'..='z' | '0'..='9' = codepoint {
         output.push(codepoint);
         return;
@@ -100,18 +100,18 @@ fn map_char(codepoint: char, config: Config, output: &mut String, errors: &mut V
             }
         }
         Mapping::Disallowed => {
-            errors.push(Error::DisallowedCharacter);
+            errors.disallowed_character = true;
             output.push(codepoint);
         }
         Mapping::DisallowedStd3Valid => {
             if config.use_std3_ascii_rules {
-                errors.push(Error::DisallowedByStd3AsciiRules);
+                errors.disallowed_by_std3_ascii_rules = true;
             }
             output.push(codepoint)
         }
         Mapping::DisallowedStd3Mapped(ref slice) => {
             if config.use_std3_ascii_rules {
-                errors.push(Error::DisallowedMappedInStd3);
+                errors.disallowed_mapped_in_std3 = true;
             }
             output.push_str(decode_slice(slice))
         }
@@ -298,7 +298,7 @@ fn is_valid(label: &str, config: Config) -> bool {
 }
 
 /// http://www.unicode.org/reports/tr46/#Processing
-fn processing(domain: &str, config: Config, errors: &mut Vec<Error>) -> String {
+fn processing(domain: &str, config: Config) -> (String, Errors) {
     // Weed out the simple cases: only allow all lowercase ASCII characters and digits where none
     // of the labels start with PUNYCODE_PREFIX and labels don't start or end with hyphen.
     let (mut prev, mut simple, mut puny_prefix) = ('?', !domain.is_empty(), 0);
@@ -331,12 +331,13 @@ fn processing(domain: &str, config: Config, errors: &mut Vec<Error>) -> String {
         prev = c;
     }
     if simple {
-        return domain.to_owned();
+        return (domain.to_owned(), Errors::default());
     }
 
+    let mut errors = Errors::default();
     let mut mapped = String::with_capacity(domain.len());
     for c in domain.chars() {
-        map_char(c, config, &mut mapped, errors)
+        map_char(c, config, &mut mapped, &mut errors)
     }
     let mut normalized = String::with_capacity(mapped.len());
     normalized.extend(mapped.nfc());
@@ -365,7 +366,7 @@ fn processing(domain: &str, config: Config, errors: &mut Vec<Error>) -> String {
                 }
                 None => {
                     has_bidi_labels = true;
-                    errors.push(Error::PunycodeError);
+                    errors.punycode = true;
                 }
             }
         } else {
@@ -390,10 +391,10 @@ fn processing(domain: &str, config: Config, errors: &mut Vec<Error>) -> String {
     }
 
     if !valid {
-        errors.push(Error::ValidityCriteria);
+        errors.validity_criteria = true;
     }
 
-    validated
+    (validated, errors)
 }
 
 #[derive(Clone, Copy)]
@@ -447,10 +448,10 @@ impl Config {
 
     /// http://www.unicode.org/reports/tr46/#ToASCII
     pub fn to_ascii(self, domain: &str) -> Result<String, Errors> {
-        let mut errors = Vec::new();
         let mut result = String::new();
         let mut first = true;
-        for label in processing(domain, self, &mut errors).split('.') {
+        let (domain, mut errors) = processing(domain, self);
+        for label in domain.split('.') {
             if !first {
                 result.push('.');
             }
@@ -463,7 +464,9 @@ impl Config {
                         result.push_str(PUNYCODE_PREFIX);
                         result.push_str(&x);
                     }
-                    None => errors.push(Error::PunycodeError),
+                    None => {
+                        errors.punycode = true;
+                    }
                 }
             }
         }
@@ -475,61 +478,20 @@ impl Config {
                 &*result
             };
             if domain.is_empty() || domain.split('.').any(|label| label.is_empty()) {
-                errors.push(Error::TooShortForDns)
+                errors.too_short_for_dns = true;
             }
             if domain.len() > 253 || domain.split('.').any(|label| label.len() > 63) {
-                errors.push(Error::TooLongForDns)
+                errors.too_long_for_dns = true;
             }
         }
-        if errors.is_empty() {
-            Ok(result)
-        } else {
-            Err(Errors(errors))
-        }
+
+        Result::from(errors).map(|()| result)
     }
 
     /// http://www.unicode.org/reports/tr46/#ToUnicode
     pub fn to_unicode(self, domain: &str) -> (String, Result<(), Errors>) {
-        let mut errors = Vec::new();
-        let domain = processing(domain, self, &mut errors);
-        let errors = if errors.is_empty() {
-            Ok(())
-        } else {
-            Err(Errors(errors))
-        };
-        (domain, errors)
-    }
-}
-
-#[allow(clippy::enum_variant_names)]
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
-enum Error {
-    PunycodeError,
-
-    // https://unicode.org/reports/tr46/#Validity_Criteria
-    ValidityCriteria,
-    DisallowedByStd3AsciiRules,
-    DisallowedMappedInStd3,
-    DisallowedCharacter,
-    TooLongForDns,
-    TooShortForDns,
-}
-impl Error {
-    fn as_str(&self) -> &str {
-        match self {
-            Error::PunycodeError => "punycode error",
-            Error::ValidityCriteria => "failed UTS #46 validity criteria",
-            Error::DisallowedByStd3AsciiRules => "disallowed ASCII character",
-            Error::DisallowedMappedInStd3 => "disallowed mapped ASCII character",
-            Error::DisallowedCharacter => "disallowed non-ASCII character",
-            Error::TooLongForDns => "too long for DNS",
-            Error::TooShortForDns => "too short for DNS",
-        }
-    }
-}
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
+        let (domain, errors) = processing(domain, self);
+        (domain, errors.into())
     }
 }
 
@@ -548,22 +510,42 @@ fn is_bidi_domain(s: &str) -> bool {
 
 /// Errors recorded during UTS #46 processing.
 ///
-/// This is opaque for now, only indicating the presence of at least one error.
+/// This is opaque for now, indicating what types of errors have been encountered at least once.
 /// More details may be exposed in the future.
-#[derive(Debug)]
-pub struct Errors(Vec<Error>);
+#[derive(Debug, Default)]
+pub struct Errors {
+    punycode: bool,
+    // https://unicode.org/reports/tr46/#Validity_Criteria
+    validity_criteria: bool,
+    disallowed_by_std3_ascii_rules: bool,
+    disallowed_mapped_in_std3: bool,
+    disallowed_character: bool,
+    too_long_for_dns: bool,
+    too_short_for_dns: bool,
+}
+
+impl From<Errors> for Result<(), Errors> {
+    fn from(e: Errors) -> Result<(), Errors> {
+        let failed = e.punycode
+            || e.validity_criteria
+            || e.disallowed_by_std3_ascii_rules
+            || e.disallowed_mapped_in_std3
+            || e.disallowed_character
+            || e.too_long_for_dns
+            || e.too_short_for_dns;
+        if !failed {
+            Ok(())
+        } else {
+            Err(e)
+        }
+    }
+}
 
 impl StdError for Errors {}
 
 impl fmt::Display for Errors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for (i, err) in self.0.iter().enumerate() {
-            if i > 0 {
-                f.write_str(", ")?;
-            }
-            f.write_str(err.as_str())?;
-        }
-        Ok(())
+        fmt::Debug::fmt(self, f)
     }
 }
 
