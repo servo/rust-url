@@ -134,7 +134,8 @@ pub fn decode(input: &str) -> Option<Vec<char>> {
 /// This is a convenience wrapper around `encode`.
 #[inline]
 pub fn encode_str(input: &str) -> Option<String> {
-    encode(&input.chars().collect::<Vec<char>>())
+    let mut buf = String::with_capacity(input.len());
+    encode_into(input.chars(), &mut buf).ok().map(|()| buf)
 }
 
 /// Convert Unicode to Punycode.
@@ -142,9 +143,26 @@ pub fn encode_str(input: &str) -> Option<String> {
 /// Return None on overflow, which can only happen on inputs that would take more than
 /// 63 encoded bytes, the DNS limit on domain name labels.
 pub fn encode(input: &[char]) -> Option<String> {
+    let mut buf = String::with_capacity(input.len());
+    encode_into(input.iter().copied(), &mut buf)
+        .ok()
+        .map(|()| buf)
+}
+
+fn encode_into<I>(input: I, output: &mut String) -> Result<(), ()>
+where
+    I: Iterator<Item = char> + Clone,
+{
     // Handle "basic" (ASCII) code points. They are encoded as-is.
-    let mut output = input.iter().filter(|&c| c.is_ascii()).collect::<String>();
-    let basic_length = output.len() as u32;
+    let (mut input_length, mut basic_length) = (0, 0);
+    for c in input.clone() {
+        input_length += 1;
+        if c.is_ascii() {
+            output.push(c);
+            basic_length += 1;
+        }
+    }
+
     if basic_length > 0 {
         output.push_str("-")
     }
@@ -152,28 +170,27 @@ pub fn encode(input: &[char]) -> Option<String> {
     let mut delta = 0;
     let mut bias = INITIAL_BIAS;
     let mut processed = basic_length;
-    let input_length = input.len() as u32;
     while processed < input_length {
         // All code points < code_point have been handled already.
         // Find the next larger one.
         let min_code_point = input
-            .iter()
-            .map(|&c| c as u32)
+            .clone()
+            .map(|c| c as u32)
             .filter(|&c| c >= code_point)
             .min()
             .unwrap();
         if min_code_point - code_point > (u32::MAX - delta) / (processed + 1) {
-            return None; // Overflow
+            return Err(()); // Overflow
         }
         // Increase delta to advance the decoder’s <code_point,i> state to <min_code_point,0>
         delta += (min_code_point - code_point) * (processed + 1);
         code_point = min_code_point;
-        for &c in input {
+        for c in input.clone() {
             let c = c as u32;
             if c < code_point {
                 delta += 1;
                 if delta == 0 {
-                    return None; // Overflow
+                    return Err(()); // Overflow
                 }
             }
             if c == code_point {
@@ -205,7 +222,7 @@ pub fn encode(input: &[char]) -> Option<String> {
         delta += 1;
         code_point += 1;
     }
-    Some(output)
+    Ok(())
 }
 
 #[inline]
