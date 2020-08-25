@@ -319,13 +319,8 @@ impl<'a, T: Target> Serializer<'a, T> {
         {
             let string = string(&mut self.target);
             for key in iter {
-                let ref k = key.borrow();
-                append_key_only(
-                    string,
-                    self.start_position,
-                    self.encoding,
-                    k.as_ref(),
-                );
+                let k = key.borrow().as_ref();
+                append_key_only(string, self.start_position, self.encoding, k);
             }
         }
         self
