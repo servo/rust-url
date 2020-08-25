@@ -654,3 +654,11 @@ fn test_non_special_path3() {
     assert_eq!(db_url.as_str(), "postgres://postgres@localhost/foo");
     assert_eq!(db_url.path(), "/foo");
 }
+
+#[test]
+fn test_set_scheme_to_file_with_host() {
+    let mut url: Url = "http://localhost:6767/foo/bar".parse().unwrap();
+    let result = url.set_scheme("file");
+    assert_eq!(url.to_string(), "http://localhost:6767/foo/bar");
+    assert_eq!(result, Err(()));
+}
