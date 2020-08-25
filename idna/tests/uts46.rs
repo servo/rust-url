@@ -6,111 +6,175 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use crate::test::TestFn;
 use std::char;
-use test::TestFn;
 
 pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
-    // http://www.unicode.org/Public/idna/latest/IdnaTest.txt
-    for (i, line) in include_str!("IdnaTest.txt").lines().enumerate() {
-        if line == "" || line.starts_with("#") {
+    // https://www.unicode.org/Public/idna/13.0.0/IdnaTestV2.txt
+    for (i, line) in include_str!("IdnaTestV2.txt").lines().enumerate() {
+        if line == "" || line.starts_with('#') {
             continue;
         }
+
         // Remove comments
-        let mut line = match line.find("#") {
+        let line = match line.find('#') {
             Some(index) => &line[0..index],
             None => line,
         };
 
-        let mut expected_failure = false;
-        if line.starts_with("XFAIL") {
-            expected_failure = true;
-            line = &line[5..line.len()];
-        };
-
         let mut pieces = line.split(';').map(|x| x.trim()).collect::<Vec<&str>>();
+        let source = unescape(&pieces.remove(0));
 
-        let test_type = pieces.remove(0);
-        let original = pieces.remove(0);
-        let source = unescape(original);
-        let to_unicode = pieces.remove(0);
-        let to_ascii = pieces.remove(0);
-        let nv8 = if pieces.len() > 0 {
-            pieces.remove(0)
+        // ToUnicode
+        let mut to_unicode = unescape(&pieces.remove(0));
+        if to_unicode.is_empty() {
+            to_unicode = source.clone();
+        }
+        let to_unicode_status = status(pieces.remove(0));
+
+        // ToAsciiN
+        let to_ascii_n = pieces.remove(0);
+        let to_ascii_n = if to_ascii_n.is_empty() {
+            to_unicode.clone()
         } else {
-            ""
+            to_ascii_n.to_owned()
+        };
+        let to_ascii_n_status = pieces.remove(0);
+        let to_ascii_n_status = if to_ascii_n_status.is_empty() {
+            to_unicode_status.clone()
+        } else {
+            status(to_ascii_n_status)
         };
 
-        if expected_failure {
-            continue;
-        }
+        // ToAsciiT
+        let to_ascii_t = pieces.remove(0);
+        let to_ascii_t = if to_ascii_t.is_empty() {
+            to_ascii_n.clone()
+        } else {
+            to_ascii_t.to_owned()
+        };
+        let to_ascii_t_status = pieces.remove(0);
+        let to_ascii_t_status = if to_ascii_t_status.is_empty() {
+            to_ascii_n_status.clone()
+        } else {
+            status(to_ascii_t_status)
+        };
 
         let test_name = format!("UTS #46 line {}", i + 1);
         add_test(
             test_name,
             TestFn::dyn_test_fn(move || {
-                let result = idna::Config::default()
+                let config = idna::Config::default()
                     .use_std3_ascii_rules(true)
                     .verify_dns_length(true)
-                    .check_hyphens(true)
-                    .transitional_processing(test_type == "T")
-                    .to_ascii(&source);
+                    .check_hyphens(true);
 
-                if to_ascii.starts_with("[") {
-                    if to_ascii.starts_with("[C") {
-                        // http://unicode.org/reports/tr46/#Deviations
-                        // applications that perform IDNA2008 lookup are not required to check
-                        // for these contexts
-                        return;
+                // http://unicode.org/reports/tr46/#Deviations
+                // applications that perform IDNA2008 lookup are not required to check
+                // for these contexts, so we skip all tests annotated with C*
+
+                // Everybody ignores V2
+                // https://github.com/servo/rust-url/pull/240
+                // https://github.com/whatwg/url/issues/53#issuecomment-181528158
+                // http://www.unicode.org/review/pri317/
+
+                // "The special error codes X3 and X4_2 are now returned where a toASCII error code
+                // was formerly being generated in toUnicode due to an empty label."
+                // This is not implemented yet, so we skip toUnicode X4_2 tests for now, too.
+
+                let (to_unicode_value, to_unicode_result) =
+                    config.transitional_processing(false).to_unicode(&source);
+                if !to_unicode_status.is_empty() {
+                    if !to_unicode_status.iter().any(|e| e.starts_with('C'))
+                        && !to_unicode_status.contains(&"V2")
+                        && !to_unicode_status.contains(&"X4_2")
+                    {
+                        let res = to_unicode_result.ok();
+                        assert!(
+                            res == None,
+                            "Expected error {:?}. result: {:?} | source: {}",
+                            to_unicode_status,
+                            to_unicode_value,
+                            source
+                        );
                     }
-                    if to_ascii == "[V2]" {
-                        // Everybody ignores V2
-                        // https://github.com/servo/rust-url/pull/240
-                        // https://github.com/whatwg/url/issues/53#issuecomment-181528158
-                        // http://www.unicode.org/review/pri317/
-                        return;
-                    }
-                    let res = result.ok();
+                } else {
                     assert!(
-                        res == None,
-                        "Expected error. result: {} | original: {} | source: {}",
-                        res.unwrap(),
-                        original,
+                        to_unicode_result.is_ok(),
+                        "Couldn't parse {} | error: {:?}",
+                        source,
+                        to_unicode_result.err()
+                    );
+                    assert!(
+                        to_unicode_value == to_unicode,
+                        "result: {} | expected: {} | source: {}",
+                        to_unicode_value,
+                        to_unicode,
                         source
                     );
-                    return;
                 }
 
-                let to_ascii = if to_ascii.len() > 0 {
-                    to_ascii.to_string()
-                } else {
-                    if to_unicode.len() > 0 {
-                        to_unicode.to_string()
-                    } else {
-                        source.clone()
+                let to_ascii_n_result = config.transitional_processing(false).to_ascii(&source);
+                if !to_ascii_n_status.is_empty() {
+                    if !to_ascii_n_status.iter().any(|e| e.starts_with('C'))
+                        && !to_ascii_n_status.contains(&"V2")
+                    {
+                        let res = to_ascii_n_result.ok();
+                        assert!(
+                            res == None,
+                            "Expected error {:?}. result: {} | source: {}",
+                            to_ascii_n_status,
+                            res.unwrap(),
+                            source
+                        );
                     }
-                };
-
-                if nv8 == "NV8" {
-                    // This result isn't valid under IDNA2008. Skip it
-                    return;
+                } else {
+                    assert!(
+                        to_ascii_n_result.is_ok(),
+                        "Couldn't parse {} | error: {:?}",
+                        source,
+                        to_ascii_n_result.err()
+                    );
+                    let output = to_ascii_n_result.ok().unwrap();
+                    assert!(
+                        output == to_ascii_n,
+                        "result: {} | expected: {} | source: {}",
+                        output,
+                        to_ascii_n,
+                        source
+                    );
                 }
 
-                assert!(
-                    result.is_ok(),
-                    "Couldn't parse {} | original: {} | error: {:?}",
-                    source,
-                    original,
-                    result.err()
-                );
-                let output = result.ok().unwrap();
-                assert!(
-                    output == to_ascii,
-                    "result: {} | expected: {} | original: {} | source: {}",
-                    output,
-                    to_ascii,
-                    original,
-                    source
-                );
+                let to_ascii_t_result = config.transitional_processing(true).to_ascii(&source);
+                if !to_ascii_t_status.is_empty() {
+                    if !to_ascii_t_status.iter().any(|e| e.starts_with('C'))
+                        && !to_ascii_t_status.contains(&"V2")
+                    {
+                        let res = to_ascii_t_result.ok();
+                        assert!(
+                            res == None,
+                            "Expected error {:?}. result: {} | source: {}",
+                            to_ascii_t_status,
+                            res.unwrap(),
+                            source
+                        );
+                    }
+                } else {
+                    assert!(
+                        to_ascii_t_result.is_ok(),
+                        "Couldn't parse {} | error: {:?}",
+                        source,
+                        to_ascii_t_result.err()
+                    );
+                    let output = to_ascii_t_result.ok().unwrap();
+                    assert!(
+                        output == to_ascii_t,
+                        "result: {} | expected: {} | source: {}",
+                        output,
+                        to_ascii_t,
+                        source
+                    );
+                }
             }),
         )
     }
@@ -147,4 +211,21 @@ fn unescape(input: &str) -> String {
             }
         }
     }
+}
+
+fn status(status: &str) -> Vec<&str> {
+    if status.is_empty() || status == "[]" {
+        return Vec::new();
+    }
+
+    let mut result = status.split(", ").collect::<Vec<_>>();
+    assert!(result[0].starts_with('['));
+    result[0] = &result[0][1..];
+
+    let idx = result.len() - 1;
+    let last = &mut result[idx];
+    assert!(last.ends_with(']'));
+    *last = &last[..last.len() - 1];
+
+    result
 }

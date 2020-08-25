@@ -11,8 +11,8 @@
 //! Unless you need to be interoperable with web browsers,
 //! you probably want to use `Url` method instead.
 
-use parser::{default_port, Context, Input, Parser, SchemeType};
-use {idna, Host, ParseError, Position, Url};
+use crate::parser::{default_port, Context, Input, Parser, SchemeType};
+use crate::{Host, ParseError, Position, Url};
 
 /// https://url.spec.whatwg.org/#dom-url-domaintoascii
 pub fn domain_to_ascii(domain: &str) -> String {
@@ -111,6 +111,11 @@ pub fn set_host(url: &mut Url, new_host: &str) -> Result<(), ()> {
     {
         let scheme = url.scheme();
         let scheme_type = SchemeType::from(scheme);
+        if scheme_type == SchemeType::File && new_host.is_empty() {
+            url.set_host_internal(Host::Domain(String::new()), None);
+            return Ok(());
+        }
+
         if let Ok((h, remaining)) = Parser::parse_host(input, scheme_type) {
             host = h;
             opt_port = if let Some(remaining) = remaining.split_prefix(':') {
@@ -132,13 +137,9 @@ pub fn set_host(url: &mut Url, new_host: &str) -> Result<(), ()> {
     if host == Host::Domain("".to_string()) {
         if !username(&url).is_empty() {
             return Err(());
-        }
-        if let Some(p) = opt_port {
-            if let Some(_) = p {
-                return Err(());
-            }
-        }
-        if url.port().is_some() {
+        } else if let Some(Some(_)) = opt_port {
+            return Err(());
+        } else if url.port().is_some() {
             return Err(());
         }
     }
@@ -160,6 +161,11 @@ pub fn set_hostname(url: &mut Url, new_hostname: &str) -> Result<(), ()> {
     // Host parsing rules are strict we don't want to trim the input
     let input = Input::no_trim(new_hostname);
     let scheme_type = SchemeType::from(url.scheme());
+    if scheme_type == SchemeType::File && new_hostname.is_empty() {
+        url.set_host_internal(Host::Domain(String::new()), None);
+        return Ok(());
+    }
+
     if let Ok((host, _remaining)) = Parser::parse_host(input, scheme_type) {
         if let Host::Domain(h) = &host {
             if h.is_empty() {
@@ -222,10 +228,10 @@ pub fn set_pathname(url: &mut Url, new_pathname: &str) {
     if url.cannot_be_a_base() {
         return;
     }
-    if Some('/') == new_pathname.chars().nth(0)
+    if new_pathname.starts_with('/')
         || (SchemeType::from(url.scheme()).is_special()
             // \ is a segment delimiter for 'special' URLs"
-            && Some('\\') == new_pathname.chars().nth(0))
+            && new_pathname.starts_with('\\'))
     {
         url.set_path(new_pathname)
     } else {

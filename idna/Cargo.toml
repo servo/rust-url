@@ -6,10 +6,10 @@ description = "IDNA (Internationalizing Domain Names in Applications) and Punyco
 repository = "https://github.com/servo/rust-url/"
 license = "MIT/Apache-2.0"
 autotests = false
+edition = "2018"
 
 [lib]
 doctest = false
-test = false
 
 [[test]]
 name = "tests"
@@ -19,6 +19,7 @@ harness = false
 name = "unit"
 
 [dev-dependencies]
+bencher = "0.1"
 rustc-test = "0.3"
 serde_json = "1.0"
 
@@ -26,3 +27,7 @@ serde_json = "1.0"
 unicode-bidi = "0.3"
 unicode-normalization = "0.1.5"
 matches = "0.1"
+
+[[bench]]
+name = "all"
+harness = false

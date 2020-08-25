@@ -8,9 +8,6 @@
 
 //! Unit tests
 
-extern crate percent_encoding;
-extern crate url;
-
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::net::{Ipv4Addr, Ipv6Addr};
@@ -337,7 +334,7 @@ fn test_serialization() {
 
 #[test]
 fn test_form_urlencoded() {
-    let pairs: &[(Cow<str>, Cow<str>)] = &[
+    let pairs: &[(Cow<'_, str>, Cow<'_, str>)] = &[
         ("foo".into(), "é&".into()),
         ("bar".into(), "".into()),
         ("foo".into(), "#".into()),
@@ -358,8 +355,9 @@ fn test_form_serialize() {
         .append_pair("foo", "é&")
         .append_pair("bar", "")
         .append_pair("foo", "#")
+        .append_key_only("json")
         .finish();
-    assert_eq!(encoded, "foo=%C3%A9%26&bar=&foo=%23");
+    assert_eq!(encoded, "foo=%C3%A9%26&bar=&foo=%23&json");
 }
 
 #[test]
@@ -367,8 +365,9 @@ fn form_urlencoded_encoding_override() {
     let encoded = form_urlencoded::Serializer::new(String::new())
         .encoding_override(Some(&|s| s.as_bytes().to_ascii_uppercase().into()))
         .append_pair("foo", "bar")
+        .append_key_only("xml")
         .finish();
-    assert_eq!(encoded, "FOO=BAR");
+    assert_eq!(encoded, "FOO=BAR&XML");
 }
 
 #[test]
@@ -618,4 +617,40 @@ fn test_url_from_file_path() {
     let u = Url::from_file_path(p).unwrap();
     let path = u.to_file_path().unwrap();
     assert_eq!("/c:/", path.to_str().unwrap());
+}
+
+#[test]
+fn test_non_special_path() {
+    let mut db_url = url::Url::parse("postgres://postgres@localhost/").unwrap();
+    assert_eq!(db_url.as_str(), "postgres://postgres@localhost/");
+    db_url.set_path("diesel_foo");
+    assert_eq!(db_url.as_str(), "postgres://postgres@localhost/diesel_foo");
+    assert_eq!(db_url.path(), "/diesel_foo");
+}
+
+#[test]
+fn test_non_special_path2() {
+    let mut db_url = url::Url::parse("postgres://postgres@localhost/").unwrap();
+    assert_eq!(db_url.as_str(), "postgres://postgres@localhost/");
+    db_url.set_path("");
+    assert_eq!(db_url.path(), "");
+    assert_eq!(db_url.as_str(), "postgres://postgres@localhost");
+    db_url.set_path("foo");
+    assert_eq!(db_url.path(), "/foo");
+    assert_eq!(db_url.as_str(), "postgres://postgres@localhost/foo");
+    db_url.set_path("/bar");
+    assert_eq!(db_url.path(), "/bar");
+    assert_eq!(db_url.as_str(), "postgres://postgres@localhost/bar");
+}
+
+#[test]
+fn test_non_special_path3() {
+    let mut db_url = url::Url::parse("postgres://postgres@localhost/").unwrap();
+    assert_eq!(db_url.as_str(), "postgres://postgres@localhost/");
+    db_url.set_path("/");
+    assert_eq!(db_url.as_str(), "postgres://postgres@localhost/");
+    assert_eq!(db_url.path(), "/");
+    db_url.set_path("/foo");
+    assert_eq!(db_url.as_str(), "postgres://postgres@localhost/foo");
+    assert_eq!(db_url.path(), "/foo");
 }

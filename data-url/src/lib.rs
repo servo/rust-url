@@ -45,7 +45,7 @@ impl<'a> DataUrl<'a> {
     /// <https://fetch.spec.whatwg.org/#data-url-processor>
     /// but starting from a string rather than a parsed `Url`, to avoid extra string copies.
     pub fn process(input: &'a str) -> Result<Self, DataUrlError> {
-        use DataUrlError::*;
+        use crate::DataUrlError::*;
 
         let after_colon = pretend_parse_data_url(input).ok_or(NotADataUrl)?;
 
@@ -87,7 +87,10 @@ impl<'a> DataUrl<'a> {
         &self,
     ) -> Result<(Vec<u8>, Option<FragmentIdentifier<'a>>), forgiving_base64::InvalidBase64> {
         let mut body = Vec::new();
-        let fragment = self.decode(|bytes| Ok(body.extend_from_slice(bytes)))?;
+        let fragment = self.decode(|bytes| {
+            body.extend_from_slice(bytes);
+            Ok(())
+        })?;
         Ok((body, fragment))
     }
 }
@@ -104,7 +107,7 @@ impl<'a> FragmentIdentifier<'a> {
                 // Ignore ASCII tabs or newlines like the URL parser would
                 b'\t' | b'\n' | b'\r' => continue,
                 // https://url.spec.whatwg.org/#fragment-percent-encode-set
-                b'\0'...b' ' | b'"' | b'<' | b'>' | b'`' | b'\x7F'...b'\xFF' => {
+                b'\0'..=b' ' | b'"' | b'<' | b'>' | b'`' | b'\x7F'..=b'\xFF' => {
                     percent_encode(byte, &mut string)
                 }
                 // Printable ASCII
@@ -183,7 +186,7 @@ fn parse_header(from_colon_to_comma: &str) -> (mime::Mime, bool) {
             b'\t' | b'\n' | b'\r' => continue,
 
             // https://url.spec.whatwg.org/#c0-control-percent-encode-set
-            b'\0'...b'\x1F' | b'\x7F'...b'\xFF' => percent_encode(byte, &mut string),
+            b'\0'..=b'\x1F' | b'\x7F'..=b'\xFF' => percent_encode(byte, &mut string),
 
             // Bytes other than the C0 percent-encode set that are percent-encoded
             // by the URL parser in the query state.
@@ -213,6 +216,7 @@ fn parse_header(from_colon_to_comma: &str) -> (mime::Mime, bool) {
 }
 
 /// None: no base64 suffix
+#[allow(clippy::skip_while_next)]
 fn remove_base64_suffix(s: &str) -> Option<&str> {
     let mut bytes = s.bytes();
     {
@@ -253,7 +257,7 @@ fn percent_encode(byte: u8, string: &mut String) {
 fn decode_without_base64<F, E>(
     encoded_body_plus_fragment: &str,
     mut write_bytes: F,
-) -> Result<Option<FragmentIdentifier>, E>
+) -> Result<Option<FragmentIdentifier<'_>>, E>
 where
     F: FnMut(&[u8]) -> Result<(), E>,
 {
@@ -306,7 +310,7 @@ where
 fn decode_with_base64<F, E>(
     encoded_body_plus_fragment: &str,
     write_bytes: F,
-) -> Result<Option<FragmentIdentifier>, forgiving_base64::DecodeError<E>>
+) -> Result<Option<FragmentIdentifier<'_>>, forgiving_base64::DecodeError<E>>
 where
     F: FnMut(&[u8]) -> Result<(), E>,
 {

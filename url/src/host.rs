@@ -6,14 +6,15 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use idna;
-use parser::{ParseError, ParseResult};
-use percent_encoding::{percent_decode, utf8_percent_encode, CONTROLS};
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
 use std::cmp;
 use std::fmt::{self, Formatter};
 use std::net::{Ipv4Addr, Ipv6Addr};
+
+use percent_encoding::{percent_decode, utf8_percent_encode, CONTROLS};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
+use crate::parser::{ParseError, ParseResult};
 
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -82,33 +83,38 @@ impl Host<String> {
         }
         let domain = percent_decode(input.as_bytes()).decode_utf8_lossy();
         let domain = idna::domain_to_ascii(&domain)?;
-        if domain
-            .find(|c| {
-                matches!(
-                    c,
-                    '\0' | '\t'
-                        | '\n'
-                        | '\r'
-                        | ' '
-                        | '#'
-                        | '%'
-                        | '/'
-                        | ':'
-                        | '?'
-                        | '@'
-                        | '['
-                        | '\\'
-                        | ']'
-                )
-            })
-            .is_some()
-        {
-            return Err(ParseError::InvalidDomainCharacter);
+        if domain.is_empty() {
+            return Err(ParseError::EmptyHost);
         }
-        if let Some(address) = parse_ipv4addr(&domain)? {
+
+        let is_invalid_domain_char = |c| {
+            matches!(
+                c,
+                '\0' | '\t'
+                    | '\n'
+                    | '\r'
+                    | ' '
+                    | '#'
+                    | '%'
+                    | '/'
+                    | ':'
+                    | '<'
+                    | '>'
+                    | '?'
+                    | '@'
+                    | '['
+                    | '\\'
+                    | ']'
+                    | '^'
+            )
+        };
+
+        if domain.find(is_invalid_domain_char).is_some() {
+            Err(ParseError::InvalidDomainCharacter)
+        } else if let Some(address) = parse_ipv4addr(&domain)? {
             Ok(Host::Ipv4(address))
         } else {
-            Ok(Host::Domain(domain.into()))
+            Ok(Host::Domain(domain))
         }
     }
 
@@ -120,35 +126,40 @@ impl Host<String> {
             }
             return parse_ipv6addr(&input[1..input.len() - 1]).map(Host::Ipv6);
         }
-        if input
-            .find(|c| {
-                matches!(
-                    c,
-                    '\0' | '\t'
-                        | '\n'
-                        | '\r'
-                        | ' '
-                        | '#'
-                        | '/'
-                        | ':'
-                        | '?'
-                        | '@'
-                        | '['
-                        | '\\'
-                        | ']'
-                )
-            })
-            .is_some()
-        {
-            return Err(ParseError::InvalidDomainCharacter);
+
+        let is_invalid_host_char = |c| {
+            matches!(
+                c,
+                '\0' | '\t'
+                    | '\n'
+                    | '\r'
+                    | ' '
+                    | '#'
+                    | '/'
+                    | ':'
+                    | '<'
+                    | '>'
+                    | '?'
+                    | '@'
+                    | '['
+                    | '\\'
+                    | ']'
+                    | '^'
+            )
+        };
+
+        if input.find(is_invalid_host_char).is_some() {
+            Err(ParseError::InvalidDomainCharacter)
+        } else {
+            Ok(Host::Domain(
+                utf8_percent_encode(input, CONTROLS).to_string(),
+            ))
         }
-        let s = utf8_percent_encode(input, CONTROLS).to_string();
-        Ok(Host::Domain(s))
     }
 }
 
 impl<S: AsRef<str>> fmt::Display for Host<S> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match *self {
             Host::Domain(ref domain) => domain.as_ref().fmt(f),
             Host::Ipv4(ref addr) => addr.fmt(f),
@@ -161,7 +172,7 @@ impl<S: AsRef<str>> fmt::Display for Host<S> {
     }
 }
 
-fn write_ipv6(addr: &Ipv6Addr, f: &mut Formatter) -> fmt::Result {
+fn write_ipv6(addr: &Ipv6Addr, f: &mut Formatter<'_>) -> fmt::Result {
     let segments = addr.segments();
     let (compress_start, compress_end) = longest_zero_sequence(&segments);
     let mut i = 0;

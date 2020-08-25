@@ -10,10 +10,10 @@ use std::error::Error;
 use std::fmt::{self, Formatter, Write};
 use std::str;
 
-use host::{Host, HostInternal};
+use crate::host::{Host, HostInternal};
+use crate::Url;
+use form_urlencoded::EncodingOverride;
 use percent_encoding::{percent_encode, utf8_percent_encode, AsciiSet, CONTROLS};
-use query_encoding::EncodingOverride;
-use Url;
 
 /// https://url.spec.whatwg.org/#fragment-percent-encode-set
 const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'<').add(b'>').add(b'`');
@@ -52,6 +52,7 @@ macro_rules! simple_enum_error {
         ///
         /// This may be extended in the future so exhaustive matching is
         /// discouraged with an unused variant.
+        #[allow(clippy::manual_non_exhaustive)] // introduced in 1.40, MSRV is 1.36
         #[derive(PartialEq, Eq, Clone, Copy, Debug)]
         pub enum ParseError {
             $(
@@ -62,11 +63,11 @@ macro_rules! simple_enum_error {
             __FutureProof,
         }
 
-        impl Error for ParseError {
-            fn description(&self) -> &str {
+        impl fmt::Display for ParseError {
+            fn fmt(&self, fmt: &mut Formatter<'_>) -> fmt::Result {
                 match *self {
                     $(
-                        ParseError::$name => $description,
+                        ParseError::$name => fmt.write_str($description),
                     )+
                     ParseError::__FutureProof => {
                         unreachable!("Don't abuse the FutureProof!");
@@ -76,6 +77,8 @@ macro_rules! simple_enum_error {
         }
     }
 }
+
+impl Error for ParseError {}
 
 simple_enum_error! {
     EmptyHost => "empty host",
@@ -90,12 +93,6 @@ simple_enum_error! {
     Overflow => "URLs more than 4 GB are not supported",
 }
 
-impl fmt::Display for ParseError {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        fmt::Display::fmt(self.description(), f)
-    }
-}
-
 impl From<::idna::Errors> for ParseError {
     fn from(_: ::idna::Errors) -> ParseError {
         ParseError::IdnaError
@@ -108,6 +105,7 @@ macro_rules! syntax_violation_enum {
         ///
         /// This may be extended in the future so exhaustive matching is
         /// discouraged with an unused variant.
+        #[allow(clippy::manual_non_exhaustive)] // introduced in 1.40, MSRV is 1.36
         #[derive(PartialEq, Eq, Clone, Copy, Debug)]
         pub enum SyntaxViolation {
             $(
@@ -151,7 +149,7 @@ syntax_violation_enum! {
 }
 
 impl fmt::Display for SyntaxViolation {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(self.description(), f)
     }
 }
@@ -174,7 +172,7 @@ impl SchemeType {
 
     pub fn from(s: &str) -> Self {
         match s {
-            "http" | "https" | "ws" | "wss" | "ftp" | "gopher" => SchemeType::SpecialNotFile,
+            "http" | "https" | "ws" | "wss" | "ftp" => SchemeType::SpecialNotFile,
             "file" => SchemeType::File,
             _ => SchemeType::NotSpecial,
         }
@@ -186,7 +184,6 @@ pub fn default_port(scheme: &str) -> Option<u16> {
         "http" | "ws" => Some(80),
         "https" | "wss" => Some(443),
         "ftp" => Some(21),
-        "gopher" => Some(70),
         _ => None,
     }
 }
@@ -425,8 +422,8 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_with_scheme(mut self, input: Input) -> ParseResult<Url> {
-        use SyntaxViolation::{ExpectedDoubleSlash, ExpectedFileDoubleSlash};
+    fn parse_with_scheme(mut self, input: Input<'_>) -> ParseResult<Url> {
+        use crate::SyntaxViolation::{ExpectedDoubleSlash, ExpectedFileDoubleSlash};
         let scheme_end = to_u32(self.serialization.len())?;
         let scheme_type = SchemeType::from(&self.serialization);
         self.serialization.push(':');
@@ -470,10 +467,10 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Scheme other than file, http, https, ws, ws, ftp, gopher.
+    /// Scheme other than file, http, https, ws, ws, ftp.
     fn parse_non_special(
         mut self,
-        input: Input,
+        input: Input<'_>,
         scheme_type: SchemeType,
         scheme_end: u32,
     ) -> ParseResult<Url> {
@@ -510,11 +507,11 @@ impl<'a> Parser<'a> {
 
     fn parse_file(
         mut self,
-        input: Input,
+        input: Input<'_>,
         scheme_type: SchemeType,
         base_file_url: Option<&Url>,
     ) -> ParseResult<Url> {
-        use SyntaxViolation::Backslash;
+        use crate::SyntaxViolation::Backslash;
         // file state
         debug_assert!(self.serialization.is_empty());
         let (first_char, input_after_first_char) = input.split_first();
@@ -552,15 +549,15 @@ impl<'a> Parser<'a> {
                     self.parse_query_and_fragment(scheme_type, scheme_end, remaining)?;
                 return Ok(Url {
                     serialization: self.serialization,
-                    scheme_end: scheme_end,
+                    scheme_end,
                     username_end: host_start,
-                    host_start: host_start,
-                    host_end: host_end,
-                    host: host,
+                    host_start,
+                    host_end,
+                    host,
                     port: None,
                     path_start: host_end,
-                    query_start: query_start,
-                    fragment_start: fragment_start,
+                    query_start,
+                    fragment_start,
                 });
             } else {
                 self.serialization.push_str("file://");
@@ -577,7 +574,7 @@ impl<'a> Parser<'a> {
                         } else if let Some(host_str) = base_url.host_str() {
                             self.serialization.push_str(host_str);
                             host_end = self.serialization.len();
-                            host = base_url.host.clone();
+                            host = base_url.host;
                         }
                     }
                 }
@@ -603,15 +600,15 @@ impl<'a> Parser<'a> {
                 let host_end = host_end as u32;
                 return Ok(Url {
                     serialization: self.serialization,
-                    scheme_end: scheme_end,
+                    scheme_end,
                     username_end: host_start,
                     host_start,
                     host_end,
                     host,
                     port: None,
                     path_start: host_end,
-                    query_start: query_start,
-                    fragment_start: fragment_start,
+                    query_start,
+                    fragment_start,
                 });
             }
         }
@@ -683,15 +680,15 @@ impl<'a> Parser<'a> {
                         let path_start = path_start as u32;
                         Ok(Url {
                             serialization: self.serialization,
-                            scheme_end: scheme_end,
+                            scheme_end,
                             username_end: path_start,
                             host_start: path_start,
                             host_end: path_start,
                             host: HostInternal::None,
                             port: None,
-                            path_start: path_start,
-                            query_start: query_start,
-                            fragment_start: fragment_start,
+                            path_start,
+                            query_start,
+                            fragment_start,
                         })
                     }
                 }
@@ -706,22 +703,22 @@ impl<'a> Parser<'a> {
             let path_start = path_start as u32;
             Ok(Url {
                 serialization: self.serialization,
-                scheme_end: scheme_end,
+                scheme_end,
                 username_end: path_start,
                 host_start: path_start,
                 host_end: path_start,
                 host: HostInternal::None,
                 port: None,
-                path_start: path_start,
-                query_start: query_start,
-                fragment_start: fragment_start,
+                path_start,
+                query_start,
+                fragment_start,
             })
         }
     }
 
     fn parse_relative(
         mut self,
-        input: Input,
+        input: Input<'_>,
         scheme_type: SchemeType,
         base_url: &Url,
     ) -> ParseResult<Url> {
@@ -780,7 +777,7 @@ impl<'a> Parser<'a> {
                 }
                 let path_start = base_url.path_start;
                 self.serialization.push_str(base_url.slice(..path_start));
-                self.serialization.push_str("/");
+                self.serialization.push('/');
                 let remaining = self.parse_path(
                     scheme_type,
                     &mut true,
@@ -809,10 +806,10 @@ impl<'a> Parser<'a> {
                 self.pop_path(scheme_type, base_url.path_start as usize);
                 // A special url always has a path.
                 // A path always starts with '/'
-                if self.serialization.len() == base_url.path_start as usize {
-                    if SchemeType::from(base_url.scheme()).is_special() || !input.is_empty() {
-                        self.serialization.push('/');
-                    }
+                if self.serialization.len() == base_url.path_start as usize
+                    && (SchemeType::from(base_url.scheme()).is_special() || !input.is_empty())
+                {
+                    self.serialization.push('/');
                 }
                 let remaining = match input.split_first() {
                     (Some('/'), remaining) => self.parse_path(
@@ -842,7 +839,7 @@ impl<'a> Parser<'a> {
 
     fn after_double_slash(
         mut self,
-        input: Input,
+        input: Input<'_>,
         scheme_type: SchemeType,
         scheme_end: u32,
     ) -> ParseResult<Url> {
@@ -984,9 +981,9 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_host(
-        mut input: Input,
+        mut input: Input<'_>,
         scheme_type: SchemeType,
-    ) -> ParseResult<(Host<String>, Input)> {
+    ) -> ParseResult<(Host<String>, Input<'_>)> {
         if scheme_type.is_file() {
             return Parser::get_file_host(input);
         }
@@ -1040,7 +1037,7 @@ impl<'a> Parser<'a> {
         Ok((host, input))
     }
 
-    fn get_file_host<'i>(input: Input<'i>) -> ParseResult<(Host<String>, Input)> {
+    fn get_file_host(input: Input<'_>) -> ParseResult<(Host<String>, Input<'_>)> {
         let (_, host_str, remaining) = Parser::file_host(input)?;
         let host = match Host::parse(&host_str)? {
             Host::Domain(ref d) if d == "localhost" => Host::Domain("".to_string()),
@@ -1109,10 +1106,10 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_port<P>(
-        mut input: Input,
+        mut input: Input<'_>,
         default_port: P,
         context: Context,
-    ) -> ParseResult<(Option<u16>, Input)>
+    ) -> ParseResult<(Option<u16>, Input<'_>)>
     where
         P: Fn() -> Option<u16>,
     {
@@ -1154,7 +1151,7 @@ impl<'a> Parser<'a> {
                 self.log_violation(SyntaxViolation::Backslash);
             }
             // A special URL always has a non-empty path.
-            if !self.serialization.ends_with("/") {
+            if !self.serialization.ends_with('/') {
                 self.serialization.push('/');
                 // We have already made sure the forward slash is present.
                 if maybe_c == Some('/') || maybe_c == Some('\\') {
@@ -1169,6 +1166,10 @@ impl<'a> Parser<'a> {
             // set url’s fragment to the empty string and state to fragment state.
             // The query and path states will be handled by the caller.
             return input;
+        }
+
+        if maybe_c != None && maybe_c != Some('/') {
+            self.serialization.push('/');
         }
         // Otherwise, if c is not the EOF code point:
         self.parse_path(scheme_type, has_host, path_start, input)
@@ -1239,7 +1240,7 @@ impl<'a> Parser<'a> {
                 | ".%2E" => {
                     debug_assert!(self.serialization.as_bytes()[segment_start - 1] == b'/');
                     self.serialization.truncate(segment_start);
-                    if self.serialization.ends_with("/")
+                    if self.serialization.ends_with('/')
                         && Parser::last_slash_can_be_removed(&self.serialization, path_start)
                     {
                         self.serialization.pop();
@@ -1247,7 +1248,7 @@ impl<'a> Parser<'a> {
                     self.shorten_path(scheme_type, path_start);
 
                     // and then if neither c is U+002F (/), nor url is special and c is U+005C (\), append the empty string to url’s path.
-                    if ends_with_slash && !self.serialization.ends_with("/") {
+                    if ends_with_slash && !self.serialization.ends_with('/') {
                         self.serialization.push('/');
                     }
                 }
@@ -1255,7 +1256,7 @@ impl<'a> Parser<'a> {
                 // nor url is special and c is U+005C (\), append the empty string to url’s path.
                 "." | "%2e" | "%2E" => {
                     self.serialization.truncate(segment_start);
-                    if !self.serialization.ends_with("/") {
+                    if !self.serialization.ends_with('/') {
                         self.serialization.push('/');
                     }
                 }
@@ -1263,7 +1264,7 @@ impl<'a> Parser<'a> {
                     // If url’s scheme is "file", url’s path is empty, and buffer is a Windows drive letter, then
                     if scheme_type.is_file() && is_windows_drive_letter(segment_before_slash) {
                         // Replace the second code point in buffer with U+003A (:).
-                        if let Some(c) = segment_before_slash.chars().nth(0) {
+                        if let Some(c) = segment_before_slash.chars().next() {
                             self.serialization.truncate(segment_start);
                             self.serialization.push(c);
                             self.serialization.push(':');
@@ -1291,14 +1292,15 @@ impl<'a> Parser<'a> {
             //FIXME: log violation
             let path = self.serialization.split_off(path_start);
             self.serialization.push('/');
-            self.serialization.push_str(&path.trim_start_matches("/"));
+            self.serialization.push_str(&path.trim_start_matches('/'));
         }
+
         input
     }
 
-    fn last_slash_can_be_removed(serialization: &String, path_start: usize) -> bool {
+    fn last_slash_can_be_removed(serialization: &str, path_start: usize) -> bool {
         let url_before_segment = &serialization[..serialization.len() - 1];
-        if let Some(segment_before_start) = url_before_segment.rfind("/") {
+        if let Some(segment_before_start) = url_before_segment.rfind('/') {
             // Do not remove the root slash
             segment_before_start >= path_start
                 // Or a windows drive letter slash
@@ -1356,6 +1358,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn with_query_and_fragment(
         mut self,
         scheme_type: SchemeType,
@@ -1366,7 +1369,7 @@ impl<'a> Parser<'a> {
         host: HostInternal,
         port: Option<u16>,
         path_start: u32,
-        remaining: Input,
+        remaining: Input<'_>,
     ) -> ParseResult<Url> {
         let (query_start, fragment_start) =
             self.parse_query_and_fragment(scheme_type, scheme_end, remaining)?;
@@ -1389,7 +1392,7 @@ impl<'a> Parser<'a> {
         &mut self,
         scheme_type: SchemeType,
         scheme_end: u32,
-        mut input: Input,
+        mut input: Input<'_>,
     ) -> ParseResult<(Option<u32>, Option<u32>)> {
         let mut query_start = None;
         match input.next() {
@@ -1433,10 +1436,14 @@ impl<'a> Parser<'a> {
         }
 
         let encoding = match &self.serialization[..scheme_end as usize] {
-            "http" | "https" | "file" | "ftp" | "gopher" => self.query_encoding_override,
+            "http" | "https" | "file" | "ftp" => self.query_encoding_override,
             _ => None,
         };
-        let query_bytes = ::query_encoding::encode(encoding, &query);
+        let query_bytes = if let Some(o) = encoding {
+            o(&query)
+        } else {
+            query.as_bytes().into()
+        };
         let set = if scheme_type.is_special() {
             SPECIAL_QUERY
         } else {
@@ -1446,7 +1453,7 @@ impl<'a> Parser<'a> {
         remaining
     }
 
-    fn fragment_only(mut self, base_url: &Url, mut input: Input) -> ParseResult<Url> {
+    fn fragment_only(mut self, base_url: &Url, mut input: Input<'_>) -> ParseResult<Url> {
         let before_fragment = match base_url.fragment_start {
             Some(i) => base_url.slice(..i),
             None => &*base_url.serialization,
@@ -1466,19 +1473,19 @@ impl<'a> Parser<'a> {
         })
     }
 
-    pub fn parse_fragment(&mut self, mut input: Input) {
+    pub fn parse_fragment(&mut self, mut input: Input<'_>) {
         while let Some((c, utf8_c)) = input.next_utf8() {
             if c == '\0' {
                 self.log_violation(SyntaxViolation::NullInFragment)
             } else {
                 self.check_url_code_point(c, &input);
-                self.serialization
-                    .extend(utf8_percent_encode(utf8_c, FRAGMENT));
             }
+            self.serialization
+                .extend(utf8_percent_encode(utf8_c, FRAGMENT));
         }
     }
 
-    fn check_url_code_point(&self, c: char, input: &Input) {
+    fn check_url_code_point(&self, c: char, input: &Input<'_>) {
         if let Some(vfn) = self.violation_fn {
             if c == '%' {
                 let mut input = input.clone();
@@ -1581,7 +1588,7 @@ fn starts_with_windows_drive_letter(s: &str) -> bool {
 }
 
 /// https://url.spec.whatwg.org/#start-with-a-windows-drive-letter
-fn starts_with_windows_drive_letter_segment(input: &Input) -> bool {
+fn starts_with_windows_drive_letter_segment(input: &Input<'_>) -> bool {
     let mut input = input.clone();
     match (input.next(), input.next(), input.next()) {
         // its first two code points are a Windows drive letter

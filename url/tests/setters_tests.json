@@ -1,5 +1,6 @@
 {
     "comment": [
+        "AS OF https://github.com/jsdom/whatwg-url/commit/35f04dfd3048cf6362f4398745bb13375c5020c2",
         "## Tests for setters of https://url.spec.whatwg.org/#urlutils-members",
         "",
         "This file contains a JSON object.",
@@ -122,7 +123,7 @@
             "href": "gopher://example.net:1234",
             "new_value": "file",
             "expected": {
-                "href": "gopher://example.net:1234/",
+                "href": "gopher://example.net:1234",
                 "protocol": "gopher:"
             }
         },
@@ -212,7 +213,7 @@
         },
         {
             "href": "ssh://me@example.net",
-            "new_value": "gopher",
+            "new_value": "https",
             "expected": {
                 "href": "ssh://me@example.net",
                 "protocol": "ssh:"
@@ -597,7 +598,7 @@
             }
         },
         {
-            "comment": "Cannot-be-a-base means no password",
+            "comment": "Cannot-be-a-base means no host",
             "href": "data:text/plain,Stuff",
             "new_value": "example.net",
             "expected": {
@@ -685,6 +686,17 @@
                 "hostname": "[::1]",
                 "port": "2"
             }
+        },
+        {
+            "comment": "IPv6 literal address with port, crbug.com/1012416",
+            "href": "http://example.net",
+            "new_value": "[2001:db8::2]:4002",
+            "expected": {
+                "href": "http://[2001:db8::2]:4002/",
+                "host": "[2001:db8::2]:4002",
+                "hostname": "[2001:db8::2]",
+                "port": "4002"
+             }
         },
         {
             "comment": "Default port number is removed",
@@ -951,16 +963,6 @@
             }
         },
         {
-            "href": "file://hi/x",
-            "new_value": "",
-            "expected": {
-                "href": "file:///x",
-                "host": "",
-                "hostname": "",
-                "port": ""
-            }
-        },
-        {
             "href": "sc://test@test/",
             "new_value": "",
             "expected": {
@@ -1074,7 +1076,7 @@
             }
         },
         {
-            "comment": "Cannot-be-a-base means no password",
+            "comment": "Cannot-be-a-base means no host",
             "href": "data:text/plain,Stuff",
             "new_value": "example.net",
             "expected": {
@@ -1279,16 +1281,6 @@
             "new_value": "loc%41lhost",
             "expected": {
                 "href": "file:///",
-                "host": "",
-                "hostname": "",
-                "port": ""
-            }
-        },
-        {
-            "href": "file://hi/x",
-            "new_value": "",
-            "expected": {
-                "href": "file:///x",
                 "host": "",
                 "hostname": "",
                 "port": ""
@@ -1837,12 +1829,30 @@
             }
         },
         {
-            "comment": "Simple percent-encoding; nuls, tabs, and newlines are removed",
+            "comment": "Simple percent-encoding; tabs and newlines are removed",
             "href": "a:/",
             "new_value": "\u0000\u0001\t\n\r\u001f !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~\u007f\u0080\u0081Éé",
             "expected": {
-                "href": "a:/#%01%1F%20!%22#$%&'()*+,-./09:;%3C=%3E?@AZ[\\]^_%60az{|}~%7F%C2%80%C2%81%C3%89%C3%A9",
-                "hash": "#%01%1F%20!%22#$%&'()*+,-./09:;%3C=%3E?@AZ[\\]^_%60az{|}~%7F%C2%80%C2%81%C3%89%C3%A9"
+                "href": "a:/#%00%01%1F%20!%22#$%&'()*+,-./09:;%3C=%3E?@AZ[\\]^_%60az{|}~%7F%C2%80%C2%81%C3%89%C3%A9",
+                "hash": "#%00%01%1F%20!%22#$%&'()*+,-./09:;%3C=%3E?@AZ[\\]^_%60az{|}~%7F%C2%80%C2%81%C3%89%C3%A9"
+            }
+        },
+        {
+            "comment": "Percent-encode NULLs in fragment",
+            "href": "http://example.net",
+            "new_value": "a\u0000b",
+            "expected": {
+                "href": "http://example.net/#a%00b",
+                "hash": "#a%00b"
+            }
+        },
+        {
+            "comment": "Percent-encode NULLs in fragment",
+            "href": "non-spec:/",
+            "new_value": "a\u0000b",
+            "expected": {
+                "href": "non-spec:/#a%00b",
+                "hash": "#a%00b"
             }
         },
         {
