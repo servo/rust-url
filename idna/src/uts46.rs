@@ -362,7 +362,7 @@ fn processing(domain: &str, config: Config, errors: &mut Vec<Error>) -> String {
     }
 
     let mut validated = String::new();
-    let mut first = true;
+    let (mut first, mut valid) = (true, true);
     for label in normalized.split('.') {
         if !first {
             validated.push('.');
@@ -375,7 +375,7 @@ fn processing(domain: &str, config: Config, errors: &mut Vec<Error>) -> String {
                     if decoded_label.nfc().ne(decoded_label.chars())
                         || !is_valid(&decoded_label, is_bidi_domain_name, config)
                     {
-                        errors.push(Error::ValidityCriteria);
+                        valid = false;
                     }
                     validated.push_str(&decoded_label)
                 }
@@ -383,12 +383,15 @@ fn processing(domain: &str, config: Config, errors: &mut Vec<Error>) -> String {
             }
         } else {
             // `normalized` is already `NFC` so we can skip that check
-            if !is_valid(label, is_bidi_domain_name, config) {
-                errors.push(Error::ValidityCriteria);
-            }
+            valid &= is_valid(label, is_bidi_domain_name, config);
             validated.push_str(label)
         }
     }
+
+    if !valid {
+        errors.push(Error::ValidityCriteria);
+    }
+
     validated
 }
 
