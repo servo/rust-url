@@ -15,7 +15,7 @@ use std::cmp::Ordering::{Equal, Greater, Less};
 use std::{error::Error as StdError, fmt};
 use unicode_bidi::{bidi_class, BidiClass};
 use unicode_normalization::char::is_combining_mark;
-use unicode_normalization::UnicodeNormalization;
+use unicode_normalization::{is_nfc, UnicodeNormalization};
 
 include!("uts46_mapping_table.rs");
 
@@ -337,6 +337,7 @@ fn processing(domain: &str, config: Config, errors: &mut Vec<Error>) -> String {
     normalized.extend(mapped.nfc());
 
     let mut validated = String::new();
+    let non_transitional = config.transitional_processing(false);
     let (mut first, mut valid, mut has_bidi_labels) = (true, true, false);
     for label in normalized.split('.') {
         if !first {
@@ -350,9 +351,8 @@ fn processing(domain: &str, config: Config, errors: &mut Vec<Error>) -> String {
                         has_bidi_labels |= is_bidi_domain(&decoded_label);
                     }
 
-                    let config = config.transitional_processing(false);
-                    if decoded_label.nfc().ne(decoded_label.chars())
-                        || !is_valid(&decoded_label, config)
+                    if valid
+                        && (!is_nfc(&decoded_label) || !is_valid(&decoded_label, non_transitional))
                     {
                         valid = false;
                     }
