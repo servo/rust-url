@@ -242,8 +242,12 @@ fn passes_bidi(label: &str, is_bidi_domain: bool) -> bool {
     true
 }
 
+/// Check the validity criteria for the given label
+///
+/// V1 (NFC) and V8 (Bidi) are checked inside `processing()` to prevent doing duplicate work.
+///
 /// http://www.unicode.org/reports/tr46/#Validity_Criteria
-fn is_valid(label: &str, is_bidi_domain: bool, config: Config) -> bool {
+fn is_valid(label: &str, config: Config) -> bool {
     let first_char = label.chars().next();
     if first_char == None {
         // Empty string, pass
@@ -284,13 +288,7 @@ fn is_valid(label: &str, is_bidi_domain: bool, config: Config) -> bool {
     //
     // TODO: Implement rules and add *CheckJoiners* flag.
 
-    // V8: Bidi rules
-    //
-    // TODO: Add *CheckBidi* flag
-    if !passes_bidi(label, is_bidi_domain) {
-        return false;
-    }
-
+    // V8: Bidi rules are checked inside `processing()`
     true
 }
 
@@ -338,31 +336,8 @@ fn processing(domain: &str, config: Config, errors: &mut Vec<Error>) -> String {
     let mut normalized = String::with_capacity(mapped.len());
     normalized.extend(mapped.nfc());
 
-    // Find out if it's a Bidi Domain Name
-    //
-    // First, check for literal bidi chars
-    let mut is_bidi_domain_name = is_bidi_domain(domain);
-    if !is_bidi_domain_name {
-        // Then check for punycode-encoded bidi chars
-        for label in normalized.split('.') {
-            if label.starts_with(PUNYCODE_PREFIX) {
-                match punycode::decode_to_string(&label[PUNYCODE_PREFIX.len()..]) {
-                    Some(decoded_label) => {
-                        if is_bidi_domain(&decoded_label) {
-                            is_bidi_domain_name = true;
-                            break;
-                        }
-                    }
-                    None => {
-                        is_bidi_domain_name = true;
-                    }
-                }
-            }
-        }
-    }
-
     let mut validated = String::new();
-    let (mut first, mut valid) = (true, true);
+    let (mut first, mut valid, mut has_bidi_labels) = (true, true, false);
     for label in normalized.split('.') {
         if !first {
             validated.push('.');
@@ -371,20 +346,41 @@ fn processing(domain: &str, config: Config, errors: &mut Vec<Error>) -> String {
         if label.starts_with(PUNYCODE_PREFIX) {
             match punycode::decode_to_string(&label[PUNYCODE_PREFIX.len()..]) {
                 Some(decoded_label) => {
+                    if !has_bidi_labels {
+                        has_bidi_labels |= is_bidi_domain(&decoded_label);
+                    }
+
                     let config = config.transitional_processing(false);
                     if decoded_label.nfc().ne(decoded_label.chars())
-                        || !is_valid(&decoded_label, is_bidi_domain_name, config)
+                        || !is_valid(&decoded_label, config)
                     {
                         valid = false;
                     }
                     validated.push_str(&decoded_label)
                 }
-                None => errors.push(Error::PunycodeError),
+                None => {
+                    has_bidi_labels = true;
+                    errors.push(Error::PunycodeError);
+                }
             }
         } else {
+            if !has_bidi_labels {
+                has_bidi_labels |= is_bidi_domain(label);
+            }
+
             // `normalized` is already `NFC` so we can skip that check
-            valid &= is_valid(label, is_bidi_domain_name, config);
+            valid &= is_valid(label, config);
             validated.push_str(label)
+        }
+    }
+
+    for label in validated.split('.') {
+        // V8: Bidi rules
+        //
+        // TODO: Add *CheckBidi* flag
+        if !passes_bidi(label, has_bidi_labels) {
+            valid = false;
+            break;
         }
     }
 
