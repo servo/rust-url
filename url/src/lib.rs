@@ -1057,7 +1057,7 @@ impl Url {
     /// use url::Url;
     /// # use std::error::Error;
     ///
-    /// # fn run() -> Result<(), Box<Error>> {
+    /// # fn run() -> Result<(), Box<dyn Error>> {
     /// let url = Url::parse("https://example.com/foo/bar")?;
     /// let mut path_segments = url.path_segments().ok_or_else(|| "cannot be base")?;
     /// assert_eq!(path_segments.next(), Some("foo"));
@@ -1450,7 +1450,7 @@ impl Url {
     /// use url::Url;
     /// # use std::error::Error;
     ///
-    /// # fn run() -> Result<(), Box<Error>> {
+    /// # fn run() -> Result<(), Box<dyn Error>> {
     /// let mut url = Url::parse("ssh://example.net:2048/")?;
     ///
     /// url.set_port(Some(4096)).map_err(|_| "cannot be base")?;
@@ -1469,7 +1469,7 @@ impl Url {
     /// use url::Url;
     /// # use std::error::Error;
     ///
-    /// # fn run() -> Result<(), Box<Error>> {
+    /// # fn run() -> Result<(), Box<dyn Error>> {
     /// let mut url = Url::parse("https://example.org/")?;
     ///
     /// url.set_port(Some(443)).map_err(|_| "cannot be base")?;
