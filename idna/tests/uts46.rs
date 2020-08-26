@@ -9,6 +9,8 @@
 use crate::test::TestFn;
 use std::char;
 
+use idna::Errors;
+
 pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
     // https://www.unicode.org/Public/idna/13.0.0/IdnaTestV2.txt
     for (i, line) in include_str!("IdnaTestV2.txt").lines().enumerate() {
@@ -84,99 +86,58 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
 
                 let (to_unicode_value, to_unicode_result) =
                     config.transitional_processing(false).to_unicode(&source);
-                if !to_unicode_status.is_empty() {
-                    if !to_unicode_status.iter().any(|e| e.starts_with('C'))
-                        && !to_unicode_status.contains(&"V2")
-                        && !to_unicode_status.contains(&"X4_2")
-                    {
-                        let res = to_unicode_result.ok();
-                        assert!(
-                            res == None,
-                            "Expected error {:?}. result: {:?} | source: {}",
-                            to_unicode_status,
-                            to_unicode_value,
-                            source
-                        );
-                    }
-                } else {
-                    assert!(
-                        to_unicode_result.is_ok(),
-                        "Couldn't parse {} | error: {:?}",
-                        source,
-                        to_unicode_result.err()
-                    );
-                    assert!(
-                        to_unicode_value == to_unicode,
-                        "result: {} | expected: {} | source: {}",
-                        to_unicode_value,
-                        to_unicode,
-                        source
-                    );
-                }
+                let to_unicode_result = to_unicode_result.map(|()| to_unicode_value);
+                check(
+                    &source,
+                    (&to_unicode, &to_unicode_status),
+                    to_unicode_result,
+                    |e| e.starts_with('C') || e == "V2" || e == "X4_2",
+                );
 
                 let to_ascii_n_result = config.transitional_processing(false).to_ascii(&source);
-                if !to_ascii_n_status.is_empty() {
-                    if !to_ascii_n_status.iter().any(|e| e.starts_with('C'))
-                        && !to_ascii_n_status.contains(&"V2")
-                    {
-                        let res = to_ascii_n_result.ok();
-                        assert!(
-                            res == None,
-                            "Expected error {:?}. result: {} | source: {}",
-                            to_ascii_n_status,
-                            res.unwrap(),
-                            source
-                        );
-                    }
-                } else {
-                    assert!(
-                        to_ascii_n_result.is_ok(),
-                        "Couldn't parse {} | error: {:?}",
-                        source,
-                        to_ascii_n_result.err()
-                    );
-                    let output = to_ascii_n_result.ok().unwrap();
-                    assert!(
-                        output == to_ascii_n,
-                        "result: {} | expected: {} | source: {}",
-                        output,
-                        to_ascii_n,
-                        source
-                    );
-                }
+                check(
+                    &source,
+                    (&to_ascii_n, &to_ascii_n_status),
+                    to_ascii_n_result,
+                    |e| e.starts_with('C') || e == "V2",
+                );
 
                 let to_ascii_t_result = config.transitional_processing(true).to_ascii(&source);
-                if !to_ascii_t_status.is_empty() {
-                    if !to_ascii_t_status.iter().any(|e| e.starts_with('C'))
-                        && !to_ascii_t_status.contains(&"V2")
-                    {
-                        let res = to_ascii_t_result.ok();
-                        assert!(
-                            res == None,
-                            "Expected error {:?}. result: {} | source: {}",
-                            to_ascii_t_status,
-                            res.unwrap(),
-                            source
-                        );
-                    }
-                } else {
-                    assert!(
-                        to_ascii_t_result.is_ok(),
-                        "Couldn't parse {} | error: {:?}",
-                        source,
-                        to_ascii_t_result.err()
-                    );
-                    let output = to_ascii_t_result.ok().unwrap();
-                    assert!(
-                        output == to_ascii_t,
-                        "result: {} | expected: {} | source: {}",
-                        output,
-                        to_ascii_t,
-                        source
-                    );
-                }
+                check(
+                    &source,
+                    (&to_ascii_t, &to_ascii_t_status),
+                    to_ascii_t_result,
+                    |e| e.starts_with('C') || e == "V2",
+                );
             }),
         )
+    }
+}
+
+fn check<F>(source: &str, expected: (&str, &[&str]), actual: Result<String, Errors>, ignore: F)
+where
+    F: Fn(&str) -> bool,
+{
+    if !expected.1.is_empty() {
+        if !expected.1.iter().copied().any(ignore) {
+            let res = actual.ok();
+            assert_eq!(
+                res.clone(),
+                None,
+                "Expected error {:?}. result: {} | source: {}",
+                expected.1,
+                res.unwrap(),
+                source,
+            );
+        }
+    } else {
+        assert!(
+            actual.is_ok(),
+            "Couldn't parse {} | error: {:?}",
+            source,
+            actual.err().unwrap(),
+        );
+        assert_eq!(actual.unwrap(), expected.0, "source: {}", source);
     }
 }
 
