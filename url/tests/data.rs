@@ -8,6 +8,7 @@
 
 //! Data-driven tests
 
+use std::ops::Deref;
 use std::str::FromStr;
 
 use serde_json::Value;
@@ -110,7 +111,7 @@ fn setters_tests() {
             let mut expected = test.take_key("expected").unwrap();
 
             let mut url = Url::parse(&href).unwrap();
-            let comment_ref = comment.as_deref();
+            let comment_ref = comment.as_ref().map(|s| s.deref());
             passed &= check_invariants(&url, &name, comment_ref);
             let _ = set(&mut url, attr, &new_value);
 
@@ -188,6 +189,7 @@ fn get<'a>(url: &'a Url, attr: &str) -> &'a str {
     }
 }
 
+#[allow(clippy::unit_arg)]
 fn set<'a>(url: &'a mut Url, attr: &str, new: &str) {
     let _ = match attr {
         "protocol" => quirks::set_protocol(url, new),
