@@ -114,6 +114,7 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
     }
 }
 
+#[allow(clippy::redundant_clone)]
 fn check<F>(source: &str, expected: (&str, &[&str]), actual: Result<String, Errors>, ignore: F)
 where
     F: Fn(&str) -> bool,
