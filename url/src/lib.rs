@@ -2350,8 +2350,16 @@ impl fmt::Display for Url {
 /// Debug the serialization of this URL.
 impl fmt::Debug for Url {
     #[inline]
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.serialization, formatter)
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter
+            .debug_struct("Url")
+            .field("scheme", &self.scheme())
+            .field("host", &self.host())
+            .field("port", &self.port())
+            .field("path", &self.path())
+            .field("query", &self.query())
+            .field("fragment", &self.fragment())
+            .finish()
     }
 }
 
