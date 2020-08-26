@@ -91,6 +91,7 @@ fn urltestdata() {
     assert!(passed)
 }
 
+#[allow(clippy::option_as_ref_deref)] // introduced in 1.40, MSRV is 1.36
 #[test]
 fn setters_tests() {
     let mut json = Value::from_str(include_str!("setters_tests.json"))
