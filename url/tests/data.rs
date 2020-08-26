@@ -8,65 +8,23 @@
 
 //! Data-driven tests
 
-use serde_json::Value;
 use std::str::FromStr;
+
+use serde_json::Value;
 use url::{quirks, Url};
-
-fn check_invariants(url: &Url, name: &str, comment: Option<&str>) -> bool {
-    let mut passed = true;
-    if let Err(e) = url.check_invariants() {
-        passed = false;
-        eprint_failure(
-            format!("  failed: invariants checked -> {:?}", e),
-            name,
-            comment,
-        );
-    }
-
-    #[cfg(feature = "serde")]
-    {
-        let bytes = serde_json::to_vec(url).unwrap();
-        let new_url: Url = serde_json::from_slice(&bytes).unwrap();
-        passed &= test_eq(url, &new_url, name, comment);
-    }
-
-    passed
-}
-
-trait JsonExt {
-    fn take_key(&mut self, key: &str) -> Option<Value>;
-    fn string(self) -> String;
-    fn take_string(&mut self, key: &str) -> String;
-}
-
-impl JsonExt for Value {
-    fn take_key(&mut self, key: &str) -> Option<Value> {
-        self.as_object_mut().unwrap().remove(key)
-    }
-
-    fn string(self) -> String {
-        if let Value::String(s) = self {
-            s
-        } else {
-            panic!("Not a Value::String")
-        }
-    }
-
-    fn take_string(&mut self, key: &str) -> String {
-        self.take_key(key).unwrap().string()
-    }
-}
 
 #[test]
 fn urltestdata() {
     // Copied form https://github.com/w3c/web-platform-tests/blob/master/url/
     let mut json = Value::from_str(include_str!("urltestdata.json"))
         .expect("JSON parse error in urltestdata.json");
+
     let mut passed = true;
     for entry in json.as_array_mut().unwrap() {
         if entry.is_string() {
             continue; // ignore comments
         }
+
         let base = entry.take_string("base");
         let input = entry.take_string("input");
         let failure = entry.take_key("failure").is_some();
@@ -167,6 +125,51 @@ fn setters_tests() {
     }
 
     assert!(passed);
+}
+
+fn check_invariants(url: &Url, name: &str, comment: Option<&str>) -> bool {
+    let mut passed = true;
+    if let Err(e) = url.check_invariants() {
+        passed = false;
+        eprint_failure(
+            format!("  failed: invariants checked -> {:?}", e),
+            name,
+            comment,
+        );
+    }
+
+    #[cfg(feature = "serde")]
+    {
+        let bytes = serde_json::to_vec(url).unwrap();
+        let new_url: Url = serde_json::from_slice(&bytes).unwrap();
+        passed &= test_eq(url, &new_url, name, comment);
+    }
+
+    passed
+}
+
+trait JsonExt {
+    fn take_key(&mut self, key: &str) -> Option<Value>;
+    fn string(self) -> String;
+    fn take_string(&mut self, key: &str) -> String;
+}
+
+impl JsonExt for Value {
+    fn take_key(&mut self, key: &str) -> Option<Value> {
+        self.as_object_mut().unwrap().remove(key)
+    }
+
+    fn string(self) -> String {
+        if let Value::String(s) = self {
+            s
+        } else {
+            panic!("Not a Value::String")
+        }
+    }
+
+    fn take_string(&mut self, key: &str) -> String {
+        self.take_key(key).unwrap().string()
+    }
 }
 
 fn get<'a>(url: &'a Url, attr: &str) -> &'a str {
