@@ -2351,15 +2351,15 @@ impl fmt::Display for Url {
 impl fmt::Debug for Url {
     #[inline]
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.debug_struct("Url")
+        formatter
+            .debug_struct("Url")
             .field("scheme", &self.scheme())
             .field("host", &self.host())
             .field("port", &self.port())
             .field("path", &self.path())
             .field("query", &self.query())
             .field("fragment", &self.fragment())
-            .finish();
-        Ok(())
+            .finish()
     }
 }
 
