@@ -2339,6 +2339,15 @@ impl<'a> TryFrom<&'a str> for Url {
     }
 }
 
+impl<'a> TryFrom<&'a [u8]> for Url {
+    type Error = ParseError;
+
+    fn try_from(bytes: &'a [u8]) -> Result<Self, Self::Error> {
+        let s = std::str::from_utf8(bytes).map_err(|_| ParseError::InvalidUtf8)?;
+        Url::parse(s)
+    }
+}
+
 /// Display the serialization of this URL.
 impl fmt::Display for Url {
     #[inline]

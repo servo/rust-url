@@ -10,9 +10,10 @@
 
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
+use std::convert::TryFrom;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::path::{Path, PathBuf};
-use url::{form_urlencoded, Host, Url};
+use url::{form_urlencoded, Host, ParseError, Url};
 
 #[test]
 fn size() {
@@ -167,6 +168,21 @@ fn path_backslash_fun() {
 #[test]
 fn from_str() {
     assert!("http://testing.com/this".parse::<Url>().is_ok());
+}
+
+#[test]
+fn try_from_str() {
+    assert!(Url::try_from("http://testing.com/this").is_ok());
+}
+
+#[test]
+fn try_from_slice() {
+    assert!(Url::try_from(&b"http://testing.com/this"[..]).is_ok());
+}
+
+#[test]
+fn try_from_slice_invalid_utf8() {
+    assert!(Url::try_from(&[0, 159, 146, 150][..]) == Err(ParseError::InvalidUtf8));
 }
 
 #[test]

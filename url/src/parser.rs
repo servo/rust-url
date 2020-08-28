@@ -87,6 +87,7 @@ simple_enum_error! {
     InvalidIpv4Address => "invalid IPv4 address",
     InvalidIpv6Address => "invalid IPv6 address",
     InvalidDomainCharacter => "invalid domain character",
+    InvalidUtf8 => "invalid UTF-8",
     RelativeUrlWithoutBase => "relative URL without a base",
     RelativeUrlWithCannotBeABaseBase => "relative URL with a cannot-be-a-base base",
     SetHostOnCannotBeABaseUrl => "a cannot-be-a-base URL doesn’t have a host to set",
