@@ -585,7 +585,7 @@ fn is_bidi_domain(s: &str) -> bool {
 ///
 /// This is opaque for now, indicating what types of errors have been encountered at least once.
 /// More details may be exposed in the future.
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct Errors {
     punycode: bool,
     // https://unicode.org/reports/tr46/#Validity_Criteria
@@ -615,6 +615,48 @@ impl Errors {
             || disallowed_character
             || too_long_for_dns
             || too_short_for_dns
+    }
+}
+
+impl fmt::Debug for Errors {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Errors {
+            punycode,
+            validity_criteria,
+            disallowed_by_std3_ascii_rules,
+            disallowed_mapped_in_std3,
+            disallowed_character,
+            too_long_for_dns,
+            too_short_for_dns,
+        } = *self;
+
+        let fields = [
+            ("punycode", punycode),
+            ("validity_criteria", validity_criteria),
+            ("disallowed_by_std3_ascii_rules", disallowed_by_std3_ascii_rules),
+            ("disallowed_mapped_in_std3", disallowed_mapped_in_std3),
+            ("disallowed_character", disallowed_character),
+            ("too_long_for_dns", too_long_for_dns),
+            ("too_short_for_dns", too_short_for_dns),
+        ];
+
+        let mut empty = true;
+        f.write_str("Errors { ")?;
+        for (name, val) in &fields {
+            if *val {
+                if !empty {
+                    f.write_str(", ")?;
+                }
+                f.write_str(*name)?;
+                empty = false;
+            }
+        }
+
+        if !empty {
+            f.write_str(" }")
+        } else {
+            f.write_str("}")
+        }
     }
 }
 
