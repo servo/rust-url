@@ -598,16 +598,30 @@ pub struct Errors {
     too_short_for_dns: bool,
 }
 
+impl Errors {
+    fn is_err(&self) -> bool {
+        let Errors {
+            punycode,
+            validity_criteria,
+            disallowed_by_std3_ascii_rules,
+            disallowed_mapped_in_std3,
+            disallowed_character,
+            too_long_for_dns,
+            too_short_for_dns,
+        } = *self;
+        punycode
+            || validity_criteria
+            || disallowed_by_std3_ascii_rules
+            || disallowed_mapped_in_std3
+            || disallowed_character
+            || too_long_for_dns
+            || too_short_for_dns
+    }
+}
+
 impl From<Errors> for Result<(), Errors> {
     fn from(e: Errors) -> Result<(), Errors> {
-        let failed = e.punycode
-            || e.validity_criteria
-            || e.disallowed_by_std3_ascii_rules
-            || e.disallowed_mapped_in_std3
-            || e.disallowed_character
-            || e.too_long_for_dns
-            || e.too_short_for_dns;
-        if !failed {
+        if !e.is_err() {
             Ok(())
         } else {
             Err(e)
