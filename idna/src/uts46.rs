@@ -279,11 +279,11 @@ fn passes_bidi(label: &str, is_bidi_domain: bool) -> bool {
 /// V1 (NFC) and V8 (Bidi) are checked inside `processing()` to prevent doing duplicate work.
 ///
 /// http://www.unicode.org/reports/tr46/#Validity_Criteria
-fn is_valid(label: &str, config: Config) -> bool {
+fn is_valid(label: &str, config: Config, errors: &mut Errors) {
     let first_char = label.chars().next();
     if first_char == None {
         // Empty string, pass
-        return true;
+        return;
     }
 
     // V2: No U+002D HYPHEN-MINUS in both third and fourth positions.
@@ -294,7 +294,8 @@ fn is_valid(label: &str, config: Config) -> bool {
 
     // V3: neither begin nor end with a U+002D HYPHEN-MINUS
     if config.check_hyphens && (label.starts_with('-') || label.ends_with('-')) {
-        return false;
+        errors.check_hyphens = true;
+        return;
     }
 
     // V4: not contain a U+002E FULL STOP
@@ -303,7 +304,8 @@ fn is_valid(label: &str, config: Config) -> bool {
 
     // V5: not begin with a GC=Mark
     if is_combining_mark(first_char.unwrap()) {
-        return false;
+        errors.start_combining_mark = true;
+        return;
     }
 
     // V6: Check against Mapping Table
@@ -313,7 +315,8 @@ fn is_valid(label: &str, config: Config) -> bool {
         Mapping::DisallowedStd3Valid => config.use_std3_ascii_rules,
         _ => true,
     }) {
-        return false;
+        errors.invalid_mapping = true;
+        return;
     }
 
     // V7: ContextJ rules
@@ -321,7 +324,6 @@ fn is_valid(label: &str, config: Config) -> bool {
     // TODO: Implement rules and add *CheckJoiners* flag.
 
     // V8: Bidi rules are checked inside `processing()`
-    true
 }
 
 /// http://www.unicode.org/reports/tr46/#Processing
@@ -383,7 +385,7 @@ fn processing(
 
     let mut decoder = punycode::Decoder::default();
     let non_transitional = config.transitional_processing(false);
-    let (mut first, mut valid, mut has_bidi_labels) = (true, true, false);
+    let (mut first, mut has_bidi_labels) = (true, false);
     for label in normalized.split('.') {
         if !first {
             output.push('.');
@@ -400,10 +402,12 @@ fn processing(
                         has_bidi_labels |= is_bidi_domain(decoded_label);
                     }
 
-                    if valid
-                        && (!is_nfc(&decoded_label) || !is_valid(decoded_label, non_transitional))
-                    {
-                        valid = false;
+                    if !errors.is_err() {
+                        if !is_nfc(&decoded_label) {
+                            errors.nfc = true;
+                        } else {
+                            is_valid(decoded_label, non_transitional, &mut errors);
+                        }
                     }
                 }
                 Err(()) => {
@@ -417,7 +421,7 @@ fn processing(
             }
 
             // `normalized` is already `NFC` so we can skip that check
-            valid &= is_valid(label, config);
+            is_valid(label, config, &mut errors);
             output.push_str(label)
         }
     }
@@ -427,13 +431,9 @@ fn processing(
         //
         // TODO: Add *CheckBidi* flag
         if !passes_bidi(label, has_bidi_labels) {
-            valid = false;
+            errors.check_bidi = true;
             break;
         }
-    }
-
-    if !valid {
-        errors.validity_criteria = true;
     }
 
     errors
@@ -588,8 +588,11 @@ fn is_bidi_domain(s: &str) -> bool {
 #[derive(Default)]
 pub struct Errors {
     punycode: bool,
-    // https://unicode.org/reports/tr46/#Validity_Criteria
-    validity_criteria: bool,
+    check_hyphens: bool,
+    check_bidi: bool,
+    start_combining_mark: bool,
+    invalid_mapping: bool,
+    nfc: bool,
     disallowed_by_std3_ascii_rules: bool,
     disallowed_mapped_in_std3: bool,
     disallowed_character: bool,
@@ -601,7 +604,11 @@ impl Errors {
     fn is_err(&self) -> bool {
         let Errors {
             punycode,
-            validity_criteria,
+            check_hyphens,
+            check_bidi,
+            start_combining_mark,
+            invalid_mapping,
+            nfc,
             disallowed_by_std3_ascii_rules,
             disallowed_mapped_in_std3,
             disallowed_character,
@@ -609,7 +616,11 @@ impl Errors {
             too_short_for_dns,
         } = *self;
         punycode
-            || validity_criteria
+            || check_hyphens
+            || check_bidi
+            || start_combining_mark
+            || invalid_mapping
+            || nfc
             || disallowed_by_std3_ascii_rules
             || disallowed_mapped_in_std3
             || disallowed_character
@@ -622,7 +633,11 @@ impl fmt::Debug for Errors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let Errors {
             punycode,
-            validity_criteria,
+            check_hyphens,
+            check_bidi,
+            start_combining_mark,
+            invalid_mapping,
+            nfc,
             disallowed_by_std3_ascii_rules,
             disallowed_mapped_in_std3,
             disallowed_character,
@@ -632,8 +647,15 @@ impl fmt::Debug for Errors {
 
         let fields = [
             ("punycode", punycode),
-            ("validity_criteria", validity_criteria),
-            ("disallowed_by_std3_ascii_rules", disallowed_by_std3_ascii_rules),
+            ("check_hyphens", check_hyphens),
+            ("check_bidi", check_bidi),
+            ("start_combining_mark", start_combining_mark),
+            ("invalid_mapping", invalid_mapping),
+            ("nfc", nfc),
+            (
+                "disallowed_by_std3_ascii_rules",
+                disallowed_by_std3_ascii_rules,
+            ),
             ("disallowed_mapped_in_std3", disallowed_mapped_in_std3),
             ("disallowed_character", disallowed_character),
             ("too_long_for_dns", too_long_for_dns),
