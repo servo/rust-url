@@ -107,8 +107,6 @@ assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css");
 
 #![doc(html_root_url = "https://docs.rs/url/2.1.1")]
 
-#[macro_use]
-extern crate matches;
 pub use form_urlencoded;
 
 #[cfg(feature = "serde")]

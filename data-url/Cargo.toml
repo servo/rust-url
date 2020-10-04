@@ -8,9 +8,6 @@ license = "MIT OR Apache-2.0"
 edition = "2018"
 autotests = false
 
-[dependencies]
-matches = "0.1"
-
 [dev-dependencies]
 rustc-test = "0.3"
 serde = {version = "1.0", features = ["derive"]}

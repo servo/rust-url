@@ -15,9 +15,6 @@
 //! assert!(fragment.is_none());
 //! ```
 
-#[macro_use]
-extern crate matches;
-
 macro_rules! require {
     ($condition: expr) => {
         if !$condition {
