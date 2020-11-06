@@ -32,4 +32,5 @@ serde = {version = "1.0", optional = true, features = ["derive"]}
 
 [[bench]]
 name = "parse_url"
+path = "benches/parse_url.rs"
 harness = false
