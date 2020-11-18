@@ -103,6 +103,18 @@ assert_eq!(css_url.as_str(), "http://servo.github.io/rust-url/main.css");
 # Ok(())
 # }
 # run().unwrap();
+```
+
+# Feature: `serde`
+
+If you enable the `serde` feature, [`Url`](struct.Url.html) will implement
+[`serde::Serialize`](https://docs.rs/serde/1/serde/trait.Serialize.html) and
+[`serde::Deserialize`](https://docs.rs/serde/1/serde/trait.Deserialize.html).
+See [serde documentation](https://serde.rs) for more information.
+
+```toml
+url = { version = "2", features = ["serde"] }
+```
 */
 
 #![doc(html_root_url = "https://docs.rs/url/2.1.1")]
