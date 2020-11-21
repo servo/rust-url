@@ -274,6 +274,9 @@ fn host() {
     assert_host("http://2..2.3", Host::Domain("2..2.3"));
     assert!(Url::parse("http://42.0x1232131").is_err());
     assert!(Url::parse("http://192.168.0.257").is_err());
+
+    assert_eq!(Host::Domain("foo"), Host::Domain("foo").to_owned());
+    assert_ne!(Host::Domain("foo"), Host::Domain("bar").to_owned());
 }
 
 #[test]
