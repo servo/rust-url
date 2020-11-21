@@ -38,7 +38,7 @@ impl From<Host<String>> for HostInternal {
 
 /// The host name of an URL.
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Clone, Debug, Eq, Ord, PartialOrd, Hash)]
 pub enum Host<S = String> {
     /// A DNS domain name, as '.' dot-separated labels.
     /// Non-ASCII labels are encoded in punycode per IDNA if this is the host of
@@ -168,6 +168,20 @@ impl<S: AsRef<str>> fmt::Display for Host<S> {
                 write_ipv6(addr, f)?;
                 f.write_str("]")
             }
+        }
+    }
+}
+
+impl<S, T> PartialEq<Host<T>> for Host<S>
+where
+    S: PartialEq<T>,
+{
+    fn eq(&self, other: &Host<T>) -> bool {
+        match (self, other) {
+            (Host::Domain(a), Host::Domain(b)) => a == b,
+            (Host::Ipv4(a), Host::Ipv4(b)) => a == b,
+            (Host::Ipv6(a), Host::Ipv6(b)) => a == b,
+            (_, _) => false,
         }
     }
 }
