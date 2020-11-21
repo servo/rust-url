@@ -1092,6 +1092,7 @@ impl Url {
     /// # }
     /// # run().unwrap();
     /// ```
+    #[allow(clippy::manual_strip)] // introduced in 1.45, MSRV is 1.36
     pub fn path_segments(&self) -> Option<str::Split<'_, char>> {
         let path = self.path();
         if path.starts_with('/') {

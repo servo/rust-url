@@ -298,6 +298,7 @@ fn is_valid(label: &str, config: Config) -> bool {
 }
 
 /// http://www.unicode.org/reports/tr46/#Processing
+#[allow(clippy::manual_strip)] // introduced in 1.45, MSRV is 1.36
 fn processing(domain: &str, config: Config) -> (String, Errors) {
     // Weed out the simple cases: only allow all lowercase ASCII characters and digits where none
     // of the labels start with PUNYCODE_PREFIX and labels don't start or end with hyphen.

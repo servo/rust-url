@@ -62,6 +62,7 @@ fn split2(s: &str, separator: char) -> (&str, Option<&str>) {
     (first, iter.next())
 }
 
+#[allow(clippy::manual_strip)] // introduced in 1.45, MSRV is 1.36
 fn parse_parameters(s: &str, parameters: &mut Vec<(String, String)>) {
     let mut semicolon_separated = s.split(';');
 

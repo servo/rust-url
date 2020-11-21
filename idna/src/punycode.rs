@@ -164,7 +164,7 @@ where
     }
 
     if basic_length > 0 {
-        output.push_str("-")
+        output.push('-')
     }
     let mut code_point = INITIAL_N;
     let mut delta = 0;
