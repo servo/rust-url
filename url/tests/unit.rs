@@ -665,3 +665,9 @@ fn test_set_scheme_to_file_with_host() {
     assert_eq!(url.to_string(), "http://localhost:6767/foo/bar");
     assert_eq!(result, Err(()));
 }
+
+#[test]
+fn no_panic() {
+    let mut url = Url::parse("arhttpsps:/.//eom/dae.com/\\\\t\\:").unwrap();
+    url::quirks::set_hostname(&mut url, "//eom/datcom/\\\\t\\://eom/data.cs").unwrap();
+}
