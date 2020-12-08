@@ -131,8 +131,6 @@ use crate::parser::{to_u32, Context, Parser, SchemeType, PATH_SEGMENT, USERINFO}
 use percent_encoding::{percent_decode, percent_encode, utf8_percent_encode};
 use std::borrow::Borrow;
 use std::cmp;
-#[cfg(feature = "serde")]
-use std::error::Error;
 use std::fmt::{self, Write};
 use std::hash;
 use std::io;
