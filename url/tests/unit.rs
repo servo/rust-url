@@ -671,3 +671,11 @@ fn no_panic() {
     let mut url = Url::parse("arhttpsps:/.//eom/dae.com/\\\\t\\:").unwrap();
     url::quirks::set_hostname(&mut url, "//eom/datcom/\\\\t\\://eom/data.cs").unwrap();
 }
+
+#[test]
+fn pop_if_empty_in_bounds() {
+    let mut url = Url::parse("m://").unwrap();
+    let mut segments = url.path_segments_mut().unwrap();
+    segments.pop_if_empty();
+    segments.pop();
+}
