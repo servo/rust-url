@@ -73,6 +73,9 @@ assert!(data_url.fragment() == Some(""));
 # run().unwrap();
 ```
 
+## Serde
+
+Enable the `serde` feature to include `Deserialize` and `Serialize` implementations for `url::Url`.
 
 # Base URL
 
