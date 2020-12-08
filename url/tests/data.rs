@@ -144,7 +144,7 @@ fn check_invariants(url: &Url, name: &str, comment: Option<&str>) -> bool {
     {
         let bytes = serde_json::to_vec(url).unwrap();
         let new_url: Url = serde_json::from_slice(&bytes).unwrap();
-        passed &= test_eq(url, &new_url, name, comment);
+        passed &= test_eq_eprint(url.to_string(), &new_url.to_string(), name, comment);
     }
 
     passed
