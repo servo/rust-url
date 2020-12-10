@@ -2374,6 +2374,8 @@ impl fmt::Debug for Url {
             .field("path", &self.path())
             .field("query", &self.query())
             .field("fragment", &self.fragment())
+            .field("username", &self.username())
+            .field("password", &self.password())
             .finish()
     }
 }
