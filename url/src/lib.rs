@@ -2369,6 +2369,8 @@ impl fmt::Debug for Url {
         formatter
             .debug_struct("Url")
             .field("scheme", &self.scheme())
+            .field("username", &self.username())
+            .field("password", &self.password())
             .field("host", &self.host())
             .field("port", &self.port())
             .field("path", &self.path())
