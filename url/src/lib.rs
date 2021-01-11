@@ -842,7 +842,8 @@ impl Url {
     }
 
     /// Return the parsed representation of the host for this URL.
-    /// Non-ASCII domain labels are punycode-encoded per IDNA.
+    /// Non-ASCII domain labels are punycode-encoded per IDNA if this is the host
+    /// of a special URL, or percent encoded for non-special URLs.
     ///
     /// Cannot-be-a-base URLs (typical of `data:` and `mailto:`) and some `file:` URLs
     /// don’t have a host.
