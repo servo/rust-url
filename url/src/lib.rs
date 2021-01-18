@@ -803,7 +803,8 @@ impl Url {
 
     /// Return the string representation of the host (domain or IP address) for this URL, if any.
     ///
-    /// Non-ASCII domains are punycode-encoded per IDNA.
+    /// Non-ASCII domains are punycode-encoded per IDNA if this is the host
+    /// of a special URL, or percent encoded for non-special URLs.
     /// IPv6 addresses are given between `[` and `]` brackets.
     ///
     /// Cannot-be-a-base URLs (typical of `data:` and `mailto:`) and some `file:` URLs
@@ -882,6 +883,8 @@ impl Url {
     }
 
     /// If this URL has a host and it is a domain name (not an IP address), return it.
+    /// Non-ASCII domains are punycode-encoded per IDNA if this is the host
+    /// of a special URL, or percent encoded for non-special URLs.
     ///
     /// # Examples
     ///
