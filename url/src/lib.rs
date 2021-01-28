@@ -1433,6 +1433,7 @@ impl Url {
     /// Return an object with methods to manipulate this URL’s path segments.
     ///
     /// Return `Err(())` if this URL is cannot-be-a-base.
+    #[allow(clippy::clippy::result_unit_err)]
     pub fn path_segments_mut(&mut self) -> Result<PathSegmentsMut<'_>, ()> {
         if self.cannot_be_a_base() {
             Err(())
@@ -1516,6 +1517,7 @@ impl Url {
     /// # }
     /// # run().unwrap();
     /// ```
+    #[allow(clippy::clippy::result_unit_err)]
     pub fn set_port(&mut self, mut port: Option<u16>) -> Result<(), ()> {
         // has_host implies !cannot_be_a_base
         if !self.has_host() || self.host() == Some(Host::Domain("")) || self.scheme() == "file" {
@@ -1655,7 +1657,7 @@ impl Url {
         }
 
         if let Some(host) = host {
-            if host == "" && SchemeType::from(self.scheme()).is_special() {
+            if host.is_empty() && SchemeType::from(self.scheme()).is_special() {
                 return Err(ParseError::EmptyHost);
             }
             let mut host_substr = host;
@@ -1786,6 +1788,7 @@ impl Url {
     /// # run().unwrap();
     /// ```
     ///
+    #[allow(clippy::clippy::result_unit_err)]
     pub fn set_ip_host(&mut self, address: IpAddr) -> Result<(), ()> {
         if self.cannot_be_a_base() {
             return Err(());
@@ -1825,6 +1828,7 @@ impl Url {
     /// # }
     /// # run().unwrap();
     /// ```
+    #[allow(clippy::clippy::result_unit_err)]
     pub fn set_password(&mut self, password: Option<&str>) -> Result<(), ()> {
         // has_host implies !cannot_be_a_base
         if !self.has_host() || self.host() == Some(Host::Domain("")) || self.scheme() == "file" {
@@ -1917,6 +1921,7 @@ impl Url {
     /// # }
     /// # run().unwrap();
     /// ```
+    #[allow(clippy::clippy::result_unit_err)]
     pub fn set_username(&mut self, username: &str) -> Result<(), ()> {
         // has_host implies !cannot_be_a_base
         if !self.has_host() || self.host() == Some(Host::Domain("")) || self.scheme() == "file" {
@@ -2078,6 +2083,7 @@ impl Url {
     /// # }
     /// # run().unwrap();
     /// ```
+    #[allow(clippy::clippy::result_unit_err)]
     pub fn set_scheme(&mut self, scheme: &str) -> Result<(), ()> {
         let mut parser = Parser::for_setter(String::new());
         let remaining = parser.parse_scheme(parser::Input::new(scheme))?;
@@ -2157,6 +2163,7 @@ impl Url {
     /// # }
     /// ```
     #[cfg(any(unix, windows, target_os = "redox"))]
+    #[allow(clippy::clippy::result_unit_err)]
     pub fn from_file_path<P: AsRef<Path>>(path: P) -> Result<Url, ()> {
         let mut serialization = "file://".to_owned();
         let host_start = serialization.len() as u32;
@@ -2193,6 +2200,7 @@ impl Url {
     /// Note that `std::path` does not consider trailing slashes significant
     /// and usually does not include them (e.g. in `Path::parent()`).
     #[cfg(any(unix, windows, target_os = "redox"))]
+    #[allow(clippy::clippy::result_unit_err)]
     pub fn from_directory_path<P: AsRef<Path>>(path: P) -> Result<Url, ()> {
         let mut url = Url::from_file_path(path)?;
         if !url.serialization.ends_with('/') {
@@ -2309,6 +2317,7 @@ impl Url {
     /// for a Windows path, is not UTF-8.)
     #[inline]
     #[cfg(any(unix, windows, target_os = "redox"))]
+    #[allow(clippy::clippy::result_unit_err)]
     pub fn to_file_path(&self) -> Result<PathBuf, ()> {
         if let Some(segments) = self.path_segments() {
             let host = match self.host() {
