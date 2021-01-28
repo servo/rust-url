@@ -56,6 +56,7 @@ pub fn protocol(url: &Url) -> &str {
 }
 
 /// Setter for https://url.spec.whatwg.org/#dom-url-protocol
+#[allow(clippy::clippy::result_unit_err)]
 pub fn set_protocol(url: &mut Url, mut new_protocol: &str) -> Result<(), ()> {
     // The scheme state in the spec ignores everything after the first `:`,
     // but `set_scheme` errors if there is more.
@@ -72,6 +73,7 @@ pub fn username(url: &Url) -> &str {
 }
 
 /// Setter for https://url.spec.whatwg.org/#dom-url-username
+#[allow(clippy::clippy::result_unit_err)]
 pub fn set_username(url: &mut Url, new_username: &str) -> Result<(), ()> {
     url.set_username(new_username)
 }
@@ -83,6 +85,7 @@ pub fn password(url: &Url) -> &str {
 }
 
 /// Setter for https://url.spec.whatwg.org/#dom-url-password
+#[allow(clippy::clippy::result_unit_err)]
 pub fn set_password(url: &mut Url, new_password: &str) -> Result<(), ()> {
     url.set_password(if new_password.is_empty() {
         None
@@ -98,6 +101,7 @@ pub fn host(url: &Url) -> &str {
 }
 
 /// Setter for https://url.spec.whatwg.org/#dom-url-host
+#[allow(clippy::clippy::result_unit_err)]
 pub fn set_host(url: &mut Url, new_host: &str) -> Result<(), ()> {
     // If context object’s url’s cannot-be-a-base-URL flag is set, then return.
     if url.cannot_be_a_base() {
@@ -154,6 +158,7 @@ pub fn hostname(url: &Url) -> &str {
 }
 
 /// Setter for https://url.spec.whatwg.org/#dom-url-hostname
+#[allow(clippy::clippy::result_unit_err)]
 pub fn set_hostname(url: &mut Url, new_hostname: &str) -> Result<(), ()> {
     if url.cannot_be_a_base() {
         return Err(());
@@ -195,6 +200,7 @@ pub fn port(url: &Url) -> &str {
 }
 
 /// Setter for https://url.spec.whatwg.org/#dom-url-port
+#[allow(clippy::clippy::result_unit_err)]
 pub fn set_port(url: &mut Url, new_port: &str) -> Result<(), ()> {
     let result;
     {
