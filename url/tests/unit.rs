@@ -960,3 +960,127 @@ fn test_slicing() {
         assert_eq!(&url[..AfterFragment], expected_slices.full);
     }
 }
+
+#[test]
+fn test_make_relative() {
+    let tests = [
+        (
+            "http://127.0.0.1:8080/test",
+            "http://127.0.0.1:8080/test",
+            "",
+        ),
+        (
+            "http://127.0.0.1:8080/test",
+            "http://127.0.0.1:8080/test/",
+            "test/",
+        ),
+        (
+            "http://127.0.0.1:8080/test/",
+            "http://127.0.0.1:8080/test",
+            "../test",
+        ),
+        (
+            "http://127.0.0.1:8080/",
+            "http://127.0.0.1:8080/?foo=bar#123",
+            "?foo=bar#123",
+        ),
+        (
+            "http://127.0.0.1:8080/",
+            "http://127.0.0.1:8080/test/video",
+            "test/video",
+        ),
+        (
+            "http://127.0.0.1:8080/test",
+            "http://127.0.0.1:8080/test/video",
+            "test/video",
+        ),
+        (
+            "http://127.0.0.1:8080/test/",
+            "http://127.0.0.1:8080/test/video",
+            "video",
+        ),
+        (
+            "http://127.0.0.1:8080/test",
+            "http://127.0.0.1:8080/test2/video",
+            "test2/video",
+        ),
+        (
+            "http://127.0.0.1:8080/test/",
+            "http://127.0.0.1:8080/test2/video",
+            "../test2/video",
+        ),
+        (
+            "http://127.0.0.1:8080/test/bla",
+            "http://127.0.0.1:8080/test2/video",
+            "../test2/video",
+        ),
+        (
+            "http://127.0.0.1:8080/test/bla/",
+            "http://127.0.0.1:8080/test2/video",
+            "../../test2/video",
+        ),
+        (
+            "http://127.0.0.1:8080/test/?foo=bar#123",
+            "http://127.0.0.1:8080/test/video",
+            "video",
+        ),
+        (
+            "http://127.0.0.1:8080/test/",
+            "http://127.0.0.1:8080/test/video?baz=meh#456",
+            "video?baz=meh#456",
+        ),
+        (
+            "http://127.0.0.1:8080/test",
+            "http://127.0.0.1:8080/test?baz=meh#456",
+            "?baz=meh#456",
+        ),
+        (
+            "http://127.0.0.1:8080/test/",
+            "http://127.0.0.1:8080/test?baz=meh#456",
+            "../test?baz=meh#456",
+        ),
+        (
+            "http://127.0.0.1:8080/test/",
+            "http://127.0.0.1:8080/test/?baz=meh#456",
+            "?baz=meh#456",
+        ),
+        (
+            "http://127.0.0.1:8080/test/?foo=bar#123",
+            "http://127.0.0.1:8080/test/video?baz=meh#456",
+            "video?baz=meh#456",
+        ),
+    ];
+
+    for (base, uri, relative) in &tests {
+        let base_uri = url::Url::parse(base).unwrap();
+        let relative_uri = url::Url::parse(uri).unwrap();
+        let make_relative = base_uri.make_relative(&relative_uri).unwrap();
+        assert_eq!(
+            make_relative, *relative,
+            "base: {}, uri: {}, relative: {}",
+            base, uri, relative
+        );
+        assert_eq!(
+            base_uri.join(&relative).unwrap().as_str(),
+            *uri,
+            "base: {}, uri: {}, relative: {}",
+            base,
+            uri,
+            relative
+        );
+    }
+
+    let error_tests = [
+        ("http://127.0.0.1:8080/", "https://127.0.0.1:8080/test/"),
+        ("http://127.0.0.1:8080/", "http://127.0.0.1:8081/test/"),
+        ("http://127.0.0.1:8080/", "http://127.0.0.2:8080/test/"),
+        ("mailto:a@example.com", "mailto:b@example.com"),
+    ];
+
+    for (base, uri) in &error_tests {
+        let base_uri = url::Url::parse(base).unwrap();
+        let relative_uri = url::Url::parse(uri).unwrap();
+        let make_relative = base_uri.make_relative(&relative_uri);
+        assert_eq!(make_relative, None, "base: {}, uri: {}", base, uri);
+    }
+}
