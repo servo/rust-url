@@ -263,11 +263,11 @@ fn parse_ipv4number(mut input: &str) -> Result<Option<u32>, ()> {
     // So instead we check if the input looks like a real number and only return
     // an error when it's an overflow.
     let valid_number = match r {
-        8 => input.chars().all(|c| c >= '0' && c <= '7'),
-        10 => input.chars().all(|c| c >= '0' && c <= '9'),
-        16 => input
-            .chars()
-            .all(|c| (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')),
+        8 => input.chars().all(|c| ('0'..='7').contains(&c)),
+        10 => input.chars().all(|c| ('0'..='9').contains(&c)),
+        16 => input.chars().all(|c| {
+            ('0'..='9').contains(&c) || ('a'..='f').contains(&c) || ('A'..='F').contains(&c)
+        }),
         _ => false,
     };
 
@@ -302,7 +302,7 @@ fn parse_ipv4addr(input: &str) -> ParseResult<Option<Ipv4Addr>> {
     let mut numbers: Vec<u32> = Vec::new();
     let mut overflow = false;
     for part in parts {
-        if part == "" {
+        if part.is_empty() {
             return Ok(None);
         }
         match parse_ipv4number(part) {

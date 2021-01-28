@@ -17,7 +17,7 @@ fn run_data_url(
     if let Some(expected_mime) = expected_mime {
         let url = url.unwrap();
         let (body, _) = url.decode_to_vec().unwrap();
-        if expected_mime == "" {
+        if expected_mime.is_empty() {
             assert_eq!(url.mime_type().to_string(), "text/plain;charset=US-ASCII")
         } else {
             assert_eq!(url.mime_type().to_string(), expected_mime)
@@ -41,7 +41,7 @@ where
     enum TestCase {
         Two(String, Option<String>),
         Three(String, Option<String>, Vec<u8>),
-    };
+    }
 
     let v: Vec<TestCase> = serde_json::from_str(include_str!("data-urls.json")).unwrap();
     for test in v {

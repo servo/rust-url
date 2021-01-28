@@ -1657,7 +1657,7 @@ impl Url {
         }
 
         if let Some(host) = host {
-            if host == "" && SchemeType::from(self.scheme()).is_special() {
+            if host.is_empty() && SchemeType::from(self.scheme()).is_special() {
                 return Err(ParseError::EmptyHost);
             }
             let mut host_substr = host;

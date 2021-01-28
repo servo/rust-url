@@ -295,17 +295,17 @@ impl<'i> Input<'i> {
 }
 
 pub trait Pattern {
-    fn split_prefix<'i>(self, input: &mut Input<'i>) -> bool;
+    fn split_prefix(self, input: &mut Input) -> bool;
 }
 
 impl Pattern for char {
-    fn split_prefix<'i>(self, input: &mut Input<'i>) -> bool {
+    fn split_prefix(self, input: &mut Input) -> bool {
         input.next() == Some(self)
     }
 }
 
 impl<'a> Pattern for &'a str {
-    fn split_prefix<'i>(self, input: &mut Input<'i>) -> bool {
+    fn split_prefix(self, input: &mut Input) -> bool {
         for c in self.chars() {
             if input.next() != Some(c) {
                 return false;
@@ -316,7 +316,7 @@ impl<'a> Pattern for &'a str {
 }
 
 impl<F: FnMut(char) -> bool> Pattern for F {
-    fn split_prefix<'i>(self, input: &mut Input<'i>) -> bool {
+    fn split_prefix(self, input: &mut Input) -> bool {
         input.next().map_or(false, self)
     }
 }
@@ -1071,7 +1071,7 @@ impl<'a> Parser<'a> {
         Ok((has_host, host, remaining))
     }
 
-    pub fn file_host<'i>(input: Input<'i>) -> ParseResult<(bool, String, Input<'i>)> {
+    pub fn file_host(input: Input) -> ParseResult<(bool, String, Input)> {
         // Undo the Input abstraction here to avoid allocating in the common case
         // where the host part of the input does not contain any tab or newline
         let input_str = input.chars.as_str();
