@@ -792,6 +792,8 @@ impl Url {
     /// URLs that do *not* are either path-only like `unix:/run/foo.socket`
     /// or cannot-be-a-base like `data:text/plain,Stuff`.
     ///
+    /// See also the `authority` method.
+    ///
     /// # Examples
     ///
     /// ```
@@ -815,6 +817,47 @@ impl Url {
     pub fn has_authority(&self) -> bool {
         debug_assert!(self.byte_at(self.scheme_end) == b':');
         self.slice(self.scheme_end..).starts_with("://")
+    }
+
+    /// Return the authority of this URL as an ASCII string.
+    ///
+    /// Non-ASCII domains are punycode-encoded per IDNA if this is the host
+    /// of a special URL, or percent encoded for non-special URLs.
+    /// IPv6 addresses are given between `[` and `]` brackets.
+    /// Ports are omitted if they match the well known port of a special URL.
+    ///
+    /// Username and password are percent-encoded.
+    ///
+    /// See also the `has_authority` method.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use url::Url;
+    /// # use url::ParseError;
+    ///
+    /// # fn run() -> Result<(), ParseError> {
+    /// let url = Url::parse("unix:/run/foo.socket")?;
+    /// assert_eq!(url.authority(), "");
+    /// let url = Url::parse("file:///tmp/foo")?;
+    /// assert_eq!(url.authority(), "");
+    /// let url = Url::parse("https://user:password@example.com/tmp/foo")?;
+    /// assert_eq!(url.authority(), "user:password@example.com");
+    /// let url = Url::parse("irc://àlex.рф.example.com:6667/foo")?;
+    /// assert_eq!(url.authority(), "%C3%A0lex.%D1%80%D1%84.example.com:6667");
+    /// let url = Url::parse("http://àlex.рф.example.com:80/foo")?;
+    /// assert_eq!(url.authority(), "xn--lex-8ka.xn--p1ai.example.com");
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
+    /// ```
+    pub fn authority(&self) -> &str {
+        let scheme_separator_len = "://".len() as u32;
+        if self.has_authority() && self.path_start > self.scheme_end + scheme_separator_len {
+            self.slice(self.scheme_end + scheme_separator_len..self.path_start)
+        } else {
+            ""
+        }
     }
 
     /// Return whether this URL is a cannot-be-a-base URL,
