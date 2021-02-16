@@ -2083,7 +2083,7 @@ impl Url {
     /// # }
     /// # run().unwrap();
     /// ```
-    #[allow(clippy::clippy::result_unit_err)]
+    #[allow(clippy::result_unit_err, clippy::suspicious_operation_groupings)]
     pub fn set_scheme(&mut self, scheme: &str) -> Result<(), ()> {
         let mut parser = Parser::for_setter(String::new());
         let remaining = parser.parse_scheme(parser::Input::new(scheme))?;
