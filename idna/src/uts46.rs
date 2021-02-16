@@ -50,21 +50,21 @@ enum Mapping {
 }
 
 fn find_char(codepoint: char) -> &'static Mapping {
-    let idx = match TABLE.binary_search(&codepoint) {
+    let idx = match TABLE.binary_search_by_key(&codepoint, |&val| val.0) {
         Ok(idx) => idx,
         Err(idx) => idx - 1,
     };
 
     const SINGLE_MARKER: u16 = 1 << 15;
 
-    let x = INDEX_TABLE[idx];
+    let (base, x) = TABLE[idx];
     let single = (x & SINGLE_MARKER) != 0;
     let offset = !SINGLE_MARKER & x;
 
     if single {
         &MAPPING_TABLE[offset as usize]
     } else {
-        &MAPPING_TABLE[(offset + (codepoint as u16 - TABLE[idx] as u16)) as usize]
+        &MAPPING_TABLE[(offset + (codepoint as u16 - base as u16)) as usize]
     }
 }
 
