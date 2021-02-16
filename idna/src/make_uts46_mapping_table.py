@@ -116,11 +116,7 @@ for (k, g) in grouped_ranges:
         # Assert we're seeing the surrogate case here.
         assert last_char == 0xd7ff
         assert next_char == 0xe000
-    first = group[0][0]
-    last = group[-1][1]
-    mapping = group[0][2]
-    unicode_str = group[0][3]
-    optimized_ranges.append((first, last, mapping, unicode_str))
+    optimized_ranges.append((group[0][0], group[-1][1]) + group[0][2:])
 
 def is_single_char_range(r):
     (first, last, _, _) = r
