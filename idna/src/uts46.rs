@@ -48,6 +48,7 @@ enum Mapping {
     Disallowed,
     DisallowedStd3Valid,
     DisallowedStd3Mapped(StringTableSlice),
+    DisallowedIdna2008,
 }
 
 struct Range {
@@ -139,6 +140,12 @@ impl<'a> Iterator for Mapper<'a> {
                     };
                     self.slice = Some(decode_slice(slice).chars());
                     continue;
+                }
+                Mapping::DisallowedIdna2008 => {
+                    if self.config.use_idna_2008_rules {
+                        self.errors.disallowed_in_idna_2008 = true;
+                    }
+                    codepoint
                 }
             });
         }
@@ -310,7 +317,7 @@ fn check_validity(label: &str, config: Config, errors: &mut Errors) {
 
     // V6: Check against Mapping Table
     if label.chars().any(|c| match *find_char(c) {
-        Mapping::Valid => false,
+        Mapping::Valid | Mapping::DisallowedIdna2008 => false,
         Mapping::Deviation(_) => config.transitional_processing,
         Mapping::DisallowedStd3Valid => config.use_std3_ascii_rules,
         _ => true,
@@ -510,6 +517,7 @@ pub struct Config {
     transitional_processing: bool,
     verify_dns_length: bool,
     check_hyphens: bool,
+    use_idna_2008_rules: bool,
 }
 
 /// The defaults are that of https://url.spec.whatwg.org/#idna
@@ -524,6 +532,7 @@ impl Default for Config {
 
             // Only use for to_ascii, not to_unicode
             verify_dns_length: false,
+            use_idna_2008_rules: false,
         }
     }
 }
@@ -550,6 +559,12 @@ impl Config {
     #[inline]
     pub fn check_hyphens(mut self, value: bool) -> Self {
         self.check_hyphens = value;
+        self
+    }
+
+    #[inline]
+    pub fn use_idna_2008_rules(mut self, value: bool) -> Self {
+        self.use_idna_2008_rules = value;
         self
     }
 
@@ -599,6 +614,7 @@ pub struct Errors {
     disallowed_character: bool,
     too_long_for_dns: bool,
     too_short_for_dns: bool,
+    disallowed_in_idna_2008: bool,
 }
 
 impl Errors {
@@ -615,6 +631,7 @@ impl Errors {
             disallowed_character,
             too_long_for_dns,
             too_short_for_dns,
+            disallowed_in_idna_2008,
         } = *self;
         punycode
             || check_hyphens
@@ -627,6 +644,7 @@ impl Errors {
             || disallowed_character
             || too_long_for_dns
             || too_short_for_dns
+            || disallowed_in_idna_2008
     }
 }
 
@@ -644,6 +662,7 @@ impl fmt::Debug for Errors {
             disallowed_character,
             too_long_for_dns,
             too_short_for_dns,
+            disallowed_in_idna_2008,
         } = *self;
 
         let fields = [
@@ -661,6 +680,7 @@ impl fmt::Debug for Errors {
             ("disallowed_character", disallowed_character),
             ("too_long_for_dns", too_long_for_dns),
             ("too_short_for_dns", too_short_for_dns),
+            ("disallowed_in_idna_2008", disallowed_in_idna_2008),
         ];
 
         let mut empty = true;

@@ -78,6 +78,12 @@ for line in txt:
             unicode_str = u''.join(char(c) for c in fields[2].strip().split(' '))
         elif mapping == "Deviation":
             unicode_str = u''
+
+    if len(fields) > 3:
+        assert fields[3].strip() in ('NV8', 'XV8'), fields[3]
+        assert mapping == 'Valid', mapping
+        mapping = 'DisallowedIdna2008'
+
     ranges.append((first, last, mapping, unicode_str))
 
 def mergeable_key(r):
@@ -86,7 +92,7 @@ def mergeable_key(r):
     # These types have associated data, so we should not merge them.
     if mapping in ('Mapped', 'Deviation', 'DisallowedStd3Mapped'):
         return r
-    assert mapping in ('Valid', 'Ignored', 'Disallowed', 'DisallowedStd3Valid')
+    assert mapping in ('Valid', 'Ignored', 'Disallowed', 'DisallowedStd3Valid', 'DisallowedIdna2008')
     return mapping
 
 grouped_ranges = itertools.groupby(ranges, key=mergeable_key)
