@@ -149,13 +149,10 @@ def merge_single_char_ranges(ranges):
 optimized_ranges = list(merge_single_char_ranges(optimized_ranges))
 
 
-print("static TABLE: &[Range] = &[")
+print("static TABLE: &[char] = &[")
 
 for ranges in optimized_ranges:
-    first = ranges[0][0]
-    last = ranges[-1][1]
-    print("    Range { from: '%s', to: '%s', }," % (escape_char(char(first)),
-                                                            escape_char(char(last))))
+    print("    '%s'," % escape_char(char(ranges[0][0])))
 
 print("];\n")
 
