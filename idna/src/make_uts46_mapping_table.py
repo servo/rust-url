@@ -148,9 +148,20 @@ def merge_single_char_ranges(ranges):
 
 optimized_ranges = list(merge_single_char_ranges(optimized_ranges))
 
-SINGLE_MARKER = 1 << 15
 
-print("static TABLE: &[(char, u16)] = &[")
+print("static TABLE: &[Range] = &[")
+
+for ranges in optimized_ranges:
+    first = ranges[0][0]
+    last = ranges[-1][1]
+    print("    Range { from: '%s', to: '%s', }," % (escape_char(char(first)),
+                                                            escape_char(char(last))))
+
+print("];\n")
+
+print("static INDEX_TABLE: &[u16] = &[")
+
+SINGLE_MARKER = 1 << 15
 
 offset = 0
 for ranges in optimized_ranges:
@@ -158,11 +169,8 @@ for ranges in optimized_ranges:
 
     block_len = len(ranges)
     single = SINGLE_MARKER if block_len == 1 else 0
-    index = offset | single
+    print("    %s," % (offset | single))
     offset += block_len
-
-    start = escape_char(char(ranges[0][0]))
-    print("    ('%s', %s)," % (start, index))
 
 print("];\n")
 

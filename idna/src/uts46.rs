@@ -11,6 +11,7 @@
 
 use self::Mapping::*;
 use crate::punycode;
+use std::cmp::Ordering::{Equal, Greater, Less};
 use std::{error::Error as StdError, fmt};
 use unicode_bidi::{bidi_class, BidiClass};
 use unicode_normalization::char::is_combining_mark;
@@ -49,23 +50,36 @@ enum Mapping {
     DisallowedStd3Mapped(StringTableSlice),
 }
 
+struct Range {
+    from: char,
+    to: char,
+}
+
 fn find_char(codepoint: char) -> &'static Mapping {
-    let idx = match TABLE.binary_search_by_key(&codepoint, |&val| val.0) {
-        Ok(idx) => idx,
-        Err(idx) => idx - 1,
-    };
+    let r = TABLE.binary_search_by(|ref range| {
+        if codepoint > range.to {
+            Less
+        } else if codepoint < range.from {
+            Greater
+        } else {
+            Equal
+        }
+    });
+    r.ok()
+        .map(|i| {
+            const SINGLE_MARKER: u16 = 1 << 15;
 
-    const SINGLE_MARKER: u16 = 1 << 15;
+            let x = INDEX_TABLE[i];
+            let single = (x & SINGLE_MARKER) != 0;
+            let offset = !SINGLE_MARKER & x;
 
-    let (base, x) = TABLE[idx];
-    let single = (x & SINGLE_MARKER) != 0;
-    let offset = !SINGLE_MARKER & x;
-
-    if single {
-        &MAPPING_TABLE[offset as usize]
-    } else {
-        &MAPPING_TABLE[(offset + (codepoint as u16 - base as u16)) as usize]
-    }
+            if single {
+                &MAPPING_TABLE[offset as usize]
+            } else {
+                &MAPPING_TABLE[(offset + (codepoint as u16 - TABLE[i].from as u16)) as usize]
+            }
+        })
+        .unwrap()
 }
 
 struct Mapper<'a> {
