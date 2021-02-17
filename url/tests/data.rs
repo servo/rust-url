@@ -223,7 +223,7 @@ fn eprint_failure(err: String, name: &str, comment: Option<&str>) {
     if let Some(comment) = comment {
         eprintln!("{}\n", comment);
     } else {
-        eprintln!("");
+        eprintln!();
     }
 }
 
