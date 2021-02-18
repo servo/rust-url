@@ -2,7 +2,7 @@
 
 name = "url"
 # When updating version, also modify html_root_url in the lib.rs
-version = "2.2.0"
+version = "2.2.1"
 authors = ["The rust-url developers"]
 
 description = "URL library for Rust, based on the WHATWG URL Standard"
@@ -12,7 +12,7 @@ readme = "../README.md"
 keywords = ["url", "parser"]
 categories = ["parser-implementations", "web-programming", "encoding"]
 license = "MIT/Apache-2.0"
-include = ["src/**/*", "LICENSE-*", "README.md"]
+include = ["src/**/*", "LICENSE-*", "README.md", "tests/**"]
 edition = "2018"
 
 [badges]
