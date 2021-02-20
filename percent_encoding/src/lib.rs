@@ -6,7 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-//! URLs use special chacters to indicate the parts of the request.
+//! URLs use special characters to indicate the parts of the request.
 //! For example, a `?` question mark marks the end of a path and the start of a query string.
 //! In order for that character to exist inside a path, it needs to be encoded differently.
 //!
@@ -21,7 +21,7 @@
 //! The [`AsciiSet`] parameter of [`percent_encode`] and [`utf8_percent_encode`]
 //! lets callers configure this.
 //!
-//! This crate delibarately does not provide many different sets.
+//! This crate deliberately does not provide many different sets.
 //! Users should consider in what context the encoded string will be used,
 //! read relevant specifications, and define their own set.
 //! This is done by using the `add` method of an existing set.
@@ -48,8 +48,8 @@ use std::{fmt, mem, slice, str};
 
 /// Represents a set of characters or bytes in the ASCII range.
 ///
-/// This used in [`percent_encode`] and [`utf8_percent_encode`].
-/// This is simlar to [percent-encode sets](https://url.spec.whatwg.org/#percent-encoded-bytes).
+/// This is used in [`percent_encode`] and [`utf8_percent_encode`].
+/// This is similar to [percent-encode sets](https://url.spec.whatwg.org/#percent-encoded-bytes).
 ///
 /// Use the `add` method of an existing set to define a new set. For example:
 ///
