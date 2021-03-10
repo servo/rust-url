@@ -7,6 +7,5 @@ repository = "https://github.com/servo/rust-url/"
 license = "MIT/Apache-2.0"
 edition = "2018"
 
-[features]
-default = ["std"]
-std = []
+[dependencies]
+beef = { version = "0.5", optional = true }
