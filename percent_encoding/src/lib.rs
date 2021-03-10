@@ -38,14 +38,16 @@
 //! ```
 
 #![no_std]
+#[cfg(feature = "alloc")]
 extern crate alloc;
 
+use core::{fmt, mem, slice, str};
+#[cfg(feature = "alloc")]
 use alloc::{
     borrow::{Cow, ToOwned},
     string::String,
     vec::Vec,
 };
-use core::{fmt, mem, slice, str};
 
 /// Represents a set of characters or bytes in the ASCII range.
 ///
@@ -294,6 +296,7 @@ impl<'a> fmt::Display for PercentEncode<'a> {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl<'a> From<PercentEncode<'a>> for Cow<'a, str> {
     fn from(mut iter: PercentEncode<'a>) -> Self {
         match iter.next() {
@@ -379,6 +382,7 @@ impl<'a> Iterator for PercentDecode<'a> {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl<'a> From<PercentDecode<'a>> for Cow<'a, [u8]> {
     fn from(iter: PercentDecode<'a>) -> Self {
         match iter.if_any() {
@@ -390,6 +394,7 @@ impl<'a> From<PercentDecode<'a>> for Cow<'a, [u8]> {
 
 impl<'a> PercentDecode<'a> {
     /// If the percent-decoding is different from the input, return it as a new bytes vector.
+    #[cfg(feature = "alloc")]
     fn if_any(&self) -> Option<Vec<u8>> {
         let mut bytes_iter = self.bytes.clone();
         while bytes_iter.any(|&b| b == b'%') {
@@ -409,6 +414,7 @@ impl<'a> PercentDecode<'a> {
     /// Decode the result of percent-decoding as UTF-8.
     ///
     /// This is return `Err` when the percent-decoded bytes are not well-formed in UTF-8.
+    #[cfg(feature = "alloc")]
     pub fn decode_utf8(self) -> Result<Cow<'a, str>, str::Utf8Error> {
         match self.clone().into() {
             Cow::Borrowed(bytes) => match str::from_utf8(bytes) {
@@ -426,11 +432,13 @@ impl<'a> PercentDecode<'a> {
     ///
     /// Invalid UTF-8 percent-encoded byte sequences will be replaced � U+FFFD,
     /// the replacement character.
+    #[cfg(feature = "alloc")]
     pub fn decode_utf8_lossy(self) -> Cow<'a, str> {
         decode_utf8_lossy(self.clone().into())
     }
 }
 
+#[cfg(feature = "alloc")]
 fn decode_utf8_lossy(input: Cow<'_, [u8]>) -> Cow<'_, str> {
     // Note: This function is duplicated in `form_urlencoded/src/query_encoding.rs`.
     match input {
