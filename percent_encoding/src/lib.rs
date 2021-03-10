@@ -40,7 +40,11 @@
 #![no_std]
 extern crate alloc;
 
-use alloc::{borrow::{Cow, ToOwned}, vec::Vec, string::String};
+use alloc::{
+    borrow::{Cow, ToOwned},
+    string::String,
+    vec::Vec,
+};
 use core::{fmt, mem, slice, str};
 
 /// Represents a set of characters or bytes in the ASCII range.
@@ -307,42 +311,6 @@ impl<'a> From<PercentEncode<'a>> for Cow<'a, str> {
     }
 }
 
-#[cfg(feature = "beef")]
-impl<'a> From<PercentEncode<'a>> for beef::Cow<'a, str> {
-    fn from(mut iter: PercentEncode<'a>) -> Self {
-        match iter.next() {
-            None => "".into(),
-            Some(first) => match iter.next() {
-                None => first.into(),
-                Some(second) => {
-                    let mut string = first.to_owned();
-                    string.push_str(second);
-                    string.extend(iter);
-                    string.into()
-                }
-            },
-        }
-    }
-}
-
-#[cfg(all(feature = "beef", target_pointer_width = "64"))]
-impl<'a> From<PercentEncode<'a>> for beef::lean::Cow<'a, str> {
-    fn from(mut iter: PercentEncode<'a>) -> Self {
-        match iter.next() {
-            None => "".into(),
-            Some(first) => match iter.next() {
-                None => first.into(),
-                Some(second) => {
-                    let mut string = first.to_owned();
-                    string.push_str(second);
-                    string.extend(iter);
-                    string.into()
-                }
-            },
-        }
-    }
-}
-
 /// Percent-decode the given string.
 ///
 /// <https://url.spec.whatwg.org/#string-percent-decode>
@@ -416,26 +384,6 @@ impl<'a> From<PercentDecode<'a>> for Cow<'a, [u8]> {
         match iter.if_any() {
             Some(vec) => Cow::Owned(vec),
             None => Cow::Borrowed(iter.bytes.as_slice()),
-        }
-    }
-}
-
-#[cfg(feature = "beef")]
-impl<'a> From<PercentDecode<'a>> for beef::Cow<'a, [u8]> {
-    fn from(iter: PercentDecode<'a>) -> Self {
-        match iter.if_any() {
-            Some(vec) => beef::Cow::owned(vec),
-            None => beef::Cow::borrowed(iter.bytes.as_slice()),
-        }
-    }
-}
-
-#[cfg(all(feature = "beef", target_pointer_width = "64"))]
-impl<'a> From<PercentDecode<'a>> for beef::lean::Cow<'a, [u8]> {
-    fn from(iter: PercentDecode<'a>) -> Self {
-        match iter.if_any() {
-            Some(vec) => beef::lean::Cow::owned(vec),
-            None => beef::lean::Cow::borrowed(iter.bytes.as_slice()),
         }
     }
 }
