@@ -41,13 +41,13 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-use core::{fmt, mem, slice, str};
 #[cfg(feature = "alloc")]
 use alloc::{
     borrow::{Cow, ToOwned},
     string::String,
     vec::Vec,
 };
+use core::{fmt, mem, slice, str};
 
 /// Represents a set of characters or bytes in the ASCII range.
 ///
