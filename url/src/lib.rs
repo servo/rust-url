@@ -417,14 +417,15 @@ impl Url {
     /// # fn run() -> Result<(), ParseError> {
     /// let url_str = "https://example.net/";
     /// let url = Url::parse(url_str)?;
-    /// assert_eq!(url.into_string(), url_str);
+    /// assert_eq!(String::from(url), url_str);
     /// # Ok(())
     /// # }
     /// # run().unwrap();
     /// ```
     #[inline]
+    #[deprecated(since = "2.3.0", note = "use Into<String>")]
     pub fn into_string(self) -> String {
-        self.serialization
+        self.into()
     }
 
     /// For internal testing, not part of the public API.
@@ -2372,6 +2373,13 @@ impl fmt::Display for Url {
     #[inline]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.serialization, formatter)
+    }
+}
+
+/// String converstion.
+impl From<Url> for String {
+    fn from(value: Url) -> String {
+        value.serialization
     }
 }
 
