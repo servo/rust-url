@@ -131,3 +131,9 @@ fn emoji_domains() {
     let error = format!("{:?}", config.to_ascii("☕.com").unwrap_err());
     assert!(error.contains("disallowed_in_idna_2008"));
 }
+
+#[test]
+fn unicode_before_delimiter() {
+    let config = idna::Config::default();
+    assert!(config.to_ascii("xn--f\u{34a}-PTP").is_err());
+}
