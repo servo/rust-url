@@ -2390,6 +2390,7 @@ impl fmt::Debug for Url {
         formatter
             .debug_struct("Url")
             .field("scheme", &self.scheme())
+            .field("cannot_be_a_base", &self.cannot_be_a_base())
             .field("username", &self.username())
             .field("password", &self.password())
             .field("host", &self.host())
