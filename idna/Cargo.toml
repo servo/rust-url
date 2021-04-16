@@ -1,6 +1,6 @@
 [package]
 name = "idna"
-version = "0.2.2"
+version = "0.2.3"
 authors = ["The rust-url developers"]
 description = "IDNA (Internationalizing Domain Names in Applications) and Punycode."
 repository = "https://github.com/servo/rust-url/"
