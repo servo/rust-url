@@ -12,7 +12,7 @@ use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::path::{Path, PathBuf};
-use url::{form_urlencoded, Host, Url};
+use url::{form_urlencoded, Host, Origin, Url};
 
 #[test]
 fn size() {
@@ -515,6 +515,56 @@ fn test_origin_hash() {
 
     assert_ne!(hash(&opaque_origin), hash(&same_opaque_origin));
     assert_ne!(hash(&opaque_origin), hash(&other_opaque_origin));
+}
+
+#[test]
+fn test_origin_blob_equality() {
+    let origin = &Url::parse("http://example.net/").unwrap().origin();
+    let blob_origin = &Url::parse("blob:http://example.net/").unwrap().origin();
+
+    assert_eq!(origin, blob_origin);
+}
+
+#[test]
+fn test_origin_opaque() {
+    assert!(!Origin::new_opaque().is_tuple());
+    assert!(!&Url::parse("blob:malformed//").unwrap().origin().is_tuple())
+}
+
+#[test]
+fn test_origin_unicode_serialization() {
+    let data = [
+        ("http://😅.com", "http://😅.com"),
+        ("ftp://😅:🙂@🙂.com", "ftp://🙂.com"),
+        ("https://user@😅.com", "https://😅.com"),
+        ("http://😅.🙂:40", "http://😅.🙂:40"),
+    ];
+    for &(unicode_url, expected_serialization) in &data {
+        let origin = Url::parse(unicode_url).unwrap().origin();
+        assert_eq!(origin.unicode_serialization(), *expected_serialization);
+    }
+
+    let ascii_origins = [
+        Url::parse("http://example.net/").unwrap().origin(),
+        Url::parse("http://example.net:80/").unwrap().origin(),
+        Url::parse("http://example.net:81/").unwrap().origin(),
+        Url::parse("http://example.net").unwrap().origin(),
+        Url::parse("http://example.net/hello").unwrap().origin(),
+        Url::parse("https://example.net").unwrap().origin(),
+        Url::parse("ftp://example.net").unwrap().origin(),
+        Url::parse("file://example.net").unwrap().origin(),
+        Url::parse("http://user@example.net/").unwrap().origin(),
+        Url::parse("http://user:pass@example.net/")
+            .unwrap()
+            .origin(),
+        Url::parse("http://127.0.0.1").unwrap().origin(),
+    ];
+    for ascii_origin in &ascii_origins {
+        assert_eq!(
+            ascii_origin.ascii_serialization(),
+            ascii_origin.unicode_serialization()
+        );
+    }
 }
 
 #[test]
