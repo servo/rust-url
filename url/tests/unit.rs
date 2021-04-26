@@ -568,6 +568,120 @@ fn test_origin_unicode_serialization() {
 }
 
 #[test]
+fn test_socket_addrs() {
+    use std::net::ToSocketAddrs;
+
+    let data = [
+        ("https://127.0.0.1/", "127.0.0.1", 443),
+        ("https://127.0.0.1:9742/", "127.0.0.1", 9742),
+        ("custom-protocol://127.0.0.1:9742/", "127.0.0.1", 9742),
+        ("custom-protocol://127.0.0.1/", "127.0.0.1", 9743),
+        ("https://[::1]/", "::1", 443),
+        ("https://[::1]:9742/", "::1", 9742),
+        ("custom-protocol://[::1]:9742/", "::1", 9742),
+        ("custom-protocol://[::1]/", "::1", 9743),
+        ("https://localhost/", "localhost", 443),
+        ("https://localhost:9742/", "localhost", 9742),
+        ("custom-protocol://localhost:9742/", "localhost", 9742),
+        ("custom-protocol://localhost/", "localhost", 9743),
+    ];
+
+    for (url_string, host, port) in &data {
+        let url = url::Url::parse(url_string).unwrap();
+        let addrs = url
+            .socket_addrs(|| match url.scheme() {
+                "custom-protocol" => Some(9743),
+                _ => None,
+            })
+            .unwrap();
+        assert_eq!(
+            Some(addrs[0]),
+            (*host, *port).to_socket_addrs().unwrap().next()
+        );
+    }
+}
+
+#[test]
+fn test_no_base_url() {
+    let mut no_base_url = Url::parse("mailto:test@example.net").unwrap();
+
+    assert!(no_base_url.cannot_be_a_base());
+    assert!(no_base_url.path_segments().is_none());
+    assert!(no_base_url.path_segments_mut().is_err());
+    assert!(no_base_url.set_host(Some("foo")).is_err());
+    assert!(no_base_url.set_ip_host("127.0.0.1".parse().unwrap()).is_err());
+
+    no_base_url.set_path("/foo");
+    assert_eq!(no_base_url.path(), "%2Ffoo");
+}
+
+#[test]
+fn test_domain() {
+    let url = Url::parse("https://127.0.0.1/").unwrap();
+    assert_eq!(url.domain(), None);
+
+    let url = Url::parse("mailto:test@example.net").unwrap();
+    assert_eq!(url.domain(), None);
+
+    let url = Url::parse("https://example.com/").unwrap();
+    assert_eq!(url.domain(), Some("example.com"));
+}
+
+#[test]
+fn test_query() {
+    let url = Url::parse("https://example.com/products?page=2#fragment").unwrap();
+    assert_eq!(url.query(), Some("page=2"));
+    assert_eq!(
+        url.query_pairs().next(),
+        Some((Cow::Borrowed("page"), Cow::Borrowed("2")))
+    );
+
+    let url = Url::parse("https://example.com/products").unwrap();
+    assert!(url.query().is_none());
+    assert_eq!(url.query_pairs().count(), 0);
+
+    let url = Url::parse("https://example.com/?country=español").unwrap();
+    assert_eq!(url.query(), Some("country=espa%C3%B1ol"));
+    assert_eq!(
+        url.query_pairs().next(),
+        Some((Cow::Borrowed("country"), Cow::Borrowed("español")))
+    );
+
+    let url = Url::parse("https://example.com/products?page=2&sort=desc").unwrap();
+    assert_eq!(url.query(), Some("page=2&sort=desc"));
+    let mut pairs = url.query_pairs();
+    assert_eq!(pairs.count(), 2);
+    assert_eq!(
+        pairs.next(),
+        Some((Cow::Borrowed("page"), Cow::Borrowed("2")))
+    );
+    assert_eq!(
+        pairs.next(),
+        Some((Cow::Borrowed("sort"), Cow::Borrowed("desc")))
+    );
+}
+
+#[test]
+fn test_fragment() {
+    let url = Url::parse("https://example.com/#fragment").unwrap();
+    assert_eq!(url.fragment(), Some("fragment"));
+
+    let url = Url::parse("https://example.com/").unwrap();
+    assert_eq!(url.fragment(), None);
+}
+
+#[test]
+fn test_set_ip_host() {
+    let mut url = Url::parse("http://example.com").unwrap();
+
+    url.set_ip_host("127.0.0.1".parse().unwrap());
+    assert_eq!(url.host_str(), Some("127.0.0.1"));
+
+    url.set_ip_host("::1".parse().unwrap());
+    assert_eq!(url.host_str(), Some("[::1]"));
+}
+
+#[test]
 fn test_windows_unc_path() {
     if !cfg!(windows) {
         return;
