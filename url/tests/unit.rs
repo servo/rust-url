@@ -609,7 +609,9 @@ fn test_no_base_url() {
     assert!(no_base_url.path_segments().is_none());
     assert!(no_base_url.path_segments_mut().is_err());
     assert!(no_base_url.set_host(Some("foo")).is_err());
-    assert!(no_base_url.set_ip_host("127.0.0.1".parse().unwrap()).is_err());
+    assert!(no_base_url
+        .set_ip_host("127.0.0.1".parse().unwrap())
+        .is_err());
 
     no_base_url.set_path("/foo");
     assert_eq!(no_base_url.path(), "%2Ffoo");
@@ -674,10 +676,10 @@ fn test_fragment() {
 fn test_set_ip_host() {
     let mut url = Url::parse("http://example.com").unwrap();
 
-    url.set_ip_host("127.0.0.1".parse().unwrap());
+    url.set_ip_host("127.0.0.1".parse().unwrap()).unwrap();
     assert_eq!(url.host_str(), Some("127.0.0.1"));
 
-    url.set_ip_host("::1".parse().unwrap());
+    url.set_ip_host("::1".parse().unwrap()).unwrap();
     assert_eq!(url.host_str(), Some("[::1]"));
 }
 
