@@ -533,13 +533,15 @@ fn test_origin_opaque() {
 
 #[test]
 fn test_origin_unicode_serialization() {
-    let unicode_urls = [
-        "http://😅.com",
-        "ftp://🙂.com"
+    let data = [
+        ("http://😅.com", "http://😅.com"),
+        ("ftp://😅:🙂@🙂.com", "ftp://🙂.com"),
+        ("https://user@😅.com", "https://😅.com"),
+        ("http://😅.🙂:40", "http://😅.🙂:40")
     ];
-    for unicode_url in &unicode_urls {
+    for &(unicode_url, expected_serialization) in &data {
         let origin = Url::parse(unicode_url).unwrap().origin();
-        assert_eq!(origin.unicode_serialization(), *unicode_url);
+        assert_eq!(origin.unicode_serialization(), *expected_serialization);
     }
 
     let ascii_origins = [
