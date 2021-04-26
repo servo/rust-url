@@ -679,3 +679,81 @@ fn pop_if_empty_in_bounds() {
     segments.pop_if_empty();
     segments.pop();
 }
+
+#[test]
+fn test_slicing() {
+    use url::Position::*;
+
+    #[derive(Default)]
+    struct ExpectedSlices<'a> {
+        full: &'a str,
+        scheme: &'a str,
+        username: &'a str,
+        password: &'a str,
+        host: &'a str,
+        port: &'a str,
+        path: &'a str,
+        query: &'a str,
+        fragment: &'a str,
+    }
+
+    let data = [
+        ExpectedSlices {
+            full: "https://user:pass@domain.com:9742/path/file.ext?key=val&key2=val2#fragment",
+            scheme: "https",
+            username: "user",
+            password: "pass",
+            host: "domain.com",
+            port: "9742",
+            path: "/path/file.ext",
+            query: "key=val&key2=val2",
+            fragment: "fragment",
+        },
+        ExpectedSlices {
+            full: "https://domain.com:9742/path/file.ext#fragment",
+            scheme: "https",
+            host: "domain.com",
+            port: "9742",
+            path: "/path/file.ext",
+            fragment: "fragment",
+            ..Default::default()
+        },
+        ExpectedSlices {
+            full: "https://domain.com:9742/path/file.ext",
+            scheme: "https",
+            host: "domain.com",
+            port: "9742",
+            path: "/path/file.ext",
+            ..Default::default()
+        },
+        ExpectedSlices {
+            full: "blob:blob-info",
+            scheme: "blob",
+            path: "blob-info",
+            ..Default::default()
+        },
+    ];
+
+    for expected_slices in &data {
+        let url = Url::parse(expected_slices.full).unwrap();
+        assert_eq!(&url[..], expected_slices.full);
+        assert_eq!(&url[BeforeScheme..AfterScheme], expected_slices.scheme);
+        assert_eq!(
+            &url[BeforeUsername..AfterUsername],
+            expected_slices.username
+        );
+        assert_eq!(
+            &url[BeforePassword..AfterPassword],
+            expected_slices.password
+        );
+        assert_eq!(&url[BeforeHost..AfterHost], expected_slices.host);
+        assert_eq!(&url[BeforePort..AfterPort], expected_slices.port);
+        assert_eq!(&url[BeforePath..AfterPath], expected_slices.path);
+        assert_eq!(&url[BeforeQuery..AfterQuery], expected_slices.query);
+        assert_eq!(
+            &url[BeforeFragment..AfterFragment],
+            expected_slices.fragment
+        );
+        assert_eq!(&url[..AfterFragment], expected_slices.full);
+    }
+}
