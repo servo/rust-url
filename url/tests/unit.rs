@@ -537,7 +537,7 @@ fn test_origin_unicode_serialization() {
         ("http://😅.com", "http://😅.com"),
         ("ftp://😅:🙂@🙂.com", "ftp://🙂.com"),
         ("https://user@😅.com", "https://😅.com"),
-        ("http://😅.🙂:40", "http://😅.🙂:40")
+        ("http://😅.🙂:40", "http://😅.🙂:40"),
     ];
     for &(unicode_url, expected_serialization) in &data {
         let origin = Url::parse(unicode_url).unwrap().origin();
@@ -560,7 +560,10 @@ fn test_origin_unicode_serialization() {
         Url::parse("http://127.0.0.1").unwrap().origin(),
     ];
     for ascii_origin in &ascii_origins {
-        assert_eq!(ascii_origin.ascii_serialization(), ascii_origin.unicode_serialization());
+        assert_eq!(
+            ascii_origin.ascii_serialization(),
+            ascii_origin.unicode_serialization()
+        );
     }
 }
 
