@@ -845,3 +845,26 @@ fn pop_if_empty_in_bounds() {
     segments.pop_if_empty();
     segments.pop();
 }
+
+#[test]
+fn port_int() {
+    let url = Url::parse("http://example.net:80").unwrap();
+    assert_eq!(url.port(), None);
+    assert_eq!(url.port_or_known_default(), Some(80));
+    assert_eq!(url.port_int(), Some(80));
+
+    let url = Url::parse("http://example.net").unwrap();
+    assert_eq!(url.port(), None);
+    assert_eq!(url.port_or_known_default(), Some(80));
+    assert_eq!(url.port_int(), None);
+
+    let url = Url::parse("custom-protocol://example.net").unwrap();
+    assert_eq!(url.port(), None);
+    assert_eq!(url.port_or_known_default(), None);
+    assert_eq!(url.port_int(), None);
+
+    let url = Url::parse("custom-protocol://example.net:8000").unwrap();
+    assert_eq!(url.port(), Some(8000));
+    assert_eq!(url.port_or_known_default(), Some(8000));
+    assert_eq!(url.port_int(), Some(8000));
+}

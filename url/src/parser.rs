@@ -485,6 +485,7 @@ impl<'a> Parser<'a> {
         let host_end = path_start;
         let host = HostInternal::None;
         let port = None;
+        let port_int = None;
         let remaining = if let Some(input) = input.split_prefix('/') {
             let path_start = self.serialization.len();
             self.serialization.push('/');
@@ -500,6 +501,7 @@ impl<'a> Parser<'a> {
             host_end,
             host,
             port,
+            port_int,
             path_start,
             remaining,
         )
@@ -555,6 +557,7 @@ impl<'a> Parser<'a> {
                     host_end,
                     host,
                     port: None,
+                    port_int: None,
                     path_start: host_end,
                     query_start,
                     fragment_start,
@@ -606,6 +609,7 @@ impl<'a> Parser<'a> {
                     host_end,
                     host,
                     port: None,
+                    port_int: None,
                     path_start: host_end,
                     query_start,
                     fragment_start,
@@ -666,6 +670,7 @@ impl<'a> Parser<'a> {
                             base_url.host_end,
                             base_url.host,
                             base_url.port,
+                            base_url.port_int,
                             base_url.path_start,
                             remaining,
                         )
@@ -686,6 +691,7 @@ impl<'a> Parser<'a> {
                             host_end: path_start,
                             host: HostInternal::None,
                             port: None,
+                            port_int: None,
                             path_start,
                             query_start,
                             fragment_start,
@@ -709,6 +715,7 @@ impl<'a> Parser<'a> {
                 host_end: path_start,
                 host: HostInternal::None,
                 port: None,
+                port_int: None,
                 path_start,
                 query_start,
                 fragment_start,
@@ -792,6 +799,7 @@ impl<'a> Parser<'a> {
                     base_url.host_end,
                     base_url.host,
                     base_url.port,
+                    base_url.port_int,
                     base_url.path_start,
                     remaining,
                 )
@@ -830,6 +838,7 @@ impl<'a> Parser<'a> {
                     base_url.host_end,
                     base_url.host,
                     base_url.port,
+                    base_url.port_int,
                     base_url.path_start,
                     remaining,
                 )
@@ -851,7 +860,7 @@ impl<'a> Parser<'a> {
         let has_authority = before_authority != self.serialization.len();
         // host state
         let host_start = to_u32(self.serialization.len())?;
-        let (host_end, host, port, remaining) =
+        let (host_end, host, port, port_int, remaining) =
             self.parse_host_and_port(remaining, scheme_end, scheme_type)?;
         if host == HostInternal::None && has_authority {
             return Err(ParseError::EmptyHost);
@@ -867,6 +876,7 @@ impl<'a> Parser<'a> {
             host_end,
             host,
             port,
+            port_int,
             path_start,
             remaining,
         )
@@ -947,12 +957,13 @@ impl<'a> Parser<'a> {
         Ok((username_end, remaining))
     }
 
+    #[allow(clippy::type_complexity)]
     fn parse_host_and_port<'i>(
         &mut self,
         input: Input<'i>,
         scheme_end: u32,
         scheme_type: SchemeType,
-    ) -> ParseResult<(u32, HostInternal, Option<u16>, Input<'i>)> {
+    ) -> ParseResult<(u32, HostInternal, Option<u16>, Option<u16>, Input<'i>)> {
         let (host, remaining) = Parser::parse_host(input, scheme_type)?;
         write!(&mut self.serialization, "{}", host).unwrap();
         let host_end = to_u32(self.serialization.len())?;
@@ -968,16 +979,16 @@ impl<'a> Parser<'a> {
             }
         };
 
-        let (port, remaining) = if let Some(remaining) = remaining.split_prefix(':') {
+        let (port, port_int, remaining) = if let Some(remaining) = remaining.split_prefix(':') {
             let scheme = || default_port(&self.serialization[..scheme_end as usize]);
             Parser::parse_port(remaining, scheme, self.context)?
         } else {
-            (None, remaining)
+            (None, None, remaining)
         };
         if let Some(port) = port {
             write!(&mut self.serialization, ":{}", port).unwrap()
         }
-        Ok((host_end, host.into(), port, remaining))
+        Ok((host_end, host.into(), port, port_int, remaining))
     }
 
     pub fn parse_host(
@@ -1109,7 +1120,7 @@ impl<'a> Parser<'a> {
         mut input: Input<'_>,
         default_port: P,
         context: Context,
-    ) -> ParseResult<(Option<u16>, Input<'_>)>
+    ) -> ParseResult<(Option<u16>, Option<u16>, Input<'_>)>
     where
         P: Fn() -> Option<u16>,
     {
@@ -1130,10 +1141,16 @@ impl<'a> Parser<'a> {
             input = remaining;
         }
         let mut opt_port = Some(port as u16);
-        if !has_any_digit || opt_port == default_port() {
+        let mut opt_port_int = opt_port;
+        if has_any_digit {
+            if opt_port == default_port() {
+                opt_port = None;
+            }
+        } else {
             opt_port = None;
+            opt_port_int = None;
         }
-        Ok((opt_port, input))
+        Ok((opt_port, opt_port_int, input))
     }
 
     pub fn parse_path_start<'i>(
@@ -1368,6 +1385,7 @@ impl<'a> Parser<'a> {
         host_end: u32,
         host: HostInternal,
         port: Option<u16>,
+        port_int: Option<u16>,
         path_start: u32,
         remaining: Input<'_>,
     ) -> ParseResult<Url> {
@@ -1381,6 +1399,7 @@ impl<'a> Parser<'a> {
             host_end,
             host,
             port,
+            port_int,
             path_start,
             query_start,
             fragment_start,

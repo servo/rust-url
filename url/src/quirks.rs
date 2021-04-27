@@ -128,7 +128,7 @@ pub fn set_host(url: &mut Url, new_host: &str) -> Result<(), ()> {
                 } else {
                     Parser::parse_port(remaining, || default_port(scheme), Context::Setter)
                         .ok()
-                        .map(|(port, _remaining)| port)
+                        .map(|(port, port_int, _remaining)| (port, port_int))
                 }
             } else {
                 None
@@ -141,7 +141,7 @@ pub fn set_host(url: &mut Url, new_host: &str) -> Result<(), ()> {
     if host == Host::Domain("".to_string()) {
         if !username(&url).is_empty() {
             return Err(());
-        } else if let Some(Some(_)) = opt_port {
+        } else if let Some((_, Some(_))) = opt_port {
             return Err(());
         } else if url.port().is_some() {
             return Err(());
@@ -215,8 +215,8 @@ pub fn set_port(url: &mut Url, new_port: &str) -> Result<(), ()> {
             Context::Setter,
         )
     }
-    if let Ok((new_port, _remaining)) = result {
-        url.set_port_internal(new_port);
+    if let Ok((new_port, new_port_int, _remaining)) = result {
+        url.set_port_internal(new_port, new_port_int);
         Ok(())
     } else {
         Err(())

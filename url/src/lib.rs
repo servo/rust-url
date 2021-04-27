@@ -182,6 +182,7 @@ pub struct Url {
     host_end: u32,
     host: HostInternal,
     port: Option<u16>,
+    port_int: Option<u16>,
     path_start: u32,             // Before initial '/', if any
     query_start: Option<u32>,    // Before '?', unlike Position::QueryStart
     fragment_start: Option<u32>, // Before '#', unlike Position::FragmentStart
@@ -502,10 +503,9 @@ impl Url {
             } else {
                 assert_eq!(self.byte_at(self.host_end), b':');
                 let port_str = self.slice(self.host_end + 1..self.path_start);
-                assert_eq!(
-                    self.port,
-                    Some(port_str.parse::<u16>().expect("Couldn't parse port?"))
-                );
+                let port = port_str.parse::<u16>().expect("Couldn't parse port?");
+                assert_eq!(self.port, Some(port));
+                assert_eq!(self.port_int, Some(port));
             }
             assert!(
                 self.path_start as usize == self.serialization.len()
@@ -518,6 +518,7 @@ impl Url {
             assert_eq!(self.host_end, self.scheme_end + 1);
             assert_eq!(self.host, HostInternal::None);
             assert_eq!(self.port, None);
+            assert_eq!(self.port_int, None);
             assert_eq!(self.path_start, self.scheme_end + 1);
         }
         if let Some(start) = self.query_start {
@@ -545,6 +546,7 @@ impl Url {
                 (self.host_str(), other.host_str()) == (None, Some(""))
         );
         assert_eq!(self.port, other.port);
+        assert!(self.port == None || self.port_int == other.port_int);
         assert_eq!(self.path_start, other.path_start);
         assert_eq!(self.query_start, other.query_start);
         assert_eq!(self.fragment_start, other.fragment_start);
@@ -915,8 +917,9 @@ impl Url {
 
     /// Return the port number for this URL, if any.
     ///
-    /// Note that default port numbers are never reflected by the serialization,
-    /// use the `port_or_known_default()` method if you want a default port number returned.
+    /// Note that default port numbers are never reflected in `port()`,
+    /// use the `port_or_known_default()` method if you want a default port number returned
+    /// or `port_int()` to get the port number regardless of defaults.
     ///
     /// # Examples
     ///
@@ -940,6 +943,34 @@ impl Url {
     #[inline]
     pub fn port(&self) -> Option<u16> {
         self.port
+    }
+
+    /// Return the port number for this URL, if any.
+    ///
+    /// Note that this always returns the port number regardless of defaults.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use url::Url;
+    /// # use url::ParseError;
+    ///
+    /// # fn run() -> Result<(), ParseError> {
+    /// let url = Url::parse("https://example.com")?;
+    /// assert_eq!(url.port_int(), None);
+    ///
+    /// let url = Url::parse("https://example.com:443/")?;
+    /// assert_eq!(url.port_int(), Some(443));
+    ///
+    /// let url = Url::parse("ssh://example.com:22")?;
+    /// assert_eq!(url.port_int(), Some(22));
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
+    /// ```
+    #[inline]
+    pub fn port_int(&self) -> Option<u16> {
+        self.port_int
     }
 
     /// Return the port number for this URL, or the default port number if it is known.
@@ -1460,8 +1491,6 @@ impl Url {
 
     /// Change this URL’s port number.
     ///
-    /// Note that default port numbers are not reflected in the serialization.
-    ///
     /// If this URL is cannot-be-a-base, does not have a host, or has the `file` scheme;
     /// do nothing and return `Err`.
     ///
@@ -1484,7 +1513,7 @@ impl Url {
     /// # run().unwrap();
     /// ```
     ///
-    /// Known default port numbers are not reflected:
+    /// Known default port numbers are not reflected in `port()` but in `port_int()`:
     ///
     /// ```rust
     /// use url::Url;
@@ -1495,6 +1524,7 @@ impl Url {
     ///
     /// url.set_port(Some(443)).map_err(|_| "cannot be base")?;
     /// assert!(url.port().is_none());
+    /// assert_eq!(url.port_int(), Some(443));
     /// # Ok(())
     /// # }
     /// # run().unwrap();
@@ -1524,14 +1554,15 @@ impl Url {
         if !self.has_host() || self.host() == Some(Host::Domain("")) || self.scheme() == "file" {
             return Err(());
         }
+        let port_int = port;
         if port.is_some() && port == parser::default_port(self.scheme()) {
             port = None
         }
-        self.set_port_internal(port);
+        self.set_port_internal(port, port_int);
         Ok(())
     }
 
-    fn set_port_internal(&mut self, port: Option<u16>) {
+    fn set_port_internal(&mut self, port: Option<u16>, port_int: Option<u16>) {
         match (self.port, port) {
             (None, None) => {}
             (Some(_), None) => {
@@ -1568,6 +1599,7 @@ impl Url {
             }
         }
         self.port = port;
+        self.port_int = port_int;
     }
 
     /// Change this URL’s host.
@@ -1710,7 +1742,11 @@ impl Url {
     }
 
     /// opt_new_port: None means leave unchanged, Some(None) means remove any port number.
-    fn set_host_internal(&mut self, host: Host<String>, opt_new_port: Option<Option<u16>>) {
+    fn set_host_internal(
+        &mut self,
+        host: Host<String>,
+        opt_new_port: Option<(Option<u16>, Option<u16>)>,
+    ) {
         let old_suffix_pos = if opt_new_port.is_some() {
             self.path_start
         } else {
@@ -1730,8 +1766,9 @@ impl Url {
         self.host_end = to_u32(self.serialization.len()).unwrap();
         self.host = host.into();
 
-        if let Some(new_port) = opt_new_port {
+        if let Some((new_port, new_port_int)) = opt_new_port {
             self.port = new_port;
+            self.port_int = new_port_int;
             if let Some(port) = new_port {
                 write!(&mut self.serialization, ":{}", port).unwrap();
             }
@@ -2177,6 +2214,7 @@ impl Url {
             host_end,
             host,
             port: None,
+            port_int: None,
             path_start: host_end,
             query_start: None,
             fragment_start: None,
@@ -2233,6 +2271,7 @@ impl Url {
             ref host_end,
             ref host,
             ref port,
+            ref port_int,
             ref path_start,
             ref query_start,
             ref fragment_start,
@@ -2245,6 +2284,7 @@ impl Url {
             host_end,
             host,
             port,
+            port_int,
             path_start,
             query_start,
             fragment_start,
@@ -2273,6 +2313,7 @@ impl Url {
             host_end,
             host,
             port,
+            port_int,
             path_start,
             query_start,
             fragment_start,
@@ -2285,6 +2326,7 @@ impl Url {
             host_end,
             host,
             port,
+            port_int,
             path_start,
             query_start,
             fragment_start,
