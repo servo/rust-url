@@ -684,6 +684,43 @@ fn test_set_ip_host() {
 }
 
 #[test]
+fn test_set_href() {
+    use url::quirks::set_href;
+
+    let mut url = Url::parse("https://existing.url").unwrap();
+
+    assert!(set_href(&mut url, "mal//formed").is_err());
+
+    assert!(set_href(
+        &mut url,
+        "https://user:pass@domain.com:9742/path/file.ext?key=val&key2=val2#fragment"
+    )
+    .is_ok());
+    assert_eq!(
+        url,
+        Url::parse("https://user:pass@domain.com:9742/path/file.ext?key=val&key2=val2#fragment")
+            .unwrap()
+    );
+}
+
+#[test]
+fn test_domain_encoding_quirks() {
+    use url::quirks::{domain_to_ascii, domain_to_unicode};
+
+    let data = [
+        ("http://example.com", "", ""),
+        ("😅.🙂", "xn--j28h.xn--938h", "😅.🙂"),
+        ("example.com", "example.com", "example.com"),
+        ("mailto:test@example.net", "", ""),
+    ];
+
+    for url in &data {
+        assert_eq!(domain_to_ascii(url.0), url.1);
+        assert_eq!(domain_to_unicode(url.0), url.2);
+    }
+}
+
+#[test]
 fn test_windows_unc_path() {
     if !cfg!(windows) {
         return;
