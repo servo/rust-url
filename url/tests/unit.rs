@@ -795,7 +795,7 @@ fn test_syntax_violation_callback_types() {
         ("http:///mozilla.org", ExpectedDoubleSlash, "expected //"),
         ("file:/foo.txt", ExpectedFileDoubleSlash, "expected // after file:"),
         ("file://mozilla.org/c:/file.txt", FileWithHostAndWindowsDrive, "file: with host and Windows drive letter"),
-        ("http://mozilla.org/^", NonUrlCodePoint, "non-URL code point",),
+        ("http://mozilla.org/^", NonUrlCodePoint, "non-URL code point"),
         ("http://mozilla.org/#\00", NullInFragment, "NULL characters are ignored in URL fragment identifiers"),
         ("http://mozilla.org/%1", PercentDecode, "expected 2 hex digits after %"),
         ("http://mozilla.org\t/foo", TabOrNewlineIgnored, "tabs or newlines are ignored in URLs"),
