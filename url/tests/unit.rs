@@ -785,6 +785,37 @@ fn test_syntax_violation_callback_lifetimes() {
 }
 
 #[test]
+fn test_syntax_violation_callback_types() {
+    use url::SyntaxViolation::*;
+
+    let data = [
+        ("http://mozilla.org/\\foo", Backslash, "backslash"),
+        (" http://mozilla.org", C0SpaceIgnored, "leading or trailing control or space character are ignored in URLs"),
+        ("http://user:pass@mozilla.org", EmbeddedCredentials, "embedding authentication information (username or password) in an URL is not recommended"),
+        ("http:///mozilla.org", ExpectedDoubleSlash, "expected //"),
+        ("file:/foo.txt", ExpectedFileDoubleSlash, "expected // after file:"),
+        ("file://mozilla.org/c:/file.txt", FileWithHostAndWindowsDrive, "file: with host and Windows drive letter"),
+        ("http://mozilla.org/^", NonUrlCodePoint, "non-URL code point",),
+        ("http://mozilla.org/#\00", NullInFragment, "NULL characters are ignored in URL fragment identifiers"),
+        ("http://mozilla.org/%1", PercentDecode, "expected 2 hex digits after %"),
+        ("http://mozilla.org\t/foo", TabOrNewlineIgnored, "tabs or newlines are ignored in URLs"),
+        ("http://user@:pass@mozilla.org", UnencodedAtSign, "unencoded @ sign in username or password")
+    ];
+
+    for test_case in &data {
+        let violation = Cell::new(None);
+        Url::options()
+            .syntax_violation_callback(Some(&|v| violation.set(Some(v))))
+            .parse(test_case.0);
+
+        let v = violation.take();
+        assert_eq!(v, Some(test_case.1));
+        assert_eq!(v.unwrap().description(), test_case.2);
+        assert_eq!(v.unwrap().to_string(), test_case.2);
+    }
+}
+
+#[test]
 fn test_options_reuse() {
     use url::SyntaxViolation::*;
     let violations = RefCell::new(Vec::new());
