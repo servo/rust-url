@@ -806,7 +806,8 @@ fn test_syntax_violation_callback_types() {
         let violation = Cell::new(None);
         Url::options()
             .syntax_violation_callback(Some(&|v| violation.set(Some(v))))
-            .parse(test_case.0);
+            .parse(test_case.0)
+            .unwrap();
 
         let v = violation.take();
         assert_eq!(v, Some(test_case.1));
