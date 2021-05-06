@@ -120,7 +120,7 @@ url = { version = "2", features = ["serde"] }
 ```
 */
 
-#![doc(html_root_url = "https://docs.rs/url/2.2.1")]
+#![doc(html_root_url = "https://docs.rs/url/2.2.2")]
 
 #[macro_use]
 extern crate matches;
