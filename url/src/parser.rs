@@ -1563,14 +1563,14 @@ fn is_normalized_windows_drive_letter(segment: &str) -> bool {
     is_windows_drive_letter(segment) && segment.as_bytes()[1] == b':'
 }
 
-/// Wether the scheme is file:, the path has a single segment, and that segment
+/// Whether the scheme is file:, the path has a single segment, and that segment
 /// is a Windows drive letter
 #[inline]
 pub fn is_windows_drive_letter(segment: &str) -> bool {
     segment.len() == 2 && starts_with_windows_drive_letter(segment)
 }
 
-/// Wether path starts with a root slash
+/// Whether path starts with a root slash
 /// and a windows drive letter eg: "/c:" or "/a:/"
 fn path_starts_with_windows_drive_letter(s: &str) -> bool {
     if let Some(c) = s.as_bytes().get(0) {

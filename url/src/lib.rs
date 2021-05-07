@@ -2511,7 +2511,7 @@ impl fmt::Display for Url {
     }
 }
 
-/// String converstion.
+/// String conversion.
 impl From<Url> for String {
     fn from(value: Url) -> String {
         value.serialization
