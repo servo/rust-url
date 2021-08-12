@@ -26,12 +26,13 @@ bencher = "0.1"
 
 [dependencies]
 form_urlencoded = { version = "1.0.0", path = "../form_urlencoded" }
-idna = { version = "0.2.0", path = "../idna", optional = true }
+idna = { version = "0.2.0", default-features = false, path = "../idna", optional = true }
 percent-encoding = { version = "2.1.0", path = "../percent_encoding" }
-serde = {version = "1.0", optional = true, features = ["derive"]}
+serde = { version = "1.0", default-features = false, optional = true, features = ["derive"] }
 
 [features]
-default = ["idna"]
+default = ["std", "idna"]
+std = ["idna/std"]
 
 [[bench]]
 name = "parse_url"

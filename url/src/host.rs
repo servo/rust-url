@@ -6,8 +6,11 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use std::cmp;
-use std::fmt::{self, Formatter};
+use alloc::borrow::ToOwned;
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
+use core::cmp;
+use core::fmt::{self, Formatter};
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 use percent_encoding::{percent_decode, utf8_percent_encode, CONTROLS};
