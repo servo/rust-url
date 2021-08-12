@@ -14,6 +14,12 @@
 //! assert_eq!(body, b"Hello World!");
 //! assert!(fragment.is_none());
 //! ```
+#![no_std]
+
+#[macro_use]
+extern crate alloc;
+
+use alloc::{string::String, vec::Vec};
 
 macro_rules! require {
     ($condition: expr) => {

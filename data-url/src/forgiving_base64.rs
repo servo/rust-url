@@ -1,5 +1,7 @@
 //! <https://infra.spec.whatwg.org/#forgiving-base64-decode>
 
+use alloc::vec::Vec;
+
 #[derive(Debug)]
 pub struct InvalidBase64(InvalidBase64Details);
 
