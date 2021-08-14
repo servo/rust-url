@@ -953,7 +953,7 @@ impl<'a> Parser<'a> {
         scheme_end: u32,
         scheme_type: SchemeType,
     ) -> ParseResult<(u32, HostInternal, Option<u16>, Input<'i>)> {
-        let (host, remaining) = Parser::parse_host(input, scheme_type)?;
+        let (host, remaining) = Parser::parse_host(input, scheme_type, false)?;
         write!(&mut self.serialization, "{}", host).unwrap();
         let host_end = to_u32(self.serialization.len())?;
         if let Host::Domain(h) = &host {
@@ -983,6 +983,7 @@ impl<'a> Parser<'a> {
     pub fn parse_host(
         mut input: Input<'_>,
         scheme_type: SchemeType,
+        error_on_port: bool,
     ) -> ParseResult<(Host<String>, Input<'_>)> {
         if scheme_type.is_file() {
             return Parser::get_file_host(input);
@@ -996,7 +997,12 @@ impl<'a> Parser<'a> {
         let mut bytes = 0;
         for c in input_str.chars() {
             match c {
-                ':' if !inside_square_brackets => break,
+                ':' if !inside_square_brackets => {
+                    if error_on_port {
+                        return Err(ParseError::InvalidPort);
+                    }
+                    break;
+                }
                 '\\' if scheme_type.is_special() => break,
                 '/' | '?' | '#' => break,
                 '\t' | '\n' | '\r' => {

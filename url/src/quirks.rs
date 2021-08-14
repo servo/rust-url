@@ -120,7 +120,7 @@ pub fn set_host(url: &mut Url, new_host: &str) -> Result<(), ()> {
             return Ok(());
         }
 
-        if let Ok((h, remaining)) = Parser::parse_host(input, scheme_type) {
+        if let Ok((h, remaining)) = Parser::parse_host(input, scheme_type, false) {
             host = h;
             opt_port = if let Some(remaining) = remaining.split_prefix(':') {
                 if remaining.is_empty() {
@@ -171,7 +171,7 @@ pub fn set_hostname(url: &mut Url, new_hostname: &str) -> Result<(), ()> {
         return Ok(());
     }
 
-    if let Ok((host, _remaining)) = Parser::parse_host(input, scheme_type) {
+    if let Ok((host, _remaining)) = Parser::parse_host(input, scheme_type, true) {
         if let Host::Domain(h) = &host {
             if h.is_empty() {
                 // Empty host on special not file url
