@@ -10,3 +10,6 @@ edition = "2018"
 [features]
 default = ["alloc"]
 alloc = []
+
+[dev-dependencies]
+quickcheck = "1.0.0"
