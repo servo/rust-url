@@ -16,7 +16,7 @@ use url::{quirks, Url};
 
 #[test]
 fn urltestdata() {
-    // Copied form https://github.com/web-platform-tests/wpt/blob/master/url/
+    // Copied from https://github.com/web-platform-tests/wpt/blob/master/url/
     let mut json = Value::from_str(include_str!("urltestdata.json"))
         .expect("JSON parse error in urltestdata.json");
 
