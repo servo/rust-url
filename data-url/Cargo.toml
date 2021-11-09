@@ -1,6 +1,6 @@
 [package]
 name = "data-url"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Simon Sapin <simon.sapin@exyr.org>"]
 description = "Processing of data: URL according to WHATWG’s Fetch Standard"
 repository = "https://github.com/servo/rust-url"
