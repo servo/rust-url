@@ -703,6 +703,7 @@ fn test_set_href() {
     );
 }
 
+#[cfg(feature = "idna")]
 #[test]
 fn test_domain_encoding_quirks() {
     use url::quirks::{domain_to_ascii, domain_to_unicode};

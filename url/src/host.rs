@@ -82,7 +82,12 @@ impl Host<String> {
             return parse_ipv6addr(&input[1..input.len() - 1]).map(Host::Ipv6);
         }
         let domain = percent_decode(input.as_bytes()).decode_utf8_lossy();
+
+        #[cfg(feature = "idna")]
         let domain = idna::domain_to_ascii(&domain)?;
+        #[cfg(not(feature = "idna"))]
+        let domain = domain.to_string();
+
         if domain.is_empty() {
             return Err(ParseError::EmptyHost);
         }
