@@ -16,6 +16,20 @@ use url::{quirks, Url};
 
 #[test]
 fn urltestdata() {
+    #[cfg(not(feature = "idna"))]
+    let idna_skip_inputs = [
+        "http://www.foo。bar.com",
+        "http://Ｇｏ.com",
+        "http://你好你好",
+        "https://faß.ExAmPlE/",
+        "http://０Ｘｃ０．０２５０．０１",
+        "ftp://%e2%98%83",
+        "https://%e2%98%83",
+        "file://a\u{ad}b/p",
+        "file://a%C2%ADb/p",
+        "http://GOO\u{200b}\u{2060}\u{feff}goo.com",
+    ];
+
     // Copied form https://github.com/w3c/web-platform-tests/blob/master/url/
     let mut json = Value::from_str(include_str!("urltestdata.json"))
         .expect("JSON parse error in urltestdata.json");
@@ -29,6 +43,11 @@ fn urltestdata() {
         let base = entry.take_string("base");
         let input = entry.take_string("input");
         let failure = entry.take_key("failure").is_some();
+
+        #[cfg(not(feature = "idna"))]
+        if idna_skip_inputs.contains(&input.as_str()) {
+            continue;
+        }
 
         let base = match Url::parse(&base) {
             Ok(base) => base,
@@ -106,6 +125,12 @@ fn setters_tests() {
         let mut tests = json.take_key(attr).unwrap();
         for mut test in tests.as_array_mut().unwrap().drain(..) {
             let comment = test.take_key("comment").map(|s| s.string());
+            #[cfg(not(feature = "idna"))]
+            if let Some(comment) = comment.as_ref() {
+                if comment.starts_with("IDNA Nontransitional_Processing") {
+                    continue;
+                }
+            }
             let href = test.take_string("href");
             let new_value = test.take_string("new_value");
             let name = format!("{:?}.{} = {:?}", href, attr, new_value);

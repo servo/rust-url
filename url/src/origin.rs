@@ -86,17 +86,14 @@ impl Origin {
     }
 
     /// <https://html.spec.whatwg.org/multipage/#unicode-serialisation-of-an-origin>
+    #[cfg(feature = "idna")]
     pub fn unicode_serialization(&self) -> String {
         match *self {
             Origin::Opaque(_) => "null".to_owned(),
             Origin::Tuple(ref scheme, ref host, port) => {
                 let host = match *host {
                     Host::Domain(ref domain) => {
-                        #[cfg(feature = "idna")]
                         let (domain, _errors) = idna::domain_to_unicode(domain);
-                        #[cfg(not(feature = "idna"))]
-                        let domain = domain.clone();
-
                         Host::Domain(domain)
                     }
                     _ => host.clone(),

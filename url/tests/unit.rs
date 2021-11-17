@@ -296,6 +296,7 @@ fn host_serialization() {
     );
 }
 
+#[cfg(feature = "idna")]
 #[test]
 fn test_idna() {
     assert!("http://goșu.ro".parse::<Url>().is_ok());
@@ -531,6 +532,7 @@ fn test_origin_opaque() {
     assert!(!&Url::parse("blob:malformed//").unwrap().origin().is_tuple())
 }
 
+#[cfg(feature = "idna")]
 #[test]
 fn test_origin_unicode_serialization() {
     let data = [

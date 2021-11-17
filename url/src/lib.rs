@@ -124,7 +124,7 @@ url = { version = "2", features = ["serde"] }
 You can opt out [idna](https://en.wikipedia.org/wiki/Internationalized_domain_name) support
 to reduce final binary size.
 
-```tomo
+```toml
 url = { version = "2", default-features = false }
 ```
 

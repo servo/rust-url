@@ -83,10 +83,7 @@ impl Host<String> {
         }
         let domain = percent_decode(input.as_bytes()).decode_utf8_lossy();
 
-        #[cfg(feature = "idna")]
-        let domain = idna::domain_to_ascii(&domain)?;
-        #[cfg(not(feature = "idna"))]
-        let domain = domain.to_string();
+        let domain = Self::domain_to_ascii(&domain)?;
 
         if domain.is_empty() {
             return Err(ParseError::EmptyHost);
@@ -159,6 +156,24 @@ impl Host<String> {
             Ok(Host::Domain(
                 utf8_percent_encode(input, CONTROLS).to_string(),
             ))
+        }
+    }
+
+    /// convert domain with idna
+    #[cfg(feature = "idna")]
+    fn domain_to_ascii(domain: &str) -> Result<String, ParseError> {
+        idna::domain_to_ascii(&domain).map_err(Into::into)
+    }
+
+    /// checks domain is ascii
+    #[cfg(not(feature = "idna"))]
+    fn domain_to_ascii(domain: &str) -> Result<String, ParseError> {
+        // without idna feature, we can't verify that xn-- domains correctness
+        let domain = domain.to_lowercase();
+        if domain.is_ascii() && !domain.starts_with("xn--") {
+            Ok(domain)
+        } else {
+            Err(ParseError::InvalidDomainCharacter)
         }
     }
 }
