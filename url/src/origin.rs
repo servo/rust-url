@@ -9,8 +9,6 @@
 use crate::host::Host;
 use crate::parser::default_port;
 use crate::Url;
-#[cfg(feature = "idna")]
-use idna::domain_to_unicode;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub fn url_origin(url: &Url) -> Origin {
@@ -95,7 +93,7 @@ impl Origin {
                 let host = match *host {
                     Host::Domain(ref domain) => {
                         #[cfg(feature = "idna")]
-                        let (domain, _errors) = domain_to_unicode(domain);
+                        let (domain, _errors) = idna::domain_to_unicode(domain);
                         #[cfg(not(feature = "idna"))]
                         let domain = domain.clone();
 

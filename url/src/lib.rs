@@ -118,6 +118,16 @@ See [serde documentation](https://serde.rs) for more information.
 ```toml
 url = { version = "2", features = ["serde"] }
 ```
+
+# Feature: `idna`
+
+You can opt out [idna](https://en.wikipedia.org/wiki/Internationalized_domain_name) support
+to reduce final binary size.
+
+```tomo
+url = { version = "2", default-features = false }
+```
+
 */
 
 #![doc(html_root_url = "https://docs.rs/url/2.2.2")]
