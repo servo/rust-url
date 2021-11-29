@@ -45,8 +45,10 @@ fn urltestdata() {
         let failure = entry.take_key("failure").is_some();
 
         #[cfg(not(feature = "idna"))]
-        if idna_skip_inputs.contains(&input.as_str()) {
-            continue;
+        {
+            if idna_skip_inputs.contains(&input.as_str()) {
+                continue;
+            }
         }
 
         let base = match Url::parse(&base) {
@@ -126,9 +128,11 @@ fn setters_tests() {
         for mut test in tests.as_array_mut().unwrap().drain(..) {
             let comment = test.take_key("comment").map(|s| s.string());
             #[cfg(not(feature = "idna"))]
-            if let Some(comment) = comment.as_ref() {
-                if comment.starts_with("IDNA Nontransitional_Processing") {
-                    continue;
+            {
+                if let Some(comment) = comment.as_ref() {
+                    if comment.starts_with("IDNA Nontransitional_Processing") {
+                        continue;
+                    }
                 }
             }
             let href = test.take_string("href");
