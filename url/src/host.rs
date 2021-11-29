@@ -170,7 +170,7 @@ impl Host<String> {
     fn domain_to_ascii(domain: &str) -> Result<String, ParseError> {
         // without idna feature, we can't verify that xn-- domains correctness
         let domain = domain.to_lowercase();
-        if domain.is_ascii() && !domain.starts_with("xn--") {
+        if domain.is_ascii() && domain.split('.').all(|s| !s.starts_with("xn--")) {
             Ok(domain)
         } else {
             Err(ParseError::InvalidDomainCharacter)
