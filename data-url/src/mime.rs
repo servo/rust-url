@@ -69,7 +69,7 @@ fn parse_parameters(s: &str, parameters: &mut Vec<(String, String)>) {
     while let Some(piece) = semicolon_separated.next() {
         let piece = piece.trim_start_matches(ascii_whitespace);
         let (name, value) = split2(piece, '=');
-        if name.is_empty() || !only_http_token_code_points(name) || contains(&parameters, name) {
+        if name.is_empty() || !only_http_token_code_points(name) || contains(parameters, name) {
             continue;
         }
         if let Some(value) = value {

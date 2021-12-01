@@ -9,7 +9,6 @@
 use crate::host::Host;
 use crate::parser::default_port;
 use crate::Url;
-use idna::domain_to_unicode;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub fn url_origin(url: &Url) -> Origin {
@@ -87,13 +86,14 @@ impl Origin {
     }
 
     /// <https://html.spec.whatwg.org/multipage/#unicode-serialisation-of-an-origin>
+    #[cfg(feature = "idna")]
     pub fn unicode_serialization(&self) -> String {
         match *self {
             Origin::Opaque(_) => "null".to_owned(),
             Origin::Tuple(ref scheme, ref host, port) => {
                 let host = match *host {
                     Host::Domain(ref domain) => {
-                        let (domain, _errors) = domain_to_unicode(domain);
+                        let (domain, _errors) = idna::domain_to_unicode(domain);
                         Host::Domain(domain)
                     }
                     _ => host.clone(),
