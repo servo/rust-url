@@ -2778,10 +2778,12 @@ fn file_url_segments_to_pathbuf(
     } else {
         Vec::new()
     };
+
     for segment in segments {
         bytes.push(b'/');
         bytes.extend(percent_decode(segment.as_bytes()));
     }
+
     // A windows drive letter must end with a slash.
     if bytes.len() > 2
         && matches!(bytes[bytes.len() - 2], b'a'..=b'z' | b'A'..=b'Z')
@@ -2789,12 +2791,15 @@ fn file_url_segments_to_pathbuf(
     {
         bytes.push(b'/');
     }
+
     let os_str = OsStr::from_bytes(&bytes);
     let path = PathBuf::from(os_str);
+
     debug_assert!(
         path.is_absolute(),
         "to_file_path() failed to produce an absolute Path"
     );
+
     Ok(path)
 }
 
@@ -2812,8 +2817,10 @@ fn file_url_segments_to_pathbuf_windows(
     host: Option<&str>,
     mut segments: str::Split<'_, char>,
 ) -> Result<PathBuf, ()> {
-    let mut string = if let Some(host) = host {
-        r"\\".to_owned() + host
+    let mut path = if let Some(host) = host {
+        let mut p = PathBuf::from(r"\\");
+        p.push(host);
+        p
     } else {
         let first = segments.next().ok_or(())?;
 
@@ -2823,7 +2830,7 @@ fn file_url_segments_to_pathbuf_windows(
                     return Err(());
                 }
 
-                first.to_owned()
+                PathBuf::from(first)
             }
 
             4 => {
@@ -2835,7 +2842,9 @@ fn file_url_segments_to_pathbuf_windows(
                     return Err(());
                 }
 
-                first[0..1].to_owned() + ":"
+                let mut p = PathBuf::from(&first[0..1]);
+                p.push(":");
+                p
             }
 
             _ => return Err(()),
@@ -2843,15 +2852,15 @@ fn file_url_segments_to_pathbuf_windows(
     };
 
     for segment in segments {
-        string.push('\\');
+        path.push(r"\");
 
         // Currently non-unicode windows paths cannot be represented
         match String::from_utf8(percent_decode(segment.as_bytes()).collect()) {
-            Ok(s) => string.push_str(&s),
+            Ok(s) => path.push(&s),
             Err(..) => return Err(()),
         }
     }
-    let path = PathBuf::from(string);
+
     debug_assert!(
         path.is_absolute(),
         "to_file_path() failed to produce an absolute Path"
