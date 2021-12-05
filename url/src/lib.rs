@@ -2821,23 +2821,20 @@ fn file_url_segments_to_pathbuf_windows(
         PathBuf::from(format!(r"\\{}", host))
     } else {
         let first_segment = segments.next().ok_or(())?;
-        let bytes = first_segment.as_bytes();
+
+        let is_drive_prefix = || {
+            first_segment.starts_with(parser::ascii_alpha) && first_segment.as_bytes()[1] == b':'
+        };
+
+        let is_something_else = || {
+            let bytes = first_segment.as_bytes();
+            first_segment.starts_with(parser::ascii_alpha)
+                && !(bytes[1] != b'%' || bytes[2] != b'3' || (bytes[3] != b'a' && bytes[3] != b'A'))
+        };
 
         match first_segment.len() {
-            2 if first_segment.starts_with(parser::ascii_alpha)
-                && first_segment.as_bytes()[1] == b':' =>
-            {
-                PathBuf::from(format!(r"{}\", first_segment))
-            }
-
-            4 if first_segment.starts_with(parser::ascii_alpha)
-                && !(bytes[1] != b'%'
-                    || bytes[2] != b'3'
-                    || (bytes[3] != b'a' && bytes[3] != b'A')) =>
-            {
-                PathBuf::from(format!(r"{}:\", &first_segment[0..1]))
-            }
-
+            2 if is_drive_prefix() => PathBuf::from(format!(r"{}\", first_segment)),
+            4 if is_something_else() => PathBuf::from(format!(r"{}:\", &first_segment[0..1])),
             _ => PathBuf::from(format!(r"\{}", first_segment)),
         }
     };
