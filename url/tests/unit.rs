@@ -851,6 +851,32 @@ fn test_url_from_file_path() {
     assert_eq!("C:\\", path.to_str().unwrap());
 }
 
+/// https://github.com/servo/rust-url/issues/730
+#[cfg(windows)]
+#[test]
+fn test_url_to_invalid_file_path() {
+    use url::Url;
+
+    let u = Url::parse("file:///foo/bar").unwrap();
+    let path = u.to_file_path().unwrap();
+
+    assert_eq!(r"\foo\bar", path.to_str().unwrap());
+}
+
+/// https://github.com/servo/rust-url/issues/730
+#[cfg(windows)]
+#[test]
+fn test_url_from_invalid_file_path() {
+    use std::path::PathBuf;
+    use url::Url;
+
+    let p = PathBuf::from("/foo");
+    let u = Url::from_file_path(p).unwrap();
+
+    let path = u.to_file_path().unwrap();
+    assert_eq!(r"\foo", path.to_str().unwrap());
+}
+
 /// https://github.com/servo/rust-url/issues/505
 #[cfg(not(windows))]
 #[test]
