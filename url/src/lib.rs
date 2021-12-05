@@ -2818,42 +2818,40 @@ fn file_url_segments_to_pathbuf_windows(
     mut segments: str::Split<'_, char>,
 ) -> Result<PathBuf, ()> {
     let mut path = if let Some(host) = host {
-        let mut p = PathBuf::from(r"\\");
-        p.push(host);
-        p
+        PathBuf::from(format!(r"\\{}", host))
     } else {
-        let first = segments.next().ok_or(())?;
+        let first_segment = segments.next().ok_or(())?;
 
-        match first.len() {
+        match first_segment.len() {
             2 => {
-                if !first.starts_with(parser::ascii_alpha) || first.as_bytes()[1] != b':' {
+                if !first_segment.starts_with(parser::ascii_alpha)
+                    || first_segment.as_bytes()[1] != b':'
+                {
                     return Err(());
                 }
 
-                PathBuf::from(first)
+                PathBuf::from(format!(r"{}\", first_segment))
             }
 
             4 => {
-                if !first.starts_with(parser::ascii_alpha) {
+                if !first_segment.starts_with(parser::ascii_alpha) {
                     return Err(());
                 }
-                let bytes = first.as_bytes();
+                let bytes = first_segment.as_bytes();
                 if bytes[1] != b'%' || bytes[2] != b'3' || (bytes[3] != b'a' && bytes[3] != b'A') {
                     return Err(());
                 }
 
-                let mut p = PathBuf::from(&first[0..1]);
-                p.push(":");
-                p
+                PathBuf::from(format!(r"{}:\", &first_segment[0..1]))
             }
 
             _ => return Err(()),
         }
     };
 
-    for segment in segments {
-        path.push(r"\");
+    dbg!(&path);
 
+    for segment in segments {
         // Currently non-unicode windows paths cannot be represented
         match String::from_utf8(percent_decode(segment.as_bytes()).collect()) {
             Ok(s) => path.push(&s),
@@ -2863,7 +2861,8 @@ fn file_url_segments_to_pathbuf_windows(
 
     debug_assert!(
         path.is_absolute(),
-        "to_file_path() failed to produce an absolute Path"
+        "to_file_path() failed to produce an absolute Path: {:?}",
+        path
     );
     Ok(path)
 }
