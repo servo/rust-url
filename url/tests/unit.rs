@@ -156,7 +156,10 @@ fn new_directory_paths() {
         );
 
         // UNC
-        assert_eq!(Url::from_directory_path(Path::new(r"\\server\")), Err(()));
+        assert_eq!(
+            Url::from_directory_path(Path::new(r"\\server\")).unwrap(),
+            Url::parse("file:///server/").unwrap()
+        );
 
         let url = Url::from_directory_path(Path::new(r"C:\foo\bar")).unwrap();
         assert_eq!(url.host(), None);
