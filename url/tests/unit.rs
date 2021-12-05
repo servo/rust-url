@@ -84,8 +84,11 @@ fn new_file_paths() {
     if cfg!(windows) {
         assert_eq!(Url::from_file_path(Path::new("relative")), Err(()));
         assert_eq!(Url::from_file_path(Path::new(r"..\relative")), Err(()));
-        assert_eq!(Url::from_file_path(Path::new(r"\drive-relative")), Err(()));
-        assert_eq!(Url::from_file_path(Path::new(r"\\ucn\")), Err(()));
+        assert_eq!(
+            Url::from_file_path(Path::new(r"\drive-relative")).unwrap(),
+            Url::parse("file:///drive-relative").unwrap()
+        );
+        // assert_eq!(Url::from_file_path(Path::new(r"\\ucn\")), Err(()));
     }
 
     if cfg!(unix) {
@@ -146,10 +149,10 @@ fn new_directory_paths() {
         assert_eq!(Url::from_directory_path(Path::new("relative")), Err(()));
         assert_eq!(Url::from_directory_path(Path::new(r"..\relative")), Err(()));
         assert_eq!(
-            Url::from_directory_path(Path::new(r"\drive-relative")),
-            Err(())
+            Url::from_directory_path(Path::new(r"\drive-relative")).unwrap(),
+            Url::parse("file:///drive-relative/").unwrap()
         );
-        assert_eq!(Url::from_directory_path(Path::new(r"\\ucn\")), Err(()));
+        // assert_eq!(Url::from_directory_path(Path::new(r"\\ucn\")), Err(()));
 
         let url = Url::from_directory_path(Path::new(r"C:\foo\bar")).unwrap();
         assert_eq!(url.host(), None);
@@ -870,11 +873,11 @@ fn test_url_from_invalid_file_path() {
     use std::path::PathBuf;
     use url::Url;
 
-    let p = PathBuf::from("/foo");
+    let p = PathBuf::from(r"\foo\bar");
     let u = Url::from_file_path(p).unwrap();
 
     let path = u.to_file_path().unwrap();
-    assert_eq!(r"\foo", path.to_str().unwrap());
+    assert_eq!(r"\foo\bar", path.to_str().unwrap());
 }
 
 /// https://github.com/servo/rust-url/issues/505

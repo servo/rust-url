@@ -2708,15 +2708,14 @@ fn path_to_file_url_segments_windows(
     serialization: &mut String,
 ) -> Result<(u32, HostInternal), ()> {
     use std::path::{Component, Prefix};
-    if !path.is_absolute() {
-        return Err(());
-    }
+
     let mut components = path.components();
 
     let host_start = serialization.len() + 1;
     let host_end;
     let host_internal;
-    match components.next() {
+
+    match dbg!(components.next()) {
         Some(Component::Prefix(ref p)) => match p.kind() {
             Prefix::Disk(letter) | Prefix::VerbatimDisk(letter) => {
                 host_end = to_u32(serialization.len()).unwrap();
@@ -2734,30 +2733,64 @@ fn path_to_file_url_segments_windows(
                 let share = share.to_str().ok_or(())?;
                 serialization.extend(percent_encode(share.as_bytes(), PATH_SEGMENT));
             }
-            _ => return Err(()),
+            Prefix::DeviceNS(_device_name) => {
+                // Paths starting with "\\.\" (Local Device Paths) are intentionally not supported.
+                return Err(());
+            }
+            _ => {
+                host_end = to_u32(serialization.len()).unwrap();
+                host_internal = HostInternal::None;
+                serialization.push('/');
+            }
         },
-
-        _ => return Err(()),
+        Some(Component::Normal(_)) | Some(Component::ParentDir) => return Err(()),
+        Some(Component::RootDir) => {
+            dbg!("found a root dir");
+            // return Err(());
+            host_end = to_u32(serialization.len()).unwrap();
+            host_internal = HostInternal::None;
+            // serialization.push('/')
+            // host_end = to_u32(serialization.len()).unwrap();
+            // host_internal = HostInternal::None;
+        }
+        _ => {
+            dbg!("something else");
+            host_end = to_u32(serialization.len()).unwrap();
+            host_internal = HostInternal::None;
+            // serialization.push('/');
+            // dbg!(&host_end, &serialization);
+            // return Err(());
+        }
     }
+
+    dbg!(&serialization);
 
     let mut path_only_has_prefix = true;
     for component in components {
+        dbg!(&component);
+
         if component == Component::RootDir {
             continue;
         }
+
         path_only_has_prefix = false;
         // FIXME: somehow work with non-unicode?
         let component = component.as_os_str().to_str().ok_or(())?;
+
+        dbg!("asdfsdf");
         serialization.push('/');
         serialization.extend(percent_encode(component.as_bytes(), PATH_SEGMENT));
     }
+
     // A windows drive letter must end with a slash.
     if serialization.len() > host_start
         && parser::is_windows_drive_letter(&serialization[host_start..])
         && path_only_has_prefix
     {
+        dbg!("kujylkiu");
         serialization.push('/');
     }
+
     Ok((host_end, host_internal))
 }
 
