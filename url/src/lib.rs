@@ -2821,35 +2821,26 @@ fn file_url_segments_to_pathbuf_windows(
         PathBuf::from(format!(r"\\{}", host))
     } else {
         let first_segment = segments.next().ok_or(())?;
+        let bytes = first_segment.as_bytes();
 
         match first_segment.len() {
-            2 => {
-                if !first_segment.starts_with(parser::ascii_alpha)
-                    || first_segment.as_bytes()[1] != b':'
-                {
-                    return Err(());
-                }
-
+            2 if first_segment.starts_with(parser::ascii_alpha)
+                && first_segment.as_bytes()[1] == b':' =>
+            {
                 PathBuf::from(format!(r"{}\", first_segment))
             }
 
-            4 => {
-                if !first_segment.starts_with(parser::ascii_alpha) {
-                    return Err(());
-                }
-                let bytes = first_segment.as_bytes();
-                if bytes[1] != b'%' || bytes[2] != b'3' || (bytes[3] != b'a' && bytes[3] != b'A') {
-                    return Err(());
-                }
-
+            4 if first_segment.starts_with(parser::ascii_alpha)
+                && !(bytes[1] != b'%'
+                    || bytes[2] != b'3'
+                    || (bytes[3] != b'a' && bytes[3] != b'A')) =>
+            {
                 PathBuf::from(format!(r"{}:\", &first_segment[0..1]))
             }
 
-            _ => return Err(()),
+            _ => PathBuf::from(format!(r"\{}", first_segment)),
         }
     };
-
-    dbg!(&path);
 
     for segment in segments {
         // Currently non-unicode windows paths cannot be represented
@@ -2859,11 +2850,6 @@ fn file_url_segments_to_pathbuf_windows(
         }
     }
 
-    debug_assert!(
-        path.is_absolute(),
-        "to_file_path() failed to produce an absolute Path: {:?}",
-        path
-    );
     Ok(path)
 }
 

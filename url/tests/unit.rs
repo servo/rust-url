@@ -125,6 +125,10 @@ fn new_path_windows_fun() {
         // Percent-encoded drive letter
         let url = Url::parse("file:///C%3A/foo/bar").unwrap();
         assert_eq!(url.to_file_path(), Ok(PathBuf::from(r"C:\foo\bar")));
+
+        // Invalid Windows paths should still be able to be created.
+        let url = Url::parse("file:////foo/bar").unwrap();
+        assert_eq!(url.to_file_path(), Ok(PathBuf::from(r"\foo\bar")));
     }
 }
 
