@@ -2817,8 +2817,8 @@ fn file_url_segments_to_pathbuf_windows(
     host: Option<&str>,
     mut segments: str::Split<'_, char>,
 ) -> Result<PathBuf, ()> {
-    let mut path = if let Some(host) = host {
-        PathBuf::from(format!(r"\\{}", host))
+    let (valid, mut path) = if let Some(host) = host {
+        (true, PathBuf::from(format!(r"\\{}", host)))
     } else {
         let first_segment = segments.next().ok_or(())?;
 
@@ -2833,9 +2833,11 @@ fn file_url_segments_to_pathbuf_windows(
         };
 
         match first_segment.len() {
-            2 if is_drive_prefix() => PathBuf::from(format!(r"{}\", first_segment)),
-            4 if is_something_else() => PathBuf::from(format!(r"{}:\", &first_segment[0..1])),
-            _ => PathBuf::from(format!(r"\{}", first_segment)),
+            2 if is_drive_prefix() => (true, PathBuf::from(format!(r"{}\", first_segment))),
+            4 if is_something_else() => {
+                (true, PathBuf::from(format!(r"{}:\", &first_segment[0..1])))
+            }
+            _ => (false, PathBuf::from(format!(r"\{}", first_segment))),
         }
     };
 
@@ -2845,6 +2847,14 @@ fn file_url_segments_to_pathbuf_windows(
             Ok(s) => path.push(&s),
             Err(..) => return Err(()),
         }
+    }
+
+    if valid {
+        debug_assert!(
+            path.is_absolute(),
+            "to_file_path() failed to produce an absolute Path: {:?}",
+            path
+        );
     }
 
     Ok(path)
