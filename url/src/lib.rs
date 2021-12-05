@@ -2715,7 +2715,7 @@ fn path_to_file_url_segments_windows(
     let host_end;
     let host_internal;
 
-    match dbg!(components.next()) {
+    match components.next() {
         Some(Component::Prefix(ref p)) => match p.kind() {
             Prefix::Disk(letter) | Prefix::VerbatimDisk(letter) => {
                 host_end = to_u32(serialization.len()).unwrap();
@@ -2744,17 +2744,7 @@ fn path_to_file_url_segments_windows(
             }
         },
         Some(Component::Normal(_)) | Some(Component::ParentDir) => return Err(()),
-        Some(Component::RootDir) => {
-            dbg!("found a root dir");
-            // return Err(());
-            host_end = to_u32(serialization.len()).unwrap();
-            host_internal = HostInternal::None;
-            // serialization.push('/')
-            // host_end = to_u32(serialization.len()).unwrap();
-            // host_internal = HostInternal::None;
-        }
         _ => {
-            dbg!("something else");
             host_end = to_u32(serialization.len()).unwrap();
             host_internal = HostInternal::None;
             // serialization.push('/');
@@ -2763,12 +2753,8 @@ fn path_to_file_url_segments_windows(
         }
     }
 
-    dbg!(&serialization);
-
     let mut path_only_has_prefix = true;
     for component in components {
-        dbg!(&component);
-
         if component == Component::RootDir {
             continue;
         }
@@ -2777,7 +2763,6 @@ fn path_to_file_url_segments_windows(
         // FIXME: somehow work with non-unicode?
         let component = component.as_os_str().to_str().ok_or(())?;
 
-        dbg!("asdfsdf");
         serialization.push('/');
         serialization.extend(percent_encode(component.as_bytes(), PATH_SEGMENT));
     }
@@ -2787,7 +2772,6 @@ fn path_to_file_url_segments_windows(
         && parser::is_windows_drive_letter(&serialization[host_start..])
         && path_only_has_prefix
     {
-        dbg!("kujylkiu");
         serialization.push('/');
     }
 

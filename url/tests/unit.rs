@@ -88,7 +88,9 @@ fn new_file_paths() {
             Url::from_file_path(Path::new(r"\drive-relative")).unwrap(),
             Url::parse("file:///drive-relative").unwrap()
         );
-        // assert_eq!(Url::from_file_path(Path::new(r"\\ucn\")), Err(()));
+
+        // UNC
+        // assert_eq!(Url::from_file_path(Path::new(r"\\server\")), Err(()));
     }
 
     if cfg!(unix) {
@@ -152,7 +154,9 @@ fn new_directory_paths() {
             Url::from_directory_path(Path::new(r"\drive-relative")).unwrap(),
             Url::parse("file:///drive-relative/").unwrap()
         );
-        // assert_eq!(Url::from_directory_path(Path::new(r"\\ucn\")), Err(()));
+
+        // UNC
+        assert_eq!(Url::from_directory_path(Path::new(r"\\server\")), Err(()));
 
         let url = Url::from_directory_path(Path::new(r"C:\foo\bar")).unwrap();
         assert_eq!(url.host(), None);
