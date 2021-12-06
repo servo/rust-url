@@ -90,7 +90,7 @@ fn new_file_paths() {
         );
 
         // UNC
-        // assert_eq!(Url::from_file_path(Path::new(r"\\server\")), Err(()));
+        assert_eq!(Url::from_file_path(Path::new(r"\\server\")), Err(()));
     }
 
     if cfg!(unix) {
@@ -130,10 +130,6 @@ fn new_path_windows_fun() {
         // Percent-encoded drive letter
         let url = Url::parse("file:///C%3A/foo/bar").unwrap();
         assert_eq!(url.to_file_path(), Ok(PathBuf::from(r"C:\foo\bar")));
-
-        // Invalid Windows paths should still be able to be created.
-        let url = Url::parse("file:////foo/bar").unwrap();
-        assert_eq!(url.to_file_path(), Ok(PathBuf::from(r"\foo\bar")));
     }
 }
 
@@ -859,18 +855,6 @@ fn test_url_from_file_path() {
     let u = Url::from_file_path(p).unwrap();
     let path = u.to_file_path().unwrap();
     assert_eq!("C:\\", path.to_str().unwrap());
-}
-
-/// https://github.com/servo/rust-url/issues/730
-#[cfg(windows)]
-#[test]
-fn test_url_to_invalid_file_path() {
-    use url::Url;
-
-    let u = Url::parse("file:///foo/bar").unwrap();
-    let path = u.to_file_path().unwrap();
-
-    assert_eq!(r"\foo\bar", path.to_str().unwrap());
 }
 
 /// https://github.com/servo/rust-url/issues/730
