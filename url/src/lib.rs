@@ -2834,46 +2834,50 @@ fn file_url_segments_to_pathbuf_windows(
     host: Option<&str>,
     mut segments: str::Split<'_, char>,
 ) -> Result<PathBuf, ()> {
-    let (valid, mut path) = if let Some(host) = host {
-        (true, PathBuf::from(format!(r"\\{}", host)))
+    let mut string = if let Some(host) = host {
+        r"\\".to_owned() + host
     } else {
-        let first_segment = segments.next().ok_or(())?;
+        let first = segments.next().ok_or(())?;
 
-        let is_drive_prefix = || {
-            first_segment.starts_with(parser::ascii_alpha) && first_segment.as_bytes()[1] == b':'
-        };
+        match first.len() {
+            2 => {
+                if !first.starts_with(parser::ascii_alpha) || first.as_bytes()[1] != b':' {
+                    return Err(());
+                }
 
-        let is_something_else = || {
-            let bytes = first_segment.as_bytes();
-            first_segment.starts_with(parser::ascii_alpha)
-                && !(bytes[1] != b'%' || bytes[2] != b'3' || (bytes[3] != b'a' && bytes[3] != b'A'))
-        };
-
-        match first_segment.len() {
-            2 if is_drive_prefix() => (true, PathBuf::from(format!(r"{}\", first_segment))),
-            4 if is_something_else() => {
-                (true, PathBuf::from(format!(r"{}:\", &first_segment[0..1])))
+                first.to_owned()
             }
-            _ => (false, PathBuf::from(format!(r"\{}", first_segment))),
+
+            4 => {
+                if !first.starts_with(parser::ascii_alpha) {
+                    return Err(());
+                }
+                let bytes = first.as_bytes();
+                if bytes[1] != b'%' || bytes[2] != b'3' || (bytes[3] != b'a' && bytes[3] != b'A') {
+                    return Err(());
+                }
+
+                first[0..1].to_owned() + ":"
+            }
+
+            _ => return Err(()),
         }
     };
 
     for segment in segments {
+        string.push('\\');
+
         // Currently non-unicode windows paths cannot be represented
         match String::from_utf8(percent_decode(segment.as_bytes()).collect()) {
-            Ok(s) => path.push(&s),
+            Ok(s) => string.push_str(&s),
             Err(..) => return Err(()),
         }
     }
-
-    if valid {
-        debug_assert!(
-            path.is_absolute(),
-            "to_file_path() failed to produce an absolute Path: {:?}",
-            path
-        );
-    }
-
+    let path = PathBuf::from(string);
+    debug_assert!(
+        path.is_absolute(),
+        "to_file_path() failed to produce an absolute Path"
+    );
     Ok(path)
 }
 
