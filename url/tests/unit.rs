@@ -90,7 +90,10 @@ fn new_file_paths() {
         );
 
         // UNC
-        assert_eq!(Url::from_file_path(Path::new(r"\\server\")), Err(()));
+        assert_eq!(
+            Url::from_file_path(Path::new(r"\\server\")).unwrap(),
+            Url::parse("file:///server").unwrap()
+        );
     }
 
     if cfg!(unix) {
@@ -864,11 +867,10 @@ fn test_url_from_invalid_file_path() {
     use std::path::PathBuf;
     use url::Url;
 
-    let p = PathBuf::from(r"\foo\bar");
-    let u = Url::from_file_path(p).unwrap();
-
-    let path = u.to_file_path().unwrap();
-    assert_eq!(r"\foo\bar", path.to_str().unwrap());
+    assert_eq!(
+        Url::from_file_path(PathBuf::from(r"\foo\bar")).unwrap(),
+        Url::parse("file:///foo/bar").unwrap()
+    );
 }
 
 /// https://github.com/servo/rust-url/issues/505
