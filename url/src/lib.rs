@@ -1551,6 +1551,19 @@ impl Url {
     /// url.set_path("data/report.csv");
     /// assert_eq!(url.as_str(), "https://example.com/data/report.csv");
     /// assert_eq!(url.path(), "/data/report.csv");
+    /// 
+    /// // `set_path` percent-encodes the given string if it's not already percent-encoded.
+    /// let mut url = Url::parse("https://example.com")?;
+    /// url.set_path("api/some comments");
+    /// assert_eq!(url.as_str(), "https://example.com/api/some%20comments");
+    /// assert_eq!(url.path(), "/api/some%20comments");
+    /// 
+    /// // `set_path` will not double percent-encode the string if it's already percent-encoded.
+    /// let mut url = Url::parse("https://example.com")?;
+    /// url.set_path("api/some%20comments");
+    /// assert_eq!(url.as_str(), "https://example.com/api/some%20comments");
+    /// assert_eq!(url.path(), "/api/some%20comments");
+    /// 
     /// # Ok(())
     /// # }
     /// # run().unwrap();
