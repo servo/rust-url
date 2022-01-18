@@ -1096,7 +1096,7 @@ fn test_make_relative() {
             base, uri, relative
         );
         assert_eq!(
-            base_uri.join(&relative).unwrap().as_str(),
+            base_uri.join(relative).unwrap().as_str(),
             *uri,
             "base: {}, uri: {}, relative: {}",
             base,

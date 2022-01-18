@@ -25,10 +25,10 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
         };
 
         let mut pieces = line.split(';').map(|x| x.trim()).collect::<Vec<&str>>();
-        let source = unescape(&pieces.remove(0));
+        let source = unescape(pieces.remove(0));
 
         // ToUnicode
-        let mut to_unicode = unescape(&pieces.remove(0));
+        let mut to_unicode = unescape(pieces.remove(0));
         if to_unicode.is_empty() {
             to_unicode = source.clone();
         }

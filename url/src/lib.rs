@@ -147,7 +147,6 @@ use std::cmp;
 use std::fmt::{self, Write};
 use std::hash;
 use std::io;
-use std::mem;
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
 use std::ops::{Range, RangeFrom, RangeTo};
 use std::path::{Path, PathBuf};
@@ -1361,7 +1360,7 @@ impl Url {
     }
 
     fn mutate<F: FnOnce(&mut Parser<'_>) -> R, R>(&mut self, f: F) -> R {
-        let mut parser = Parser::for_setter(mem::replace(&mut self.serialization, String::new()));
+        let mut parser = Parser::for_setter(std::mem::take(&mut self.serialization));
         let result = f(&mut parser);
         self.serialization = parser.serialization;
         result

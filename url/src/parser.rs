@@ -1293,7 +1293,7 @@ impl<'a> Parser<'a> {
             //FIXME: log violation
             let path = self.serialization.split_off(path_start);
             self.serialization.push('/');
-            self.serialization.push_str(&path.trim_start_matches('/'));
+            self.serialization.push_str(path.trim_start_matches('/'));
         }
 
         input

@@ -156,7 +156,7 @@ fn passes_bidi(label: &str, is_bidi_domain: bool) -> bool {
         // LTR label
         BidiClass::L => {
             // Rule 5
-            while let Some(c) = chars.next() {
+            for c in chars.by_ref() {
                 if !matches!(
                     bidi_class(c),
                     BidiClass::L
@@ -396,7 +396,7 @@ fn processing(
                     }
 
                     if !errors.is_err() {
-                        if !is_nfc(&decoded_label) {
+                        if !is_nfc(decoded_label) {
                             errors.nfc = true;
                         } else {
                             check_validity(decoded_label, non_transitional, &mut errors);
