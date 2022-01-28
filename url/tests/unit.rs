@@ -256,7 +256,6 @@ fn host() {
             0x2001, 0x0db8, 0x85a3, 0x08d3, 0x1319, 0x8a2e, 0x0370, 0x7344,
         )),
     );
-    assert_host("http://1.35.+33.49", Host::Domain("1.35.+33.49"));
     assert_host(
         "http://[::]",
         Host::Ipv6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0)),
@@ -271,7 +270,8 @@ fn host() {
     );
     assert_host("http://0x1232131", Host::Ipv4(Ipv4Addr::new(1, 35, 33, 49)));
     assert_host("http://111", Host::Ipv4(Ipv4Addr::new(0, 0, 0, 111)));
-    assert_host("http://2..2.3", Host::Domain("2..2.3"));
+    assert!(Url::parse("http://1.35.+33.49").is_err());
+    assert!(Url::parse("http://2..2.3").is_err());
     assert!(Url::parse("http://42.0x1232131").is_err());
     assert!(Url::parse("http://192.168.0.257").is_err());
 
