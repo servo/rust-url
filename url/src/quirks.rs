@@ -139,14 +139,8 @@ pub fn set_host(url: &mut Url, new_host: &str) -> Result<(), ()> {
         }
     }
     // Make sure we won't set an empty host to a url with a username or a port
-    if host == Host::Domain("".to_string()) {
-        if !username(&url).is_empty() {
+    if host == Host::Domain("".to_string())  && (!username(url).is_empty() || matches!(opt_port, Some(Some(_))) || url.port().is_some()) {
             return Err(());
-        } else if let Some(Some(_)) = opt_port {
-            return Err(());
-        } else if url.port().is_some() {
-            return Err(());
-        }
     }
     url.set_host_internal(host, opt_port);
     Ok(())
@@ -178,10 +172,10 @@ pub fn set_hostname(url: &mut Url, new_hostname: &str) -> Result<(), ()> {
                 // Empty host on special not file url
                 if SchemeType::from(url.scheme()) == SchemeType::SpecialNotFile
                     // Port with an empty host
-                    ||!port(&url).is_empty()
+                    ||!port(url).is_empty()
                     // Empty host that includes credentials
                     || !url.username().is_empty()
-                    || !url.password().unwrap_or(&"").is_empty()
+                    || !url.password().unwrap_or("").is_empty()
                 {
                     return Err(());
                 }
