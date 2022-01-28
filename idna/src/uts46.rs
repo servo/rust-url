@@ -319,7 +319,6 @@ fn check_validity(label: &str, config: Config, errors: &mut Errors) {
 }
 
 /// http://www.unicode.org/reports/tr46/#Processing
-#[allow(clippy::manual_strip)] // introduced in 1.45, MSRV is 1.36
 fn processing(
     domain: &str,
     config: Config,
@@ -384,8 +383,8 @@ fn processing(
             output.push('.');
         }
         first = false;
-        if label.starts_with(PUNYCODE_PREFIX) {
-            match decoder.decode(&label[PUNYCODE_PREFIX.len()..]) {
+        if let Some(remainder) = label.strip_prefix(PUNYCODE_PREFIX) {
+            match decoder.decode(remainder) {
                 Ok(decode) => {
                     let start = output.len();
                     output.extend(decode);
