@@ -1361,7 +1361,8 @@ impl Url {
     }
 
     fn mutate<F: FnOnce(&mut Parser<'_>) -> R, R>(&mut self, f: F) -> R {
-        let mut parser = Parser::for_setter(mem::take(&mut self.serialization));
+        #[allow(clippy::mem_replace_with_default)] // introduced in 1.40, MSRV is 1.36
+        let mut parser = Parser::for_setter(mem::replace(&mut self.serialization, String::new()));
         let result = f(&mut parser);
         self.serialization = parser.serialization;
         result
@@ -1551,19 +1552,19 @@ impl Url {
     /// url.set_path("data/report.csv");
     /// assert_eq!(url.as_str(), "https://example.com/data/report.csv");
     /// assert_eq!(url.path(), "/data/report.csv");
-    /// 
+    ///
     /// // `set_path` percent-encodes the given string if it's not already percent-encoded.
     /// let mut url = Url::parse("https://example.com")?;
     /// url.set_path("api/some comments");
     /// assert_eq!(url.as_str(), "https://example.com/api/some%20comments");
     /// assert_eq!(url.path(), "/api/some%20comments");
-    /// 
+    ///
     /// // `set_path` will not double percent-encode the string if it's already percent-encoded.
     /// let mut url = Url::parse("https://example.com")?;
     /// url.set_path("api/some%20comments");
     /// assert_eq!(url.as_str(), "https://example.com/api/some%20comments");
     /// assert_eq!(url.path(), "/api/some%20comments");
-    /// 
+    ///
     /// # Ok(())
     /// # }
     /// # run().unwrap();
@@ -2684,9 +2685,9 @@ fn path_to_file_url_segments(
     path: &Path,
     serialization: &mut String,
 ) -> Result<(u32, HostInternal), ()> {
-    #[cfg(any(unix, target_os = "redox"))]    
+    #[cfg(any(unix, target_os = "redox"))]
     use std::os::unix::prelude::OsStrExt;
-    #[cfg(target_os = "wasi")]    
+    #[cfg(target_os = "wasi")]
     use std::os::wasi::prelude::OsStrExt;
     if !path.is_absolute() {
         return Err(());
@@ -2783,9 +2784,9 @@ fn file_url_segments_to_pathbuf(
     segments: str::Split<'_, char>,
 ) -> Result<PathBuf, ()> {
     use std::ffi::OsStr;
-    #[cfg(any(unix, target_os = "redox"))]    
+    #[cfg(any(unix, target_os = "redox"))]
     use std::os::unix::prelude::OsStrExt;
-    #[cfg(target_os = "wasi")]    
+    #[cfg(target_os = "wasi")]
     use std::os::wasi::prelude::OsStrExt;
 
     if host.is_some() {
