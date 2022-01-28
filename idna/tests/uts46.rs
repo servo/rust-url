@@ -65,7 +65,7 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
         let test_name = format!("UTS #46 line {}", i + 1);
         add_test(
             test_name,
-            TestFn::dyn_test_fn(move || {
+            TestFn::DynTestFn(Box::new(move || {
                 let config = idna::Config::default()
                     .use_std3_ascii_rules(true)
                     .verify_dns_length(true)
@@ -109,7 +109,7 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
                     to_ascii_t_result,
                     |e| e.starts_with('C') || e == "V2",
                 );
-            }),
+            })),
         )
     }
 }
