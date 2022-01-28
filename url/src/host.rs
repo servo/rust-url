@@ -162,7 +162,7 @@ impl Host<String> {
     /// convert domain with idna
     #[cfg(feature = "idna")]
     fn domain_to_ascii(domain: &str) -> Result<String, ParseError> {
-        idna::domain_to_ascii(&domain).map_err(Into::into)
+        idna::domain_to_ascii(domain).map_err(Into::into)
     }
 
     /// checks domain is ascii
