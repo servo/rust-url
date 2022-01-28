@@ -1,6 +1,6 @@
 [
   "# Based on http://trac.webkit.org/browser/trunk/LayoutTests/fast/url/script-tests/segments.js",
-  "# AS OF https://github.com/web-platform-tests/wpt/commit/53a00b35ce2808bbbef9699ac4b6f0d5da46009a",
+  "# AS OF https://github.com/web-platform-tests/wpt/commit/2a64dae4641fbd61bd4257df460e188f425b492e",
   {
     "input": "http://example\t.\norg",
     "base": "http://example.org/foo/bar",
