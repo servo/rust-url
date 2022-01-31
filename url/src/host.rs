@@ -103,7 +103,8 @@ impl Host<String> {
                 | '\\'
                 | ']'
                 | '^'
-                | '\u{007F}')
+                | '\u{007F}'
+                | '|')
         };
 
         if domain.find(is_invalid_domain_char).is_some() {
@@ -142,6 +143,7 @@ impl Host<String> {
                     | '\\'
                     | ']'
                     | '^'
+                    | '|'
             )
         };
 

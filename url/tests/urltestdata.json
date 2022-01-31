@@ -4707,6 +4707,11 @@
     "base": "about:blank",
     "failure": true
   },
+  {
+    "input": "sc://a|b/",
+    "base": "about:blank",
+    "failure": true
+  },
   "Forbidden host codepoints: tabs and newlines are removed during preprocessing",
   {
     "input": "foo://ho\u0009st/",
@@ -4928,6 +4933,11 @@
   },
   {
     "input": "http://a^b",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "http://a|b/",
     "base": "about:blank",
     "failure": true
   },
@@ -5197,6 +5207,11 @@
   },
   {
     "input": "http://ho%5Dst/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "http://ho%7Cst/",
     "base": "about:blank",
     "failure": true
   },
@@ -5774,6 +5789,36 @@
   },
   {
     "input": "file://%43%3A",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "file://%43%7C",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "file://%43|",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "file://C%7C",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "file://%43%7C/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "https://%43%7C/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "asdf://%43|/",
     "base": "about:blank",
     "failure": true
   },
