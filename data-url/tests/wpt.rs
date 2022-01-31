@@ -1,3 +1,5 @@
+use tester as test;
+
 #[macro_use]
 extern crate serde;
 
@@ -32,7 +34,7 @@ fn run_data_url(
 
 fn collect_data_url<F>(add_test: &mut F)
 where
-    F: FnMut(String, bool, rustc_test::TestFn),
+    F: FnMut(String, bool, test::TestFn),
 {
     let known_failures = ["data://test:test/,X"];
 
@@ -53,9 +55,9 @@ where
         add_test(
             format!("data: URL {:?}", input),
             should_panic,
-            rustc_test::TestFn::dyn_test_fn(move || {
+            test::TestFn::DynTestFn(Box::new(move || {
                 run_data_url(input, expected_mime, expected_body, should_panic)
-            }),
+            })),
         );
     }
 }
@@ -72,7 +74,7 @@ fn run_base64(input: String, expected: Option<Vec<u8>>) {
 
 fn collect_base64<F>(add_test: &mut F)
 where
-    F: FnMut(String, bool, rustc_test::TestFn),
+    F: FnMut(String, bool, test::TestFn),
 {
     let known_failures = [];
 
@@ -83,7 +85,7 @@ where
         add_test(
             format!("base64 {:?}", input),
             should_panic,
-            rustc_test::TestFn::dyn_test_fn(move || run_base64(input, expected)),
+            test::TestFn::DynTestFn(Box::new(move || run_base64(input, expected))),
         );
     }
 }
@@ -100,7 +102,7 @@ fn run_mime(input: String, expected: Option<String>) {
 
 fn collect_mime<F>(add_test: &mut F)
 where
-    F: FnMut(String, bool, rustc_test::TestFn),
+    F: FnMut(String, bool, test::TestFn),
 {
     let known_failures = [];
 
@@ -136,7 +138,7 @@ where
                 format!("MIME type {:?}", input)
             },
             should_panic,
-            rustc_test::TestFn::dyn_test_fn(move || run_mime(input, expected)),
+            test::TestFn::DynTestFn(Box::new(move || run_mime(input, expected))),
         );
     }
 }
@@ -144,16 +146,22 @@ where
 fn main() {
     let mut tests = Vec::new();
     {
-        let mut add_one = |name: String, should_panic: bool, run: rustc_test::TestFn| {
-            let mut desc = rustc_test::TestDesc::new(rustc_test::DynTestName(name));
-            if should_panic {
-                desc.should_panic = rustc_test::ShouldPanic::Yes
-            }
-            tests.push(rustc_test::TestDescAndFn { desc, testfn: run })
+        let mut add_one = |name: String, should_panic: bool, run: test::TestFn| {
+            let desc = test::TestDesc {
+                name: test::DynTestName(name),
+                ignore: false,
+                should_panic: match should_panic {
+                    true => test::ShouldPanic::Yes,
+                    false => test::ShouldPanic::No,
+                },
+                allow_fail: false,
+                test_type: test::TestType::Unknown,
+            };
+            tests.push(test::TestDescAndFn { desc, testfn: run })
         };
         collect_data_url(&mut add_one);
         collect_base64(&mut add_one);
         collect_mime(&mut add_one);
     }
-    rustc_test::test_main(&std::env::args().collect::<Vec<_>>(), tests)
+    test::test_main(&std::env::args().collect::<Vec<_>>(), tests, None)
 }
