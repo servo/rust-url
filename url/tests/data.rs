@@ -29,7 +29,7 @@ fn urltestdata() {
         "http://GOO\u{200b}\u{2060}\u{feff}goo.com",
     ];
 
-    // Copied form https://github.com/w3c/web-platform-tests/blob/master/url/
+    // Copied from https://github.com/web-platform-tests/wpt/blob/master/url/
     let mut json = Value::from_str(include_str!("urltestdata.json"))
         .expect("JSON parse error in urltestdata.json");
 
@@ -39,7 +39,10 @@ fn urltestdata() {
             continue; // ignore comments
         }
 
-        let base = entry.take_string("base");
+        let maybe_base = entry
+            .take_key("base")
+            .expect("missing base key")
+            .maybe_string();
         let input = entry.take_string("input");
         let failure = entry.take_key("failure").is_some();
 
@@ -50,21 +53,26 @@ fn urltestdata() {
             }
         }
 
-        let base = match Url::parse(&base) {
-            Ok(base) => base,
-            Err(_) if failure => continue,
-            Err(message) => {
-                eprint_failure(
-                    format!("  failed: error parsing base {:?}: {}", base, message),
-                    &format!("parse base for {:?}", input),
-                    None,
-                );
-                passed = false;
-                continue;
-            }
+        let res = if let Some(base) = maybe_base {
+            let base = match Url::parse(&base) {
+                Ok(base) => base,
+                Err(_) if failure => continue,
+                Err(message) => {
+                    eprint_failure(
+                        format!("  failed: error parsing base {:?}: {}", base, message),
+                        &format!("parse base for {:?}", input),
+                        None,
+                    );
+                    passed = false;
+                    continue;
+                }
+            };
+            base.join(&input)
+        } else {
+            Url::parse(&input)
         };
 
-        let url = match (base.join(&input), failure) {
+        let url = match (res, failure) {
             (Ok(url), false) => url,
             (Err(_), true) => continue,
             (Err(message), false) => {
@@ -180,6 +188,7 @@ fn check_invariants(url: &Url, name: &str, comment: Option<&str>) -> bool {
 trait JsonExt {
     fn take_key(&mut self, key: &str) -> Option<Value>;
     fn string(self) -> String;
+    fn maybe_string(self) -> Option<String>;
     fn take_string(&mut self, key: &str) -> String;
 }
 
@@ -189,10 +198,14 @@ impl JsonExt for Value {
     }
 
     fn string(self) -> String {
-        if let Value::String(s) = self {
-            s
-        } else {
-            panic!("Not a Value::String")
+        self.maybe_string().expect("")
+    }
+
+    fn maybe_string(self) -> Option<String> {
+        match self {
+            Value::String(s) => Some(s),
+            Value::Null => None,
+            _ => panic!("Not a Value::String or Value::Null"),
         }
     }
 
