@@ -6,6 +6,7 @@ description = "Parser and serializer for the application/x-www-form-urlencoded s
 repository = "https://github.com/servo/rust-url"
 license = "MIT/Apache-2.0"
 edition = "2018"
+rust-version = "1.45"
 
 [lib]
 test = false

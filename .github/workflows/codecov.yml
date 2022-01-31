@@ -2,7 +2,7 @@ name: Coverage
 
 on:
   push:
-    branches: ['master']
+    branches: ["master"]
   pull_request:
 
 jobs:
@@ -16,9 +16,9 @@ jobs:
           toolchain: stable
           override: true
       - uses: actions-rs/tarpaulin@v0.1
-      - uses: codecov/codecov-action@v1.0.2
-        with:
-          token: ${{secrets.CODECOV_TOKEN}}
+      - uses: codecov/codecov-action@v2.1.0
+        # A codecov token is not needed for public repos if the repo is linked
+        # on codecov.io. See https://docs.codecov.com/docs/frequently-asked-questions#where-is-the-repository-upload-token-found
       - uses: actions/upload-artifact@v1
         with:
           name: code-coverage-report
