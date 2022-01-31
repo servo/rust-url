@@ -35,13 +35,13 @@ impl FromStr for Mime {
 }
 
 fn parse(s: &str) -> Option<Mime> {
-    let trimmed = s.trim_matches(ascii_whitespace);
+    let trimmed = s.trim_matches(http_whitespace);
 
     let (type_, rest) = split2(trimmed, '/');
     require!(only_http_token_code_points(type_) && !type_.is_empty());
 
     let (subtype, rest) = split2(rest?, ';');
-    let subtype = subtype.trim_end_matches(ascii_whitespace);
+    let subtype = subtype.trim_end_matches(http_whitespace);
     require!(only_http_token_code_points(subtype) && !subtype.is_empty());
 
     let mut parameters = Vec::new();
@@ -66,11 +66,12 @@ fn parse_parameters(s: &str, parameters: &mut Vec<(String, String)>) {
     let mut semicolon_separated = s.split(';');
 
     while let Some(piece) = semicolon_separated.next() {
-        let piece = piece.trim_start_matches(ascii_whitespace);
+        let piece = piece.trim_start_matches(http_whitespace);
         let (name, value) = split2(piece, '=');
-        if name.is_empty() || !only_http_token_code_points(name) || contains(parameters, name) {
-            continue;
-        }
+        // We can not early return on an invalid name here, because the value
+        // parsing later may consume more semicolon seperated pieces.
+        let name_valid =
+            !name.is_empty() && only_http_token_code_points(name) && !contains(parameters, name);
         if let Some(value) = value {
             let value = if let Some(stripped) = value.strip_prefix('"') {
                 let max_len = stripped.len().saturating_sub(1); // without end quote
@@ -80,7 +81,17 @@ fn parse_parameters(s: &str, parameters: &mut Vec<(String, String)>) {
                     while let Some(c) = chars.next() {
                         match c {
                             '"' => break 'until_closing_quote,
-                            '\\' => unescaped_value.push(chars.next().unwrap_or('\\')),
+                            '\\' => unescaped_value.push(chars.next().unwrap_or_else(|| {
+                                semicolon_separated
+                                    .next()
+                                    .map(|piece| {
+                                        // A semicolon inside a quoted value is not a separator
+                                        // for the next parameter, but part of the value.
+                                        chars = piece.chars();
+                                        ';'
+                                    })
+                                    .unwrap_or('\\')
+                            })),
                             _ => unescaped_value.push(c),
                         }
                     }
@@ -93,13 +104,16 @@ fn parse_parameters(s: &str, parameters: &mut Vec<(String, String)>) {
                         break;
                     }
                 }
-                if !valid_value(&unescaped_value) {
+                if !name_valid || !valid_value(value) {
                     continue;
                 }
                 unescaped_value
             } else {
-                let value = value.trim_end_matches(ascii_whitespace);
-                if !valid_value(value) {
+                let value = value.trim_end_matches(http_whitespace);
+                if value.is_empty() {
+                    continue;
+                }
+                if !name_valid || !valid_value(value) {
                     continue;
                 }
                 value.to_owned()
@@ -117,7 +131,7 @@ fn valid_value(s: &str) -> bool {
     s.chars().all(|c| {
         // <https://mimesniff.spec.whatwg.org/#http-quoted-string-token-code-point>
         matches!(c, '\t' | ' '..='~' | '\u{80}'..='\u{FF}')
-    }) && !s.is_empty()
+    })
 }
 
 /// <https://mimesniff.spec.whatwg.org/#serializing-a-mime-type>
@@ -130,7 +144,7 @@ impl fmt::Display for Mime {
             f.write_str(";")?;
             f.write_str(name)?;
             f.write_str("=")?;
-            if only_http_token_code_points(value) {
+            if only_http_token_code_points(value) && !value.is_empty() {
                 f.write_str(value)?
             } else {
                 f.write_str("\"")?;
@@ -147,8 +161,8 @@ impl fmt::Display for Mime {
     }
 }
 
-fn ascii_whitespace(c: char) -> bool {
-    matches!(c, ' ' | '\t' | '\n' | '\r' | '\x0C')
+fn http_whitespace(c: char) -> bool {
+    matches!(c, ' ' | '\t' | '\n' | '\r')
 }
 
 fn only_http_token_code_points(s: &str) -> bool {
