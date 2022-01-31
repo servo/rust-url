@@ -62,7 +62,6 @@ fn split2(s: &str, separator: char) -> (&str, Option<&str>) {
     (first, iter.next())
 }
 
-#[allow(clippy::manual_strip)] // introduced in 1.45, MSRV is 1.36
 fn parse_parameters(s: &str, parameters: &mut Vec<(String, String)>) {
     let mut semicolon_separated = s.split(';');
 
@@ -73,10 +72,10 @@ fn parse_parameters(s: &str, parameters: &mut Vec<(String, String)>) {
             continue;
         }
         if let Some(value) = value {
-            let value = if value.starts_with('"') {
-                let max_len = value.len().saturating_sub(2); // without start or end quotes
+            let value = if let Some(stripped) = value.strip_prefix('"') {
+                let max_len = stripped.len().saturating_sub(1); // without end quote
                 let mut unescaped_value = String::with_capacity(max_len);
-                let mut chars = value[1..].chars();
+                let mut chars = stripped.chars();
                 'until_closing_quote: loop {
                     while let Some(c) = chars.next() {
                         match c {

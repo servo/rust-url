@@ -8,7 +8,6 @@
 
 //! Data-driven tests
 
-use std::ops::Deref;
 use std::str::FromStr;
 
 use serde_json::Value;
@@ -112,7 +111,6 @@ fn urltestdata() {
     assert!(passed)
 }
 
-#[allow(clippy::option_as_ref_deref)] // introduced in 1.40, MSRV is 1.36
 #[test]
 fn setters_tests() {
     let mut json = Value::from_str(include_str!("setters_tests.json"))
@@ -141,7 +139,7 @@ fn setters_tests() {
             let mut expected = test.take_key("expected").unwrap();
 
             let mut url = Url::parse(&href).unwrap();
-            let comment_ref = comment.as_ref().map(|s| s.deref());
+            let comment_ref = comment.as_deref();
             passed &= check_invariants(&url, &name, comment_ref);
             let _ = set(&mut url, attr, &new_value);
 

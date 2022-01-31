@@ -52,15 +52,12 @@ macro_rules! simple_enum_error {
         ///
         /// This may be extended in the future so exhaustive matching is
         /// discouraged with an unused variant.
-        #[allow(clippy::manual_non_exhaustive)] // introduced in 1.40, MSRV is 1.36
         #[derive(PartialEq, Eq, Clone, Copy, Debug)]
+        #[non_exhaustive]
         pub enum ParseError {
             $(
                 $name,
             )+
-            /// Unused variant enable non-exhaustive matching
-            #[doc(hidden)]
-            __FutureProof,
         }
 
         impl fmt::Display for ParseError {
@@ -69,9 +66,6 @@ macro_rules! simple_enum_error {
                     $(
                         ParseError::$name => fmt.write_str($description),
                     )+
-                    ParseError::__FutureProof => {
-                        unreachable!("Don't abuse the FutureProof!");
-                    }
                 }
             }
         }
@@ -106,15 +100,12 @@ macro_rules! syntax_violation_enum {
         ///
         /// This may be extended in the future so exhaustive matching is
         /// discouraged with an unused variant.
-        #[allow(clippy::manual_non_exhaustive)] // introduced in 1.40, MSRV is 1.36
         #[derive(PartialEq, Eq, Clone, Copy, Debug)]
+        #[non_exhaustive]
         pub enum SyntaxViolation {
             $(
                 $name,
             )+
-            /// Unused variant enable non-exhaustive matching
-            #[doc(hidden)]
-            __FutureProof,
         }
 
         impl SyntaxViolation {
@@ -123,9 +114,6 @@ macro_rules! syntax_violation_enum {
                     $(
                         SyntaxViolation::$name => $description,
                     )+
-                    SyntaxViolation::__FutureProof => {
-                        unreachable!("Don't abuse the FutureProof!");
-                    }
                 }
             }
         }

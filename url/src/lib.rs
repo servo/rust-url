@@ -1244,14 +1244,9 @@ impl Url {
     /// # }
     /// # run().unwrap();
     /// ```
-    #[allow(clippy::manual_strip)] // introduced in 1.45, MSRV is 1.36
     pub fn path_segments(&self) -> Option<str::Split<'_, char>> {
         let path = self.path();
-        if path.starts_with('/') {
-            Some(path[1..].split('/'))
-        } else {
-            None
-        }
+        path.strip_prefix('/').map(|remainder| remainder.split('/'))
     }
 
     /// Return this URL’s query string, if any, as a percent-encoded ASCII string.
@@ -1361,8 +1356,7 @@ impl Url {
     }
 
     fn mutate<F: FnOnce(&mut Parser<'_>) -> R, R>(&mut self, f: F) -> R {
-        #[allow(clippy::mem_replace_with_default)] // introduced in 1.40, MSRV is 1.36
-        let mut parser = Parser::for_setter(mem::replace(&mut self.serialization, String::new()));
+        let mut parser = Parser::for_setter(mem::take(&mut self.serialization));
         let result = f(&mut parser);
         self.serialization = parser.serialization;
         result
