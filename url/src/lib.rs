@@ -470,7 +470,7 @@ impl Url {
         }
 
         // Add the filename if they are not the same
-        if base_filename != url_filename {
+        if !relative.is_empty() || base_filename != url_filename {
             // If the URIs filename is empty this means that it was a directory
             // so we'll have to append a '/'.
             //

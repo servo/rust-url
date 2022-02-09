@@ -1084,6 +1084,16 @@ fn test_make_relative() {
             "http://127.0.0.1:8080/test/video?baz=meh#456",
             "video?baz=meh#456",
         ),
+        (
+            "http://127.0.0.1:8080/file.txt",
+            "http://127.0.0.1:8080/test/file.txt",
+            "test/file.txt",
+        ),
+        (
+            "http://127.0.0.1:8080/not_equal.txt",
+            "http://127.0.0.1:8080/test/file.txt",
+            "test/file.txt",
+        ),
     ];
 
     for (base, uri, relative) in &tests {
