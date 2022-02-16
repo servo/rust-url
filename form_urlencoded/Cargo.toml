@@ -12,5 +12,4 @@ rust-version = "1.45"
 test = false
 
 [dependencies]
-matches = "0.1"
 percent-encoding = { version = "2.1.0", path = "../percent_encoding" }

@@ -28,7 +28,6 @@ serde_json = "1.0"
 [dependencies]
 unicode-bidi = "0.3"
 unicode-normalization = "0.1.17"
-matches = "0.1"
 
 [[bench]]
 name = "all"
