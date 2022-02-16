@@ -132,8 +132,6 @@ url = { version = "2", default-features = false }
 
 #![doc(html_root_url = "https://docs.rs/url/2.2.2")]
 
-#[macro_use]
-extern crate matches;
 pub use form_urlencoded;
 
 #[cfg(feature = "serde")]
