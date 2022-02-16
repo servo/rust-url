@@ -90,7 +90,7 @@ impl Host<String> {
         }
 
         let is_invalid_domain_char = |c| {
-            matches!(c, |'\0'..='\u{001F}'| ' '
+            matches!(c, '\0'..='\u{001F}'| ' '
                 | '#'
                 | '%'
                 | '/'
