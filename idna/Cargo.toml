@@ -12,6 +12,10 @@ rust-version = "1.45"
 [lib]
 doctest = false
 
+[features]
+default = ["std"]
+std = []
+
 [[test]]
 name = "tests"
 harness = false
@@ -26,8 +30,8 @@ tester = "0.9"
 serde_json = "1.0"
 
 [dependencies]
-unicode-bidi = "0.3"
-unicode-normalization = "0.1.17"
+unicode-bidi = { version = "0.3.7", default-features = false }
+unicode-normalization = { version = "0.1.17", default-features = false }
 
 [[bench]]
 name = "all"
