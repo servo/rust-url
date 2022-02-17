@@ -12,10 +12,14 @@
 //!
 //! Converts between a string (such as an URL’s query string)
 //! and a sequence of (name, value) pairs.
+#![no_std]
 
+extern crate alloc;
+
+use alloc::borrow::{Borrow, Cow, ToOwned};
+use alloc::string::String;
+use core::str;
 use percent_encoding::{percent_decode, percent_encode_byte};
-use std::borrow::{Borrow, Cow};
-use std::str;
 
 /// Convert a byte string in the `application/x-www-form-urlencoded` syntax
 /// into a iterator of (name, value) pairs.
