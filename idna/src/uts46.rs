@@ -318,6 +318,41 @@ fn check_validity(label: &str, config: Config, errors: &mut Errors) {
     // V8: Bidi rules are checked inside `processing()`
 }
 
+// Detect simple cases: all lowercase ASCII characters and digits where none
+// of the labels start with PUNYCODE_PREFIX and labels don't start or end with hyphen.
+fn is_simple(domain: &str) -> bool {
+    if domain.is_empty() {
+        return false;
+    }
+    let (mut prev, mut puny_prefix) = ('?', 0);
+    for c in domain.chars() {
+        if c == '.' {
+            if prev == '-' {
+                return false;
+            }
+            puny_prefix = 0;
+            continue;
+        } else if puny_prefix == 0 && c == '-' {
+            return false;
+        } else if puny_prefix < 5 {
+            if c == ['x', 'n', '-', '-'][puny_prefix] {
+                puny_prefix += 1;
+                if puny_prefix == 4 {
+                    return false;
+                }
+            } else {
+                puny_prefix = 5;
+            }
+        }
+        if !c.is_ascii_lowercase() && !c.is_ascii_digit() {
+            return false;
+        }
+        prev = c;
+    }
+
+    true
+}
+
 /// http://www.unicode.org/reports/tr46/#Processing
 fn processing(
     domain: &str,
@@ -325,43 +360,6 @@ fn processing(
     normalized: &mut String,
     output: &mut String,
 ) -> Errors {
-    // Weed out the simple cases: only allow all lowercase ASCII characters and digits where none
-    // of the labels start with PUNYCODE_PREFIX and labels don't start or end with hyphen.
-    let (mut prev, mut simple, mut puny_prefix) = ('?', !domain.is_empty(), 0);
-    for c in domain.chars() {
-        if c == '.' {
-            if prev == '-' {
-                simple = false;
-                break;
-            }
-            puny_prefix = 0;
-            continue;
-        } else if puny_prefix == 0 && c == '-' {
-            simple = false;
-            break;
-        } else if puny_prefix < 5 {
-            if c == ['x', 'n', '-', '-'][puny_prefix] {
-                puny_prefix += 1;
-                if puny_prefix == 4 {
-                    simple = false;
-                    break;
-                }
-            } else {
-                puny_prefix = 5;
-            }
-        }
-        if !c.is_ascii_lowercase() && !c.is_ascii_digit() {
-            simple = false;
-            break;
-        }
-        prev = c;
-    }
-
-    if simple {
-        output.push_str(domain);
-        return Errors::default();
-    }
-
     normalized.clear();
     let mut errors = Errors::default();
     let offset = output.len();
@@ -447,11 +445,13 @@ impl Idna {
         }
     }
 
-    /// http://www.unicode.org/reports/tr46/#ToASCII
-    #[allow(clippy::wrong_self_convention)]
-    pub fn to_ascii<'a>(&'a mut self, domain: &str, out: &mut String) -> Result<(), Errors> {
-        let mut errors = processing(domain, self.config, &mut self.normalized, &mut self.output);
-
+    pub fn to_ascii_inner(&mut self, domain: &str, out: &mut String) -> Errors {
+        if is_simple(domain) {
+            out.push_str(domain);
+            return Errors::default();
+        }
+        let mut errors = processing(domain, self.config, &mut self.normalized, out);
+        self.output = std::mem::replace(out, String::with_capacity(out.len()));
         let mut first = true;
         for label in self.output.split('.') {
             if !first {
@@ -470,6 +470,13 @@ impl Idna {
                 }
             }
         }
+        errors
+    }
+
+    /// http://www.unicode.org/reports/tr46/#ToASCII
+    #[allow(clippy::wrong_self_convention)]
+    pub fn to_ascii<'a>(&'a mut self, domain: &str, out: &mut String) -> Result<(), Errors> {
+        let mut errors = self.to_ascii_inner(domain, out);
 
         if self.config.verify_dns_length {
             let domain = if out.ends_with('.') {
@@ -491,6 +498,10 @@ impl Idna {
     /// http://www.unicode.org/reports/tr46/#ToUnicode
     #[allow(clippy::wrong_self_convention)]
     pub fn to_unicode<'a>(&'a mut self, domain: &str, out: &mut String) -> Result<(), Errors> {
+        if is_simple(domain) {
+            out.push_str(domain);
+            return Errors::default().into();
+        }
         processing(domain, self.config, &mut self.normalized, out).into()
     }
 }
