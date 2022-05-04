@@ -1216,13 +1216,11 @@ impl<'a> Parser<'a> {
                     }
                 }
             }
-            // Going from &str to String to &str to please the 1.33.0 borrow checker
-            let before_slash_string = if ends_with_slash {
-                self.serialization[segment_start..self.serialization.len() - 1].to_owned()
+            let segment_before_slash = if ends_with_slash {
+                &self.serialization[segment_start..self.serialization.len() - 1]
             } else {
-                self.serialization[segment_start..self.serialization.len()].to_owned()
+                &self.serialization[segment_start..self.serialization.len()]
             };
-            let segment_before_slash: &str = &before_slash_string;
             match segment_before_slash {
                 // If buffer is a double-dot path segment, shorten url’s path,
                 ".." | "%2e%2e" | "%2e%2E" | "%2E%2e" | "%2E%2E" | "%2e." | "%2E." | ".%2e"
@@ -1412,7 +1410,8 @@ impl<'a> Parser<'a> {
         scheme_end: u32,
         mut input: Input<'i>,
     ) -> Option<Input<'i>> {
-        let mut query = String::new(); // FIXME: use a streaming decoder instead
+        let len = input.chars.as_str().len();
+        let mut query = String::with_capacity(len); // FIXME: use a streaming decoder instead
         let mut remaining = None;
         while let Some(c) = input.next() {
             if c == '#' && self.context == Context::UrlParser {

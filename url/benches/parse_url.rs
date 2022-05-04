@@ -12,5 +12,12 @@ fn short(bench: &mut Bencher) {
     bench.iter(|| black_box(url).parse::<Url>().unwrap());
 }
 
-benchmark_group!(benches, short);
+fn long(bench: &mut Bencher) {
+    let url = "https://example.com/parkbench?tre=es&st=uff";
+
+    bench.bytes = url.len() as u64;
+    bench.iter(|| black_box(url).parse::<Url>().unwrap());
+}
+
+benchmark_group!(benches, short, long);
 benchmark_main!(benches);
