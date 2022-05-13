@@ -2287,6 +2287,146 @@ impl Url {
         Ok(())
     }
 
+    /// Change this URL’s scheme with less checks.
+    ///
+    /// Do nothing and return `Err` under the following circumstances:
+    ///
+    /// * If the new scheme is not in `[a-zA-Z][a-zA-Z0-9+.-]+`
+    ///
+    /// See also [the URL specification's section on legal scheme state
+    /// overrides](https://url.spec.whatwg.org/#scheme-state).
+    ///
+    /// # Examples
+    ///
+    /// Change the URL’s scheme from `https` to `http`:
+    ///
+    /// ```
+    /// use url::Url;
+    /// # use url::ParseError;
+    ///
+    /// # fn run() -> Result<(), ParseError> {
+    /// let mut url = Url::parse("https://example.net")?;
+    /// let result = url.set_scheme_unchecked("http");
+    /// assert_eq!(url.as_str(), "http://example.net/");
+    /// assert!(result.is_ok());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
+    /// ```
+    /// Change the URL’s scheme from `foo` to `bar`:
+    ///
+    /// ```
+    /// use url::Url;
+    /// # use url::ParseError;
+    ///
+    /// # fn run() -> Result<(), ParseError> {
+    /// let mut url = Url::parse("foo://example.net")?;
+    /// let result = url.set_scheme_unchecked("bar");
+    /// assert_eq!(url.as_str(), "bar://example.net");
+    /// assert!(result.is_ok());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
+    /// ```
+    ///
+    /// Can change URL’s scheme from `mailto` to `https`:
+    ///
+    /// ```
+    /// use url::Url;
+    /// # use url::ParseError;
+    ///
+    /// # fn run() -> Result<(), ParseError> {
+    /// let mut url = Url::parse("mailto:rms@example.net")?;
+    /// let result = url.set_scheme_unchecked("https");
+    /// assert_eq!(url.as_str(), "https:rms@example.net");
+    /// assert!(result.is_ok());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
+    /// ```
+    /// Can change the URL’s scheme from `foo` to `https`:
+    ///
+    /// ```
+    /// use url::Url;
+    /// # use url::ParseError;
+    ///
+    /// # fn run() -> Result<(), ParseError> {
+    /// let mut url = Url::parse("foo://example.net")?;
+    /// let result = url.set_scheme_unchecked("https");
+    /// assert_eq!(url.as_str(), "https://example.net");
+    /// assert!(result.is_ok());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
+    /// ```
+    /// Can change the URL’s scheme from `http` to `foo`:
+    ///
+    /// ```
+    /// use url::Url;
+    /// # use url::ParseError;
+    ///
+    /// # fn run() -> Result<(), ParseError> {
+    /// let mut url = Url::parse("http://example.net")?;
+    /// let result = url.set_scheme_unchecked("foo");
+    /// assert_eq!(url.as_str(), "foo://example.net/");
+    /// assert!(result.is_ok());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
+    /// ```
+    ///
+    /// Cannot change URL’s scheme from `https` to `foõ`:
+    ///
+    /// ```
+    /// use url::Url;
+    /// # use url::ParseError;
+    ///
+    /// # fn run() -> Result<(), ParseError> {
+    /// let mut url = Url::parse("https://example.net")?;
+    /// let result = url.set_scheme_unchecked("foõ");
+    /// assert_eq!(url.as_str(), "https://example.net/");
+    /// assert!(result.is_err());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
+    /// ```
+    #[allow(clippy::result_unit_err, clippy::suspicious_operation_groupings)]
+    pub fn set_scheme_unchecked(&mut self, scheme: &str) -> Result<(), ()> {
+        let mut parser = Parser::for_setter(String::new());
+        parser.parse_scheme(parser::Input::new(scheme))?;
+
+        let old_scheme_end = self.scheme_end;
+        let new_scheme_end = to_u32(parser.serialization.len()).unwrap();
+        let adjust = |index: &mut u32| {
+            *index -= old_scheme_end;
+            *index += new_scheme_end;
+        };
+
+        self.scheme_end = new_scheme_end;
+        adjust(&mut self.username_end);
+        adjust(&mut self.host_start);
+        adjust(&mut self.host_end);
+        adjust(&mut self.path_start);
+        if let Some(ref mut index) = self.query_start {
+            adjust(index)
+        }
+        if let Some(ref mut index) = self.fragment_start {
+            adjust(index)
+        }
+
+        parser.serialization.push_str(self.slice(old_scheme_end..));
+        self.serialization = parser.serialization;
+
+        // Update the port so it can be removed
+        // If it is the scheme's default
+        // we don't mind it silently failing
+        // if there was no port in the first place
+        let previous_port = self.port();
+        let _ = self.set_port(previous_port);
+
+        Ok(())
+    }
+
     /// Convert a file name as `std::path::Path` into an URL in the `file` scheme.
     ///
     /// This returns `Err` if the given path is not absolute or,
