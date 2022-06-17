@@ -718,6 +718,23 @@ impl Url {
     /// # run().unwrap();
     /// ```
     ///
+    /// URL with `sftp` scheme:
+    ///
+    /// ```rust
+    /// use url::{Host, Origin, Url};
+    /// # use url::ParseError;
+    ///
+    /// # fn run() -> Result<(), ParseError> {
+    /// let url = Url::parse("sftp://example.com/foo")?;
+    /// assert_eq!(url.origin(),
+    ///            Origin::Tuple("sftp".into(),
+    ///                          Host::Domain("example.com".into()),
+    ///                          22));
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
+    /// ```
+    ///
     /// URL with `blob` scheme:
     ///
     /// ```rust
@@ -806,6 +823,9 @@ impl Url {
     /// let url = Url::parse("ftp://rms@example.com")?;
     /// assert!(url.has_authority());
     ///
+    /// let url = Url::parse("sftp://rms@example.com")?;
+    /// assert!(url.has_authority());
+    ///
     /// let url = Url::parse("unix:/run/foo.socket")?;
     /// assert!(!url.has_authority());
     ///
@@ -837,6 +857,9 @@ impl Url {
     /// let url = Url::parse("ftp://rms@example.com")?;
     /// assert!(!url.cannot_be_a_base());
     ///
+    /// let url = Url::parse("sftp://rms@example.com")?;
+    /// assert!(!url.cannot_be_a_base());
+    ///
     /// let url = Url::parse("unix:/run/foo.socket")?;
     /// assert!(!url.cannot_be_a_base());
     ///
@@ -865,6 +888,12 @@ impl Url {
     /// assert_eq!(url.username(), "rms");
     ///
     /// let url = Url::parse("ftp://:secret123@example.com")?;
+    /// assert_eq!(url.username(), "");
+    ///
+    /// let url = Url::parse("sftp://rms@example.com")?;
+    /// assert_eq!(url.username(), "rms");
+    ///
+    /// let url = Url::parse("sftp://:secret123@example.com")?;
     /// assert_eq!(url.username(), "");
     ///
     /// let url = Url::parse("https://example.com")?;
@@ -900,6 +929,15 @@ impl Url {
     /// let url = Url::parse("ftp://rms@example.com")?;
     /// assert_eq!(url.password(), None);
     ///
+    /// let url = Url::parse("sftp://rms:secret123@example.com")?;
+    /// assert_eq!(url.password(), Some("secret123"));
+    ///
+    /// let url = Url::parse("sftp://:secret123@example.com")?;
+    /// assert_eq!(url.password(), Some("secret123"));
+    ///
+    /// let url = Url::parse("sftp://rms@example.com")?;
+    /// assert_eq!(url.password(), None);
+    ///
     /// let url = Url::parse("https://example.com")?;
     /// assert_eq!(url.password(), None);
     /// # Ok(())
@@ -930,6 +968,9 @@ impl Url {
     ///
     /// # fn run() -> Result<(), ParseError> {
     /// let url = Url::parse("ftp://rms@example.com")?;
+    /// assert!(url.has_host());
+    ///
+    /// let url = Url::parse("sftp://rms@example.com")?;
     /// assert!(url.has_host());
     ///
     /// let url = Url::parse("unix:/run/foo.socket")?;
@@ -969,6 +1010,9 @@ impl Url {
     /// let url = Url::parse("ftp://rms@example.com")?;
     /// assert_eq!(url.host_str(), Some("example.com"));
     ///
+    /// let url = Url::parse("sftp://rms@example.com")?;
+    /// assert_eq!(url.host_str(), Some("example.com"));
+    ///
     /// let url = Url::parse("unix:/run/foo.socket")?;
     /// assert_eq!(url.host_str(), None);
     ///
@@ -1006,6 +1050,9 @@ impl Url {
     /// assert!(url.host().is_some());
     ///
     /// let url = Url::parse("ftp://rms@example.com")?;
+    /// assert!(url.host().is_some());
+    ///
+    /// let url = Url::parse("sftp://rms@example.com")?;
     /// assert!(url.host().is_some());
     ///
     /// let url = Url::parse("unix:/run/foo.socket")?;
@@ -1088,7 +1135,7 @@ impl Url {
     /// Return the port number for this URL, or the default port number if it is known.
     ///
     /// This method only knows the default port number
-    /// of the `http`, `https`, `ws`, `wss` and `ftp` schemes.
+    /// of the `http`, `https`, `ws`, `wss`, `ftp` and `sftp` schemes.
     ///
     /// For URLs in these schemes, this method always returns `Some(_)`.
     /// For other schemes, it is the same as `Url::port()`.
@@ -1976,6 +2023,15 @@ impl Url {
     /// let result = url.set_password(Some("secret2"));
     /// assert!(result.is_ok());
     /// assert_eq!(url.password(), Some("secret2"));
+    ///
+    /// let mut url = Url::parse("sftp://user1:secret1@example.com")?;
+    /// let result = url.set_password(Some("secret_password"));
+    /// assert_eq!(url.password(), Some("secret_password"));
+    ///
+    /// let mut url = Url::parse("sftp://user2:@example.com")?;
+    /// let result = url.set_password(Some("secret2"));
+    /// assert!(result.is_ok());
+    /// assert_eq!(url.password(), Some("secret2"));
     /// # Ok(())
     /// # }
     /// # run().unwrap();
@@ -2071,6 +2127,21 @@ impl Url {
     /// assert_eq!(url.as_str(), "ftp://user1:secre1@example.com/");
     /// # Ok(())
     /// # }
+    /// ```
+    ///
+    /// Setup username to user2
+    ///
+    /// ```rust
+    /// use url::{Url, ParseError};
+    ///
+    /// # fn run() -> Result<(), ParseError> {
+    /// let mut url = Url::parse("sftp://:secre2@example.com/")?;
+    /// let result = url.set_username("user2");
+    /// assert!(result.is_ok());
+    /// assert_eq!(url.username(), "user2");
+    /// assert_eq!(url.as_str(), "sftp://user2:secre2@example.com/");
+    /// # Ok(())
+    /// # }
     /// # run().unwrap();
     /// ```
     #[allow(clippy::result_unit_err)]
@@ -2131,9 +2202,9 @@ impl Url {
     ///
     /// * If the new scheme is not in `[a-zA-Z][a-zA-Z0-9+.-]+`
     /// * If this URL is cannot-be-a-base and the new scheme is one of
-    ///   `http`, `https`, `ws`, `wss` or `ftp`
+    ///   `http`, `https`, `ws`, `wss`, `ftp` or `sftp`
     /// * If either the old or new scheme is `http`, `https`, `ws`,
-    ///   `wss` or `ftp` and the other is not one of these
+    ///   `wss`, `ftp` or `sftp` and the other is not one of these
     /// * If the new scheme is `file` and this URL includes credentials
     ///   or has a non-null port
     /// * If this URL's scheme is `file` and its host is empty or null

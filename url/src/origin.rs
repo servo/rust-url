@@ -21,7 +21,7 @@ pub fn url_origin(url: &Url) -> Origin {
                 Err(_) => Origin::new_opaque(),
             }
         }
-        "ftp" | "http" | "https" | "ws" | "wss" => Origin::Tuple(
+        "ftp" | "sftp" | "http" | "https" | "ws" | "wss" => Origin::Tuple(
             scheme.to_owned(),
             url.host().unwrap().to_owned(),
             url.port_or_known_default().unwrap(),
@@ -43,7 +43,7 @@ pub fn url_origin(url: &Url) -> Origin {
 /// - If the scheme is "blob" the origin is the origin of the
 ///   URL contained in the path component. If parsing fails,
 ///   it is an opaque origin.
-/// - If the scheme is "ftp", "http", "https", "ws", or "wss",
+/// - If the scheme is "ftp", "sftp", "http", "https", "ws", or "wss",
 ///   then the origin is a tuple of the scheme, host, and port.
 /// - If the scheme is anything else, the origin is opaque, meaning
 ///   the URL does not have the same origin as any other URL.
