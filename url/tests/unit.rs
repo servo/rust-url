@@ -495,6 +495,7 @@ fn test_origin_hash() {
         Url::parse("http://example.net/hello").unwrap().origin(),
         Url::parse("https://example.net").unwrap().origin(),
         Url::parse("ftp://example.net").unwrap().origin(),
+        Url::parse("sftp://example.net").unwrap().origin(),
         Url::parse("file://example.net").unwrap().origin(),
         Url::parse("http://user@example.net/").unwrap().origin(),
         Url::parse("http://user:pass@example.net/")
@@ -538,6 +539,7 @@ fn test_origin_unicode_serialization() {
     let data = [
         ("http://😅.com", "http://😅.com"),
         ("ftp://😅:🙂@🙂.com", "ftp://🙂.com"),
+        ("sftp://😅:🙂@🙂.com", "sftp://🙂.com"),
         ("https://user@😅.com", "https://😅.com"),
         ("http://😅.🙂:40", "http://😅.🙂:40"),
     ];
@@ -554,6 +556,7 @@ fn test_origin_unicode_serialization() {
         Url::parse("http://example.net/hello").unwrap().origin(),
         Url::parse("https://example.net").unwrap().origin(),
         Url::parse("ftp://example.net").unwrap().origin(),
+        Url::parse("sftp://example.net").unwrap().origin(),
         Url::parse("file://example.net").unwrap().origin(),
         Url::parse("http://user@example.net/").unwrap().origin(),
         Url::parse("http://user:pass@example.net/")

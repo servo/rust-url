@@ -23,6 +23,7 @@ fn urltestdata() {
         "https://faß.ExAmPlE/",
         "http://０Ｘｃ０．０２５０．０１",
         "ftp://%e2%98%83",
+        "sftp://%e2%98%83",
         "https://%e2%98%83",
         "file://a\u{ad}b/p",
         "file://a%C2%ADb/p",
