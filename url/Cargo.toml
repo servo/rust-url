@@ -2,7 +2,7 @@
 
 name = "url"
 # When updating version, also modify html_root_url in the lib.rs
-version = "2.2.2"
+version = "2.2.3"
 authors = ["The rust-url developers"]
 
 description = "URL library for Rust, based on the WHATWG URL Standard"

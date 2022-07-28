@@ -130,7 +130,7 @@ url = { version = "2", default-features = false }
 
 */
 
-#![doc(html_root_url = "https://docs.rs/url/2.2.2")]
+#![doc(html_root_url = "https://docs.rs/url/2.2.3")]
 
 pub use form_urlencoded;
 
