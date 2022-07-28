@@ -149,7 +149,7 @@ fn setters_tests() {
             let mut url = Url::parse(&href).unwrap();
             let comment_ref = comment.as_deref();
             passed &= check_invariants(&url, &name, comment_ref);
-            let _ = set(&mut url, attr, &new_value);
+            set(&mut url, attr, &new_value);
 
             for attr in ATTRIBS {
                 if let Some(value) = expected.take_key(attr) {
