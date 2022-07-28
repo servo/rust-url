@@ -5,6 +5,9 @@ on:
     branches: ["master"]
   pull_request:
 
+env:
+  CARGO_NET_GIT_FETCH_WITH_CLI: true
+
 jobs:
   Test:
     strategy:
@@ -38,8 +41,6 @@ jobs:
         with:
           command: build
           args: --all-targets
-          env:
-            CARGO_NET_GIT_FETCH_WITH_CLI: true
       - uses: actions-rs/cargo@v1
         with:
           command: test
