@@ -14,7 +14,7 @@ categories = ["parser-implementations", "web-programming", "encoding"]
 license = "MIT OR Apache-2.0"
 include = ["src/**/*", "LICENSE-*", "README.md", "tests/**"]
 edition = "2018"
-rust-version = "1.45"
+rust-version = "1.51"
 
 [badges]
 travis-ci = { repository = "servo/rust-url" }
