@@ -143,7 +143,7 @@ impl fmt::Display for SyntaxViolation {
     }
 }
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum SchemeType {
     File,
     SpecialNotFile,
@@ -1561,7 +1561,7 @@ pub fn is_windows_drive_letter(segment: &str) -> bool {
 /// Whether path starts with a root slash
 /// and a windows drive letter eg: "/c:" or "/a:/"
 fn path_starts_with_windows_drive_letter(s: &str) -> bool {
-    if let Some(c) = s.as_bytes().get(0) {
+    if let Some(c) = s.as_bytes().first() {
         matches!(c, b'/' | b'\\' | b'?' | b'#') && starts_with_windows_drive_letter(&s[1..])
     } else {
         false

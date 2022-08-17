@@ -7,7 +7,7 @@ repository = "https://github.com/servo/rust-url"
 license = "MIT OR Apache-2.0"
 edition = "2018"
 autotests = false
-rust-version = "1.45"
+rust-version = "1.51"
 
 [dev-dependencies]
 tester = "0.9"
