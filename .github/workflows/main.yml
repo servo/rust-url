@@ -25,8 +25,6 @@ jobs:
             rust: beta
           - os: macos-latest
             rust: nightly
-          - os: windows-latest
-            rust: nightly
 
     runs-on: ${{ matrix.os }}
 
@@ -41,10 +39,27 @@ jobs:
         with:
           command: build
           args: --all-targets
-      - uses: actions-rs/cargo@v1
+        # Run tests
+      - name: Run tests
+        uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --all-features
+        # Run tests enabling the serde feature
+      - name: Run tests with the serde feature
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --features "url/serde"
+      # The #[debugger_visualizer] attribute is currently gated behind an unstable feature flag.
+      # In order to test the visualizers for the url crate, they have to be tested on a nightly build.
+      - name: Run debugger_visualizer tests
+        if: |
+          matrix.os == 'windows-latest' &&
+          matrix.rust == 'nightly'
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --test debugger_visualizer --features "url/serde,url/debugger_visualizer" -- --test-threads=1
 
   WASM:
     runs-on: ubuntu-latest
