@@ -1312,7 +1312,7 @@ impl Url {
     /// # Ok(())
     /// # }
     /// # run().unwrap();
-    ///
+    /// ```
 
     #[inline]
     pub fn query_pairs(&self) -> form_urlencoded::Parse<'_> {
