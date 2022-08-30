@@ -361,11 +361,14 @@ impl<'a> Parser<'a> {
 
     /// https://url.spec.whatwg.org/#concept-basic-url-parser
     pub fn parse_url(mut self, input: &str) -> ParseResult<Url> {
-        let input = Input::with_log(input, self.violation_fn);
-        if let Ok(remaining) = self.parse_scheme(input.clone()) {
-            return self.parse_with_scheme(remaining);
+        if let Ok(input) = self.parse_scheme(input) {
+            let input = Input {
+                chars: input.chars(),
+            };
+            return self.parse_with_scheme(input);
         }
 
+        let input = Input::with_log(input, self.violation_fn);
         // No-scheme state
         if let Some(base_url) = self.base_url {
             if input.starts_with('#') {
@@ -385,28 +388,36 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse_scheme<'i>(&mut self, mut input: Input<'i>) -> Result<Input<'i>, ()> {
+    pub fn parse_scheme<'i>(&mut self, input: &'i str) -> Result<&'i str, ()> {
+        let input = input.trim_matches(c0_control_or_space);
         if input.is_empty() || !input.starts_with(ascii_alpha) {
             return Err(());
         }
         debug_assert!(self.serialization.is_empty());
-        while let Some(c) = input.next() {
+        let mut i = 0;
+        for c in input.chars() {
             match c {
                 'a'..='z' | 'A'..='Z' | '0'..='9' | '+' | '-' | '.' => {
-                    self.serialization.push(c.to_ascii_lowercase())
+                    i += 1;
                 }
-                ':' => return Ok(input),
+                ':' => {
+                    self.serialization
+                        .push_str(&input[..i].to_ascii_lowercase());
+                    return Ok(&input[i + 1..]);
+                }
                 _ => {
                     self.serialization.clear();
                     return Err(());
                 }
             }
         }
+
         // EOF before ':'
         if self.context == Context::Setter {
-            Ok(input)
+            self.serialization
+                .push_str(&input[..i].to_ascii_lowercase());
+            Ok(&input[i..])
         } else {
-            self.serialization.clear();
             Err(())
         }
     }

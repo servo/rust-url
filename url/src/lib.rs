@@ -2243,7 +2243,7 @@ impl Url {
     #[allow(clippy::result_unit_err, clippy::suspicious_operation_groupings)]
     pub fn set_scheme(&mut self, scheme: &str) -> Result<(), ()> {
         let mut parser = Parser::for_setter(String::new());
-        let remaining = parser.parse_scheme(parser::Input::new(scheme))?;
+        let remaining = parser::Input::new(parser.parse_scheme(scheme)?);
         let new_scheme_type = SchemeType::from(&parser.serialization);
         let old_scheme_type = SchemeType::from(self.scheme());
         // If url’s scheme is a special scheme and buffer is not a special scheme, then return.
