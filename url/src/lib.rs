@@ -200,19 +200,6 @@ pub struct Url {
     fragment_start: Option<u32>, // Before '#', unlike Position::FragmentStart
 }
 
-/// Internal components / offsets of a URL.
-#[derive(Copy, Clone)]
-pub struct InternalComponents {
-    pub scheme_end: u32,
-    pub username_end: u32,
-    pub host_start: u32,
-    pub host_end: u32,
-    pub port: Option<u16>,
-    pub path_start: u32,
-    pub query_start: Option<u32>,
-    pub fragment_start: Option<u32>,
-}
-
 /// Full configuration for the URL parser.
 #[derive(Copy, Clone)]
 pub struct ParseOptions<'a> {
@@ -2501,23 +2488,6 @@ impl Url {
             return file_url_segments_to_pathbuf(host, segments);
         }
         Err(())
-    }
-
-    /// Internal component / parsed offsets of the URL.
-    ///
-    /// This can be useful for implementing efficient serialization
-    /// for the URL.
-    pub fn internal_components(&self) -> InternalComponents {
-        InternalComponents {
-            scheme_end: self.scheme_end,
-            username_end: self.username_end,
-            host_start: self.host_start,
-            host_end: self.host_end,
-            port: self.port,
-            path_start: self.path_start,
-            query_start: self.query_start,
-            fragment_start: self.fragment_start,
-        }
     }
 
     // Private helper methods:

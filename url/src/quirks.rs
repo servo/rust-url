@@ -14,6 +14,47 @@
 use crate::parser::{default_port, Context, Input, Parser, SchemeType};
 use crate::{Host, ParseError, Position, Url};
 
+/// Internal components / offsets of a URL.
+///
+/// https://user@pass:example.com:1234/foo/bar?baz#quux
+///      |      |    |          | ^^^^|       |   |
+///      |      |    |          | |   |       |   `----- fragment_start
+///      |      |    |          | |   |       `--------- query_start
+///      |      |    |          | |   `----------------- path_start
+///      |      |    |          | `--------------------- port
+///      |      |    |          `----------------------- host_end
+///      |      |    `---------------------------------- host_start
+///      |      `--------------------------------------- username_end
+///      `---------------------------------------------- scheme_end
+#[derive(Copy, Clone)]
+pub struct InternalComponents {
+    pub scheme_end: u32,
+    pub username_end: u32,
+    pub host_start: u32,
+    pub host_end: u32,
+    pub port: Option<u16>,
+    pub path_start: u32,
+    pub query_start: Option<u32>,
+    pub fragment_start: Option<u32>,
+}
+
+/// Internal component / parsed offsets of the URL.
+///
+/// This can be useful for implementing efficient serialization
+/// for the URL.
+pub fn internal_components(url: &Url) -> InternalComponents {
+    InternalComponents {
+        scheme_end: url.scheme_end,
+        username_end: url.username_end,
+        host_start: url.host_start,
+        host_end: url.host_end,
+        port: url.port,
+        path_start: url.path_start,
+        query_start: url.query_start,
+        fragment_start: url.fragment_start,
+    }
+}
+
 /// https://url.spec.whatwg.org/#dom-url-domaintoascii
 pub fn domain_to_ascii(domain: &str) -> String {
     match Host::parse(domain) {
