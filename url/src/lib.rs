@@ -1813,8 +1813,10 @@ impl Url {
             return Err(ParseError::SetHostOnCannotBeABaseUrl);
         }
 
+        let scheme_type = SchemeType::from(self.scheme());
+
         if let Some(host) = host {
-            if host.is_empty() && SchemeType::from(self.scheme()).is_special() {
+            if host.is_empty() && scheme_type.is_special() && !scheme_type.is_file() {
                 return Err(ParseError::EmptyHost);
             }
             let mut host_substr = host;
@@ -1838,15 +1840,20 @@ impl Url {
                 self.set_host_internal(Host::parse_opaque(host_substr)?, None);
             }
         } else if self.has_host() {
-            let scheme_type = SchemeType::from(self.scheme());
-            if scheme_type.is_special() {
+            if scheme_type.is_special() && !scheme_type.is_file() {
                 return Err(ParseError::EmptyHost);
             } else if self.serialization.len() == self.path_start as usize {
                 self.serialization.push('/');
             }
             debug_assert!(self.byte_at(self.scheme_end) == b':');
             debug_assert!(self.byte_at(self.path_start) == b'/');
-            let new_path_start = self.scheme_end + 1;
+
+            let new_path_start = if scheme_type.is_file() {
+                self.scheme_end + 3
+            } else {
+                self.scheme_end + 1
+            };
+
             self.serialization
                 .drain(new_path_start as usize..self.path_start as usize);
             let offset = self.path_start - new_path_start;
@@ -2730,6 +2737,7 @@ fn path_to_file_url_segments_windows(
     let host_start = serialization.len() + 1;
     let host_end;
     let host_internal;
+
     match components.next() {
         Some(Component::Prefix(ref p)) => match p.kind() {
             Prefix::Disk(letter) | Prefix::VerbatimDisk(letter) => {
@@ -2750,7 +2758,6 @@ fn path_to_file_url_segments_windows(
             }
             _ => return Err(()),
         },
-
         _ => return Err(()),
     }
 
@@ -2759,12 +2766,15 @@ fn path_to_file_url_segments_windows(
         if component == Component::RootDir {
             continue;
         }
+
         path_only_has_prefix = false;
         // FIXME: somehow work with non-unicode?
         let component = component.as_os_str().to_str().ok_or(())?;
+
         serialization.push('/');
         serialization.extend(percent_encode(component.as_bytes(), PATH_SEGMENT));
     }
+
     // A windows drive letter must end with a slash.
     if serialization.len() > host_start
         && parser::is_windows_drive_letter(&serialization[host_start..])
@@ -2772,6 +2782,7 @@ fn path_to_file_url_segments_windows(
     {
         serialization.push('/');
     }
+
     Ok((host_end, host_internal))
 }
 
@@ -2795,10 +2806,12 @@ fn file_url_segments_to_pathbuf(
     } else {
         Vec::new()
     };
+
     for segment in segments {
         bytes.push(b'/');
         bytes.extend(percent_decode(segment.as_bytes()));
     }
+
     // A windows drive letter must end with a slash.
     if bytes.len() > 2
         && matches!(bytes[bytes.len() - 2], b'a'..=b'z' | b'A'..=b'Z')
@@ -2806,12 +2819,15 @@ fn file_url_segments_to_pathbuf(
     {
         bytes.push(b'/');
     }
+
     let os_str = OsStr::from_bytes(&bytes);
     let path = PathBuf::from(os_str);
+
     debug_assert!(
         path.is_absolute(),
         "to_file_path() failed to produce an absolute Path"
     );
+
     Ok(path)
 }
 
