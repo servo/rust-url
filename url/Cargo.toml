@@ -38,6 +38,7 @@ default = ["idna"]
 # UNSTABLE FEATURES (requires Rust nightly)
 # Enable to use the #[debugger_visualizer] attribute.
 debugger_visualizer = []
+expose_internals = []
 
 [[bench]]
 name = "parse_url"

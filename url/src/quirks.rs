@@ -27,6 +27,7 @@ use crate::{Host, ParseError, Position, Url};
 ///      |      `--------------------------------------- username_end
 ///      `---------------------------------------------- scheme_end
 #[derive(Copy, Clone)]
+#[cfg(feature = "expose_internals")]
 pub struct InternalComponents {
     pub scheme_end: u32,
     pub username_end: u32,
@@ -42,6 +43,7 @@ pub struct InternalComponents {
 ///
 /// This can be useful for implementing efficient serialization
 /// for the URL.
+#[cfg(feature = "expose_internals")]
 pub fn internal_components(url: &Url) -> InternalComponents {
     InternalComponents {
         scheme_end: url.scheme_end,
