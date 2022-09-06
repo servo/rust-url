@@ -361,7 +361,7 @@ impl<'a> Parser<'a> {
 
     /// https://url.spec.whatwg.org/#concept-basic-url-parser
     pub fn parse_url(mut self, input: &str) -> ParseResult<Url> {
-        if let Ok(input) = self.parse_scheme(input) {
+        if let Ok(input) = self.parse_scheme(input, self.violation_fn) {
             let input = Input {
                 chars: input.chars(),
             };
@@ -388,21 +388,53 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse_scheme<'i>(&mut self, input: &'i str) -> Result<&'i str, ()> {
-        let input = input.trim_matches(c0_control_or_space);
+    pub fn parse_scheme<'i>(
+        &mut self,
+        original_input: &'i str,
+        vfn: Option<&dyn Fn(SyntaxViolation)>,
+    ) -> Result<&'i str, ()> {
+        let input = original_input.trim_matches(c0_control_or_space);
+        if let Some(vfn) = vfn {
+            if input.len() < original_input.len() {
+                vfn(SyntaxViolation::C0SpaceIgnored)
+            }
+            if input.chars().any(|c| matches!(c, '\t' | '\n' | '\r')) {
+                vfn(SyntaxViolation::TabOrNewlineIgnored)
+            }
+        }
+
         if input.is_empty() || !input.starts_with(ascii_alpha) {
             return Err(());
         }
         debug_assert!(self.serialization.is_empty());
         let mut i = 0;
+        let mut v: Option<Vec<usize>> = None;
         for c in input.chars() {
             match c {
+                '\t' | '\n' | '\r' => {
+                    if v.is_none() {
+                        v = Some(vec![]);
+                    }
+
+                    v.as_mut().unwrap().push(i);
+                    i += 1;
+                }
                 'a'..='z' | 'A'..='Z' | '0'..='9' | '+' | '-' | '.' => {
                     i += 1;
                 }
                 ':' => {
-                    self.serialization
-                        .push_str(&input[..i].to_ascii_lowercase());
+                    if let Some(ref mut v) = v {
+                        let bytes = input.as_bytes();
+                        for i in 0..i {
+                            if !v.contains(&i) {
+                                self.serialization
+                                    .push((bytes[i] as char).to_ascii_lowercase());
+                            }
+                        }
+                    } else {
+                        self.serialization
+                            .push_str(&input[..i].to_ascii_lowercase());
+                    }
                     return Ok(&input[i + 1..]);
                 }
                 _ => {
