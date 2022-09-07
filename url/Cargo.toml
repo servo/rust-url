@@ -29,12 +29,12 @@ debugger_test_parser = "0.1"
 
 [dependencies]
 form_urlencoded = { version = "1.0.0", path = "../form_urlencoded" }
-idna = { version = "0.2.0", path = "../idna", optional = true }
+idna = { version = "0.2.0", path = "../idna" }
 percent-encoding = { version = "2.1.0", path = "../percent_encoding" }
 serde = {version = "1.0", optional = true, features = ["derive"]}
 
 [features]
-default = ["idna"]
+default = []
 # UNSTABLE FEATURES (requires Rust nightly)
 # Enable to use the #[debugger_visualizer] attribute.
 debugger_visualizer = []

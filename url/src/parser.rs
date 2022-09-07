@@ -87,7 +87,6 @@ simple_enum_error! {
     Overflow => "URLs more than 4 GB are not supported",
 }
 
-#[cfg(feature = "idna")]
 impl From<::idna::Errors> for ParseError {
     fn from(_: ::idna::Errors) -> ParseError {
         ParseError::IdnaError
