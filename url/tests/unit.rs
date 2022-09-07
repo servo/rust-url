@@ -43,6 +43,14 @@ fn test_set_empty_host() {
     assert_eq!(base.as_str(), "moz:/baz");
     base.set_host(Some("servo")).unwrap();
     assert_eq!(base.as_str(), "moz://servo/baz");
+
+    let mut base: Url = "file://server/share/foo/bar".parse().unwrap();
+    base.set_host(None).unwrap();
+    assert_eq!(base.as_str(), "file:///share/foo/bar");
+
+    let mut base: Url = "file://server/share/foo/bar".parse().unwrap();
+    base.set_host(Some("foo")).unwrap();
+    assert_eq!(base.as_str(), "file://foo/share/foo/bar");
 }
 
 #[test]
