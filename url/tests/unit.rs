@@ -304,7 +304,6 @@ fn host_serialization() {
     );
 }
 
-#[cfg(feature = "idna")]
 #[test]
 fn test_idna() {
     assert!("http://goșu.ro".parse::<Url>().is_ok());
@@ -540,7 +539,6 @@ fn test_origin_opaque() {
     assert!(!&Url::parse("blob:malformed//").unwrap().origin().is_tuple())
 }
 
-#[cfg(feature = "idna")]
 #[test]
 fn test_origin_unicode_serialization() {
     let data = [
@@ -713,7 +711,6 @@ fn test_set_href() {
     );
 }
 
-#[cfg(feature = "idna")]
 #[test]
 fn test_domain_encoding_quirks() {
     use url::quirks::{domain_to_ascii, domain_to_unicode};

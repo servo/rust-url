@@ -162,21 +162,8 @@ impl Host<String> {
     }
 
     /// convert domain with idna
-    #[cfg(feature = "idna")]
     fn domain_to_ascii(domain: &str) -> Result<String, ParseError> {
         idna::domain_to_ascii(domain).map_err(Into::into)
-    }
-
-    /// checks domain is ascii
-    #[cfg(not(feature = "idna"))]
-    fn domain_to_ascii(domain: &str) -> Result<String, ParseError> {
-        // without idna feature, we can't verify that xn-- domains correctness
-        let domain = domain.to_lowercase();
-        if domain.is_ascii() && domain.split('.').all(|s| !s.starts_with("xn--")) {
-            Ok(domain)
-        } else {
-            Err(ParseError::InvalidDomainCharacter)
-        }
     }
 }
 

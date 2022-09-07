@@ -15,7 +15,6 @@ use url::{quirks, Url};
 
 #[test]
 fn urltestdata() {
-    #[cfg(not(feature = "idna"))]
     let idna_skip_inputs = [
         "http://www.foo。bar.com",
         "http://Ｇｏ.com",
@@ -46,7 +45,6 @@ fn urltestdata() {
         let input = entry.take_string("input");
         let failure = entry.take_key("failure").is_some();
 
-        #[cfg(not(feature = "idna"))]
         {
             if idna_skip_inputs.contains(&input.as_str()) {
                 continue;
@@ -133,7 +131,6 @@ fn setters_tests() {
         let mut tests = json.take_key(attr).unwrap();
         for mut test in tests.as_array_mut().unwrap().drain(..) {
             let comment = test.take_key("comment").map(|s| s.string());
-            #[cfg(not(feature = "idna"))]
             {
                 if let Some(comment) = comment.as_ref() {
                     if comment.starts_with("IDNA Nontransitional_Processing") {
