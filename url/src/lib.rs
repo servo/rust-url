@@ -119,18 +119,9 @@ See [serde documentation](https://serde.rs) for more information.
 url = { version = "2", features = ["serde"] }
 ```
 
-# Feature: `idna`
-
-You can opt out [idna](https://en.wikipedia.org/wiki/Internationalized_domain_name) support
-to reduce final binary size.
-
-```toml
-url = { version = "2", default-features = false }
-```
-
 */
 
-#![doc(html_root_url = "https://docs.rs/url/2.2.2")]
+#![doc(html_root_url = "https://docs.rs/url/2.3.0")]
 #![cfg_attr(
     feature = "debugger_visualizer",
     feature(debugger_visualizer),
