@@ -49,7 +49,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --features "url/serde"
+          args: --features "url/serde,url/expose_internals"
       # The #[debugger_visualizer] attribute is currently gated behind an unstable feature flag.
       # In order to test the visualizers for the url crate, they have to be tested on a nightly build.
       - name: Run debugger_visualizer tests

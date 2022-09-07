@@ -38,6 +38,8 @@ default = ["idna"]
 # UNSTABLE FEATURES (requires Rust nightly)
 # Enable to use the #[debugger_visualizer] attribute.
 debugger_visualizer = []
+# Expose internal offsets of the URL.
+expose_internals = []
 
 [[bench]]
 name = "parse_url"

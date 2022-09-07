@@ -731,6 +731,34 @@ fn test_domain_encoding_quirks() {
     }
 }
 
+#[cfg(feature = "expose_internals")]
+#[test]
+fn test_expose_internals() {
+    use url::quirks::internal_components;
+    use url::quirks::InternalComponents;
+
+    let url = Url::parse("https://example.com/path/file.ext?key=val&key2=val2#fragment").unwrap();
+    let InternalComponents {
+        scheme_end,
+        username_end,
+        host_start,
+        host_end,
+        port,
+        path_start,
+        query_start,
+        fragment_start,
+    } = internal_components(&url);
+
+    assert_eq!(scheme_end, 5);
+    assert_eq!(username_end, 8);
+    assert_eq!(host_start, 8);
+    assert_eq!(host_end, 19);
+    assert_eq!(port, None);
+    assert_eq!(path_start, 19);
+    assert_eq!(query_start, Some(33));
+    assert_eq!(fragment_start, Some(51));
+}
+
 #[test]
 fn test_windows_unc_path() {
     if !cfg!(windows) {
