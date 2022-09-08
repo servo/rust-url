@@ -121,7 +121,7 @@ url = { version = "2", features = ["serde"] }
 
 */
 
-#![doc(html_root_url = "https://docs.rs/url/2.3.0")]
+#![doc(html_root_url = "https://docs.rs/url/2.3.1")]
 #![cfg_attr(
     feature = "debugger_visualizer",
     feature(debugger_visualizer),
