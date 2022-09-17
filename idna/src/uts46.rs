@@ -598,18 +598,18 @@ fn is_bidi_domain(s: &str) -> bool {
 /// More details may be exposed in the future.
 #[derive(Default)]
 pub struct Errors {
-    punycode: bool,
-    check_hyphens: bool,
-    check_bidi: bool,
-    start_combining_mark: bool,
-    invalid_mapping: bool,
-    nfc: bool,
-    disallowed_by_std3_ascii_rules: bool,
-    disallowed_mapped_in_std3: bool,
-    disallowed_character: bool,
-    too_long_for_dns: bool,
-    too_short_for_dns: bool,
-    disallowed_in_idna_2008: bool,
+    pub punycode: bool,
+    pub check_hyphens: bool,
+    pub check_bidi: bool,
+    pub start_combining_mark: bool,
+    pub invalid_mapping: bool,
+    pub nfc: bool,
+    pub disallowed_by_std3_ascii_rules: bool,
+    pub disallowed_mapped_in_std3: bool,
+    pub disallowed_character: bool,
+    pub too_long_for_dns: bool,
+    pub too_short_for_dns: bool,
+    pub disallowed_in_idna_2008: bool,
 }
 
 impl Errors {
