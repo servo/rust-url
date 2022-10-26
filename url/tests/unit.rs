@@ -1162,3 +1162,47 @@ fn test_make_relative() {
         assert_eq!(make_relative, None, "base: {}, uri: {}", base, uri);
     }
 }
+
+#[test]
+fn test_has_authority() {
+    let url = Url::parse("mailto:joe@example.com").unwrap();
+    assert!(!url.has_authority());
+    let url = Url::parse("unix:/run/foo.socket").unwrap();
+    assert!(!url.has_authority());
+    let url = Url::parse("file:///tmp/foo").unwrap();
+    assert!(url.has_authority());
+    let url = Url::parse("http://example.com/tmp/foo").unwrap();
+    assert!(url.has_authority());
+}
+
+#[test]
+fn test_authority() {
+    let url = Url::parse("mailto:joe@example.com").unwrap();
+    assert_eq!(url.authority(), "");
+    let url = Url::parse("unix:/run/foo.socket").unwrap();
+    assert_eq!(url.authority(), "");
+    let url = Url::parse("file:///tmp/foo").unwrap();
+    assert_eq!(url.authority(), "");
+    let url = Url::parse("http://example.com/tmp/foo").unwrap();
+    assert_eq!(url.authority(), "example.com");
+    let url = Url::parse("ftp://127.0.0.1:21/").unwrap();
+    assert_eq!(url.authority(), "127.0.0.1");
+    let url = Url::parse("ftp://user@127.0.0.1:2121/").unwrap();
+    assert_eq!(url.authority(), "user@127.0.0.1:2121");
+    let url = Url::parse("https://:@example.com/").unwrap();
+    assert_eq!(url.authority(), "example.com");
+    let url = Url::parse("https://:password@[::1]:8080/").unwrap();
+    assert_eq!(url.authority(), ":password@[::1]:8080");
+    let url = Url::parse("gopher://user:@àlex.example.com:70").unwrap();
+    assert_eq!(url.authority(), "user@%C3%A0lex.example.com:70");
+    let url = Url::parse("irc://àlex:àlex@àlex.рф.example.com:6667/foo").unwrap();
+    assert_eq!(
+        url.authority(),
+        "%C3%A0lex:%C3%A0lex@%C3%A0lex.%D1%80%D1%84.example.com:6667"
+    );
+    let url = Url::parse("https://àlex:àlex@àlex.рф.example.com:443/foo").unwrap();
+    assert_eq!(
+        url.authority(),
+        "%C3%A0lex:%C3%A0lex@xn--lex-8ka.xn--p1ai.example.com"
+    );
+}
