@@ -65,6 +65,30 @@ fn test_set_empty_host() {
 }
 
 #[test]
+fn test_set_empty_username_and_password() {
+    let mut base: Url = "moz://foo:bar@servo/baz".parse().unwrap();
+    base.set_username("").unwrap();
+    assert_eq!(base.as_str(), "moz://:bar@servo/baz");
+
+    base.set_password(Some("")).unwrap();
+    assert_eq!(base.as_str(), "moz://:@servo/baz");
+
+    base.set_password(None).unwrap();
+    assert_eq!(base.as_str(), "moz://servo/baz");
+}
+
+#[test]
+fn test_set_empty_password() {
+    let mut base: Url = "moz://foo:bar@servo/baz".parse().unwrap();
+
+    base.set_password(Some("")).unwrap();
+    assert_eq!(base.as_str(), "moz://foo:@servo/baz");
+
+    base.set_password(None).unwrap();
+    assert_eq!(base.as_str(), "moz://foo@servo/baz");
+}
+
+#[test]
 fn test_set_empty_hostname() {
     use url::quirks;
     let mut base: Url = "moz://foo@servo/baz".parse().unwrap();
