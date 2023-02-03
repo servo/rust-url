@@ -274,7 +274,7 @@ fn passes_bidi(label: &str, is_bidi_domain: bool) -> bool {
 /// http://www.unicode.org/reports/tr46/#Validity_Criteria
 fn check_validity(label: &str, config: Config, errors: &mut Errors) {
     let first_char = label.chars().next();
-    if first_char == None {
+    if first_char.is_none() {
         // Empty string, pass
         return;
     }
@@ -475,7 +475,7 @@ impl Idna {
 
     /// http://www.unicode.org/reports/tr46/#ToASCII
     #[allow(clippy::wrong_self_convention)]
-    pub fn to_ascii<'a>(&'a mut self, domain: &str, out: &mut String) -> Result<(), Errors> {
+    pub fn to_ascii(&mut self, domain: &str, out: &mut String) -> Result<(), Errors> {
         let mut errors = self.to_ascii_inner(domain, out);
 
         if self.config.verify_dns_length {
@@ -497,7 +497,7 @@ impl Idna {
 
     /// http://www.unicode.org/reports/tr46/#ToUnicode
     #[allow(clippy::wrong_self_convention)]
-    pub fn to_unicode<'a>(&'a mut self, domain: &str, out: &mut String) -> Result<(), Errors> {
+    pub fn to_unicode(&mut self, domain: &str, out: &mut String) -> Result<(), Errors> {
         if is_simple(domain) {
             out.push_str(domain);
             return Errors::default().into();
@@ -685,7 +685,7 @@ impl fmt::Debug for Errors {
                 if !empty {
                     f.write_str(", ")?;
                 }
-                f.write_str(*name)?;
+                f.write_str(name)?;
                 empty = false;
             }
         }

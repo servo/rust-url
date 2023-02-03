@@ -186,7 +186,7 @@ impl Target for String {
 
 impl<'a> Target for &'a mut String {
     fn as_mut_string(&mut self) -> &mut String {
-        &mut **self
+        self
     }
     fn finish(self) -> Self {
         self
@@ -282,7 +282,7 @@ impl<'a, T: Target> Serializer<'a, T> {
         {
             let string = string(&mut self.target);
             for pair in iter {
-                let &(ref k, ref v) = pair.borrow();
+                let (k, v) = pair.borrow();
                 append_pair(
                     string,
                     self.start_position,
