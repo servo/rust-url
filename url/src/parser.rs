@@ -1156,7 +1156,7 @@ impl<'a> Parser<'a> {
             return input;
         }
 
-        if maybe_c != None && maybe_c != Some('/') {
+        if maybe_c.is_some() && maybe_c != Some('/') {
             self.serialization.push('/');
         }
         // Otherwise, if c is not the EOF code point:
@@ -1534,7 +1534,7 @@ fn ascii_tab_or_new_line(ch: char) -> bool {
 /// https://url.spec.whatwg.org/#ascii-alpha
 #[inline]
 pub fn ascii_alpha(ch: char) -> bool {
-    matches!(ch, 'a'..='z' | 'A'..='Z')
+    ch.is_ascii_alphabetic()
 }
 
 #[inline]

@@ -228,7 +228,7 @@ fn get<'a>(url: &'a Url, attr: &str) -> &'a str {
 }
 
 #[allow(clippy::unit_arg)]
-fn set<'a>(url: &'a mut Url, attr: &str, new: &str) {
+fn set(url: &mut Url, attr: &str, new: &str) {
     let _ = match attr {
         "protocol" => quirks::set_protocol(url, new),
         "username" => quirks::set_username(url, new),

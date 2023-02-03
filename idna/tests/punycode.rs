@@ -41,7 +41,7 @@ fn one_test(decoded: &str, encoded: &str) {
 
 fn get_string<'a>(map: &'a Map<String, Value>, key: &str) -> &'a str {
     match map.get(&key.to_string()) {
-        Some(&Value::String(ref s)) => s,
+        Some(Value::String(s)) => s,
         None => "",
         _ => panic!(),
     }

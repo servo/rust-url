@@ -17,8 +17,8 @@ impl Mime {
     {
         self.parameters
             .iter()
-            .find(|&&(ref n, _)| name == &**n)
-            .map(|&(_, ref v)| &**v)
+            .find(|&(n, _)| name == &**n)
+            .map(|(_, v)| &**v)
     }
 }
 
@@ -124,7 +124,7 @@ fn parse_parameters(s: &str, parameters: &mut Vec<(String, String)>) {
 }
 
 fn contains(parameters: &[(String, String)], name: &str) -> bool {
-    parameters.iter().any(|&(ref n, _)| n == name)
+    parameters.iter().any(|(n, _)| n == name)
 }
 
 fn valid_value(s: &str) -> bool {
@@ -140,7 +140,7 @@ impl fmt::Display for Mime {
         f.write_str(&self.type_)?;
         f.write_str("/")?;
         f.write_str(&self.subtype)?;
-        for &(ref name, ref value) in &self.parameters {
+        for (name, value) in &self.parameters {
             f.write_str(";")?;
             f.write_str(name)?;
             f.write_str("=")?;
