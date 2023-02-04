@@ -29,75 +29,47 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: ${{ matrix.rust }}
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --all-targets
+      - run: cargo build --all-targets
         # Run tests
       - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
+        run: cargo test
         # Run tests enabling the serde feature
       - name: Run tests with the serde feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --features "url/serde,url/expose_internals"
+        run: cargo test --features "url/serde,url/expose_internals"
       # The #[debugger_visualizer] attribute is currently gated behind an unstable feature flag.
       # In order to test the visualizers for the url crate, they have to be tested on a nightly build.
       - name: Run debugger_visualizer tests
         if: |
           matrix.os == 'windows-latest' &&
           matrix.rust == 'nightly'
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --test debugger_visualizer --features "url/serde,url/debugger_visualizer" -- --test-threads=1
+        run: cargo test --test debugger_visualizer --features "url/serde,url/debugger_visualizer" -- --test-threads=1
 
   WASM:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: stable
-          target: wasm32-unknown-unknown
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --target wasm32-unknown-unknown
+          targets: wasm32-unknown-unknown
+      - run: cargo build --target wasm32-unknown-unknown
 
   Lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
           components: rustfmt, clippy
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
-      - uses: actions-rs/cargo@v1
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
         if: always()
-        with:
-          command: clippy
-          args: --workspace --all-targets -- -D warnings
 
   Audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v3
       - uses: EmbarkStudios/cargo-deny-action@v1
