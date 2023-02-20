@@ -35,6 +35,17 @@ fn test_relative_empty() {
 }
 
 #[test]
+fn test_strip_trailing_spaces_from_opaque_path() {
+    let mut url: Url = "data:space   ?query".parse().unwrap();
+    url.set_query(None);
+    assert_eq!(url.as_str(), "data:space");
+
+    let mut url: Url = "data:space   #hash".parse().unwrap();
+    url.set_fragment(None);
+    assert_eq!(url.as_str(), "data:space");
+}
+
+#[test]
 fn test_set_empty_host() {
     let mut base: Url = "moz://foo:bar@servo/baz".parse().unwrap();
     base.set_username("").unwrap();
