@@ -148,6 +148,17 @@ fn new_path_windows_fun() {
 }
 
 #[test]
+fn set_scheme_with_leading_or_trailing_c0_controls_should_result_in_noop() {
+    let mut url: Url = "http://test".parse().unwrap();
+
+    let controls = ["\u{0000}", "\u{000C}", "\u{000E}", "\u{0020}"];
+    for control in controls.iter() {
+        assert!(url.set_scheme(&format!("{}https", control)).is_ok());
+        assert!(url.set_scheme(&format!("https{}", control)).is_ok());
+    }
+}
+
+#[test]
 fn new_directory_paths() {
     if cfg!(unix) {
         assert_eq!(Url::from_directory_path(Path::new("relative")), Err(()));
