@@ -63,7 +63,7 @@ impl<'a> Host<&'a str> {
     }
 }
 
-impl<T> From<IpAddr> for Host<T> {
+impl<S> From<IpAddr> for Host<S> {
     fn from(address: IpAddr) -> Self {
         Host::Ip(address)
     }
