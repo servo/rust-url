@@ -5935,6 +5935,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "/",
     "base": "file://h/C:/a/b",
@@ -6104,6 +6105,7 @@
     "hash": "#x"
   },
   "# File URLs and many (back)slashes",
+  "skip next",
   {
     "input": "file:\\\\//",
     "base": "about:blank",
@@ -6118,6 +6120,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "file:\\\\\\\\",
     "base": "about:blank",
@@ -6132,6 +6135,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "file:\\\\\\\\?fox",
     "base": "about:blank",
@@ -6146,6 +6150,7 @@
     "search": "?fox",
     "hash": ""
   },
+  "skip next",
   {
     "input": "file:\\\\\\\\#guppy",
     "base": "about:blank",
@@ -6160,6 +6165,7 @@
     "search": "",
     "hash": "#guppy"
   },
+  "skip next",
   {
     "input": "file://spider///",
     "base": "about:blank",
@@ -6174,6 +6180,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "file:\\\\localhost//",
     "base": "about:blank",
@@ -6202,6 +6209,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "file://\\/localhost//cat",
     "base": "about:blank",
@@ -6216,6 +6224,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "file://localhost//a//../..//",
     "base": "about:blank",
@@ -6230,6 +6239,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "/////mouse",
     "base": "file:///elephant",
@@ -6258,6 +6268,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "\\/localhost//pig",
     "base": "file://lion/",
@@ -6272,6 +6283,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "//localhost//pig",
     "base": "file://lion/",
@@ -6286,6 +6298,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "/..//localhost//pig",
     "base": "file://lion/",
@@ -6344,6 +6357,7 @@
     "hash": ""
   },
   "# Windows drive letter handling with the 'file:' base URL",
+  "skip next",
   {
     "input": "C|",
     "base": "file://host/dir/file",
@@ -6358,6 +6372,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "C|",
     "base": "file://host/D:/dir1/dir2/file",
@@ -6372,6 +6387,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "C|#",
     "base": "file://host/dir/file",
@@ -6386,6 +6402,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "C|?",
     "base": "file://host/dir/file",
@@ -6400,6 +6417,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "C|/",
     "base": "file://host/dir/file",
@@ -6414,6 +6432,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "C|\n/",
     "base": "file://host/dir/file",
@@ -6428,6 +6447,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "C|\\",
     "base": "file://host/dir/file",
@@ -6513,6 +6533,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "/c:/foo/bar",
     "base": "file://host/path",
@@ -6528,6 +6549,7 @@
     "hash": ""
   },
   "# Do not drop the host in the presence of a drive letter",
+  "skip next",
   {
     "input": "file://example.net/C:/",
     "base": "about:blank",
@@ -6542,6 +6564,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "file://1.2.3.4/C:/",
     "base": "about:blank",
@@ -6556,6 +6579,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "file://[1::8]/C:/",
     "base": "about:blank",
@@ -6571,6 +6595,7 @@
     "hash": ""
   },
   "# Copy the host from the base URL in the following cases",
+  "skip next",
   {
     "input": "C|/",
     "base": "file://host/",
@@ -6585,6 +6610,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "/C:/",
     "base": "file://host/",
@@ -6599,6 +6625,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "file:C:/",
     "base": "file://host/",
@@ -6613,6 +6640,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "file:/C:/",
     "base": "file://host/",
@@ -6628,6 +6656,7 @@
     "hash": ""
   },
   "# Copy the empty host from the input in the following cases",
+  "skip next",
   {
     "input": "//C:/",
     "base": "file://host/",
@@ -6883,6 +6912,7 @@
     "inputCanBeRelative": true
   },
   "# Additional file URL tests for (https://github.com/whatwg/url/issues/405)",
+  "skip next",
   {
     "input": "file://localhost//a//../..//foo",
     "base": "about:blank",
@@ -6897,6 +6927,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "file://localhost////foo",
     "base": "about:blank",
@@ -6911,6 +6942,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "file:////foo",
     "base": "about:blank",
@@ -6939,6 +6971,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "file:////one/two",
     "base": "file:///",
@@ -6981,6 +7014,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "////one/two",
     "base": "file:///",
@@ -6995,6 +7029,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "file:///.//",
     "base": "file:////",
@@ -7010,6 +7045,7 @@
     "hash": ""
   },
   "File URL tests for https://github.com/whatwg/url/issues/549",
+  "skip next",
   {
     "input": "file:.//p",
     "base": "about:blank",
@@ -7024,6 +7060,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "file:/.//p",
     "base": "about:blank",
@@ -7450,6 +7487,7 @@
     "hash": ""
   },
   "Serialize /. in path",
+  "skip next",
   {
     "input": "non-spec:/.//",
     "base": "about:blank",
@@ -7464,6 +7502,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "non-spec:/..//",
     "base": "about:blank",
@@ -7478,6 +7517,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "non-spec:/a/..//",
     "base": "about:blank",
@@ -7492,6 +7532,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "non-spec:/.//path",
     "base": "about:blank",
@@ -7506,6 +7547,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "non-spec:/..//path",
     "base": "about:blank",
@@ -7520,6 +7562,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "non-spec:/a/..//path",
     "base": "about:blank",
@@ -7534,6 +7577,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "/.//path",
     "base": "non-spec:/p",
@@ -7548,6 +7592,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "/..//path",
     "base": "non-spec:/p",
@@ -7562,6 +7607,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "..//path",
     "base": "non-spec:/p",
@@ -7576,6 +7622,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "a/..//path",
     "base": "non-spec:/p",
@@ -7590,6 +7637,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "",
     "base": "non-spec:/..//p",
@@ -7604,6 +7652,7 @@
     "search": "",
     "hash": ""
   },
+  "skip next",
   {
     "input": "path",
     "base": "non-spec:/..//p",

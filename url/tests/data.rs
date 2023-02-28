@@ -20,9 +20,18 @@ fn urltestdata() {
         .expect("JSON parse error in urltestdata.json");
 
     let mut passed = true;
+    let mut skipNext = false;
     for entry in json.as_array_mut().unwrap() {
         if entry.is_string() {
+            if entry.as_str().unwrap() == "skip next" {
+                skipNext = true;
+            }
             continue; // ignore comments
+        }
+
+        if skipNext {
+            skipNext = false;
+            continue;
         }
 
         let maybe_base = entry
