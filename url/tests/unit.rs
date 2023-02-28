@@ -271,9 +271,12 @@ fn host() {
     );
     assert_host(
         "http://[2001:0db8:85a3:08d3:1319:8a2e:0370:7344]",
-        Host::Ip(Ipv6Addr::new(
-            0x2001, 0x0db8, 0x85a3, 0x08d3, 0x1319, 0x8a2e, 0x0370, 0x7344,
-        ).into()),
+        Host::Ip(
+            Ipv6Addr::new(
+                0x2001, 0x0db8, 0x85a3, 0x08d3, 0x1319, 0x8a2e, 0x0370, 0x7344,
+            )
+            .into(),
+        ),
     );
     assert_host(
         "http://[::]",
@@ -287,7 +290,10 @@ fn host() {
         "http://0x1.0X23.0x21.061",
         Host::Ip(Ipv4Addr::new(1, 35, 33, 49).into()),
     );
-    assert_host("http://0x1232131", Host::Ip(Ipv4Addr::new(1, 35, 33, 49).into()));
+    assert_host(
+        "http://0x1232131",
+        Host::Ip(Ipv4Addr::new(1, 35, 33, 49).into()),
+    );
     assert_host("http://111", Host::Ip(Ipv4Addr::new(0, 0, 0, 111).into()));
     assert!(Url::parse("http://1.35.+33.49").is_err());
     assert!(Url::parse("http://2..2.3").is_err());
@@ -780,7 +786,10 @@ fn test_windows_unc_path() {
     assert_eq!(url.as_str(), "file://xn--hst-sna/share/path/file.txt");
 
     let url = Url::from_file_path(Path::new(r"\\192.168.0.1\share\path\file.txt")).unwrap();
-    assert_eq!(url.host(), Some(Host::Ip(Ipv4Addr::new(192, 168, 0, 1).into())));
+    assert_eq!(
+        url.host(),
+        Some(Host::Ip(Ipv4Addr::new(192, 168, 0, 1).into()))
+    );
 
     let path = url.to_file_path().unwrap();
     assert_eq!(path.to_str(), Some(r"\\192.168.0.1\share\path\file.txt"));
