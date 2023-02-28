@@ -80,7 +80,7 @@ impl Host<String> {
             }
             return parse_ipv6addr(&input[1..input.len() - 1])
                 .map(IpAddr::V6)
-                .map(|x| x.into());
+                .map(From::from);
         }
         let domain = percent_decode(input.as_bytes()).decode_utf8_lossy();
 
