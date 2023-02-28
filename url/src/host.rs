@@ -8,7 +8,7 @@
 
 use std::cmp;
 use std::fmt::{self, Formatter};
-use std::net::{Ipv4Addr, Ipv6Addr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use percent_encoding::{percent_decode, utf8_percent_encode, CONTROLS};
 #[cfg(feature = "serde")]
@@ -30,8 +30,8 @@ impl From<Host<String>> for HostInternal {
         match host {
             Host::Domain(ref s) if s.is_empty() => HostInternal::None,
             Host::Domain(_) => HostInternal::Domain,
-            Host::Ipv4(address) => HostInternal::Ipv4(address),
-            Host::Ipv6(address) => HostInternal::Ipv6(address),
+            Host::Ip(IpAddr::V4(address)) => HostInternal::Ipv4(address),
+            Host::Ip(IpAddr::V6(address)) => HostInternal::Ipv6(address),
         }
     }
 }
@@ -45,18 +45,12 @@ pub enum Host<S = String> {
     /// a special URL, or percent encoded for non-special URLs. Hosts for
     /// non-special URLs are also called opaque hosts.
     Domain(S),
-
-    /// An IPv4 address.
-    /// `Url::host_str` returns the serialization of this address,
-    /// as four decimal integers separated by `.` dots.
-    Ipv4(Ipv4Addr),
-
-    /// An IPv6 address.
-    /// `Url::host_str` returns the serialization of that address between `[` and `]` brackets,
-    /// in the format per [RFC 5952 *A Recommendation
-    /// for IPv6 Address Text Representation*](https://tools.ietf.org/html/rfc5952):
+    /// Either an IPv4 or IPv6 address. `Url::host_str` returns the serializatin of this address,
+    /// either as four decimal integers separated by `.` dots for an IPv4 address, or an address
+    /// between [ and ] brackets, in the format per [RFC 5952 *A Recommendation for IPv6 Address
+    /// Text Representation*](https://tools.ietf.org/html/rfc5952):
     /// lowercase hexadecimal with maximal `::` compression.
-    Ipv6(Ipv6Addr),
+    Ip(IpAddr),
 }
 
 impl<'a> Host<&'a str> {
@@ -64,9 +58,14 @@ impl<'a> Host<&'a str> {
     pub fn to_owned(&self) -> Host<String> {
         match *self {
             Host::Domain(domain) => Host::Domain(domain.to_owned()),
-            Host::Ipv4(address) => Host::Ipv4(address),
-            Host::Ipv6(address) => Host::Ipv6(address),
+            Host::Ip(address) => Host::Ip(address),
         }
+    }
+}
+
+impl<T> From<IpAddr> for Host<T> {
+    fn from(address: IpAddr) -> Self {
+        Host::Ip(address)
     }
 }
 
@@ -79,7 +78,9 @@ impl Host<String> {
             if !input.ends_with(']') {
                 return Err(ParseError::InvalidIpv6Address);
             }
-            return parse_ipv6addr(&input[1..input.len() - 1]).map(Host::Ipv6);
+            return parse_ipv6addr(&input[1..input.len() - 1])
+                .map(IpAddr::V6)
+                .map(|x| x.into());
         }
         let domain = percent_decode(input.as_bytes()).decode_utf8_lossy();
 
@@ -115,7 +116,7 @@ impl Host<String> {
             Err(ParseError::InvalidDomainCharacter)
         } else if ends_in_a_number(&domain) {
             let address = parse_ipv4addr(&domain)?;
-            Ok(Host::Ipv4(address))
+            Ok(Host::Ip(IpAddr::V4(address)))
         } else {
             Ok(Host::Domain(domain))
         }
@@ -127,7 +128,9 @@ impl Host<String> {
             if !input.ends_with(']') {
                 return Err(ParseError::InvalidIpv6Address);
             }
-            return parse_ipv6addr(&input[1..input.len() - 1]).map(Host::Ipv6);
+            return parse_ipv6addr(&input[1..input.len() - 1])
+                .map(IpAddr::V6)
+                .map(|x| x.into());
         }
 
         let is_invalid_host_char = |c| {
@@ -171,8 +174,8 @@ impl<S: AsRef<str>> fmt::Display for Host<S> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match *self {
             Host::Domain(ref domain) => domain.as_ref().fmt(f),
-            Host::Ipv4(ref addr) => addr.fmt(f),
-            Host::Ipv6(ref addr) => {
+            Host::Ip(IpAddr::V4(ref addr)) => addr.fmt(f),
+            Host::Ip(IpAddr::V6(ref addr)) => {
                 f.write_str("[")?;
                 write_ipv6(addr, f)?;
                 f.write_str("]")
@@ -188,8 +191,7 @@ where
     fn eq(&self, other: &Host<T>) -> bool {
         match (self, other) {
             (Host::Domain(a), Host::Domain(b)) => a == b,
-            (Host::Ipv4(a), Host::Ipv4(b)) => a == b,
-            (Host::Ipv6(a), Host::Ipv6(b)) => a == b,
+            (Host::Ip(a), Host::Ip(b)) => a == b,
             (_, _) => false,
         }
     }

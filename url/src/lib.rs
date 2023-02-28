@@ -653,7 +653,7 @@ impl Url {
                 HostInternal::None => assert_eq!(host_str, ""),
                 HostInternal::Ipv4(address) => assert_eq!(host_str, address.to_string()),
                 HostInternal::Ipv6(address) => {
-                    let h: Host<String> = Host::Ipv6(address);
+                    let h: Host<String> = Host::Ip(address.into());
                     assert_eq!(host_str, h.to_string())
                 }
                 HostInternal::Domain => {
@@ -1086,8 +1086,8 @@ impl Url {
         match self.host {
             HostInternal::None => None,
             HostInternal::Domain => Some(Host::Domain(self.slice(self.host_start..self.host_end))),
-            HostInternal::Ipv4(address) => Some(Host::Ipv4(address)),
-            HostInternal::Ipv6(address) => Some(Host::Ipv6(address)),
+            HostInternal::Ipv4(address) => Some(Host::Ip(address.into())),
+            HostInternal::Ipv6(address) => Some(Host::Ip(address.into())),
         }
     }
 
@@ -1232,8 +1232,7 @@ impl Url {
         )?;
         Ok(match host {
             Host::Domain(domain) => (domain, port).to_socket_addrs()?.collect(),
-            Host::Ipv4(ip) => vec![(ip, port).into()],
-            Host::Ipv6(ip) => vec![(ip, port).into()],
+            Host::Ip(ip) => vec![(ip, port).into()],
         })
     }
 
@@ -2022,11 +2021,7 @@ impl Url {
             return Err(());
         }
 
-        let address = match address {
-            IpAddr::V4(address) => Host::Ipv4(address),
-            IpAddr::V6(address) => Host::Ipv6(address),
-        };
-        self.set_host_internal(address, None);
+        self.set_host_internal(address.into(), None);
         Ok(())
     }
 
