@@ -1281,6 +1281,16 @@ impl<'a> Parser<'a> {
             self.serialization.push_str(path.trim_start_matches('/'));
         }
 
+        // This prevents web+demo:/.//not-a-host/ or web+demo:/path/..//not-a-host/,
+        // when parsed and then serialized, from ending up as web+demo://not-a-host/
+        // (they end up as web+demo:/.//not-a-host/).
+        if !*has_host && self.serialization[path_start..].starts_with("//") {
+            // If url’s host is null, url does not have an opaque path,
+            // url’s path’s size is greater than 1, and url’s path[0] is the empty string,
+            // then append U+002F (/) followed by U+002E (.) to output.
+            self.serialization.insert_str(path_start, "/.");
+        }
+
         input
     }
 
