@@ -15,27 +15,23 @@ use url::{quirks, Url};
 
 #[test]
 fn urltestdata() {
-    let idna_skip_inputs = [
-        "http://www.foo。bar.com",
-        "http://Ｇｏ.com",
-        "http://你好你好",
-        "https://faß.ExAmPlE/",
-        "http://０Ｘｃ０．０２５０．０１",
-        "ftp://%e2%98%83",
-        "https://%e2%98%83",
-        "file://a\u{ad}b/p",
-        "file://a%C2%ADb/p",
-        "http://GOO\u{200b}\u{2060}\u{feff}goo.com",
-    ];
-
     // Copied from https://github.com/web-platform-tests/wpt/blob/master/url/
     let mut json = Value::from_str(include_str!("urltestdata.json"))
         .expect("JSON parse error in urltestdata.json");
 
     let mut passed = true;
+    let mut skip_next = false;
     for entry in json.as_array_mut().unwrap() {
         if entry.is_string() {
+            if entry.as_str().unwrap() == "skip next" {
+                skip_next = true;
+            }
             continue; // ignore comments
+        }
+
+        if skip_next {
+            skip_next = false;
+            continue;
         }
 
         let maybe_base = entry
@@ -44,12 +40,6 @@ fn urltestdata() {
             .maybe_string();
         let input = entry.take_string("input");
         let failure = entry.take_key("failure").is_some();
-
-        {
-            if idna_skip_inputs.contains(&input.as_str()) {
-                continue;
-            }
-        }
 
         let res = if let Some(base) = maybe_base {
             let base = match Url::parse(&base) {
