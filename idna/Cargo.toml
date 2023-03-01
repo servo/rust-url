@@ -3,6 +3,7 @@ name = "idna"
 version = "0.3.0"
 authors = ["The rust-url developers"]
 description = "IDNA (Internationalizing Domain Names in Applications) and Punycode."
+categories = ["no_std"]
 repository = "https://github.com/servo/rust-url/"
 license = "MIT OR Apache-2.0"
 autotests = false
@@ -11,6 +12,11 @@ rust-version = "1.51"
 
 [lib]
 doctest = false
+
+[features]
+default = ["std"]
+std = ["alloc", "unicode-bidi/std", "unicode-normalization/std"]
+alloc = []
 
 [[test]]
 name = "tests"
@@ -26,8 +32,8 @@ tester = "0.9"
 serde_json = "1.0"
 
 [dependencies]
-unicode-bidi = "0.3"
-unicode-normalization = "0.1.17"
+unicode-bidi = { version = "0.3.10", default-features = false, features = ["hardcoded-data"] }
+unicode-normalization = { version = "0.1.22", default-features = false }
 
 [[bench]]
 name = "all"
