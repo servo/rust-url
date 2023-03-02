@@ -7487,7 +7487,6 @@
     "hash": ""
   },
   "Serialize /. in path",
-  "skip next",
   {
     "input": "non-spec:/.//",
     "base": "about:blank",
@@ -7502,7 +7501,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "non-spec:/..//",
     "base": "about:blank",
@@ -7517,7 +7515,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "non-spec:/a/..//",
     "base": "about:blank",
@@ -7532,7 +7529,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "non-spec:/.//path",
     "base": "about:blank",
@@ -7547,7 +7543,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "non-spec:/..//path",
     "base": "about:blank",
@@ -7562,7 +7557,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "non-spec:/a/..//path",
     "base": "about:blank",
@@ -7637,7 +7631,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "",
     "base": "non-spec:/..//p",
@@ -7652,7 +7645,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "path",
     "base": "non-spec:/..//p",

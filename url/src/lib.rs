@@ -683,7 +683,14 @@ impl Url {
             assert_eq!(self.host_end, self.scheme_end + 1);
             assert_eq!(self.host, HostInternal::None);
             assert_eq!(self.port, None);
-            assert_eq!(self.path_start, self.scheme_end + 1);
+            if self.path().starts_with("//") {
+                // special case when first path segment is empty
+                assert_eq!(self.byte_at(self.scheme_end + 1), b'/');
+                assert_eq!(self.byte_at(self.scheme_end + 2), b'.');
+                assert_eq!(self.path_start, self.scheme_end + 3);
+            } else {
+                assert_eq!(self.path_start, self.scheme_end + 1);
+            }
         }
         if let Some(start) = self.query_start {
             assert!(start >= self.path_start);
