@@ -7668,6 +7668,7 @@
     "hash": ""
   },
   "Do not serialize /. in path",
+  "skip next",
   {
     "input": "../path",
     "base": "non-spec:/.//p",
