@@ -819,6 +819,37 @@ impl<'a> Parser<'a> {
                         self.parse_path(scheme_type, &mut true, base_url.path_start as usize, input)
                     }
                 };
+                // Special case for anarchist URL's with a leading empty segment
+                let scheme_end = base_url.scheme_end as usize;
+                let mut path_start = base_url.path_start as usize;
+                if !base_url.has_authority() {
+                    if path_start == scheme_end + 1 {
+                        // The path starts right after the scheme_end
+                        if self.serialization[path_start..].starts_with("//") {
+                            // Case 1: The base URL did not have an empty segment, but the resulting one does
+                            // Insert the "/." prefix
+                            self.serialization.insert_str(path_start, "/.");
+                            path_start += 2;
+                        }
+                    } else {
+                        assert_eq!(path_start, scheme_end + 3);
+                        assert_eq!(&self.serialization[scheme_end..path_start], ":/.");
+                        // The base URL has a "/." between the host and the path
+                        assert_eq!(
+                            self.serialization.as_bytes().get(path_start).copied(),
+                            Some(b'/')
+                        );
+                        if self.serialization.as_bytes().get(path_start + 1).copied() != Some(b'/')
+                        {
+                            // Case 2: The base URL had an empty segment, but the resulting one does not
+                            // Remove the "/." prefix
+                            self.serialization
+                                .replace_range(scheme_end..path_start, ":");
+                            path_start -= 2;
+                        }
+                    }
+                    assert!(!self.serialization[scheme_end..].starts_with("://"));
+                }
                 self.with_query_and_fragment(
                     scheme_type,
                     base_url.scheme_end,
@@ -827,7 +858,7 @@ impl<'a> Parser<'a> {
                     base_url.host_end,
                     base_url.host,
                     base_url.port,
-                    base_url.path_start,
+                    to_u32(path_start)?,
                     remaining,
                 )
             }

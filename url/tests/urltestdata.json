@@ -7601,7 +7601,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "..//path",
     "base": "non-spec:/p",
@@ -7616,7 +7615,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "a/..//path",
     "base": "non-spec:/p",
@@ -7660,7 +7658,6 @@
     "hash": ""
   },
   "Do not serialize /. in path",
-  "skip next",
   {
     "input": "../path",
     "base": "non-spec:/.//p",
