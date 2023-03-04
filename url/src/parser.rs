@@ -1353,7 +1353,7 @@ impl<'a> Parser<'a> {
         host_end: u32,
         host: HostInternal,
         port: Option<u16>,
-        path_start: u32,
+        mut path_start: u32,
         remaining: Input<'_>,
     ) -> ParseResult<Url> {
         // Special case for anarchist URL's with a leading empty path segment
@@ -1364,37 +1364,44 @@ impl<'a> Parser<'a> {
         // If url’s host is null, url does not have an opaque path,
         // url’s path’s size is greater than 1, and url’s path[0] is the empty string,
         // then append U+002F (/) followed by U+002E (.) to output.
-        let scheme_end = scheme_end as usize;
-        let mut path_start = path_start as usize;
-        if path_start == scheme_end + 1 {
+        let scheme_end_as_usize = scheme_end as usize;
+        let path_start_as_usize = path_start as usize;
+        if path_start_as_usize == scheme_end_as_usize + 1 {
             // Anarchist URL
-            if self.serialization[path_start..].starts_with("//") {
+            if self.serialization[path_start_as_usize..].starts_with("//") {
                 // Case 1: The base URL did not have an empty path segment, but the resulting one does
                 // Insert the "/." prefix
-                self.serialization.insert_str(path_start, "/.");
+                self.serialization.insert_str(path_start_as_usize, "/.");
                 path_start += 2;
             }
-            assert!(!self.serialization[scheme_end..].starts_with("://"));
-        } else if path_start == scheme_end + 3
-            && &self.serialization[scheme_end..path_start] == ":/."
+            assert!(!self.serialization[scheme_end_as_usize..].starts_with("://"));
+        } else if path_start_as_usize == scheme_end_as_usize + 3
+            && &self.serialization[scheme_end_as_usize..path_start_as_usize] == ":/."
         {
             // Anarchist URL with leading empty path segment
             // The base URL has a "/." between the host and the path
             assert_eq!(
-                self.serialization.as_bytes().get(path_start).copied(),
+                self.serialization
+                    .as_bytes()
+                    .get(path_start_as_usize)
+                    .copied(),
                 Some(b'/')
             );
-            if self.serialization.as_bytes().get(path_start + 1).copied() != Some(b'/') {
+            if self
+                .serialization
+                .as_bytes()
+                .get(path_start_as_usize + 1)
+                .copied()
+                != Some(b'/')
+            {
                 // Case 2: The base URL had an empty path segment, but the resulting one does not
                 // Remove the "/." prefix
                 self.serialization
-                    .replace_range(scheme_end..path_start, ":");
+                    .replace_range(scheme_end_as_usize..path_start_as_usize, ":");
                 path_start -= 2;
             }
-            assert!(!self.serialization[scheme_end..].starts_with("://"));
+            assert!(!self.serialization[scheme_end_as_usize..].starts_with("://"));
         }
-        let scheme_end = to_u32(scheme_end)?;
-        let path_start = to_u32(path_start)?;
 
         let (query_start, fragment_start) =
             self.parse_query_and_fragment(scheme_type, scheme_end, remaining)?;
