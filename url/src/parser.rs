@@ -467,7 +467,7 @@ impl<'a> Parser<'a> {
             return self.after_double_slash(input, scheme_type, scheme_end);
         }
         // Anarchist URL (no authority)
-        let mut path_start = to_u32(self.serialization.len())?;
+        let path_start = to_u32(self.serialization.len())?;
         let username_end = path_start;
         let host_start = path_start;
         let host_end = path_start;
@@ -479,16 +479,6 @@ impl<'a> Parser<'a> {
         } else {
             self.parse_cannot_be_a_base_path(input)
         };
-        // This prevents web+demo:/.//not-a-host/ or web+demo:/path/..//not-a-host/,
-        // when parsed and then serialized, from ending up as web+demo://not-a-host/
-        // (they end up as web+demo:/.//not-a-host/).
-        if self.serialization[path_start as usize..].starts_with("//") {
-            // If url’s host is null, url does not have an opaque path,
-            // url’s path’s size is greater than 1, and url’s path[0] is the empty string,
-            // then append U+002F (/) followed by U+002E (.) to output.
-            self.serialization.insert_str(path_start as usize, "/.");
-            path_start += 2;
-        }
         self.with_query_and_fragment(
             scheme_type,
             scheme_end,
@@ -1367,6 +1357,13 @@ impl<'a> Parser<'a> {
         remaining: Input<'_>,
     ) -> ParseResult<Url> {
         // Special case for anarchist URL's with a leading empty path segment
+        // This prevents web+demo:/.//not-a-host/ or web+demo:/path/..//not-a-host/,
+        // when parsed and then serialized, from ending up as web+demo://not-a-host/
+        // (they end up as web+demo:/.//not-a-host/).
+        //
+        // If url’s host is null, url does not have an opaque path,
+        // url’s path’s size is greater than 1, and url’s path[0] is the empty string,
+        // then append U+002F (/) followed by U+002E (.) to output.
         let scheme_end = scheme_end as usize;
         let mut path_start = path_start as usize;
         if path_start == scheme_end + 1 {
