@@ -7586,7 +7586,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "/..//path",
     "base": "non-spec:/p",
