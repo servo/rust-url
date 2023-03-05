@@ -1380,13 +1380,7 @@ impl<'a> Parser<'a> {
         {
             // Anarchist URL with leading empty path segment
             // The base URL has a "/." between the host and the path
-            assert_eq!(
-                self.serialization
-                    .as_bytes()
-                    .get(path_start_as_usize)
-                    .copied(),
-                Some(b'/')
-            );
+            assert_eq!(self.serialization.as_bytes()[path_start_as_usize], b'/');
             if self
                 .serialization
                 .as_bytes()
