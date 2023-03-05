@@ -149,7 +149,14 @@ impl Url {
                 }
             }
 
-            Position::AfterPort => self.path_start as usize,
+            Position::AfterPort => {
+                if let Some(port) = self.port {
+                    debug_assert!(self.byte_at(self.host_end) == b':');
+                    self.host_end as usize + ":".len() + port.to_string().len()
+                } else {
+                    self.host_end as usize
+                }
+            }
 
             Position::BeforePath => self.path_start as usize,
 

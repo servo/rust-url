@@ -955,6 +955,16 @@ fn no_panic() {
 }
 
 #[test]
+fn test_null_host_with_leading_empty_path_segment() {
+    // since Note in item 3 of URL serializing in the URL Standard
+    // https://url.spec.whatwg.org/#url-serializing
+    let url = Url::parse("m:/.//\\").unwrap();
+    let encoded = url.as_str();
+    let reparsed = Url::parse(encoded).unwrap();
+    assert_eq!(reparsed, url);
+}
+
+#[test]
 fn pop_if_empty_in_bounds() {
     let mut url = Url::parse("m://").unwrap();
     let mut segments = url.path_segments_mut().unwrap();
