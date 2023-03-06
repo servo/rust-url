@@ -152,7 +152,8 @@ impl Url {
             Position::AfterPort => {
                 if let Some(port) = self.port {
                     debug_assert!(self.byte_at(self.host_end) == b':');
-                    self.host_end as usize + ":".len() + port.to_string().len()
+                    let port_length = port.checked_ilog10().unwrap_or(0) as usize + 1;
+                    self.host_end as usize + ":".len() + port_length
                 } else {
                     self.host_end as usize
                 }
