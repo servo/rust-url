@@ -37,6 +37,42 @@ impl Index<Range<Position>> for Url {
     }
 }
 
+// Counts how many base-10 digits are required to represent n in the given base
+fn count_digits(n: u16) -> usize {
+    // just use ilog10 in 1.67+
+    #[cfg(int_log)]
+    return n.checked_ilog10().unwrap_or(0) as usize + 1;
+    // fall-back before 1.67
+    // we avoid a branch to handle the special case of n == 0 by starting at m = 10 instead of m = 1
+    let mut m = 10;
+    let mut log10m = 1;
+    while m <= n {
+        log10m += 1;
+        if let Some(m_times_10) = m.checked_mul(10) {
+            m = m_times_10;
+        } else {
+            // m * 10 would overflow, so it must be bigger than n
+            // we break our invariant log10(m) == log10m
+            // it's okay because we won't use m anymore
+            break;
+        }
+    }
+    // we now have 10**(log10m - 1) <= n < 10**log10m
+    log10m
+}
+
+#[test]
+fn test_count_digits() {
+    assert_eq!(count_digits(0), 1);
+    assert_eq!(count_digits(1), 1);
+    assert_eq!(count_digits(9), 1);
+    assert_eq!(count_digits(10), 2);
+    assert_eq!(count_digits(99), 2);
+    assert_eq!(count_digits(100), 3);
+    assert_eq!(count_digits(9999), 4);
+    assert_eq!(count_digits(65535), 5);
+}
+
 /// Indicates a position within a URL based on its components.
 ///
 /// A range of positions can be used for slicing `Url`:
@@ -152,8 +188,7 @@ impl Url {
             Position::AfterPort => {
                 if let Some(port) = self.port {
                     debug_assert!(self.byte_at(self.host_end) == b':');
-                    let port_length = port.checked_ilog10().unwrap_or(0) as usize + 1;
-                    self.host_end as usize + ":".len() + port_length
+                    self.host_end as usize + ":".len() + count_digits(port)
                 } else {
                     self.host_end as usize
                 }
