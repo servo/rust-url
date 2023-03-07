@@ -39,26 +39,13 @@ impl Index<Range<Position>> for Url {
 
 // Counts how many base-10 digits are required to represent n in the given base
 fn count_digits(n: u16) -> usize {
-    // just use ilog10 in 1.67+
-    #[cfg(int_log)]
-    return n.checked_ilog10().unwrap_or(0) as usize + 1;
-    // fall-back before 1.67
-    // we avoid a branch to handle the special case of n == 0 by starting at m = 10 instead of m = 1
-    let mut m = 10;
-    let mut log10m = 1;
-    while m <= n {
-        log10m += 1;
-        if let Some(m_times_10) = m.checked_mul(10) {
-            m = m_times_10;
-        } else {
-            // m * 10 would overflow, so it must be bigger than n
-            // we break our invariant log10(m) == log10m
-            // it's okay because we won't use m anymore
-            break;
-        }
+    match n {
+        0..=9 => 1,
+        10..=99 => 2,
+        100..=999 => 3,
+        1000..=9999 => 4,
+        10000..=65535 => 5,
     }
-    // we now have 10**(log10m - 1) <= n < 10**log10m
-    log10m
 }
 
 #[test]
