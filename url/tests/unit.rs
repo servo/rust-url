@@ -71,7 +71,7 @@ fn test_set_empty_username_and_password() {
     assert_eq!(base.as_str(), "moz://:bar@servo/baz");
 
     base.set_password(Some("")).unwrap();
-    assert_eq!(base.as_str(), "moz://:@servo/baz");
+    assert_eq!(base.as_str(), "moz://servo/baz");
 
     base.set_password(None).unwrap();
     assert_eq!(base.as_str(), "moz://servo/baz");
@@ -82,7 +82,7 @@ fn test_set_empty_password() {
     let mut base: Url = "moz://foo:bar@servo/baz".parse().unwrap();
 
     base.set_password(Some("")).unwrap();
-    assert_eq!(base.as_str(), "moz://foo:@servo/baz");
+    assert_eq!(base.as_str(), "moz://foo@servo/baz");
 
     base.set_password(None).unwrap();
     assert_eq!(base.as_str(), "moz://foo@servo/baz");
