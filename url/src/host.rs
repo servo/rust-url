@@ -269,7 +269,7 @@ fn ends_in_a_number(input: &str) -> bool {
     } else {
         last
     };
-    if !last.is_empty() && last.chars().all(|c| ('0'..='9').contains(&c)) {
+    if !last.is_empty() && last.chars().all(|c| c.is_ascii_digit()) {
         return true;
     }
 
@@ -298,10 +298,8 @@ fn parse_ipv4number(mut input: &str) -> Result<Option<u32>, ()> {
 
     let valid_number = match r {
         8 => input.chars().all(|c| ('0'..='7').contains(&c)),
-        10 => input.chars().all(|c| ('0'..='9').contains(&c)),
-        16 => input.chars().all(|c| {
-            ('0'..='9').contains(&c) || ('a'..='f').contains(&c) || ('A'..='F').contains(&c)
-        }),
+        10 => input.chars().all(|c| c.is_ascii_digit()),
+        16 => input.chars().all(|c| c.is_ascii_hexdigit()),
         _ => false,
     };
     if !valid_number {
