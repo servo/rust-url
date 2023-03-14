@@ -106,6 +106,17 @@ fn test_set_empty_hostname() {
     assert_eq!(base.as_str(), "moz:///baz");
 }
 
+#[test]
+fn test_set_empty_query() {
+    let mut base: Url = "moz://example.com/path?query".parse().unwrap();
+
+    base.set_query(Some(""));
+    assert_eq!(base.as_str(), "moz://example.com/path?");
+
+    base.set_query(None);
+    assert_eq!(base.as_str(), "moz://example.com/path");
+}
+
 macro_rules! assert_from_file_path {
     ($path: expr) => {
         assert_from_file_path!($path, $path)
