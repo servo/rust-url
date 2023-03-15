@@ -157,9 +157,11 @@ impl SchemeType {
     pub fn is_file(&self) -> bool {
         matches!(*self, SchemeType::File)
     }
+}
 
-    pub fn from(s: &str) -> Self {
-        match s {
+impl<T: AsRef<str>> From<T> for SchemeType {
+    fn from(s: T) -> Self {
+        match s.as_ref() {
             "http" | "https" | "ws" | "wss" | "ftp" => SchemeType::SpecialNotFile,
             "file" => SchemeType::File,
             _ => SchemeType::NotSpecial,
