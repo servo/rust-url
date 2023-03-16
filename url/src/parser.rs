@@ -1517,7 +1517,7 @@ impl<'a> Parser<'a> {
             if c == '%' {
                 let mut input = input.clone();
                 if !matches!((input.next(), input.next()), (Some(a), Some(b))
-                             if is_ascii_hex_digit(a) && is_ascii_hex_digit(b))
+                             if a.is_ascii_hexdigit() && b.is_ascii_hexdigit())
                 {
                     vfn(SyntaxViolation::PercentDecode)
                 }
@@ -1526,11 +1526,6 @@ impl<'a> Parser<'a> {
             }
         }
     }
-}
-
-#[inline]
-fn is_ascii_hex_digit(c: char) -> bool {
-    matches!(c, 'a'..='f' | 'A'..='F' | '0'..='9')
 }
 
 // Non URL code points:
