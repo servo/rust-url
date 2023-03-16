@@ -819,6 +819,27 @@ impl Url {
         self.slice(..self.scheme_end)
     }
 
+    /// Return whether the URL is special (has a special scheme)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use url::Url;
+    /// # use url::ParseError;
+    ///
+    /// # fn run() -> Result<(), ParseError> {
+    /// assert!(Url::parse("http:///tmp/foo")?.is_special());
+    /// assert!(Url::parse("file:///tmp/foo")?.is_special());
+    /// assert!(!Url::parse("moz:///tmp/foo")?.is_special());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
+    /// ```
+    pub fn is_special(&self) -> bool {
+        let scheme_type = SchemeType::from(self.scheme());
+        scheme_type.is_special()
+    }
+
     /// Return whether the URL has an 'authority',
     /// which can contain a username, password, host, and port number.
     ///
