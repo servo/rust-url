@@ -2069,7 +2069,8 @@ impl Url {
         if !self.has_host() || self.host() == Some(Host::Domain("")) || self.scheme() == "file" {
             return Err(());
         }
-        if let Some(password) = password {
+        let password = password.unwrap_or_default();
+        if !password.is_empty() {
             let host_and_after = self.slice(self.host_start..).to_owned();
             self.serialization.truncate(self.username_end as usize);
             self.serialization.push(':');
