@@ -12,7 +12,7 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 
 use percent_encoding::{percent_decode, utf8_percent_encode, CONTROLS};
 #[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+use serde_derive::{Deserialize, Serialize};
 
 use crate::parser::{ParseError, ParseResult};
 

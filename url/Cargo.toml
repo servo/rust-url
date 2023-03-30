@@ -31,10 +31,13 @@ debugger_test_parser = "0.1"
 form_urlencoded = { version = "1.1.0", path = "../form_urlencoded" }
 idna = { version = "0.3.0", path = "../idna" }
 percent-encoding = { version = "2.2.0", path = "../percent_encoding" }
-serde = {version = "1.0", optional = true, features = ["derive"]}
+# Explicitly depend on serde_derive opposed to using the derive feature of serde to improve build times
+serde_derive = {version = "1.0", optional = true}
+serde = {version = "1.0", optional = true}
 
 [features]
 default = []
+serde = ["dep:serde", "dep:serde_derive"]
 # UNSTABLE FEATURES (requires Rust nightly)
 # Enable to use the #[debugger_visualizer] attribute.
 debugger_visualizer = []
