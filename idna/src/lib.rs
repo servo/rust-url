@@ -40,7 +40,7 @@ extern crate std;
 extern crate alloc;
 
 #[cfg(not(feature = "alloc"))]
-compile_error!("the `alloc` feature must currently be enabled");
+compile_error!("the `alloc` feature must be enabled");
 
 #[cfg(test)]
 #[macro_use]

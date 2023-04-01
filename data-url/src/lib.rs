@@ -24,7 +24,7 @@ extern crate std as _;
 extern crate alloc;
 
 #[cfg(not(feature = "alloc"))]
-compile_error!("the `alloc` feature must currently be enabled");
+compile_error!("the `alloc` feature must be enabled");
 
 use alloc::{string::String, vec::Vec};
 
