@@ -36,8 +36,12 @@
 //!
 //! assert_eq!(utf8_percent_encode("foo <bar>", FRAGMENT).to_string(), "foo%20%3Cbar%3E");
 //! ```
-
 #![no_std]
+
+// For forwards compatibility
+#[cfg(feature = "std")]
+extern crate std as _;
+
 #[cfg(feature = "alloc")]
 extern crate alloc;
 

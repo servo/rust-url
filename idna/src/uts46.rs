@@ -11,7 +11,9 @@
 
 use self::Mapping::*;
 use crate::punycode;
-use std::{error::Error as StdError, fmt};
+
+use alloc::string::String;
+use core::fmt;
 use unicode_bidi::{bidi_class, BidiClass};
 use unicode_normalization::char::is_combining_mark;
 use unicode_normalization::{is_nfc, UnicodeNormalization};
@@ -70,10 +72,10 @@ fn find_char(codepoint: char) -> &'static Mapping {
 }
 
 struct Mapper<'a> {
-    chars: std::str::Chars<'a>,
+    chars: core::str::Chars<'a>,
     config: Config,
     errors: &'a mut Errors,
-    slice: Option<std::str::Chars<'static>>,
+    slice: Option<core::str::Chars<'static>>,
 }
 
 impl<'a> Iterator for Mapper<'a> {
@@ -708,7 +710,8 @@ impl From<Errors> for Result<(), Errors> {
     }
 }
 
-impl StdError for Errors {}
+#[cfg(feature = "std")]
+impl std::error::Error for Errors {}
 
 impl fmt::Display for Errors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

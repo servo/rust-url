@@ -1,5 +1,6 @@
-use std::fmt::{self, Write};
-use std::str::FromStr;
+use alloc::{borrow::ToOwned, string::String, vec::Vec};
+use core::fmt::{self, Write};
+use core::str::FromStr;
 
 /// <https://mimesniff.spec.whatwg.org/#mime-type-representation>
 #[derive(Debug, PartialEq, Eq)]

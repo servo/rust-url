@@ -47,6 +47,8 @@ jobs:
           matrix.os == 'windows-latest' &&
           matrix.rust == 'nightly'
         run: cargo test --test debugger_visualizer --features "url/serde,url/debugger_visualizer" -- --test-threads=1
+      - name: Test `no_std` support
+        run: cargo test --no-default-features --features=alloc
 
   WASM:
     runs-on: ubuntu-latest
