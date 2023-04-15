@@ -51,3 +51,9 @@ name = "debugger_visualizer"
 path = "tests/debugger_visualizer.rs"
 required-features = ["debugger_visualizer"]
 test = false
+
+[package.metadata.docs.rs]
+features = ["serde"]
+
+[package.metadata.playground]
+features = ["serde"]
