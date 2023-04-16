@@ -121,13 +121,25 @@ url = { version = "2", features = ["serde"] }
 
 */
 
+#![no_std]
 #![doc(html_root_url = "https://docs.rs/url/2.3.1")]
 #![cfg_attr(
     feature = "debugger_visualizer",
     feature(debugger_visualizer),
     debugger_visualizer(natvis_file = "../../debug_metadata/url.natvis")
 )]
-#![no_std]
+#![cfg_attr(
+    all(
+        not(feature = "std"),
+        not(feature = "no_std_net"),
+        feature = "unstable"
+    ),
+    feature(ip_in_core)
+)]
+#![cfg_attr(
+    all(not(feature = "std"), feature = "unstable"),
+    feature(error_in_core)
+)]
 
 pub use form_urlencoded;
 
@@ -141,10 +153,16 @@ extern crate alloc;
 #[cfg(not(feature = "alloc"))]
 compile_error!("the `alloc` feature must be enabled");
 
+#[cfg(not(any(feature = "no_std_net", feature = "std", feature = "unstable")))]
+compile_error!(
+    "Either the `no_std_net`, `std` or, on nightly, the `unstable` feature, must be enabled"
+);
+
 #[cfg(feature = "serde")]
 extern crate serde;
 
 use crate::host::HostInternal;
+use crate::net::IpAddr;
 use crate::parser::{to_u32, Context, Parser, SchemeType, USERINFO};
 use alloc::borrow::ToOwned;
 use alloc::string::{String, ToString};
@@ -156,8 +174,23 @@ use core::hash;
 use core::mem;
 use core::ops::{Range, RangeFrom, RangeTo};
 use core::str;
-use no_std_net::IpAddr;
 use percent_encoding::utf8_percent_encode;
+
+/// `std` version of `net`
+#[cfg(feature = "std")]
+pub(crate) mod net {
+    pub use std::net::*;
+}
+/// `no_std` non-nightly of `net`
+#[cfg(all(not(feature = "std"), feature = "no_std_net"))]
+pub(crate) mod net {
+    pub use no_std_net::*;
+}
+/// `no_std` nightly version of `net`
+#[cfg(all(not(feature = "std"), not(feature = "no_std_net")))]
+pub(crate) mod net {
+    pub use core::net::*;
+}
 
 #[cfg(feature = "std")]
 use std::{

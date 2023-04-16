@@ -51,9 +51,9 @@ jobs:
           matrix.rust == 'nightly'
         run: cargo test --test debugger_visualizer --features "url/serde,url/debugger_visualizer" -- --test-threads=1
       - name: Test `no_std` support
-        run: cargo test --no-default-features --features=alloc
+        run: cargo test --no-default-features --features=alloc,no_std_net
       - name: Build `aarch64-unknown-none` with `no_std`
-        run: cargo +nightly build -Zbuild-std=core,alloc --target aarch64-unknown-none -v --release --no-default-features --features=alloc
+        run: cargo +nightly build -Zbuild-std=core,alloc --target aarch64-unknown-none -v --release --no-default-features --features=alloc,unstable
 
   WASM:
     runs-on: ubuntu-latest

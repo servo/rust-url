@@ -33,11 +33,11 @@ idna = { version = "0.3.0", path = "../idna", default-features = false, features
 percent-encoding = { version = "2.2.0", path = "../percent_encoding", default-features = false, features = ["alloc"] }
 data-url = { version = "0.2.0", path = "../data-url", default-features = false, features = ["alloc"] }
 serde = {version = "1.0", optional = true, default-features = false, features = ["alloc", "derive"]}
-no-std-net = { version = "0.6.0", default-features = false }
+no-std-net = { version = "0.6.0", default-features = false, optional = true }
 
 [features]
 default = ["std"]
-std = ["idna/std", "percent-encoding/std", "form_urlencoded/std", "no-std-net/std", "alloc"]
+std = ["idna/std", "percent-encoding/std", "form_urlencoded/std", "alloc"]
 alloc = []
 # UNSTABLE FEATURES (requires Rust nightly)
 # Enable to use the #[debugger_visualizer] attribute.
@@ -45,6 +45,10 @@ debugger_visualizer = []
 # Expose internal offsets of the URL.
 expose_internals = []
 serde = ["dep:serde", "no-std-net/serde"]
+# For no_std: Allow the use of no_std_net instead of nightly
+no_std_net = ["no-std-net"]
+# For no_std: Use errors_in_core and net_in_core
+unstable = ["idna/unstable"]
 
 [[bench]]
 name = "parse_url"

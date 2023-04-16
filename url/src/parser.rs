@@ -75,6 +75,9 @@ macro_rules! simple_enum_error {
 #[cfg(feature = "std")]
 impl std::error::Error for ParseError {}
 
+#[cfg(feature = "unstable")]
+impl core::error::Error for ParseError {}
+
 simple_enum_error! {
     EmptyHost => "empty host",
     IdnaError => "invalid international domain name",

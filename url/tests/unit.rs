@@ -7,17 +7,64 @@
 // except according to those terms.
 
 //! Unit tests
+#![no_std]
+#![cfg_attr(
+    all(
+        not(feature = "std"),
+        not(feature = "no_std_net"),
+        feature = "unstable"
+    ),
+    feature(ip_in_core)
+)]
+#![cfg_attr(
+    all(not(feature = "std"), feature = "unstable"),
+    feature(error_in_core)
+)]
 
+#[cfg(feature = "std")]
+extern crate std;
+
+#[macro_use]
+extern crate alloc;
+
+#[cfg(not(feature = "alloc"))]
+compile_error!("the `alloc` feature must be enabled");
+
+#[cfg(not(any(feature = "no_std_net", feature = "std", feature = "unstable")))]
+compile_error!(
+    "Either the `no_std_net`, `std` or, on nightly, the `unstable` feature, must be enabled"
+);
+
+use alloc::borrow::Cow;
+use alloc::borrow::ToOwned;
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
 use core::cell::{Cell, RefCell};
-use no_std_net::{Ipv4Addr, Ipv6Addr};
-use std::borrow::Cow;
 #[cfg(feature = "std")]
 use std::path::{Path, PathBuf};
 use url::{form_urlencoded, Host, Origin, Url};
 
+/// `std` version of `net`
+#[cfg(feature = "std")]
+pub(crate) mod net {
+    pub use std::net::*;
+}
+/// `no_std` non-nightly of `net`
+#[cfg(all(not(feature = "std"), feature = "no_std_net"))]
+pub(crate) mod net {
+    pub use no_std_net::*;
+}
+/// `no_std` nightly version of `net`
+#[cfg(all(not(feature = "std"), not(feature = "no_std_net")))]
+pub(crate) mod net {
+    pub use core::net::*;
+}
+
+use crate::net::{Ipv4Addr, Ipv6Addr};
+
 #[test]
 fn size() {
-    use std::mem::size_of;
+    use core::mem::size_of;
     assert_eq!(size_of::<Url>(), size_of::<Option<Url>>());
 }
 
@@ -262,6 +309,7 @@ fn issue_124() {
 }
 
 #[test]
+#[cfg(feature = "std")]
 fn test_equality() {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
@@ -542,6 +590,7 @@ fn test_leading_dots() {
 }
 
 #[test]
+#[cfg(feature = "std")]
 /// https://github.com/servo/rust-url/issues/302
 fn test_origin_hash() {
     use std::collections::hash_map::DefaultHasher;

@@ -6,6 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use crate::net::{Ipv4Addr, Ipv6Addr};
 use alloc::{
     borrow::ToOwned,
     string::{String, ToString},
@@ -15,7 +16,6 @@ use core::{
     cmp,
     fmt::{self, Formatter},
 };
-use no_std_net::{Ipv4Addr, Ipv6Addr};
 
 use percent_encoding::{percent_decode, utf8_percent_encode, CONTROLS};
 #[cfg(feature = "serde")]
