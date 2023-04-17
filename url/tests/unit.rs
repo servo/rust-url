@@ -1262,3 +1262,11 @@ fn test_authority() {
         "%C3%A0lex:%C3%A0lex@xn--lex-8ka.xn--p1ai.example.com"
     );
 }
+
+#[test]
+fn test_parse_error_description() {
+    match Url::parse("http://") {
+        Ok(_) => panic!("expected error"),
+        Err(e) => assert_eq!(e.description(), "empty host"),
+    }
+}

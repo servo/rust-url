@@ -60,6 +60,16 @@ macro_rules! simple_enum_error {
             )+
         }
 
+        impl ParseError {
+            pub fn description(&self) -> &'static str {
+                match *self {
+                    $(
+                        ParseError::$name => $description,
+                    )+
+                }
+            }
+        }
+
         impl fmt::Display for ParseError {
             fn fmt(&self, fmt: &mut Formatter<'_>) -> fmt::Result {
                 match *self {
