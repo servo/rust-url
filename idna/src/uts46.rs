@@ -714,7 +714,7 @@ impl From<Errors> for Result<(), Errors> {
 impl std::error::Error for Errors {}
 
 #[cfg(feature = "nightly")]
-impl core::error::Error for Errors{}
+impl core::error::Error for Errors {}
 
 impl fmt::Display for Errors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

@@ -33,7 +33,6 @@
 //! > allowing client software to access domains that are valid under either system.
 #![no_std]
 #[cfg_attr(feature = "unstable", feature("error_in_core"))]
-
 // For forwards compatibility
 #[cfg(feature = "std")]
 extern crate std;
