@@ -351,6 +351,7 @@ fn host_serialization() {
 }
 
 #[test]
+#[cfg(not(feature = "disable_idna"))]
 fn test_idna() {
     assert!("http://goșu.ro".parse::<Url>().is_ok());
     assert_eq!(
@@ -586,6 +587,7 @@ fn test_origin_opaque() {
 }
 
 #[test]
+#[cfg(not(feature = "disable_idna"))]
 fn test_origin_unicode_serialization() {
     let data = [
         ("http://😅.com", "http://😅.com"),
@@ -758,6 +760,7 @@ fn test_set_href() {
 }
 
 #[test]
+#[cfg(not(feature = "disable_idna"))]
 fn test_domain_encoding_quirks() {
     use url::quirks::{domain_to_ascii, domain_to_unicode};
 
@@ -811,8 +814,11 @@ fn test_windows_unc_path() {
     let url = Url::from_file_path(Path::new(r"\\host\share\path\file.txt")).unwrap();
     assert_eq!(url.as_str(), "file://host/share/path/file.txt");
 
-    let url = Url::from_file_path(Path::new(r"\\höst\share\path\file.txt")).unwrap();
-    assert_eq!(url.as_str(), "file://xn--hst-sna/share/path/file.txt");
+    #[cfg(not(feature = "disable_idna"))]
+    {
+        let url = Url::from_file_path(Path::new(r"\\höst\share\path\file.txt")).unwrap();
+        assert_eq!(url.as_str(), "file://xn--hst-sna/share/path/file.txt");
+    }
 
     let url = Url::from_file_path(Path::new(r"\\192.168.0.1\share\path\file.txt")).unwrap();
     assert_eq!(url.host(), Some(Host::Ipv4(Ipv4Addr::new(192, 168, 0, 1))));
@@ -1256,9 +1262,13 @@ fn test_authority() {
         url.authority(),
         "%C3%A0lex:%C3%A0lex@%C3%A0lex.%D1%80%D1%84.example.com:6667"
     );
-    let url = Url::parse("https://àlex:àlex@àlex.рф.example.com:443/foo").unwrap();
-    assert_eq!(
-        url.authority(),
-        "%C3%A0lex:%C3%A0lex@xn--lex-8ka.xn--p1ai.example.com"
-    );
+
+    #[cfg(not(feature = "disable_idna"))]
+    {
+        let url = Url::parse("https://àlex:àlex@àlex.рф.example.com:443/foo").unwrap();
+        assert_eq!(
+            url.authority(),
+            "%C3%A0lex:%C3%A0lex@xn--lex-8ka.xn--p1ai.example.com"
+        );
+    }
 }

@@ -86,6 +86,7 @@ impl Origin {
     }
 
     /// <https://html.spec.whatwg.org/multipage/#unicode-serialisation-of-an-origin>
+    #[cfg(not(feature = "disable_idna"))]
     pub fn unicode_serialization(&self) -> String {
         match *self {
             Origin::Opaque(_) => "null".to_owned(),

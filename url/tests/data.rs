@@ -39,7 +39,17 @@ fn urltestdata() {
             .expect("missing base key")
             .maybe_string();
         let input = entry.take_string("input");
-        let failure = entry.take_key("failure").is_some();
+        let failure = {
+            #[cfg(not(feature = "disable_idna"))]
+            {
+                entry.take_key("failure").is_some()
+            }
+
+            #[cfg(feature = "disable_idna")]
+            {
+                entry.take_key("is_idna").is_some() || entry.take_key("failure").is_some()
+            }
+        };
 
         let res = if let Some(base) = maybe_base {
             let base = match Url::parse(&base) {
