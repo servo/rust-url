@@ -179,6 +179,7 @@ pub fn default_port(scheme: &str) -> Option<u16> {
 }
 
 #[derive(Clone)]
+#[derive(Debug)]
 pub struct Input<'i> {
     chars: str::Chars<'i>,
 }
@@ -1173,7 +1174,7 @@ impl<'a> Parser<'a> {
     ) -> Input<'i> {
         // Relative path state
         loop {
-            let segment_start = self.serialization.len();
+            let mut segment_start = self.serialization.len();
             let mut ends_with_slash = false;
             loop {
                 let input_before_c = input.clone();
@@ -1202,6 +1203,10 @@ impl<'a> Parser<'a> {
                     }
                     _ => {
                         self.check_url_code_point(c, &input);
+                        if scheme_type.is_file() && is_normalized_windows_drive_letter(&self.serialization[path_start+1..]) {
+                            self.serialization.push('/');
+                            segment_start += 1;
+                        }
                         if self.context == Context::PathSegmentSetter {
                             if scheme_type.is_special() {
                                 self.serialization
