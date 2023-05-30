@@ -1254,7 +1254,7 @@ impl<'a> Parser<'a> {
                 }
                 _ => {
                     // If url’s scheme is "file", url’s path is empty, and buffer is a Windows drive letter, then
-                    if scheme_type.is_file() && is_windows_drive_letter(segment_before_slash) {
+                    if scheme_type.is_file() && segment_start == path_start + 1 && is_windows_drive_letter(segment_before_slash) {
                         // Replace the second code point in buffer with U+003A (:).
                         if let Some(c) = segment_before_slash.chars().next() {
                             self.serialization.truncate(segment_start);

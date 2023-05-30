@@ -1285,3 +1285,16 @@ fn test_file_with_drive() {
         assert_eq!(url2.to_string(), case.1);
     }
 }
+
+#[test]
+/// Similar to test_file_with_drive, but with a path
+/// that could be confused for a drive.
+fn test_file_with_drive_and_path() {
+    let s1 = "fIlE:p:/x|?../";
+    let url = url::Url::parse(s1).unwrap();
+    assert_eq!(url.to_string(), "file:///p:/x|?../");
+    assert_eq!(url.path(), "/p:/x|");
+    let s2 = "a";
+    let url2 = url::Url::join(&url, s2).unwrap();
+    assert_eq!(url2.to_string(), "file:///p:/a");
+}
