@@ -1262,3 +1262,39 @@ fn test_authority() {
         "%C3%A0lex:%C3%A0lex@xn--lex-8ka.xn--p1ai.example.com"
     );
 }
+
+#[test]
+/// https://github.com/servo/rust-url/issues/838
+fn test_file_with_drive() {
+    let s1 = "fIlE:p:?../";
+    let url = url::Url::parse(s1).unwrap();
+    assert_eq!(url.to_string(), "file:///p:?../");
+    assert_eq!(url.path(), "/p:");
+
+    let testcases = [
+        ("a", "file:///p:/a"),
+        ("", "file:///p:?../"),
+        ("?x", "file:///p:?x"),
+        (".", "file:///p:/"),
+        ("..", "file:///p:/"),
+        ("../", "file:///p:/"),
+    ];
+
+    for case in &testcases {
+        let url2 = url::Url::join(&url, case.0).unwrap();
+        assert_eq!(url2.to_string(), case.1);
+    }
+}
+
+#[test]
+/// Similar to test_file_with_drive, but with a path
+/// that could be confused for a drive.
+fn test_file_with_drive_and_path() {
+    let s1 = "fIlE:p:/x|?../";
+    let url = url::Url::parse(s1).unwrap();
+    assert_eq!(url.to_string(), "file:///p:/x|?../");
+    assert_eq!(url.path(), "/p:/x|");
+    let s2 = "a";
+    let url2 = url::Url::join(&url, s2).unwrap();
+    assert_eq!(url2.to_string(), "file:///p:/a");
+}
