@@ -979,8 +979,8 @@ fn test_options_reuse() {
 }
 
 /// https://github.com/servo/rust-url/issues/505
-#[cfg(windows)]
 #[test]
+#[cfg(all(feature = "std", windows))]
 fn test_url_from_file_path() {
     use std::path::PathBuf;
     use url::Url;
