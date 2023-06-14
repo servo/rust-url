@@ -1552,12 +1552,12 @@ impl Url {
                     parser::Input::trim_tab_and_newlines(input, vfn),
                 )
             });
+            self.restore_already_parsed_fragment(fragment);
         } else {
             self.query_start = None;
+            self.restore_already_parsed_fragment(fragment);
             self.strip_trailing_spaces_from_opaque_path();
         }
-
-        self.restore_already_parsed_fragment(fragment);
     }
 
     /// Manipulate this URL’s query string, viewed as a sequence of name/value pairs
