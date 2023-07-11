@@ -16,10 +16,6 @@ include = ["src/**/*", "LICENSE-*", "README.md", "tests/**"]
 edition = "2018"
 rust-version = "1.56"
 
-[badges]
-travis-ci = { repository = "servo/rust-url" }
-appveyor = { repository = "Manishearth/rust-url" }
-
 [dev-dependencies]
 serde_json = "1.0"
 bencher = "0.1"
