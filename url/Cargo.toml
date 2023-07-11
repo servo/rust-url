@@ -14,7 +14,7 @@ categories = ["parser-implementations", "web-programming", "encoding"]
 license = "MIT OR Apache-2.0"
 include = ["src/**/*", "LICENSE-*", "README.md", "tests/**"]
 edition = "2018"
-rust-version = "1.56"
+rust-version = "1.60"
 
 [badges]
 travis-ci = { repository = "servo/rust-url" }
@@ -31,7 +31,7 @@ debugger_test_parser = "0.1"
 form_urlencoded = { version = "1.2.0", path = "../form_urlencoded" }
 idna = { version = "0.4.0", path = "../idna" }
 percent-encoding = { version = "2.3.0", path = "../percent_encoding" }
-serde = {version = "1.0", optional = true, features = ["derive"]}
+serde = { version = "1.0", optional = true, features = ["derive"] }
 
 [features]
 default = []
