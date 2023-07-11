@@ -1,3 +1,6 @@
+extern crate debugger_test;
+extern crate url;
+
 use debugger_test::debugger_test;
 use url::Url;
 

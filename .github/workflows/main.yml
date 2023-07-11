@@ -46,7 +46,7 @@ jobs:
         if: |
           matrix.os == 'windows-latest' &&
           matrix.rust == 'nightly'
-        run: cargo test --test debugger_visualizer --features "url/serde,url/debugger_visualizer" -- --test-threads=1
+        run: cargo test --test debugger_visualizer --features "url/debugger_visualizer,url_debug_tests/debugger_visualizer" -- --test-threads=1
       - name: Test `no_std` support
         run: cargo test --no-default-features --features=alloc
 
