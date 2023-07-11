@@ -152,7 +152,7 @@ pub fn set_host(url: &mut Url, new_host: &str) -> Result<(), ()> {
     }
     // Host parsing rules are strict,
     // We don't want to trim the input
-    let input = Input::no_trim(new_host);
+    let input = Input::new_no_trim(new_host);
     let host;
     let opt_port;
     {
@@ -203,7 +203,7 @@ pub fn set_hostname(url: &mut Url, new_hostname: &str) -> Result<(), ()> {
         return Err(());
     }
     // Host parsing rules are strict we don't want to trim the input
-    let input = Input::no_trim(new_hostname);
+    let input = Input::new_no_trim(new_hostname);
     let scheme_type = SchemeType::from(url.scheme());
     if scheme_type == SchemeType::File && new_hostname.is_empty() {
         url.set_host_internal(Host::Domain(String::new()), None);
@@ -249,7 +249,7 @@ pub fn set_port(url: &mut Url, new_port: &str) -> Result<(), ()> {
             return Err(());
         }
         result = Parser::parse_port(
-            Input::new(new_port),
+            Input::new_no_trim(new_port),
             || default_port(scheme),
             Context::Setter,
         )
