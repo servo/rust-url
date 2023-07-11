@@ -134,8 +134,8 @@ pub use form_urlencoded;
 extern crate serde;
 
 use crate::host::HostInternal;
-use crate::parser::{to_u32, Context, Parser, SchemeType, PATH_SEGMENT, USERINFO};
-use percent_encoding::{percent_decode, percent_encode, utf8_percent_encode};
+use crate::parser::{to_u32, Context, Parser, SchemeType, PATH_SEGMENT};
+use percent_encoding::{percent_decode, percent_encode, utf8_percent_encode, USERINFO};
 use std::borrow::Borrow;
 use std::cmp;
 use std::fmt::{self, Write};
