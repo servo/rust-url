@@ -28,8 +28,7 @@ serde = { version = "1.0", optional = true, features = ["derive"] }
 
 [features]
 default = []
-# UNSTABLE FEATURES (requires Rust nightly)
-# Enable to use the #[debugger_visualizer] attribute.
+# Enable to use the #[debugger_visualizer] attribute. This feature requires Rust >= 1.71.
 debugger_visualizer = []
 # Expose internal offsets of the URL.
 expose_internals = []
