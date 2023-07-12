@@ -16,22 +16,15 @@ include = ["src/**/*", "LICENSE-*", "README.md", "tests/**"]
 edition = "2018"
 rust-version = "1.56"
 
-[badges]
-travis-ci = { repository = "servo/rust-url" }
-appveyor = { repository = "Manishearth/rust-url" }
-
 [dev-dependencies]
 serde_json = "1.0"
 bencher = "0.1"
-# To test debugger visualizers defined for the url crate such as url.natvis
-debugger_test = "0.1"
-debugger_test_parser = "0.1"
 
 [dependencies]
 form_urlencoded = { version = "1.2.0", path = "../form_urlencoded" }
 idna = { version = "0.4.0", path = "../idna" }
 percent-encoding = { version = "2.3.0", path = "../percent_encoding" }
-serde = {version = "1.0", optional = true, features = ["derive"]}
+serde = { version = "1.0", optional = true, features = ["derive"] }
 
 [features]
 default = []
@@ -45,12 +38,6 @@ expose_internals = []
 name = "parse_url"
 path = "benches/parse_url.rs"
 harness = false
-
-[[test]]
-name = "debugger_visualizer"
-path = "tests/debugger_visualizer.rs"
-required-features = ["debugger_visualizer"]
-test = false
 
 [package.metadata.docs.rs]
 features = ["serde"]
