@@ -1,6 +1,6 @@
 {
     "comment": [
-        "AS OF https://github.com/jsdom/whatwg-url/commit/35f04dfd3048cf6362f4398745bb13375c5020c2",
+        "AS OF https://github.com/web-platform-tests/wpt/blob/09b34ae130cd946e111cd427d6bcf2d6f257aed8/url/resources/setters_tests.json, but only passing tests",
         "## Tests for setters of https://url.spec.whatwg.org/#urlutils-members",
         "",
         "This file contains a JSON object.",
@@ -1653,6 +1653,24 @@
                 "href": "file:///",
                 "pathname": "/"
             }
+        },
+        {
+            "comment": "Trailing space should be encoded",
+            "href": "http://example.net",
+            "new_value": " ",
+            "expected": {
+                "href": "http://example.net/%20",
+                "pathname": "/%20"
+            }
+        },
+        {
+            "comment": "Trailing C0 control should be encoded",
+            "href": "http://example.net",
+            "new_value": "\u0000",
+            "expected": {
+                "href": "http://example.net/%00",
+                "pathname": "/%00"
+            }
         }
     ],
     "search": [
@@ -1736,6 +1754,24 @@
             "expected": {
                 "href": "http://example.net/?%c3%89t%C3%A9",
                 "search": "?%c3%89t%C3%A9"
+            }
+        },
+        {
+            "comment": "Trailing space should be encoded",
+            "href": "http://example.net",
+            "new_value": " ",
+            "expected": {
+                "href": "http://example.net/?%20",
+                "search": "?%20"
+            }
+        },
+        {
+            "comment": "Trailing C0 control should be encoded",
+            "href": "http://example.net",
+            "new_value": "\u0000",
+            "expected": {
+                "href": "http://example.net/?%00",
+                "search": "?%00"
             }
         }
     ],
@@ -1870,6 +1906,24 @@
             "expected": {
                 "href": "javascript:alert(1)#castle",
                 "hash": "#castle"
+            }
+        },
+        {
+            "comment": "Trailing space should be encoded",
+            "href": "http://example.net",
+            "new_value": " ",
+            "expected": {
+                "href": "http://example.net/#%20",
+                "hash": "#%20"
+            }
+        },
+        {
+            "comment": "Trailing C0 control should be encoded",
+            "href": "http://example.net",
+            "new_value": "\u0000",
+            "expected": {
+                "href": "http://example.net/#%00",
+                "hash": "#%00"
             }
         }
     ]

@@ -184,17 +184,13 @@ pub struct Input<'i> {
 }
 
 impl<'i> Input<'i> {
-    pub fn new(input: &'i str) -> Self {
-        Input::with_log(input, None)
-    }
-
-    pub fn no_trim(input: &'i str) -> Self {
+    pub fn new_no_trim(input: &'i str) -> Self {
         Input {
             chars: input.chars(),
         }
     }
 
-    pub fn trim_tab_and_newlines(
+    pub fn new_trim_tab_and_newlines(
         original_input: &'i str,
         vfn: Option<&dyn Fn(SyntaxViolation)>,
     ) -> Self {
@@ -212,7 +208,10 @@ impl<'i> Input<'i> {
         }
     }
 
-    pub fn with_log(original_input: &'i str, vfn: Option<&dyn Fn(SyntaxViolation)>) -> Self {
+    pub fn new_trim_c0_control_and_space(
+        original_input: &'i str,
+        vfn: Option<&dyn Fn(SyntaxViolation)>,
+    ) -> Self {
         let input = original_input.trim_matches(c0_control_or_space);
         if let Some(vfn) = vfn {
             if input.len() < original_input.len() {
@@ -362,7 +361,7 @@ impl<'a> Parser<'a> {
 
     /// https://url.spec.whatwg.org/#concept-basic-url-parser
     pub fn parse_url(mut self, input: &str) -> ParseResult<Url> {
-        let input = Input::with_log(input, self.violation_fn);
+        let input = Input::new_trim_c0_control_and_space(input, self.violation_fn);
         if let Ok(remaining) = self.parse_scheme(input.clone()) {
             return self.parse_with_scheme(remaining);
         }
