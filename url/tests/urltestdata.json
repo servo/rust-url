@@ -3617,7 +3617,8 @@
     "port": "",
     "pathname": "/",
     "search": "",
-    "hash": ""
+    "hash": "",
+    "is_idna": true
   },
   "Leading and trailing C0 control or space",
   {
@@ -3649,7 +3650,8 @@
     "port": "",
     "pathname": "/",
     "search": "",
-    "hash": ""
+    "hash": "",
+    "is_idna": true
   },
   "Invalid unicode characters should fail... U+FDD0 is disallowed; %ef%b7%90 is U+FDD0",
   {
@@ -3735,7 +3737,8 @@
     "port": "",
     "pathname": "/",
     "search": "",
-    "hash": ""
+    "hash": "",
+    "is_idna": true
   },
   "URL spec forbids the following. https://www.w3.org/Bugs/Public/show_bug.cgi?id=24257",
   {
@@ -3773,7 +3776,8 @@
     "port": "",
     "pathname": "/",
     "search": "",
-    "hash": ""
+    "hash": "",
+    "is_idna": true
   },
   {
     "input": "https://faß.ExAmPlE/",
@@ -3788,7 +3792,8 @@
     "port": "",
     "pathname": "/",
     "search": "",
-    "hash": ""
+    "hash": "",
+    "is_idna": true
   },
   {
     "input": "sc://faß.ExAmPlE/",
@@ -3889,7 +3894,8 @@
     "port": "",
     "pathname": "/",
     "search": "",
-    "hash": ""
+    "hash": "",
+    "is_idna": true
   },
   "Domains with empty labels",
   {
@@ -5325,7 +5331,8 @@
     "port": "",
     "pathname": "/",
     "search": "",
-    "hash": ""
+    "hash": "",
+    "is_idna": true
   },
   {
     "input": "https://%e2%98%83",
@@ -5340,7 +5347,8 @@
     "port": "",
     "pathname": "/",
     "search": "",
-    "hash": ""
+    "hash": "",
+    "is_idna": true
   },
   "# tests from jsdom/whatwg-url designed for code coverage",
   {
@@ -8172,7 +8180,8 @@
     "port": "",
     "pathname": "/p",
     "search": "",
-    "hash": ""
+    "hash": "",
+    "is_idna": true
   },
   {
     "input": "file://a%C2%ADb/p",
@@ -8186,7 +8195,8 @@
     "port": "",
     "pathname": "/p",
     "search": "",
-    "hash": ""
+    "hash": "",
+    "is_idna": true
   },
   "IDNA hostnames which get mapped to 'localhost'",
   {
@@ -8201,7 +8211,8 @@
     "port": "",
     "pathname": "/usr/bin",
     "search": "",
-    "hash": ""
+    "hash": "",
+    "is_idna": true
   },
   "Empty host after the domain to ASCII",
   {

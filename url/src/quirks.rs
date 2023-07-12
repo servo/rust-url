@@ -58,6 +58,7 @@ pub fn internal_components(url: &Url) -> InternalComponents {
 }
 
 /// https://url.spec.whatwg.org/#dom-url-domaintoascii
+#[cfg(not(feature = "disable_idna"))]
 pub fn domain_to_ascii(domain: &str) -> String {
     match Host::parse(domain) {
         Ok(Host::Domain(domain)) => domain,

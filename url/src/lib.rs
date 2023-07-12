@@ -899,8 +899,11 @@ impl Url {
     /// assert_eq!(url.authority(), "user:password@example.com");
     /// let url = Url::parse("irc://àlex.рф.example.com:6667/foo")?;
     /// assert_eq!(url.authority(), "%C3%A0lex.%D1%80%D1%84.example.com:6667");
+    /// # #[cfg(not(feature = "disable_idna"))]
+    /// # {
     /// let url = Url::parse("http://àlex.рф.example.com:80/foo")?;
     /// assert_eq!(url.authority(), "xn--lex-8ka.xn--p1ai.example.com");
+    /// # }
     /// # Ok(())
     /// # }
     /// # run().unwrap();
