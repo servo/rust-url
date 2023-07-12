@@ -26,6 +26,15 @@ impl Mime {
 #[derive(Debug)]
 pub struct MimeParsingError(());
 
+impl fmt::Display for MimeParsingError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "invalid mime type")
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for MimeParsingError {}
+
 /// <https://mimesniff.spec.whatwg.org/#parsing-a-mime-type>
 impl FromStr for Mime {
     type Err = MimeParsingError;
