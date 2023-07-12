@@ -1,9 +1,25 @@
 //! <https://infra.spec.whatwg.org/#forgiving-base64-decode>
 
 use alloc::vec::Vec;
+use core::fmt;
 
 #[derive(Debug)]
 pub struct InvalidBase64(InvalidBase64Details);
+
+impl fmt::Display for InvalidBase64 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.0 {
+            InvalidBase64Details::UnexpectedSymbol(code_point) => {
+                write!(f, "symbol with codepoint {} not expected", code_point)
+            }
+            InvalidBase64Details::AlphabetSymbolAfterPadding => {
+                write!(f, "alphabet symbol present after padding")
+            }
+            InvalidBase64Details::LoneAlphabetSymbol => write!(f, "lone alphabet symbol present"),
+            InvalidBase64Details::Padding => write!(f, "incorrect padding"),
+        }
+    }
+}
 
 #[derive(Debug)]
 enum InvalidBase64Details {
@@ -18,6 +34,18 @@ pub enum DecodeError<E> {
     InvalidBase64(InvalidBase64),
     WriteError(E),
 }
+
+impl<E: fmt::Display> fmt::Display for DecodeError<E> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidBase64(inner) => write!(f, "base64 not valid: {}", inner),
+            Self::WriteError(err) => write!(f, "write error: {}", err),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl<E: std::error::Error> std::error::Error for DecodeError<E> {}
 
 impl<E> From<InvalidBase64Details> for DecodeError<E> {
     fn from(e: InvalidBase64Details) -> Self {

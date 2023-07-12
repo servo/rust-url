@@ -303,7 +303,7 @@ impl<'a> PathSegmentsMut<'a> {
                     scheme_type,
                     &mut has_host,
                     path_start,
-                    parser::Input::new(segment),
+                    parser::Input::new_no_trim(segment),
                 );
             }
         });

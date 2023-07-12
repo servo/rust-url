@@ -18,7 +18,7 @@
 
 // For forwards compatibility
 #[cfg(feature = "std")]
-extern crate std as _;
+extern crate std;
 
 #[macro_use]
 extern crate alloc;
@@ -27,6 +27,7 @@ extern crate alloc;
 compile_error!("the `alloc` feature must be enabled");
 
 use alloc::{string::String, vec::Vec};
+use core::fmt;
 
 macro_rules! require {
     ($condition: expr) => {
@@ -50,6 +51,21 @@ pub enum DataUrlError {
     NotADataUrl,
     NoComma,
 }
+
+impl fmt::Display for DataUrlError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NotADataUrl => write!(f, "not a valid data url"),
+            Self::NoComma => write!(
+                f,
+                "data url is missing comma delimiting attributes and body"
+            ),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for DataUrlError {}
 
 impl<'a> DataUrl<'a> {
     /// <https://fetch.spec.whatwg.org/#data-url-processor>
