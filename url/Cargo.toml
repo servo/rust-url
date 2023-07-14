@@ -41,6 +41,7 @@ harness = false
 
 [package.metadata.docs.rs]
 features = ["serde"]
+rustdoc-args = ["--generate-link-to-definition"]
 
 [package.metadata.playground]
 features = ["serde"]
