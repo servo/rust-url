@@ -4759,10 +4759,10 @@
     "hash": "",
     "host": "host",
     "hostname": "host",
-    "href":"foo://host/",
+    "href": "foo://host/",
     "password": "",
     "pathname": "/",
-    "port":"",
+    "port": "",
     "protocol": "foo:",
     "search": "",
     "username": ""
@@ -4773,10 +4773,10 @@
     "hash": "",
     "host": "host",
     "hostname": "host",
-    "href":"foo://host/",
+    "href": "foo://host/",
     "password": "",
     "pathname": "/",
-    "port":"",
+    "port": "",
     "protocol": "foo:",
     "search": "",
     "username": ""
@@ -4787,10 +4787,10 @@
     "hash": "",
     "host": "host",
     "hostname": "host",
-    "href":"foo://host/",
+    "href": "foo://host/",
     "password": "",
     "pathname": "/",
-    "port":"",
+    "port": "",
     "protocol": "foo:",
     "search": "",
     "username": ""
@@ -4993,10 +4993,10 @@
     "hash": "",
     "host": "host",
     "hostname": "host",
-    "href":"http://host/",
+    "href": "http://host/",
     "password": "",
     "pathname": "/",
-    "port":"",
+    "port": "",
     "protocol": "http:",
     "search": "",
     "username": ""
@@ -5007,10 +5007,10 @@
     "hash": "",
     "host": "host",
     "hostname": "host",
-    "href":"http://host/",
+    "href": "http://host/",
     "password": "",
     "pathname": "/",
-    "port":"",
+    "port": "",
     "protocol": "http:",
     "search": "",
     "username": ""
@@ -5021,10 +5021,10 @@
     "hash": "",
     "host": "host",
     "hostname": "host",
-    "href":"http://host/",
+    "href": "http://host/",
     "password": "",
     "pathname": "/",
-    "port":"",
+    "port": "",
     "protocol": "http:",
     "search": "",
     "username": ""
@@ -5935,7 +5935,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "/",
     "base": "file://h/C:/a/b",
@@ -6105,7 +6104,6 @@
     "hash": "#x"
   },
   "# File URLs and many (back)slashes",
-  "skip next",
   {
     "input": "file:\\\\//",
     "base": "about:blank",
@@ -6120,7 +6118,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "file:\\\\\\\\",
     "base": "about:blank",
@@ -6135,7 +6132,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "file:\\\\\\\\?fox",
     "base": "about:blank",
@@ -6150,7 +6146,6 @@
     "search": "?fox",
     "hash": ""
   },
-  "skip next",
   {
     "input": "file:\\\\\\\\#guppy",
     "base": "about:blank",
@@ -6165,7 +6160,6 @@
     "search": "",
     "hash": "#guppy"
   },
-  "skip next",
   {
     "input": "file://spider///",
     "base": "about:blank",
@@ -6180,7 +6174,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "file:\\\\localhost//",
     "base": "about:blank",
@@ -6209,7 +6202,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "file://\\/localhost//cat",
     "base": "about:blank",
@@ -6224,7 +6216,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "file://localhost//a//../..//",
     "base": "about:blank",
@@ -6239,7 +6230,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "/////mouse",
     "base": "file:///elephant",
@@ -6268,7 +6258,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "\\/localhost//pig",
     "base": "file://lion/",
@@ -6283,7 +6272,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "//localhost//pig",
     "base": "file://lion/",
@@ -6298,7 +6286,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "/..//localhost//pig",
     "base": "file://lion/",
@@ -6357,7 +6344,6 @@
     "hash": ""
   },
   "# Windows drive letter handling with the 'file:' base URL",
-  "skip next",
   {
     "input": "C|",
     "base": "file://host/dir/file",
@@ -6372,7 +6358,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "C|",
     "base": "file://host/D:/dir1/dir2/file",
@@ -6387,7 +6372,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "C|#",
     "base": "file://host/dir/file",
@@ -6402,7 +6386,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "C|?",
     "base": "file://host/dir/file",
@@ -6417,7 +6400,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "C|/",
     "base": "file://host/dir/file",
@@ -6432,7 +6414,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "C|\n/",
     "base": "file://host/dir/file",
@@ -6447,7 +6428,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "C|\\",
     "base": "file://host/dir/file",
@@ -6533,7 +6513,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "/c:/foo/bar",
     "base": "file://host/path",
@@ -6549,7 +6528,6 @@
     "hash": ""
   },
   "# Do not drop the host in the presence of a drive letter",
-  "skip next",
   {
     "input": "file://example.net/C:/",
     "base": "about:blank",
@@ -6564,7 +6542,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "file://1.2.3.4/C:/",
     "base": "about:blank",
@@ -6579,7 +6556,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "file://[1::8]/C:/",
     "base": "about:blank",
@@ -6595,7 +6571,6 @@
     "hash": ""
   },
   "# Copy the host from the base URL in the following cases",
-  "skip next",
   {
     "input": "C|/",
     "base": "file://host/",
@@ -6610,7 +6585,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "/C:/",
     "base": "file://host/",
@@ -6625,7 +6599,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "file:C:/",
     "base": "file://host/",
@@ -6640,7 +6613,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "file:/C:/",
     "base": "file://host/",
@@ -6656,7 +6628,6 @@
     "hash": ""
   },
   "# Copy the empty host from the input in the following cases",
-  "skip next",
   {
     "input": "//C:/",
     "base": "file://host/",
@@ -6912,7 +6883,6 @@
     "inputCanBeRelative": true
   },
   "# Additional file URL tests for (https://github.com/whatwg/url/issues/405)",
-  "skip next",
   {
     "input": "file://localhost//a//../..//foo",
     "base": "about:blank",
@@ -6927,7 +6897,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "file://localhost////foo",
     "base": "about:blank",
@@ -6942,7 +6911,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "file:////foo",
     "base": "about:blank",
@@ -6971,7 +6939,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "file:////one/two",
     "base": "file:///",
@@ -7014,7 +6981,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "////one/two",
     "base": "file:///",
@@ -7029,7 +6995,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "file:///.//",
     "base": "file:////",
@@ -7045,7 +7010,6 @@
     "hash": ""
   },
   "File URL tests for https://github.com/whatwg/url/issues/549",
-  "skip next",
   {
     "input": "file:.//p",
     "base": "about:blank",
@@ -7060,7 +7024,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "file:/.//p",
     "base": "about:blank",
@@ -7571,7 +7534,6 @@
     "search": "",
     "hash": ""
   },
-  "skip next",
   {
     "input": "/.//path",
     "base": "non-spec:/p",
@@ -8291,7 +8253,7 @@
     "origin": "null",
     "password": "",
     "pathname": "/",
-    "port":"",
+    "port": "",
     "protocol": "foo:",
     "search": "",
     "username": "%20!%22$%&'()*+,-.%3B%3C%3D%3E%40%5B%5C%5D%5E_%60%7B%7C%7D~"
@@ -8306,7 +8268,7 @@
     "origin": "wss://host",
     "password": "",
     "pathname": "/",
-    "port":"",
+    "port": "",
     "protocol": "wss:",
     "search": "",
     "username": "%20!%22$%&'()*+,-.%3B%3C%3D%3E%40%5B%5D%5E_%60%7B%7C%7D~"
@@ -8321,7 +8283,7 @@
     "origin": "null",
     "password": "%20!%22$%&'()*+,-.%3A%3B%3C%3D%3E%40%5B%5C%5D%5E_%60%7B%7C%7D~",
     "pathname": "/",
-    "port":"",
+    "port": "",
     "protocol": "foo:",
     "search": "",
     "username": "joe"
@@ -8336,7 +8298,7 @@
     "origin": "wss://host",
     "password": "%20!%22$%&'()*+,-.%3A%3B%3C%3D%3E%40%5B%5D%5E_%60%7B%7C%7D~",
     "pathname": "/",
-    "port":"",
+    "port": "",
     "protocol": "wss:",
     "search": "",
     "username": "joe"
@@ -8347,11 +8309,11 @@
     "hash": "",
     "host": "!\"$%&'()*+,-.;=_`{}~",
     "hostname": "!\"$%&'()*+,-.;=_`{}~",
-    "href":"foo://!\"$%&'()*+,-.;=_`{}~/",
+    "href": "foo://!\"$%&'()*+,-.;=_`{}~/",
     "origin": "null",
     "password": "",
     "pathname": "/",
-    "port":"",
+    "port": "",
     "protocol": "foo:",
     "search": "",
     "username": ""
@@ -8362,11 +8324,11 @@
     "hash": "",
     "host": "!\"$&'()*+,-.;=_`{}~",
     "hostname": "!\"$&'()*+,-.;=_`{}~",
-    "href":"wss://!\"$&'()*+,-.;=_`{}~/",
+    "href": "wss://!\"$&'()*+,-.;=_`{}~/",
     "origin": "wss://!\"$&'()*+,-.;=_`{}~",
     "password": "",
     "pathname": "/",
-    "port":"",
+    "port": "",
     "protocol": "wss:",
     "search": "",
     "username": ""
@@ -8381,7 +8343,7 @@
     "origin": "null",
     "password": "",
     "pathname": "/%20!%22$%&'()*+,-./:;%3C=%3E@[\\]^_%60%7B|%7D~",
-    "port":"",
+    "port": "",
     "protocol": "foo:",
     "search": "",
     "username": ""
@@ -8396,7 +8358,7 @@
     "origin": "wss://host",
     "password": "",
     "pathname": "/%20!%22$%&'()*+,-./:;%3C=%3E@[/]^_%60%7B|%7D~",
-    "port":"",
+    "port": "",
     "protocol": "wss:",
     "search": "",
     "username": ""
@@ -8411,7 +8373,7 @@
     "origin": "null",
     "password": "",
     "pathname": "/dir/",
-    "port":"",
+    "port": "",
     "protocol": "foo:",
     "search": "?%20!%22$%&'()*+,-./:;%3C=%3E?@[\\]^_`{|}~",
     "username": ""
@@ -8426,7 +8388,7 @@
     "origin": "wss://host",
     "password": "",
     "pathname": "/dir/",
-    "port":"",
+    "port": "",
     "protocol": "wss:",
     "search": "?%20!%22$%&%27()*+,-./:;%3C=%3E?@[\\]^_`{|}~",
     "username": ""
@@ -8441,7 +8403,7 @@
     "origin": "null",
     "password": "",
     "pathname": "/dir/",
-    "port":"",
+    "port": "",
     "protocol": "foo:",
     "search": "",
     "username": ""
@@ -8456,7 +8418,7 @@
     "origin": "wss://host",
     "password": "",
     "pathname": "/dir/",
-    "port":"",
+    "port": "",
     "protocol": "wss:",
     "search": "",
     "username": ""
@@ -8468,10 +8430,10 @@
     "hash": "",
     "host": "",
     "hostname": "",
-    "href":"abc:rootless",
+    "href": "abc:rootless",
     "password": "",
     "pathname": "rootless",
-    "port":"",
+    "port": "",
     "protocol": "abc:",
     "search": "",
     "username": ""
@@ -8482,10 +8444,10 @@
     "hash": "",
     "host": "",
     "hostname": "",
-    "href":"abc:rootless",
+    "href": "abc:rootless",
     "password": "",
     "pathname": "rootless",
-    "port":"",
+    "port": "",
     "protocol": "abc:",
     "search": "",
     "username": ""
@@ -8496,10 +8458,10 @@
     "hash": "",
     "host": "",
     "hostname": "",
-    "href":"abc:rootless",
+    "href": "abc:rootless",
     "password": "",
     "pathname": "rootless",
-    "port":"",
+    "port": "",
     "protocol": "abc:",
     "search": "",
     "username": ""
@@ -8510,10 +8472,10 @@
     "hash": "",
     "host": "",
     "hostname": "",
-    "href":"abc:/rooted",
+    "href": "abc:/rooted",
     "password": "",
     "pathname": "/rooted",
-    "port":"",
+    "port": "",
     "protocol": "abc:",
     "search": "",
     "username": ""
@@ -8661,10 +8623,10 @@
     "hash": "",
     "host": "foo.09..",
     "hostname": "foo.09..",
-    "href":"http://foo.09../",
+    "href": "http://foo.09../",
     "password": "",
     "pathname": "/",
-    "port":"",
+    "port": "",
     "protocol": "http:",
     "search": "",
     "username": ""
@@ -8733,7 +8695,7 @@
     "password": "",
     "pathname": "/",
     "port": "",
-    "protocol": "https:",
+    "protocol": "http:",
     "search": "",
     "username": ""
   },
