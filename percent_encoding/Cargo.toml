@@ -13,3 +13,6 @@ rust-version = "1.51"
 default = ["std"]
 std = ["alloc"]
 alloc = []
+
+[dev-dependencies]
+quickcheck = "1.0.0"

@@ -475,3 +475,71 @@ fn decode_utf8_lossy(input: Cow<'_, [u8]>) -> Cow<'_, str> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::percent_decode;
+    use alloc::vec::Vec;
+
+    /// Makes it easier to declare test cases
+    macro_rules! decoding_test_cases {
+        ($($name:ident, $encoded:expr, $decoded:expr;)*) => {
+            $(
+                #[test]
+                fn $name() {
+                    assert_eq!(percent_decode($encoded.as_bytes()).decode_utf8().unwrap(), $decoded);
+                }
+            )*
+        };
+    }
+
+    decoding_test_cases! {
+        empty, "", "";
+        one_char_no_percent, "a", "a";
+        one_char_percent, "%", "%";
+        percent_followed_by_one_digit, "%0", "%0";
+        percent_followed_by_one_lower_hex_char, "%a", "%a";
+        percent_followed_by_one_upper_hex_char, "%A", "%A";
+        percent_followed_by_one_lower_non_hex_char, "%g", "%g";
+        percent_followed_by_one_upper_non_hex_char, "%G", "%G";
+        single_encoded_char, "%20", " ";
+        single_lower_hex_followed_by_percent, "a%", "a%";
+        single_upper_hex_followed_by_percent, "A%", "A%";
+        non_hex_followed_by_percent, "g%", "g%";
+        two_digits_followed_by_percent, "20%", "20%";
+        digit_and_lower_hex_followed_by_percent, "7a%", "7a%";
+        digit_and_upper_hex_followed_by_percent, "7A%", "7A%";
+        two_digits_followed_by_percent_followed_by_one_digits, "20%2", "20%2";
+        two_digits_followed_by_percent_followed_by_two_digits, "20%20", "20 ";
+    }
+
+    /// Avoids encoding percent sign unless it would be confused for percent encoding.
+    fn awful_encode(input: &[u8], output: &mut [u8]) -> usize {
+        let mut in_iter = input.iter();
+        let mut out_iter = output.iter_mut();
+        let mut count = 0;
+
+        while let Some(b) = in_iter.next() {
+            if *b == b'%' && in_iter.len() >= 2 && in_iter.as_slice()[0].is_ascii_hexdigit() && in_iter.as_slice()[1].is_ascii_hexdigit() {
+                *out_iter.next().unwrap() = b'%';
+                *out_iter.next().unwrap() = b'2';
+                *out_iter.next().unwrap() = b'5';
+                count += 2;
+            } else {
+                *out_iter.next().unwrap() = *b;
+            }
+        }
+
+        input.len() + count
+    }
+
+    quickcheck::quickcheck! {
+        fn qc_awful_encode_can_be_decoded(input: Vec<u8>) -> bool {
+            let mut out = Vec::with_capacity(input.len() * 3);
+            out.resize(input.len() * 3, 0);
+            let len = awful_encode(&input, &mut out);
+            let decoded = percent_decode(&out[..len]).collect::<Vec<_>>();
+            decoded == input
+        }
+    }
+}
