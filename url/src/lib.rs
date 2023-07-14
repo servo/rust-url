@@ -2358,6 +2358,12 @@ impl Url {
     /// ```
     #[allow(clippy::result_unit_err, clippy::suspicious_operation_groupings)]
     pub fn set_scheme(&mut self, scheme: &str) -> Result<(), ()> {
+        // If the given scheme contains leading or trailing C0 controls,
+        // we'll ignore the set_scheme operation.
+        if scheme.trim_matches(|ch| ch <= ' ').len() != scheme.len() {
+            return Ok(());
+        }
+
         let mut parser = Parser::for_setter(String::new());
         let remaining = parser.parse_scheme(parser::Input::new_no_trim(scheme))?;
         let new_scheme_type = SchemeType::from(&parser.serialization);
