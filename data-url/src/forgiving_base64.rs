@@ -21,6 +21,9 @@ impl fmt::Display for InvalidBase64 {
     }
 }
 
+#[cfg(feature = "std")]
+impl std::error::Error for InvalidBase64 {}
+
 #[derive(Debug)]
 enum InvalidBase64Details {
     UnexpectedSymbol(u8),
