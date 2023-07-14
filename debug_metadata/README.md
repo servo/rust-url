@@ -22,8 +22,8 @@ types, descibe how to display those types. (For writing a pretty printer, see: h
 
 ### Embedding Visualizers
 
-Through the use of the currently unstable `#[debugger_visualizer]` attribute, the `url`
-crate can embed debugger visualizers into the crate metadata.
+Through the use of the `#[debugger_visualizer]` attribute, the `url` crate can embed
+debugger visualizers into the crate metadata.
 
 Currently the two types of visualizers supported are Natvis and Pretty printers.
 

@@ -42,12 +42,12 @@ jobs:
         # Run tests enabling the serde feature
       - name: Run tests with the serde feature
         run: cargo test --features "url/serde,url/expose_internals"
-      # The #[debugger_visualizer] attribute is currently gated behind an unstable feature flag.
-      # In order to test the visualizers for the url crate, they have to be tested on a nightly build.
+      # The #[debugger_visualizer] attribute is currently gated behind a feature flag until #[debugger_visualizer]
+      # is available in all rustc versions past our MSRV. As such, we only run the tests on newer rustc versions.
       - name: Run debugger_visualizer tests
         if: |
           matrix.os == 'windows-latest' &&
-          matrix.rust == 'nightly'
+          matrix.rust != '1.56.0'
         run: cargo test --test debugger_visualizer --features "url/debugger_visualizer,url_debug_tests/debugger_visualizer" -- --test-threads=1
       - name: Test `no_std` support
         run: cargo test --no-default-features --features=alloc

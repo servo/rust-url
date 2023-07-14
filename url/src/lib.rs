@@ -119,12 +119,24 @@ See [serde documentation](https://serde.rs) for more information.
 url = { version = "2", features = ["serde"] }
 ```
 
+# Feature: `debugger_visualizer`
+
+If you enable the `debugger_visualizer` feature, the `url` crate will include
+a [natvis file](https://docs.microsoft.com/en-us/visualstudio/debugger/create-custom-views-of-native-objects)
+for [Visual Studio](https://www.visualstudio.com/) that allows you to view
+[`Url`](struct.Url.html) objects in the debugger.
+
+This feature requires Rust 1.71 or later.
+
+```toml
+url = { version = "2", features = ["debugger_visualizer"] }
+```
+
 */
 
 #![doc(html_root_url = "https://docs.rs/url/2.4.0")]
 #![cfg_attr(
     feature = "debugger_visualizer",
-    feature(debugger_visualizer),
     debugger_visualizer(natvis_file = "../../debug_metadata/url.natvis")
 )]
 
