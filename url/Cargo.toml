@@ -32,13 +32,13 @@ no-std-net = { version = "0.6.0", default-features = false, optional = true }
 default = ["std"]
 std = ["idna/std", "percent-encoding/std", "form_urlencoded/std", "alloc"]
 alloc = []
-# UNSTABLE FEATURES (requires Rust nightly)
-# Enable to use the #[debugger_visualizer] attribute.
+# Enable to use the #[debugger_visualizer] attribute. This feature requires Rust >= 1.71.
 debugger_visualizer = []
 # Expose internal offsets of the URL.
 expose_internals = []
 # For no_std: Allow the use of no_std_net instead of nightly
 no_std_net = ["no-std-net"]
+# UNSTABLE FEATURES (requires Rust nightly)
 # For no_std: Use errors_in_core and net_in_core
 unstable = ["idna/unstable"]
 
