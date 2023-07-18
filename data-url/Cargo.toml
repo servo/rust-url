@@ -26,3 +26,6 @@ test = false
 [[test]]
 name = "wpt"
 harness = false
+
+[package.metadata.docs.rs]
+rustdoc-args = ["--generate-link-to-definition"]

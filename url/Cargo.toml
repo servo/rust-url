@@ -17,6 +17,7 @@ edition = "2018"
 rust-version = "1.56"
 
 [dev-dependencies]
+serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 bencher = "0.1"
 
@@ -28,11 +29,15 @@ serde = { version = "1.0", optional = true, features = ["derive"] }
 
 [features]
 default = []
-# UNSTABLE FEATURES (requires Rust nightly)
-# Enable to use the #[debugger_visualizer] attribute.
+# Enable to use the #[debugger_visualizer] attribute. This feature requires Rust >= 1.71.
 debugger_visualizer = []
 # Expose internal offsets of the URL.
 expose_internals = []
+
+[[test]]
+name = "url_wpt"
+path = "tests/wpt.rs"
+harness = false
 
 [[bench]]
 name = "parse_url"
@@ -41,6 +46,7 @@ harness = false
 
 [package.metadata.docs.rs]
 features = ["serde"]
+rustdoc-args = ["--generate-link-to-definition"]
 
 [package.metadata.playground]
 features = ["serde"]

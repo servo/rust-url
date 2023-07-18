@@ -19,3 +19,6 @@ alloc = ["percent-encoding/alloc"]
 
 [dependencies]
 percent-encoding = { version = "2.3.0", default-features = false, path = "../percent_encoding" }
+
+[package.metadata.docs.rs]
+rustdoc-args = ["--generate-link-to-definition"]

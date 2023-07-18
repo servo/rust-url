@@ -38,3 +38,6 @@ unicode-normalization = { version = "0.1.22", default-features = false }
 [[bench]]
 name = "all"
 harness = false
+
+[package.metadata.docs.rs]
+rustdoc-args = ["--generate-link-to-definition"]
