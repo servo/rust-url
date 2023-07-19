@@ -62,10 +62,10 @@ jobs:
         if: |
           matrix.os == 'ubuntu-latest' &&
           matrix.rust == 'nightly'
-        run: |
+        run: >
           cd url
-          cargo +nightly check -Zbuild-std=core,alloc --target aarch64-unknown-none -v --release --no-default-features --features=alloc,unstable
-          cargo +nightly check -Zbuild-std=core,alloc --target aarch64-unknown-none -v --release --no-default-features --features=alloc,no_std_net
+          && cargo +nightly check -Zbuild-std=core,alloc --target aarch64-unknown-none -v --release --no-default-features --features=alloc,unstable
+          && cargo +nightly check -Zbuild-std=core,alloc --target aarch64-unknown-none -v --release --no-default-features --features=alloc,no_std_net
 
   WASM:
     runs-on: ubuntu-latest
