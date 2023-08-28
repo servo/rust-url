@@ -472,7 +472,7 @@ fn append_trailing_slash() {
 fn extend_query_pairs_then_mutate() {
     let mut url: Url = "http://localhost:6767/foo/bar".parse().unwrap();
     url.query_pairs_mut()
-        .extend_pairs(vec![("auth", "my-token")].into_iter());
+        .extend_pairs(vec![("auth", "my-token")]);
     url.check_invariants().unwrap();
     assert_eq!(
         url.to_string(),
@@ -1297,4 +1297,12 @@ fn test_file_with_drive_and_path() {
     let s2 = "a";
     let url2 = url::Url::join(&url, s2).unwrap();
     assert_eq!(url2.to_string(), "file:///p:/a");
+}
+
+#[test]
+fn issue_864() {
+    let mut url = url::Url::parse("file://").unwrap();
+    dbg!(&url);
+    url.set_path("x");
+    dbg!(&url);
 }
