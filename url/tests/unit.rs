@@ -1298,3 +1298,11 @@ fn test_file_with_drive_and_path() {
     let url2 = url::Url::join(&url, s2).unwrap();
     assert_eq!(url2.to_string(), "file:///p:/a");
 }
+
+#[test]
+fn issue_864() {
+    let mut url = url::Url::parse("file://").unwrap();
+    dbg!(&url);
+    url.set_path("x");
+    dbg!(&url);
+}

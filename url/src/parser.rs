@@ -1202,6 +1202,7 @@ impl<'a> Parser<'a> {
                     _ => {
                         self.check_url_code_point(c, &input);
                         if scheme_type.is_file()
+                            && self.serialization.len() > path_start
                             && is_normalized_windows_drive_letter(
                                 &self.serialization[path_start + 1..],
                             )
