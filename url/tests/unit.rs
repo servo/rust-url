@@ -472,7 +472,7 @@ fn append_trailing_slash() {
 fn extend_query_pairs_then_mutate() {
     let mut url: Url = "http://localhost:6767/foo/bar".parse().unwrap();
     url.query_pairs_mut()
-        .extend_pairs(vec![("auth", "my-token")].into_iter());
+        .extend_pairs(vec![("auth", "my-token")]);
     url.check_invariants().unwrap();
     assert_eq!(
         url.to_string(),
