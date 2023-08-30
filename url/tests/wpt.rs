@@ -8,6 +8,8 @@
 
 //! Data-driven tests imported from web-platform-tests
 
+extern crate serde_crate as serde;
+
 use std::collections::HashMap;
 use std::fmt::Write;
 use std::panic;
@@ -16,6 +18,7 @@ use serde_json::Value;
 use url::Url;
 
 #[derive(Debug, serde::Deserialize)]
+#[serde(crate = "serde")]
 struct UrlTest {
     input: String,
     base: Option<String>,
@@ -24,7 +27,7 @@ struct UrlTest {
 }
 
 #[derive(Debug, serde::Deserialize)]
-#[serde(untagged)]
+#[serde(crate = "serde", untagged)]
 #[allow(clippy::large_enum_variant)]
 enum UrlTestResult {
     Ok(UrlTestOk),
@@ -32,6 +35,7 @@ enum UrlTestResult {
 }
 
 #[derive(Debug, serde::Deserialize)]
+#[serde(crate = "serde")]
 struct UrlTestOk {
     href: String,
     protocol: String,
@@ -46,11 +50,13 @@ struct UrlTestOk {
 }
 
 #[derive(Debug, serde::Deserialize)]
+#[serde(crate = "serde")]
 struct UrlTestFail {
     failure: bool,
 }
 
 #[derive(Debug, serde::Deserialize)]
+#[serde(crate = "serde")]
 struct SetterTest {
     href: String,
     new_value: String,
@@ -58,6 +64,7 @@ struct SetterTest {
 }
 
 #[derive(Debug, serde::Deserialize)]
+#[serde(crate = "serde")]
 struct SetterTestExpected {
     href: Option<String>,
     protocol: Option<String>,

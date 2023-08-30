@@ -12,11 +12,15 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 
 use percent_encoding::{percent_decode, utf8_percent_encode, CONTROLS};
 #[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+use serde_derive::{Deserialize, Serialize};
 
 use crate::parser::{ParseError, ParseResult};
 
-#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Deserialize, Serialize),
+    serde(crate = "serde"),
+)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub(crate) enum HostInternal {
     None,
@@ -37,7 +41,11 @@ impl From<Host<String>> for HostInternal {
 }
 
 /// The host name of an URL.
-#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Deserialize, Serialize),
+    serde(crate = "serde"),
+)]
 #[derive(Clone, Debug, Eq, Ord, PartialOrd, Hash)]
 pub enum Host<S = String> {
     /// A DNS domain name, as '.' dot-separated labels.

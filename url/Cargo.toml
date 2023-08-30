@@ -17,7 +17,7 @@ edition = "2018"
 rust-version = "1.56"
 
 [dev-dependencies]
-serde = { version = "1.0", features = ["derive"] }
+serde_crate = { package = "serde", version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 bencher = "0.1"
 
@@ -25,7 +25,8 @@ bencher = "0.1"
 form_urlencoded = { version = "1.2.0", path = "../form_urlencoded" }
 idna = { version = "0.4.0", path = "../idna" }
 percent-encoding = { version = "2.3.0", path = "../percent_encoding" }
-serde = { version = "1.0", optional = true, features = ["derive"] }
+serde_crate = { package = "serde", version = "1.0.186", optional = true }
+serde_derive = { version = "1.0", optional = true }
 
 [features]
 default = []
@@ -33,6 +34,7 @@ default = []
 debugger_visualizer = []
 # Expose internal offsets of the URL.
 expose_internals = []
+serde = ["serde_crate", "serde_derive"]
 
 [[test]]
 name = "url_wpt"

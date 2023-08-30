@@ -143,7 +143,7 @@ url = { version = "2", features = ["debugger_visualizer"] }
 pub use form_urlencoded;
 
 #[cfg(feature = "serde")]
-extern crate serde;
+extern crate serde_crate as serde;
 
 use crate::host::HostInternal;
 use crate::parser::{to_u32, Context, Parser, SchemeType, PATH_SEGMENT, USERINFO};
