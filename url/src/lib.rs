@@ -141,6 +141,7 @@ url = { version = "2", features = ["debugger_visualizer"] }
 )]
 
 pub use form_urlencoded;
+pub use percent_encoding;
 
 #[cfg(feature = "serde")]
 extern crate serde;
