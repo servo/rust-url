@@ -2697,7 +2697,7 @@ impl Ord for Url {
 impl PartialOrd for Url {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
-        self.serialization.partial_cmp(&other.serialization)
+        Some(self.cmp(other))
     }
 }
 
