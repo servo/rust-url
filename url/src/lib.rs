@@ -1566,7 +1566,9 @@ impl Url {
             });
         } else {
             self.query_start = None;
-            self.strip_trailing_spaces_from_opaque_path();
+            if fragment.is_none() {
+                self.strip_trailing_spaces_from_opaque_path();
+            }
         }
 
         self.restore_already_parsed_fragment(fragment);
