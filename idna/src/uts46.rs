@@ -509,6 +509,7 @@ impl Idna {
 }
 
 #[derive(Clone, Copy)]
+#[must_use]
 pub struct Config {
     use_std3_ascii_rules: bool,
     transitional_processing: bool,
