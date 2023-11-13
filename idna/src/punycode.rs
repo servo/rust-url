@@ -235,9 +235,9 @@ where
     I: Iterator<Item = char> + Clone,
 {
     // Handle "basic" (ASCII) code points. They are encoded as-is.
-    let (mut input_length, mut basic_length) = (0, 0);
+    let (mut input_length, mut basic_length) = (0u32, 0);
     for c in input.clone() {
-        input_length += 1;
+        input_length = input_length.checked_add(1).ok_or(())?;
         if c.is_ascii() {
             output.push(c);
             basic_length += 1;
