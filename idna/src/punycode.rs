@@ -215,6 +215,9 @@ impl<'a> ExactSizeIterator for Decode<'a> {
 /// This is a convenience wrapper around `encode`.
 #[inline]
 pub fn encode_str(input: &str) -> Option<String> {
+    if input.len() > u32::MAX as usize {
+        return None;
+    }
     let mut buf = String::with_capacity(input.len());
     encode_into(input.chars(), &mut buf).ok().map(|()| buf)
 }
@@ -224,6 +227,9 @@ pub fn encode_str(input: &str) -> Option<String> {
 /// Return None on overflow, which can only happen on inputs that would take more than
 /// 63 encoded bytes, the DNS limit on domain name labels.
 pub fn encode(input: &[char]) -> Option<String> {
+    if input.len() > u32::MAX as usize {
+        return None;
+    }
     let mut buf = String::with_capacity(input.len());
     encode_into(input.iter().copied(), &mut buf)
         .ok()
