@@ -269,10 +269,7 @@ where
         for c in input.clone() {
             let c = c as u32;
             if c < code_point {
-                delta += 1;
-                if delta == 0 {
-                    return Err(()); // Overflow
-                }
+                delta = delta.checked_add(1).ok_or(())?;
             }
             if c == code_point {
                 // Represent delta as a generalized variable-length integer:
