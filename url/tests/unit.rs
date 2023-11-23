@@ -41,7 +41,7 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::cell::{Cell, RefCell};
 #[cfg(feature = "std")]
-use std::path::{Path, PathBuf};
+use std::{dbg, path::{Path, PathBuf}};
 use url::{form_urlencoded, Host, Origin, Url};
 
 /// `std` version of `net`
@@ -1364,6 +1364,7 @@ fn test_file_with_drive_and_path() {
     assert_eq!(url2.to_string(), "file:///p:/a");
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn issue_864() {
     let mut url = url::Url::parse("file://").unwrap();
