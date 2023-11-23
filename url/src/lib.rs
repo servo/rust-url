@@ -135,7 +135,7 @@ url = { version = "2", features = ["debugger_visualizer"] }
 */
 
 #![no_std]
-#![doc(html_root_url = "https://docs.rs/url/2.4.0")]
+#![doc(html_root_url = "https://docs.rs/url/2.5.0")]
 #![cfg_attr(
     feature = "debugger_visualizer",
     debugger_visualizer(natvis_file = "../../debug_metadata/url.natvis")
@@ -255,6 +255,7 @@ pub struct Url {
 
 /// Full configuration for the URL parser.
 #[derive(Copy, Clone)]
+#[must_use]
 pub struct ParseOptions<'a> {
     base_url: Option<&'a Url>,
     encoding_override: EncodingOverride<'a>,
@@ -1632,7 +1633,9 @@ impl Url {
             });
         } else {
             self.query_start = None;
-            self.strip_trailing_spaces_from_opaque_path();
+            if fragment.is_none() {
+                self.strip_trailing_spaces_from_opaque_path();
+            }
         }
 
         self.restore_already_parsed_fragment(fragment);
@@ -2804,7 +2807,7 @@ impl Ord for Url {
 impl PartialOrd for Url {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
-        self.serialization.partial_cmp(&other.serialization)
+        Some(self.cmp(other))
     }
 }
 
