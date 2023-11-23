@@ -41,7 +41,10 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::cell::{Cell, RefCell};
 #[cfg(feature = "std")]
-use std::{dbg, path::{Path, PathBuf}};
+use std::{
+    dbg,
+    path::{Path, PathBuf},
+};
 use url::{form_urlencoded, Host, Origin, Url};
 
 /// `std` version of `net`
