@@ -1524,7 +1524,7 @@ impl Url {
         }
     }
 
-    /// Change this URL’s query string. If `query` is `None`, this URL's 
+    /// Change this URL’s query string. If `query` is `None`, this URL's
     /// query string will be cleared.
     ///
     /// # Examples
