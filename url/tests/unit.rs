@@ -598,6 +598,7 @@ fn test_origin_opaque() {
 
 #[test]
 #[cfg(not(target_arch = "wasm32"))]
+#[allow(deprecated)]
 fn test_origin_unicode_serialization() {
     let data = [
         ("http://😅.com", "http://😅.com"),
@@ -607,7 +608,6 @@ fn test_origin_unicode_serialization() {
     ];
     for &(unicode_url, expected_serialization) in &data {
         let origin = Url::parse(unicode_url).unwrap().origin();
-        #[allow(deprecated)]
         assert_eq!(origin.unicode_serialization(), *expected_serialization);
     }
 
@@ -627,7 +627,6 @@ fn test_origin_unicode_serialization() {
         Url::parse("http://127.0.0.1").unwrap().origin(),
     ];
     for ascii_origin in &ascii_origins {
-        #[allow(deprecated)]
         assert_eq!(
             ascii_origin.ascii_serialization(),
             ascii_origin.unicode_serialization()
