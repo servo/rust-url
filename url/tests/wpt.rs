@@ -142,7 +142,12 @@ fn main() {
     #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
     {
         // Every browser has its quirks.
-        let user_agent = web_sys::window().unwrap().navigator().user_agent().unwrap().to_ascii_lowercase();
+        let user_agent = web_sys::window()
+            .unwrap()
+            .navigator()
+            .user_agent()
+            .unwrap()
+            .to_ascii_lowercase();
         if user_agent.contains("chrom") {
             expected_failures.extend(include_str!("expected_failures_chromium.txt").lines());
         }
