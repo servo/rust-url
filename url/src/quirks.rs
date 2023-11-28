@@ -65,6 +65,7 @@ pub fn domain_to_ascii(domain: &str) -> String {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 /// https://url.spec.whatwg.org/#dom-url-domaintounicode
 pub fn domain_to_unicode(domain: &str) -> String {
     match Host::parse(domain) {

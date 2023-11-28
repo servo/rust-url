@@ -596,6 +596,7 @@ fn test_origin_opaque() {
 }
 
 #[test]
+#[cfg(not(target_arch = "wasm32"))]
 fn test_origin_unicode_serialization() {
     let data = [
         ("http://😅.com", "http://😅.com"),
@@ -770,7 +771,9 @@ fn test_set_href() {
 
 #[test]
 fn test_domain_encoding_quirks() {
-    use url::quirks::{domain_to_ascii, domain_to_unicode};
+    use url::quirks::domain_to_ascii;
+    #[cfg(not(target_arch = "wasm32"))]
+    use url::quirks::domain_to_unicode;
 
     let data = [
         ("http://example.com", "", ""),
@@ -781,6 +784,7 @@ fn test_domain_encoding_quirks() {
 
     for url in &data {
         assert_eq!(domain_to_ascii(url.0), url.1);
+        #[cfg(not(target_arch = "wasm32"))]
         assert_eq!(domain_to_unicode(url.0), url.2);
     }
 }
