@@ -1226,7 +1226,6 @@ impl Url {
         self.port.or_else(|| parser::default_port(self.scheme()))
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     /// Resolve a URL’s host and port number to `SocketAddr`.
     ///
     /// If the URL has the default port number of a scheme that is unknown to this library,
@@ -1235,8 +1234,6 @@ impl Url {
     /// or by matching on the URL’s `.scheme()`.
     ///
     /// If the host is a domain, it is resolved using the standard library’s DNS support.
-    ///
-    /// **Note:** this feature is not available on `target_arch = "wasm32"`.
     ///
     /// # Examples
     ///
