@@ -26,9 +26,14 @@ wasm-bindgen-test = "0.3"
 
 [dependencies]
 form_urlencoded = { version = "1.2.1", path = "../form_urlencoded" }
-idna = { version = "0.5.0", path = "../idna" }
 percent-encoding = { version = "2.3.1", path = "../percent_encoding" }
 serde = { version = "1.0", optional = true, features = ["derive"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+idna = { version = "0.5.0", path = "../idna" }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web-sys = { version = "0.3.65", features = ["Url"] }
 
 [features]
 default = []

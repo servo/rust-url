@@ -89,29 +89,7 @@ impl Host<String> {
             return Err(ParseError::EmptyHost);
         }
 
-        let is_invalid_domain_char = |c| {
-            matches!(
-                c,
-                '\0'..='\u{001F}'
-                    | ' '
-                    | '#'
-                    | '%'
-                    | '/'
-                    | ':'
-                    | '<'
-                    | '>'
-                    | '?'
-                    | '@'
-                    | '['
-                    | '\\'
-                    | ']'
-                    | '^'
-                    | '\u{007F}'
-                    | '|'
-            )
-        };
-
-        if domain.find(is_invalid_domain_char).is_some() {
+        if domain.find(Self::is_invalid_domain_char).is_some() {
             Err(ParseError::InvalidDomainCharacter)
         } else if ends_in_a_number(&domain) {
             let address = parse_ipv4addr(&domain)?;
@@ -161,9 +139,49 @@ impl Host<String> {
         }
     }
 
+    #[cfg(not(target_arch="wasm32"))]
     /// convert domain with idna
     fn domain_to_ascii(domain: &str) -> Result<String, ParseError> {
         idna::domain_to_ascii(domain).map_err(Into::into)
+    }
+
+    #[cfg(target_arch="wasm32")]
+    /// convert domain with idna
+    fn domain_to_ascii(domain: &str) -> Result<String, ParseError> {
+        // Url throws an error on empty hostnames
+        if domain.is_empty() {
+            return Err(ParseError::EmptyHost);
+        }
+        // Url returns strange results for invalid domain chars
+        if domain.contains(Self::is_invalid_domain_char) {
+            return Err(ParseError::InvalidDomainCharacter);
+        }
+        let u = web_sys::Url::new(&format!("http://{domain}")).map_err(|_| {
+            ParseError::IdnaError
+        })?;
+        Ok(u.host())
+    }
+
+    fn is_invalid_domain_char(c: char) -> bool {
+        matches!(
+            c,
+            '\0'..='\u{001F}'
+                | ' '
+                | '#'
+                | '%'
+                | '/'
+                | ':'
+                | '<'
+                | '>'
+                | '?'
+                | '@'
+                | '['
+                | '\\'
+                | ']'
+                | '^'
+                | '\u{007F}'
+                | '|'
+        )
     }
 }
 

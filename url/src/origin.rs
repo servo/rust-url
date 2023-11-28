@@ -85,6 +85,8 @@ impl Origin {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
+    // FIXME: "There used to also be a Unicode serialization of an origin. However, it was never widely adopted."
     /// <https://html.spec.whatwg.org/multipage/#unicode-serialisation-of-an-origin>
     pub fn unicode_serialization(&self) -> String {
         match *self {
