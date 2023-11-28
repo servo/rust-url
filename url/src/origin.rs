@@ -85,9 +85,15 @@ impl Origin {
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    // FIXME: "There used to also be a Unicode serialization of an origin. However, it was never widely adopted."
-    /// <https://html.spec.whatwg.org/multipage/#unicode-serialisation-of-an-origin>
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+    #[deprecated]
+    /// [The Unicode serialization of an origin][0].
+    ///
+    /// This [has been removed from the standard][1] because it was never widely
+    /// adopted, and was difficult to use.
+    ///
+    /// [0]: https://html.spec.whatwg.org/multipage/#unicode-serialisation-of-an-origin
+    /// [1]: https://github.com/whatwg/html/pull/2689
     pub fn unicode_serialization(&self) -> String {
         match *self {
             Origin::Opaque(_) => "null".to_owned(),

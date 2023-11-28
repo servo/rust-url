@@ -139,14 +139,14 @@ impl Host<String> {
         }
     }
 
-    #[cfg(not(target_arch="wasm32"))]
-    /// convert domain with idna
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+    /// Convert IDN domain to ASCII form with [idna]
     fn domain_to_ascii(domain: &str) -> Result<String, ParseError> {
         idna::domain_to_ascii(domain).map_err(Into::into)
     }
 
-    #[cfg(target_arch="wasm32")]
-    /// convert domain with idna
+    #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+    /// Convert IDN domain to ASCII form with [web_sys::Url]
     fn domain_to_ascii(domain: &str) -> Result<String, ParseError> {
         // Url throws an error on empty hostnames
         if domain.is_empty() {
@@ -156,9 +156,8 @@ impl Host<String> {
         if domain.contains(Self::is_invalid_domain_char) {
             return Err(ParseError::InvalidDomainCharacter);
         }
-        let u = web_sys::Url::new(&format!("http://{domain}")).map_err(|_| {
-            ParseError::IdnaError
-        })?;
+        let u =
+            web_sys::Url::new(&format!("http://{domain}")).map_err(|_| ParseError::IdnaError)?;
         Ok(u.host())
     }
 

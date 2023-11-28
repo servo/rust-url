@@ -772,7 +772,7 @@ fn test_set_href() {
 #[test]
 fn test_domain_encoding_quirks() {
     use url::quirks::domain_to_ascii;
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     use url::quirks::domain_to_unicode;
 
     let data = [
@@ -784,7 +784,7 @@ fn test_domain_encoding_quirks() {
 
     for url in &data {
         assert_eq!(domain_to_ascii(url.0), url.1);
-        #[cfg(not(target_arch = "wasm32"))]
+        #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
         assert_eq!(domain_to_unicode(url.0), url.2);
     }
 }
