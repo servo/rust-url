@@ -139,6 +139,20 @@ fn main() {
     let mut expected_failures = include_str!("expected_failures.txt")
         .lines()
         .collect::<Vec<_>>();
+    #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+    {
+        // Every browser has its quirks.
+        let user_agent = web_sys::window().unwrap().navigator().user_agent().unwrap().to_ascii_lowercase();
+        if user_agent.contains("chrom") {
+            expected_failures.extend(include_str!("expected_failures_chromium.txt").lines());
+        }
+        if user_agent.contains("gecko/20") {
+            expected_failures.extend(include_str!("expected_failures_firefox.txt").lines());
+        }
+        if user_agent.contains("safari") && !user_agent.contains("chrom") {
+            expected_failures.extend(include_str!("expected_failures_safari.txt").lines());
+        }
+    }
 
     let mut errors = vec![];
 

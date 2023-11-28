@@ -1,0 +1,14 @@
+<http://\u{ff05}\u{ff14}\u{ff11}.com> against <http://other.com/>
+<http://%ef%bc%85%ef%bc%94%ef%bc%91.com> against <http://other.com/>
+<http://!\"$&\'()*+,-.;=_`{}~/>
+<wss://!\"$&\'()*+,-.;=_`{}~/>
+<https://example.com/> set host to <xn-->
+<https://example.com/> set hostname to <xn-->
+<http://a.b.c.xn--pokxncvks>
+<http://10.0.0.xn--pokxncvks>
+<http://a.b.c.XN--pokxncvks>
+<http://a.b.c.Xn--pokxncvks>
+<http://10.0.0.XN--pokxncvks>
+<http://10.0.0.xN--pokxncvks>
+<file://xn--/p>
+<https://xn--/>

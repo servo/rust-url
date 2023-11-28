@@ -1,0 +1,2 @@
+<http://\u{ff05}\u{ff14}\u{ff11}.com> against <http://other.com/>
+<http://%ef%bc%85%ef%bc%94%ef%bc%91.com> against <http://other.com/>
