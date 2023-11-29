@@ -772,6 +772,7 @@ fn test_set_href() {
 }
 
 #[test]
+#[allow(deprecated)]
 fn test_domain_encoding_quirks() {
     use url::quirks::domain_to_ascii;
     #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
