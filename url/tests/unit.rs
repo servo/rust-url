@@ -597,7 +597,7 @@ fn test_origin_opaque() {
 }
 
 #[test]
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 #[allow(deprecated)]
 fn test_origin_unicode_serialization() {
     let data = [
