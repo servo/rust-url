@@ -3056,10 +3056,7 @@ mod uniffi_core_impl {
 
     use super::*;
 
-    use uniffi_core::{
-        deps::bytes::{Buf, BufMut},
-        metadata, FfiConverter, MetadataBuffer,
-    };
+    use uniffi_core::{metadata, FfiConverter, MetadataBuffer};
 
     uniffi_core::derive_ffi_traits!(blanket Url);
 
@@ -3077,7 +3074,10 @@ mod uniffi_core_impl {
         }
 
         const TYPE_ID_META: MetadataBuffer =
-            MetadataBuffer::from_code(metadata::codes::TYPE_STRING);
+            MetadataBuffer::from_code(metadata::codes::TYPE_CUSTOM)
+                .concat_str("url::Url")
+                .concat_str("Url")
+                .concat(<String as uniffi_core::Lower<String>>::TYPE_ID_META);
     }
 
     #[cfg(test)]
