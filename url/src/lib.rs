@@ -77,6 +77,9 @@ assert!(data_url.fragment() == Some(""));
 
 Enable the `serde` feature to include `Deserialize` and `Serialize` implementations for `url::Url`.
 
+## Uniffi
+- Implements `uniffi_core::FfiConverter` and friends for `Url`.
+
 # Base URL
 
 Many contexts allow URL *references* that can be relative to a *base URL*:
@@ -3040,6 +3043,92 @@ impl<'a> Drop for UrlQuery<'a> {
     fn drop(&mut self) {
         if let Some(url) = self.url.take() {
             url.restore_already_parsed_fragment(self.fragment.take())
+        }
+    }
+}
+
+#[cfg(all(feature = "uniffi", test))]
+uniffi::setup_scaffolding!();
+
+#[cfg(feature = "uniffi")]
+mod uniffi_core_impl {
+    use std::str::FromStr;
+
+    use super::*;
+
+    use uniffi_core::{
+        deps::bytes::{Buf, BufMut},
+        metadata, FfiConverter, MetadataBuffer,
+    };
+
+    uniffi_core::derive_ffi_traits!(blanket Url);
+
+    unsafe impl<UT> FfiConverter<UT> for Url {
+        uniffi_core::ffi_converter_rust_buffer_lift_and_lower!(UT);
+
+        fn write(obj: Self, buf: &mut Vec<u8>) {
+            let string: String = obj.to_string();
+            <String as FfiConverter<UT>>::write(string, buf)
+        }
+
+        fn try_read(buf: &mut &[u8]) -> uniffi_core::Result<Self> {
+            <String as FfiConverter<UT>>::try_read(buf)
+                .and_then(|s| Url::from_str(s.as_str()).map_err(|e| e.into()))
+        }
+
+        const TYPE_ID_META: MetadataBuffer =
+            MetadataBuffer::from_code(metadata::codes::TYPE_STRING);
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[derive(uniffi::Object)]
+        pub struct TestObject {
+            pub url: Url,
+        }
+
+        #[derive(uniffi::Record)]
+        pub struct TestRecord {
+            pub url: Url,
+        }
+
+        #[test]
+        fn test_uniffi() {
+            fn test_uniffi_inner(url: Url) {
+                {
+                    let mut buf = Vec::new();
+                    <Url as FfiConverter<()>>::write(url.clone(), &mut buf);
+                    assert_eq!(
+                        url.clone(),
+                        <Url as FfiConverter<()>>::try_read(&mut &buf[0..]).unwrap()
+                    );
+
+                    assert_eq!(
+                        url,
+                        Url::from_str(
+                            <String as FfiConverter<()>>::try_read(&mut &buf[0..])
+                                .unwrap()
+                                .as_str()
+                        )
+                        .unwrap()
+                    );
+                }
+                {
+                    // Test String compatibility
+                    let mut buf = Vec::new();
+                    <String as FfiConverter<()>>::write(url.clone().to_string(), &mut buf);
+
+                    assert_eq!(
+                        url.clone().to_string(),
+                        <String as FfiConverter<()>>::try_read(&mut &buf[0..]).unwrap()
+                    );
+                }
+            }
+
+            test_uniffi_inner(Url::from_str("https://github.com/servo/rust-url").unwrap());
+            test_uniffi_inner(Url::from_str("https://example.com").unwrap());
         }
     }
 }
