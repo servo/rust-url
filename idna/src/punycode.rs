@@ -41,10 +41,12 @@ fn adapt(mut delta: u32, num_points: u32, first_time: bool) -> u32 {
 
 /// Convert Punycode to an Unicode `String`.
 ///
-/// This is a convenience wrapper around `decode`.
+/// Return None on malformed input or overflow.
+/// Overflow can only happen on inputs that take more than
+/// 63 encoded bytes, the DNS limit on domain name labels.
 #[inline]
 pub fn decode_to_string(input: &str) -> Option<String> {
-    decode(input).map(|chars| chars.into_iter().collect())
+    Some(Decoder::default().decode(input).ok()?.collect())
 }
 
 /// Convert Punycode to Unicode.
