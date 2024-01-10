@@ -7,16 +7,67 @@
 // except according to those terms.
 
 //! Unit tests
+#![no_std]
+#![cfg_attr(
+    all(
+        not(feature = "std"),
+        not(feature = "no_std_net"),
+        feature = "unstable"
+    ),
+    feature(ip_in_core)
+)]
+#![cfg_attr(
+    all(not(feature = "std"), feature = "unstable"),
+    feature(error_in_core)
+)]
 
-use std::borrow::Cow;
-use std::cell::{Cell, RefCell};
-use std::net::{Ipv4Addr, Ipv6Addr};
-use std::path::{Path, PathBuf};
+#[cfg(feature = "std")]
+extern crate std;
+
+#[macro_use]
+extern crate alloc;
+
+#[cfg(not(feature = "alloc"))]
+compile_error!("the `alloc` feature must be enabled");
+
+#[cfg(not(any(feature = "no_std_net", feature = "std", feature = "unstable")))]
+compile_error!(
+    "Either the `no_std_net`, `std` or, on nightly, the `unstable` feature, must be enabled"
+);
+
+use alloc::borrow::Cow;
+use alloc::borrow::ToOwned;
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
+use core::cell::{Cell, RefCell};
+#[cfg(feature = "std")]
+use std::{
+    dbg,
+    path::{Path, PathBuf},
+};
 use url::{form_urlencoded, Host, Origin, Url};
+
+/// `std` version of `net`
+#[cfg(feature = "std")]
+pub(crate) mod net {
+    pub use std::net::*;
+}
+/// `no_std` non-nightly of `net`
+#[cfg(all(not(feature = "std"), feature = "no_std_net"))]
+pub(crate) mod net {
+    pub use no_std_net::*;
+}
+/// `no_std` nightly version of `net`
+#[cfg(all(not(feature = "std"), not(feature = "no_std_net")))]
+pub(crate) mod net {
+    pub use core::net::*;
+}
+
+use crate::net::{Ipv4Addr, Ipv6Addr};
 
 #[test]
 fn size() {
-    use std::mem::size_of;
+    use core::mem::size_of;
     assert_eq!(size_of::<Url>(), size_of::<Option<Url>>());
 }
 
@@ -117,6 +168,10 @@ fn test_set_empty_query() {
     assert_eq!(base.as_str(), "moz://example.com/path");
 }
 
+#[cfg(all(
+    feature = "std",
+    any(unix, windows, target_os = "redox", target_os = "wasi")
+))]
 macro_rules! assert_from_file_path {
     ($path: expr) => {
         assert_from_file_path!($path, $path)
@@ -130,6 +185,7 @@ macro_rules! assert_from_file_path {
 }
 
 #[test]
+#[cfg(feature = "std")]
 fn new_file_paths() {
     if cfg!(unix) {
         assert_eq!(Url::from_file_path(Path::new("relative")), Err(()));
@@ -150,7 +206,7 @@ fn new_file_paths() {
 }
 
 #[test]
-#[cfg(unix)]
+#[cfg(all(feature = "std", unix))]
 fn new_path_bad_utf8() {
     use std::ffi::OsStr;
     use std::os::unix::prelude::*;
@@ -161,6 +217,10 @@ fn new_path_bad_utf8() {
 }
 
 #[test]
+#[cfg(all(
+    feature = "std",
+    any(unix, windows, target_os = "redox", target_os = "wasi")
+))]
 fn new_path_windows_fun() {
     if cfg!(windows) {
         assert_from_file_path!(r"C:\foo\bar", "/C:/foo/bar");
@@ -183,6 +243,10 @@ fn new_path_windows_fun() {
 }
 
 #[test]
+#[cfg(all(
+    feature = "std",
+    any(unix, windows, target_os = "redox", target_os = "wasi")
+))]
 fn new_directory_paths() {
     if cfg!(unix) {
         assert_eq!(Url::from_directory_path(Path::new("relative")), Err(()));
@@ -248,6 +312,7 @@ fn issue_124() {
 }
 
 #[test]
+#[cfg(feature = "std")]
 fn test_equality() {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
@@ -438,7 +503,7 @@ fn issue_61() {
 }
 
 #[test]
-#[cfg(not(windows))]
+#[cfg(all(feature = "std", any(unix, target_os = "redox", target_os = "wasi")))]
 /// https://github.com/servo/rust-url/issues/197
 fn issue_197() {
     let mut url = Url::from_file_path("/").expect("Failed to parse path");
@@ -528,6 +593,7 @@ fn test_leading_dots() {
 }
 
 #[test]
+#[cfg(feature = "std")]
 /// https://github.com/servo/rust-url/issues/302
 fn test_origin_hash() {
     use std::collections::hash_map::DefaultHasher;
@@ -622,6 +688,7 @@ fn test_origin_unicode_serialization() {
 }
 
 #[test]
+#[cfg(feature = "std")]
 fn test_socket_addrs() {
     use std::net::ToSocketAddrs;
 
@@ -803,6 +870,7 @@ fn test_expose_internals() {
 }
 
 #[test]
+#[cfg(feature = "std")]
 fn test_windows_unc_path() {
     if !cfg!(windows) {
         return;
@@ -914,8 +982,8 @@ fn test_options_reuse() {
 }
 
 /// https://github.com/servo/rust-url/issues/505
-#[cfg(windows)]
 #[test]
+#[cfg(all(feature = "std", windows))]
 fn test_url_from_file_path() {
     use std::path::PathBuf;
     use url::Url;
@@ -927,8 +995,8 @@ fn test_url_from_file_path() {
 }
 
 /// https://github.com/servo/rust-url/issues/505
-#[cfg(not(windows))]
 #[test]
+#[cfg(all(feature = "std", not(windows)))]
 fn test_url_from_file_path() {
     use std::path::PathBuf;
     use url::Url;
@@ -1299,6 +1367,7 @@ fn test_file_with_drive_and_path() {
     assert_eq!(url2.to_string(), "file:///p:/a");
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn issue_864() {
     let mut url = url::Url::parse("file://").unwrap();

@@ -134,32 +134,82 @@ url = { version = "2", features = ["debugger_visualizer"] }
 
 */
 
+#![no_std]
 #![doc(html_root_url = "https://docs.rs/url/2.5.0")]
 #![cfg_attr(
     feature = "debugger_visualizer",
     debugger_visualizer(natvis_file = "../../debug_metadata/url.natvis")
 )]
+#![cfg_attr(
+    all(
+        not(feature = "std"),
+        not(feature = "no_std_net"),
+        feature = "unstable"
+    ),
+    feature(ip_in_core)
+)]
+#![cfg_attr(
+    all(not(feature = "std"), feature = "unstable"),
+    feature(error_in_core)
+)]
 
 pub use form_urlencoded;
+
+// For forwards compatibility
+#[cfg(feature = "std")]
+extern crate std;
+
+#[macro_use]
+extern crate alloc;
+
+#[cfg(not(feature = "alloc"))]
+compile_error!("the `alloc` feature must be enabled");
+
+#[cfg(not(any(feature = "no_std_net", feature = "std", feature = "unstable")))]
+compile_error!(
+    "Either the `no_std_net`, `std` or, on nightly, the `unstable` feature, must be enabled"
+);
 
 #[cfg(feature = "serde")]
 extern crate serde;
 
 use crate::host::HostInternal;
-use crate::parser::{to_u32, Context, Parser, SchemeType, PATH_SEGMENT, USERINFO};
-use percent_encoding::{percent_decode, percent_encode, utf8_percent_encode};
-use std::borrow::Borrow;
-use std::cmp;
-use std::fmt::{self, Write};
-use std::hash;
-use std::io;
-use std::mem;
-use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
-use std::ops::{Range, RangeFrom, RangeTo};
-use std::path::{Path, PathBuf};
-use std::str;
+use crate::net::IpAddr;
+use crate::parser::{to_u32, Context, Parser, SchemeType, USERINFO};
+use alloc::borrow::ToOwned;
+use alloc::string::{String, ToString};
+use core::borrow::Borrow;
+use core::cmp;
+use core::convert::TryFrom;
+use core::fmt::{self, Write};
+use core::hash;
+use core::mem;
+use core::ops::{Range, RangeFrom, RangeTo};
+use core::str;
+use percent_encoding::utf8_percent_encode;
 
-use std::convert::TryFrom;
+/// `std` version of `net`
+#[cfg(feature = "std")]
+pub(crate) mod net {
+    pub use std::net::*;
+}
+/// `no_std` non-nightly of `net`
+#[cfg(all(not(feature = "std"), feature = "no_std_net"))]
+pub(crate) mod net {
+    pub use no_std_net::*;
+}
+/// `no_std` nightly version of `net`
+#[cfg(all(not(feature = "std"), not(feature = "no_std_net")))]
+pub(crate) mod net {
+    pub use core::net::*;
+}
+
+#[cfg(feature = "std")]
+use std::{
+    io,
+    net::{SocketAddr, ToSocketAddrs},
+    path::{Path, PathBuf},
+};
 
 pub use crate::host::Host;
 pub use crate::origin::{OpaqueOrigin, Origin};
@@ -1250,10 +1300,11 @@ impl Url {
     ///     })
     /// }
     /// ```
+    #[cfg(feature = "std")]
     pub fn socket_addrs(
         &self,
         default_port_number: impl Fn() -> Option<u16>,
-    ) -> io::Result<Vec<SocketAddr>> {
+    ) -> io::Result<alloc::vec::Vec<SocketAddr>> {
         // Note: trying to avoid the Vec allocation by returning `impl AsRef<[SocketAddr]>`
         // causes borrowck issues because the return value borrows `default_port_number`:
         //
@@ -1262,6 +1313,7 @@ impl Url {
         // > This RFC proposes that *all* type parameters are considered in scope
         // > for `impl Trait` in return position
 
+        // TODO: Return custom error type to support no_std
         fn io_result<T>(opt: Option<T>, message: &str) -> io::Result<T> {
             opt.ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, message))
         }
@@ -1323,9 +1375,23 @@ impl Url {
     ///
     /// ```
     /// use url::Url;
-    /// # use std::error::Error;
     ///
-    /// # fn run() -> Result<(), Box<dyn Error>> {
+    /// # use url::ParseError;
+    /// # #[derive(Debug)]
+    /// # /// A simple wrapper error struct for `no_std` support
+    /// # struct TestError;
+    /// # impl From<ParseError> for TestError {
+    /// #   fn from(value: ParseError) -> Self {
+    /// #       TestError {}
+    /// #   }
+    /// # }
+    /// # impl From<&str> for TestError {
+    /// #   fn from(value: &str) -> Self {
+    /// #       TestError {}
+    /// #   }
+    /// # }
+    ///
+    /// # fn run() -> Result<(), TestError> {
     /// let url = Url::parse("https://example.com/foo/bar")?;
     /// let mut path_segments = url.path_segments().ok_or_else(|| "cannot be base")?;
     /// assert_eq!(path_segments.next(), Some("foo"));
@@ -1737,9 +1803,22 @@ impl Url {
     ///
     /// ```
     /// use url::Url;
-    /// # use std::error::Error;
+    /// # use url::ParseError;
+    /// # #[derive(Debug)]
+    /// # /// A simple wrapper error struct for `no_std` support
+    /// # struct TestError;
+    /// # impl From<ParseError> for TestError {
+    /// #   fn from(value: ParseError) -> Self {
+    /// #       TestError {}
+    /// #   }
+    /// # }
+    /// # impl From<&str> for TestError {
+    /// #   fn from(value: &str) -> Self {
+    /// #       TestError {}
+    /// #   }
+    /// # }
     ///
-    /// # fn run() -> Result<(), Box<dyn Error>> {
+    /// # fn run() -> Result<(), TestError> {
     /// let mut url = Url::parse("ssh://example.net:2048/")?;
     ///
     /// url.set_port(Some(4096)).map_err(|_| "cannot be base")?;
@@ -1756,9 +1835,22 @@ impl Url {
     ///
     /// ```rust
     /// use url::Url;
-    /// # use std::error::Error;
+    /// # use url::ParseError;
+    /// # #[derive(Debug)]
+    /// # /// A simple wrapper error struct for `no_std` support
+    /// # struct TestError;
+    /// # impl From<ParseError> for TestError {
+    /// #   fn from(value: ParseError) -> Self {
+    /// #       TestError {}
+    /// #   }
+    /// # }
+    /// # impl From<&str> for TestError {
+    /// #   fn from(value: &str) -> Self {
+    /// #       TestError {}
+    /// #   }
+    /// # }
     ///
-    /// # fn run() -> Result<(), Box<dyn Error>> {
+    /// # fn run() -> Result<(), TestError> {
     /// let mut url = Url::parse("https://example.org/")?;
     ///
     /// url.set_port(Some(443)).map_err(|_| "cannot be base")?;
@@ -2439,7 +2531,12 @@ impl Url {
     /// # run().unwrap();
     /// # }
     /// ```
-    #[cfg(any(unix, windows, target_os = "redox", target_os = "wasi"))]
+    ///
+    /// This method is only available if the `std` Cargo feature is enabled.
+    #[cfg(all(
+        feature = "std",
+        any(unix, windows, target_os = "redox", target_os = "wasi")
+    ))]
     #[allow(clippy::result_unit_err)]
     pub fn from_file_path<P: AsRef<Path>>(path: P) -> Result<Url, ()> {
         let mut serialization = "file://".to_owned();
@@ -2476,7 +2573,12 @@ impl Url {
     ///
     /// Note that `std::path` does not consider trailing slashes significant
     /// and usually does not include them (e.g. in `Path::parent()`).
-    #[cfg(any(unix, windows, target_os = "redox", target_os = "wasi"))]
+    ///
+    /// This method is only available if the `std` Cargo feature is enabled.
+    #[cfg(all(
+        feature = "std",
+        any(unix, windows, target_os = "redox", target_os = "wasi")
+    ))]
     #[allow(clippy::result_unit_err)]
     pub fn from_directory_path<P: AsRef<Path>>(path: P) -> Result<Url, ()> {
         let mut url = Url::from_file_path(path)?;
@@ -2592,8 +2694,13 @@ impl Url {
     /// or if `Path::new_opt()` returns `None`.
     /// (That is, if the percent-decoded path contains a NUL byte or,
     /// for a Windows path, is not UTF-8.)
+    ///
+    /// This method is only available if the `std` Cargo feature is enabled.
     #[inline]
-    #[cfg(any(unix, windows, target_os = "redox", target_os = "wasi"))]
+    #[cfg(all(
+        feature = "std",
+        any(unix, windows, target_os = "redox", target_os = "wasi")
+    ))]
     #[allow(clippy::result_unit_err)]
     pub fn to_file_path(&self) -> Result<PathBuf, ()> {
         if let Some(segments) = self.path_segments() {
@@ -2797,11 +2904,13 @@ impl<'de> serde::Deserialize<'de> for Url {
     }
 }
 
-#[cfg(any(unix, target_os = "redox", target_os = "wasi"))]
+#[cfg(all(feature = "std", any(unix, target_os = "redox", target_os = "wasi")))]
 fn path_to_file_url_segments(
     path: &Path,
     serialization: &mut String,
 ) -> Result<(u32, HostInternal), ()> {
+    use crate::parser::PATH_SEGMENT;
+    use percent_encoding::percent_encode;
     #[cfg(any(unix, target_os = "redox"))]
     use std::os::unix::prelude::OsStrExt;
     #[cfg(target_os = "wasi")]
@@ -2827,7 +2936,7 @@ fn path_to_file_url_segments(
     Ok((host_end, HostInternal::None))
 }
 
-#[cfg(windows)]
+#[cfg(all(feature = "std", windows))]
 fn path_to_file_url_segments(
     path: &Path,
     serialization: &mut String,
@@ -2835,12 +2944,15 @@ fn path_to_file_url_segments(
     path_to_file_url_segments_windows(path, serialization)
 }
 
+#[cfg(feature = "std")]
 // Build this unconditionally to alleviate https://github.com/servo/rust-url/issues/102
 #[cfg_attr(not(windows), allow(dead_code))]
 fn path_to_file_url_segments_windows(
     path: &Path,
     serialization: &mut String,
 ) -> Result<(u32, HostInternal), ()> {
+    use crate::parser::PATH_SEGMENT;
+    use percent_encoding::percent_encode;
     use std::path::{Component, Prefix};
     if !path.is_absolute() {
         return Err(());
@@ -2899,11 +3011,13 @@ fn path_to_file_url_segments_windows(
     Ok((host_end, host_internal))
 }
 
-#[cfg(any(unix, target_os = "redox", target_os = "wasi"))]
+#[cfg(all(feature = "std", any(unix, target_os = "redox", target_os = "wasi")))]
 fn file_url_segments_to_pathbuf(
     host: Option<&str>,
     segments: str::Split<'_, char>,
 ) -> Result<PathBuf, ()> {
+    use alloc::vec::Vec;
+    use percent_encoding::percent_decode;
     use std::ffi::OsStr;
     #[cfg(any(unix, target_os = "redox"))]
     use std::os::unix::prelude::OsStrExt;
@@ -2944,7 +3058,7 @@ fn file_url_segments_to_pathbuf(
     Ok(path)
 }
 
-#[cfg(windows)]
+#[cfg(all(feature = "std", windows))]
 fn file_url_segments_to_pathbuf(
     host: Option<&str>,
     segments: str::Split<char>,
@@ -2952,12 +3066,14 @@ fn file_url_segments_to_pathbuf(
     file_url_segments_to_pathbuf_windows(host, segments)
 }
 
+#[cfg(feature = "std")]
 // Build this unconditionally to alleviate https://github.com/servo/rust-url/issues/102
 #[cfg_attr(not(windows), allow(dead_code))]
 fn file_url_segments_to_pathbuf_windows(
     host: Option<&str>,
     mut segments: str::Split<'_, char>,
 ) -> Result<PathBuf, ()> {
+    use percent_encoding::percent_decode;
     let mut string = if let Some(host) = host {
         r"\\".to_owned() + host
     } else {

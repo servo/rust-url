@@ -35,6 +35,13 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
+      # Add toolchain for no_std tests
+      - run: rustup toolchain install nightly
+      - name: Add `aarch64-unknown-none` toolchain for `no_std` tests
+        if: |
+          matrix.os == 'ubuntu-latest' &&
+          matrix.rust == 'nightly'
+        run: rustup target add aarch64-unknown-none && rustup component add rust-src --toolchain nightly-x86_64-unknown-linux-gnu
       - run: cargo build --all-targets
         # Run tests
       - name: Run tests
@@ -50,7 +57,15 @@ jobs:
           matrix.rust != '1.56.0'
         run: cargo test --test debugger_visualizer --features "url/debugger_visualizer,url_debug_tests/debugger_visualizer" -- --test-threads=1
       - name: Test `no_std` support
-        run: cargo test --no-default-features --features=alloc
+        run: cargo test --no-default-features --features=alloc,no_std_net
+      - name: Build `url` crate for `aarch64-unknown-none` with `no_std`
+        if: |
+          matrix.os == 'ubuntu-latest' &&
+          matrix.rust == 'nightly'
+        run: >
+          cd url
+          && cargo +nightly check -Zbuild-std=core,alloc --target aarch64-unknown-none -v --release --no-default-features --features=alloc,unstable
+          && cargo +nightly check -Zbuild-std=core,alloc --target aarch64-unknown-none -v --release --no-default-features --features=alloc,no_std_net
 
   WASM:
     runs-on: ubuntu-latest

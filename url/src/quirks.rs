@@ -11,6 +11,8 @@
 //! Unless you need to be interoperable with web browsers,
 //! you probably want to use `Url` method instead.
 
+use alloc::string::{String, ToString};
+
 use crate::parser::{default_port, Context, Input, Parser, SchemeType};
 use crate::{Host, ParseError, Position, Url};
 

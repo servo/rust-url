@@ -6,9 +6,16 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use std::cmp;
-use std::fmt::{self, Formatter};
-use std::net::{Ipv4Addr, Ipv6Addr};
+use crate::net::{Ipv4Addr, Ipv6Addr};
+use alloc::{
+    borrow::ToOwned,
+    string::{String, ToString},
+    vec::Vec,
+};
+use core::{
+    cmp,
+    fmt::{self, Formatter},
+};
 
 use percent_encoding::{percent_decode, utf8_percent_encode, CONTROLS};
 #[cfg(feature = "serde")]
