@@ -146,6 +146,7 @@ fn new_file_paths() {
         assert_from_file_path!("/foo/bar");
         assert_from_file_path!("/foo/ba\0r", "/foo/ba%00r");
         assert_from_file_path!("/foo/ba%00r", "/foo/ba%2500r");
+        assert_from_file_path!("/foo/ba\\r", "/foo/ba%5Cr");
     }
 }
 
