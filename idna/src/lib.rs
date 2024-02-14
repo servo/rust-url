@@ -46,14 +46,31 @@ compile_error!("the `alloc` feature must be enabled");
 #[macro_use]
 extern crate assert_matches;
 
+use alloc::borrow::Cow;
 use alloc::string::String;
+use uts46bis::Uts46;
 
 pub mod punycode;
 mod uts46;
+pub mod uts46bis;
 
+#[allow(deprecated)]
 pub use crate::uts46::{Config, Errors, Idna};
 
-/// The [domain to ASCII](https://url.spec.whatwg.org/#concept-domain-to-ascii) algorithm.
+/// The [domain to ASCII](https://url.spec.whatwg.org/#concept-domain-to-ascii) algorithm;
+/// version returning a `Cow`.
+///
+/// Return the ASCII representation a domain name,
+/// normalizing characters (upper-case to lower-case and other kinds of equivalence)
+/// and using Punycode as necessary.
+///
+/// This process may fail.
+pub fn domain_to_ascii_cow<'a>(domain: &'a str) -> Result<Cow<'a, str>, uts46::Errors> {
+    Uts46::new().to_ascii(domain.as_bytes(), uts46bis::Strictness::WhatwgUserAgent)
+}
+
+/// The [domain to ASCII](https://url.spec.whatwg.org/#concept-domain-to-ascii) algorithm;
+/// version returning `String`. See also [`domain_to_ascii_cow`].
 ///
 /// Return the ASCII representation a domain name,
 /// normalizing characters (upper-case to lower-case and other kinds of equivalence)
@@ -61,26 +78,52 @@ pub use crate::uts46::{Config, Errors, Idna};
 ///
 /// This process may fail.
 pub fn domain_to_ascii(domain: &str) -> Result<String, uts46::Errors> {
-    Config::default().to_ascii(domain)
+    domain_to_ascii_cow(domain).map(|cow| cow.into_owned())
 }
 
 /// The [domain to ASCII](https://url.spec.whatwg.org/#concept-domain-to-ascii) algorithm,
 /// with the `beStrict` flag set.
+///
+/// Note that this rejects various real-world names including:
+/// * YouTube CDN nodes
+/// * Some GitHub user pages
+/// * Pseudo-hosts used by various TXT record-based protocols.
 pub fn domain_to_ascii_strict(domain: &str) -> Result<String, uts46::Errors> {
-    Config::default()
-        .use_std3_ascii_rules(true)
-        .verify_dns_length(true)
-        .to_ascii(domain)
+    Uts46::new()
+        .to_ascii(
+            domain.as_bytes(),
+            uts46bis::Strictness::Std3ConformanceChecker,
+        )
+        .map(|cow| cow.into_owned())
 }
 
-/// The [domain to Unicode](https://url.spec.whatwg.org/#concept-domain-to-unicode) algorithm.
+/// The [domain to Unicode](https://url.spec.whatwg.org/#concept-domain-to-unicode) algorithm;
+/// version returning a `Cow`.
 ///
 /// Return the Unicode representation of a domain name,
 /// normalizing characters (upper-case to lower-case and other kinds of equivalence)
 /// and decoding Punycode as necessary.
 ///
-/// This may indicate [syntax violations](https://url.spec.whatwg.org/#syntax-violation)
-/// but always returns a string for the mapped domain.
+/// If the second item of the tuple indicates an error, the first item of the tuple
+/// denotes errors using the REPLACEMENT CHARACTERs in order to be able to illustrate
+/// errors to the user. When the second item of the return tuple signals an error,
+/// the first item of the tuple must not be used in a network protocol.
+pub fn domain_to_unicode_cow<'a>(domain: &'a str) -> (Cow<'a, str>, Result<(), uts46::Errors>) {
+    Uts46::new().to_unicode(domain.as_bytes(), uts46bis::Strictness::WhatwgUserAgent)
+}
+
+/// The [domain to Unicode](https://url.spec.whatwg.org/#concept-domain-to-unicode) algorithm;
+/// version returning `String`. See also [`domain_to_unicode_cow`].
+///
+/// Return the Unicode representation of a domain name,
+/// normalizing characters (upper-case to lower-case and other kinds of equivalence)
+/// and decoding Punycode as necessary.
+///
+/// If the second item of the tuple indicates an error, the first item of the tuple
+/// denotes errors using the REPLACEMENT CHARACTERs in order to be able to illustrate
+/// errors to the user. When the second item of the return tuple signals an error,
+/// the first item of the tuple must not be used in a network protocol.
 pub fn domain_to_unicode(domain: &str) -> (String, Result<(), uts46::Errors>) {
-    Config::default().to_unicode(domain)
+    let (cow, result) = domain_to_unicode_cow(domain);
+    (cow.into_owned(), result)
 }

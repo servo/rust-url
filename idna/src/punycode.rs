@@ -15,17 +15,17 @@
 
 use alloc::{string::String, vec::Vec};
 use core::char;
+use core::fmt::Write;
 use core::u32;
 
 // Bootstring parameters for Punycode
-static BASE: u32 = 36;
-static T_MIN: u32 = 1;
-static T_MAX: u32 = 26;
-static SKEW: u32 = 38;
-static DAMP: u32 = 700;
-static INITIAL_BIAS: u32 = 72;
-static INITIAL_N: u32 = 0x80;
-static DELIMITER: char = '-';
+const BASE: u32 = 36;
+const T_MIN: u32 = 1;
+const T_MAX: u32 = 26;
+const SKEW: u32 = 38;
+const DAMP: u32 = 700;
+const INITIAL_BIAS: u32 = 72;
+const INITIAL_N: u32 = 0x80;
 
 #[inline]
 fn adapt(mut delta: u32, num_points: u32, first_time: bool) -> u32 {
@@ -46,7 +46,7 @@ fn adapt(mut delta: u32, num_points: u32, first_time: bool) -> u32 {
 /// 63 encoded bytes, the DNS limit on domain name labels.
 #[inline]
 pub fn decode_to_string(input: &str) -> Option<String> {
-    Some(Decoder::default().decode(input).ok()?.collect())
+    Some(Decoder::default().decode(input.as_bytes()).ok()?.collect())
 }
 
 /// Convert Punycode to Unicode.
@@ -55,33 +55,93 @@ pub fn decode_to_string(input: &str) -> Option<String> {
 /// Overflow can only happen on inputs that take more than
 /// 63 encoded bytes, the DNS limit on domain name labels.
 pub fn decode(input: &str) -> Option<Vec<char>> {
-    Some(Decoder::default().decode(input).ok()?.collect())
+    Some(Decoder::default().decode(input.as_bytes()).ok()?.collect())
+}
+
+pub(crate) trait PunycodeCodeUnit {
+    fn is_delimiter(&self) -> bool;
+    fn is_ascii(&self) -> bool;
+    fn digit(&self) -> Option<u32>;
+    fn char(&self) -> char;
+}
+
+impl PunycodeCodeUnit for u8 {
+    fn is_delimiter(&self) -> bool {
+        *self == b'-'
+    }
+    fn is_ascii(&self) -> bool {
+        // XXX how to skip this for internal caller while keeping this for external API?
+        *self < 0x80
+    }
+    fn digit(&self) -> Option<u32> {
+        let byte = *self;
+        Some(match byte {
+            byte @ b'0'..=b'9' => byte - b'0' + 26,
+            byte @ b'A'..=b'Z' => byte - b'A',
+            byte @ b'a'..=b'z' => byte - b'a',
+            _ => return None,
+        } as u32)
+    }
+    fn char(&self) -> char {
+        // XXX changes externally-visible behavior of the Punycode API
+        char::from(self.to_ascii_lowercase())
+    }
+}
+
+impl PunycodeCodeUnit for char {
+    fn is_delimiter(&self) -> bool {
+        *self == '-'
+    }
+    fn is_ascii(&self) -> bool {
+        // XXX should this just be `true` if we don't accept `&[char]` via
+        // public API?
+        true
+        // *self < '\u{80}'
+    }
+    fn digit(&self) -> Option<u32> {
+        let byte = *self;
+        Some(match byte {
+            byte @ '0'..='9' => u32::from(byte) - u32::from('0') + 26,
+            // byte @ 'A'..='Z' => u32::from(byte) - u32::from('A'), // XXX not needed if no public input
+            byte @ 'a'..='z' => u32::from(byte) - u32::from('a'),
+            _ => return None,
+        })
+    }
+    fn char(&self) -> char {
+        *self
+    }
 }
 
 #[derive(Default)]
 pub(crate) struct Decoder {
-    insertions: Vec<(usize, char)>,
+    insertions: smallvec::SmallVec<[(usize, char); 59]>,
 }
 
 impl Decoder {
     /// Split the input iterator and return a Vec with insertions of encoded characters
-    pub(crate) fn decode<'a>(&'a mut self, input: &'a str) -> Result<Decode<'a>, ()> {
+    ///
+    /// XXX: Add a policy parameter to skip overflow checks
+    pub(crate) fn decode<'a, T: PunycodeCodeUnit + Copy>(
+        &'a mut self,
+        input: &'a [T],
+    ) -> Result<Decode<'a, T>, ()> {
         self.insertions.clear();
         // Handle "basic" (ASCII) code points.
         // They are encoded as-is before the last delimiter, if any.
-        let (base, input) = match input.rfind(DELIMITER) {
-            None => ("", input),
-            Some(position) => (
+        let (base, input) = if let Some(position) = input.iter().rposition(|c| c.is_delimiter()) {
+            (
                 &input[..position],
                 if position > 0 {
                     &input[position + 1..]
                 } else {
                     input
                 },
-            ),
+            )
+        } else {
+            (&input[..0], input)
         };
 
-        if !base.is_ascii() {
+        if !base.iter().all(|c| c.is_ascii()) {
             return Err(());
         }
 
@@ -90,7 +150,7 @@ impl Decoder {
         let mut code_point = INITIAL_N;
         let mut bias = INITIAL_BIAS;
         let mut i = 0;
-        let mut iter = input.bytes();
+        let mut iter = input.iter();
         loop {
             let previous_i = i;
             let mut weight = 1;
@@ -103,12 +163,11 @@ impl Decoder {
             // Decode a generalized variable-length integer into delta,
             // which gets added to i.
             loop {
-                let digit = match byte {
-                    byte @ b'0'..=b'9' => byte - b'0' + 26,
-                    byte @ b'A'..=b'Z' => byte - b'A',
-                    byte @ b'a'..=b'z' => byte - b'a',
-                    _ => return Err(()),
-                } as u32;
+                let digit = if let Some(digit) = byte.digit() {
+                    digit
+                } else {
+                    return Err(());
+                };
                 if digit > (u32::MAX - i) / weight {
                     return Err(()); // Overflow
                 }
@@ -161,7 +220,7 @@ impl Decoder {
 
         self.insertions.sort_by_key(|(i, _)| *i);
         Ok(Decode {
-            base: base.chars(),
+            base: base.iter(),
             insertions: &self.insertions,
             inserted: 0,
             position: 0,
@@ -170,15 +229,18 @@ impl Decoder {
     }
 }
 
-pub(crate) struct Decode<'a> {
-    base: core::str::Chars<'a>,
+pub(crate) struct Decode<'a, T>
+where
+    T: PunycodeCodeUnit + Copy,
+{
+    base: core::slice::Iter<'a, T>,
     pub(crate) insertions: &'a [(usize, char)],
     inserted: usize,
     position: usize,
     len: usize,
 }
 
-impl<'a> Iterator for Decode<'a> {
+impl<'a, T: PunycodeCodeUnit + Copy> Iterator for Decode<'a, T> {
     type Item = char;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -193,7 +255,7 @@ impl<'a> Iterator for Decode<'a> {
             }
             if let Some(c) = self.base.next() {
                 self.position += 1;
-                return Some(c);
+                return Some(c.char());
             } else if self.inserted >= self.insertions.len() {
                 return None;
             }
@@ -206,7 +268,7 @@ impl<'a> Iterator for Decode<'a> {
     }
 }
 
-impl<'a> ExactSizeIterator for Decode<'a> {
+impl<'a, T: PunycodeCodeUnit + Copy> ExactSizeIterator for Decode<'a, T> {
     fn len(&self) -> usize {
         self.len - self.position
     }
@@ -238,22 +300,37 @@ pub fn encode(input: &[char]) -> Option<String> {
         .map(|()| buf)
 }
 
-pub(crate) fn encode_into<I>(input: I, output: &mut String) -> Result<(), ()>
+pub(crate) enum PunycodeEncodeError {
+    Overflow,
+    Sink,
+}
+
+impl From<core::fmt::Error> for PunycodeEncodeError {
+    fn from(_: core::fmt::Error) -> Self {
+        PunycodeEncodeError::Sink
+    }
+}
+
+/// XXX: Add a policy parameter to skip overflow checks
+pub(crate) fn encode_into<I, W>(input: I, output: &mut W) -> Result<(), PunycodeEncodeError>
 where
     I: Iterator<Item = char> + Clone,
+    W: Write + ?Sized,
 {
     // Handle "basic" (ASCII) code points. They are encoded as-is.
     let (mut input_length, mut basic_length) = (0u32, 0);
     for c in input.clone() {
-        input_length = input_length.checked_add(1).ok_or(())?;
+        input_length = input_length
+            .checked_add(1)
+            .ok_or(PunycodeEncodeError::Overflow)?;
         if c.is_ascii() {
-            output.push(c);
+            output.write_char(c)?;
             basic_length += 1;
         }
     }
 
     if basic_length > 0 {
-        output.push('-')
+        output.write_char('-')?;
     }
     let mut code_point = INITIAL_N;
     let mut delta = 0;
@@ -269,7 +346,7 @@ where
             .min()
             .unwrap();
         if min_code_point - code_point > (u32::MAX - delta) / (processed + 1) {
-            return Err(()); // Overflow
+            return Err(PunycodeEncodeError::Overflow); // Overflow
         }
         // Increase delta to advance the decoder’s <code_point,i> state to <min_code_point,0>
         delta += (min_code_point - code_point) * (processed + 1);
@@ -277,7 +354,7 @@ where
         for c in input.clone() {
             let c = c as u32;
             if c < code_point {
-                delta = delta.checked_add(1).ok_or(())?;
+                delta = delta.checked_add(1).ok_or(PunycodeEncodeError::Overflow)?;
             }
             if c == code_point {
                 // Represent delta as a generalized variable-length integer:
@@ -295,11 +372,11 @@ where
                         break;
                     }
                     let value = t + ((q - t) % (BASE - t));
-                    output.push(value_to_digit(value));
+                    output.write_char(value_to_digit(value))?;
                     q = (q - t) / (BASE - t);
                     k += BASE;
                 }
-                output.push(value_to_digit(q));
+                output.write_char(value_to_digit(q))?;
                 bias = adapt(delta, processed + 1, processed == basic_length);
                 delta = 0;
                 processed += 1;

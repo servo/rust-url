@@ -10,6 +10,7 @@ use crate::test::TestFn;
 use std::char;
 use std::fmt::Write;
 
+use idna::uts46bis::Strictness;
 use idna::Errors;
 
 pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
@@ -63,14 +64,11 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
             status(to_ascii_t_status)
         };
 
-        let test_name = format!("UTS #46 line {}", i + 1);
+        let test_name = format!("UTS #46 bis line {}", i + 1);
         add_test(
             test_name,
             TestFn::DynTestFn(Box::new(move || {
-                let config = idna::Config::default()
-                    .use_std3_ascii_rules(true)
-                    .verify_dns_length(true)
-                    .check_hyphens(true);
+                let config = idna::uts46bis::Uts46::new();
 
                 // http://unicode.org/reports/tr46/#Deviations
                 // applications that perform IDNA2008 lookup are not required to check
@@ -86,8 +84,8 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
                 // This is not implemented yet, so we skip toUnicode X4_2 tests for now, too.
 
                 let (to_unicode_value, to_unicode_result) =
-                    config.transitional_processing(false).to_unicode(&source);
-                let to_unicode_result = to_unicode_result.map(|()| to_unicode_value);
+                    config.to_unicode(source.as_bytes(), Strictness::Std3ConformanceChecker);
+                let to_unicode_result = to_unicode_result.map(|()| to_unicode_value.into_owned());
                 check(
                     &source,
                     (&to_unicode, &to_unicode_status),
@@ -95,11 +93,12 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
                     |e| e == "X4_2",
                 );
 
-                let to_ascii_n_result = config.transitional_processing(false).to_ascii(&source);
+                let to_ascii_n_result =
+                    config.to_ascii(source.as_bytes(), Strictness::Std3ConformanceChecker);
                 check(
                     &source,
                     (&to_ascii_n, &to_ascii_n_status),
-                    to_ascii_n_result,
+                    to_ascii_n_result.map(|cow| cow.into_owned()),
                     |e| false,
                 );
             })),
