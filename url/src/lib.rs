@@ -134,7 +134,7 @@ url = { version = "2", features = ["debugger_visualizer"] }
 
 */
 
-#![doc(html_root_url = "https://docs.rs/url/2.4.0")]
+#![doc(html_root_url = "https://docs.rs/url/2.5.0")]
 #![cfg_attr(
     feature = "debugger_visualizer",
     debugger_visualizer(natvis_file = "../../debug_metadata/url.natvis")
@@ -146,7 +146,7 @@ pub use form_urlencoded;
 extern crate serde;
 
 use crate::host::HostInternal;
-use crate::parser::{to_u32, Context, Parser, SchemeType, PATH_SEGMENT};
+use crate::parser::{to_u32, Context, Parser, SchemeType, PATH_SEGMENT, SPECIAL_PATH_SEGMENT};
 use percent_encoding::{percent_decode, percent_encode, utf8_percent_encode, USERINFO};
 use std::borrow::Borrow;
 use std::cmp;
@@ -205,6 +205,7 @@ pub struct Url {
 
 /// Full configuration for the URL parser.
 #[derive(Copy, Clone)]
+#[must_use]
 pub struct ParseOptions<'a> {
     base_url: Option<&'a Url>,
     encoding_override: EncodingOverride<'a>,
@@ -1523,7 +1524,8 @@ impl Url {
         }
     }
 
-    /// Change this URL’s query string.
+    /// Change this URL’s query string. If `query` is `None`, this URL's
+    /// query string will be cleared.
     ///
     /// # Examples
     ///
@@ -1566,7 +1568,9 @@ impl Url {
             });
         } else {
             self.query_start = None;
-            self.strip_trailing_spaces_from_opaque_path();
+            if fragment.is_none() {
+                self.strip_trailing_spaces_from_opaque_path();
+            }
         }
 
         self.restore_already_parsed_fragment(fragment);
@@ -2697,7 +2701,7 @@ impl Ord for Url {
 impl PartialOrd for Url {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
-        self.serialization.partial_cmp(&other.serialization)
+        Some(self.cmp(other))
     }
 }
 
@@ -2813,7 +2817,7 @@ fn path_to_file_url_segments(
         serialization.push('/');
         serialization.extend(percent_encode(
             component.as_os_str().as_bytes(),
-            PATH_SEGMENT,
+            SPECIAL_PATH_SEGMENT,
         ));
     }
     if empty {
