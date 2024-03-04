@@ -25,7 +25,7 @@ compile_error!("the `alloc` feature must currently be enabled");
 
 use alloc::borrow::{Borrow, Cow, ToOwned};
 use alloc::string::String;
-use core::str;
+use core::{ptr, str};
 use percent_encoding::{percent_decode, percent_encode_byte};
 
 /// Convert a byte string in the `application/x-www-form-urlencoded` syntax
@@ -411,7 +411,7 @@ pub(crate) fn decode_utf8_lossy(input: Cow<'_, [u8]>) -> Cow<'_, str> {
 
                     // First we do a debug_assert to confirm our description above.
                     let raw_utf8: *const [u8] = utf8.as_bytes();
-                    debug_assert!(raw_utf8 == &*bytes as *const [u8]);
+                    debug_assert!(ptr::addr_eq(raw_utf8, &*bytes as *const [u8]));
 
                     // Given we know the original input bytes are valid UTF-8,
                     // and we have ownership of those bytes, we re-use them and

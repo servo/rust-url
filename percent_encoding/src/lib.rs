@@ -51,7 +51,7 @@ use alloc::{
     string::String,
     vec::Vec,
 };
-use core::{fmt, mem, slice, str};
+use core::{fmt, mem, slice, ptr, str,};
 
 /// Represents a set of characters or bytes in the ASCII range.
 ///
@@ -463,7 +463,7 @@ fn decode_utf8_lossy(input: Cow<'_, [u8]>) -> Cow<'_, str> {
 
                     // First we do a debug_assert to confirm our description above.
                     let raw_utf8: *const [u8] = utf8.as_bytes();
-                    debug_assert!(raw_utf8 == &*bytes as *const [u8]);
+                    debug_assert!(ptr::addr_eq(raw_utf8, &*bytes as *const [u8]));
 
                     // Given we know the original input bytes are valid UTF-8,
                     // and we have ownership of those bytes, we re-use them and
