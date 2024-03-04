@@ -51,7 +51,7 @@ use alloc::{
     string::String,
     vec::Vec,
 };
-use core::{fmt, mem, slice, ptr, str};
+use core::{fmt, mem, ptr, slice, str};
 
 /// Represents a set of characters or bytes in the ASCII range.
 ///
