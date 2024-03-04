@@ -298,6 +298,7 @@ where
             // before this special byte
             if i > slice_start {
                 write_bytes(&bytes[slice_start..i])?;
+                slice_start = i;
             }
             // Then deal with the special byte.
             match byte {
