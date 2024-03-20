@@ -741,6 +741,26 @@ impl Uts46 {
         fail_fast: bool,
         domain_buffer: &mut SmallVec<[char; 253]>,
     ) -> (usize, bool, bool) {
+        // Sadly, this even faster-path ASCII tier is needed to avoid regressing
+        // performance.
+        let mut iter = domain_name.iter();
+        let mut most_recent_label_start = iter.clone();
+        let tail = loop {
+            if let Some(&b) = iter.next() {
+                if in_inclusive_range8(b, b'a', b'z') {
+                    continue;
+                }
+                if b == b'.' {
+                    most_recent_label_start = iter.clone();
+                    continue;
+                }
+                break most_recent_label_start.as_slice();
+            } else {
+                // Success! The whole input passes through on the fastest path!
+                return (domain_name.len(), false, false);
+            }
+        };
+
         let (deny_list, deny_list_deny_dot) = match strictness {
             Strictness::WhatwgUserAgent => (WHATWG_MASK, WHATWG_MASK_DENY_DOT),
             Strictness::Std3ConformanceChecker => (LDH_MASK, LDH_MASK_DENY_DOT),
@@ -748,13 +768,13 @@ impl Uts46 {
 
         let mut had_errors = false;
 
-        let mut passthrough_up_to = 0usize; // Index into `domain_name_without_trailing_dot`
-                                            // 253 ASCII characters is the max length for a valid domain name
-                                            // (excluding the root dot).
+        let mut passthrough_up_to = domain_name.len() - tail.len(); // Index into `domain_name`
+                                                                    // 253 ASCII characters is the max length for a valid domain name
+                                                                    // (excluding the root dot).
         let mut current_label_start; // Index into `domain_buffer`
         let mut seen_label = false;
         let mut in_prefix = true;
-        for label in domain_name.split(|b| *b == b'.') {
+        for label in tail.split(|b| *b == b'.') {
             // We check for passthrough only for the prefix. That is, if we
             // haven't moved on and started filling `domain_buffer`. Keeping
             // this stuff in one loop where the first items keep being skipped
