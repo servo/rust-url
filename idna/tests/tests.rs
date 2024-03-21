@@ -19,7 +19,7 @@ fn main() {
                 testfn: run,
             })
         };
-        // punycode::collect_tests(&mut add_test);
+        punycode::collect_tests(&mut add_test);
         uts46::collect_tests(&mut add_test);
         uts46bis::collect_tests(&mut add_test);
     }

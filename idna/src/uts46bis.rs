@@ -7,6 +7,7 @@
 // except according to those terms.
 
 use crate::punycode::Decoder;
+use crate::punycode::InternalCaller;
 use alloc::borrow::Cow;
 use alloc::string::String;
 use core::fmt::Write;
@@ -717,7 +718,7 @@ impl Uts46 {
                 // slice. If we had that, we could do an ASCII-lower-casing copy of the input
                 // label here without re-encoding into Punycode.
                 sink.write_str("xn--")?;
-                crate::punycode::encode_into(label.iter().copied(), sink)?;
+                crate::punycode::encode_into::<_, _, InternalCaller>(label.iter().copied(), sink)?;
             }
         }
         if !had_errors && had_unicode_output {
@@ -738,7 +739,10 @@ impl Uts46 {
                         }
                     } else {
                         ascii_sink.write_str("xn--")?;
-                        crate::punycode::encode_into(label.iter().copied(), ascii_sink)?;
+                        crate::punycode::encode_into::<_, _, InternalCaller>(
+                            label.iter().copied(),
+                            ascii_sink,
+                        )?;
                     }
                 }
             }
@@ -835,7 +839,9 @@ impl Uts46 {
                         if (ascii.last() != Some(&b'-'))
                             && (ascii.len() - 4 <= PUNYCODE_DECODE_MAX_INPUT_LENGTH)
                         {
-                            if let Ok(decode) = Decoder::default().decode(&ascii[4..]) {
+                            if let Ok(decode) =
+                                Decoder::default().decode::<u8, InternalCaller>(&ascii[4..])
+                            {
                                 // 63 ASCII characters is the max length for a valid DNS label and xn-- takes 4
                                 // characters.
                                 let mut label_buffer = SmallVec::<[char; 59]>::new();
@@ -979,7 +985,9 @@ impl Uts46 {
 
                                 if !punycode_precondition_failed {
                                     if let Ok(decode) = Decoder::default()
-                                        .decode(&domain_buffer[current_label_start + 4..])
+                                        .decode::<char, InternalCaller>(
+                                            &domain_buffer[current_label_start + 4..],
+                                        )
                                     {
                                         first_needs_combining_mark_check = true;
                                         needs_contextj_check = true;
