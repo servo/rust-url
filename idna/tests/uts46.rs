@@ -10,10 +10,10 @@ use crate::test::TestFn;
 use std::char;
 use std::fmt::Write;
 
-use idna::uts46bis::verify_dns_length;
-use idna::uts46bis::ProcessingError;
-use idna::uts46bis::ProcessingSuccess;
-use idna::uts46bis::{ErrorPolicy, Strictness};
+use idna::uts46::verify_dns_length;
+use idna::uts46::ProcessingError;
+use idna::uts46::ProcessingSuccess;
+use idna::uts46::{ErrorPolicy, Strictness};
 use idna::Errors;
 
 pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
@@ -53,25 +53,11 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
             status(to_ascii_n_status)
         };
 
-        // ToAsciiT
-        let to_ascii_t = pieces.remove(0);
-        let to_ascii_t = if to_ascii_t.is_empty() {
-            to_ascii_n.clone()
-        } else {
-            to_ascii_t.to_owned()
-        };
-        let to_ascii_t_status = pieces.remove(0);
-        let to_ascii_t_status = if to_ascii_t_status.is_empty() {
-            to_ascii_n_status.clone()
-        } else {
-            status(to_ascii_t_status)
-        };
-
         let test_name = format!("UTS #46 bis line {}", i + 1);
         add_test(
             test_name,
             TestFn::DynTestFn(Box::new(move || {
-                let config = idna::uts46bis::Uts46::new();
+                let config = idna::uts46::Uts46::new();
 
                 // http://unicode.org/reports/tr46/#Deviations
                 // applications that perform IDNA2008 lookup are not required to check

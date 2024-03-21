@@ -49,20 +49,6 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
             status(to_ascii_n_status)
         };
 
-        // ToAsciiT
-        let to_ascii_t = pieces.remove(0);
-        let to_ascii_t = if to_ascii_t.is_empty() {
-            to_ascii_n.clone()
-        } else {
-            to_ascii_t.to_owned()
-        };
-        let to_ascii_t_status = pieces.remove(0);
-        let to_ascii_t_status = if to_ascii_t_status.is_empty() {
-            to_ascii_n_status.clone()
-        } else {
-            status(to_ascii_t_status)
-        };
-
         let test_name = format!("UTS #46 line {}", i + 1);
         add_test(
             test_name,

@@ -48,11 +48,11 @@ extern crate assert_matches;
 
 use alloc::borrow::Cow;
 use alloc::string::String;
-use uts46bis::Uts46;
+use uts46::Uts46;
 
 pub mod punycode;
 mod deprecated;
-pub mod uts46bis;
+pub mod uts46;
 
 #[allow(deprecated)]
 pub use crate::deprecated::{Config, Idna};
@@ -86,7 +86,7 @@ impl core::fmt::Display for Errors {
 ///
 /// This process may fail.
 pub fn domain_to_ascii_cow<'a>(domain: &'a str) -> Result<Cow<'a, str>, Errors> {
-    Uts46::new().to_ascii(domain.as_bytes(), uts46bis::Strictness::WhatwgUserAgent)
+    Uts46::new().to_ascii(domain.as_bytes(), uts46::Strictness::WhatwgUserAgent)
 }
 
 /// The [domain to ASCII](https://url.spec.whatwg.org/#concept-domain-to-ascii) algorithm;
@@ -112,7 +112,7 @@ pub fn domain_to_ascii_strict(domain: &str) -> Result<String, Errors> {
     Uts46::new()
         .to_ascii(
             domain.as_bytes(),
-            uts46bis::Strictness::Std3ConformanceChecker,
+            uts46::Strictness::Std3ConformanceChecker,
         )
         .map(|cow| cow.into_owned())
 }
@@ -129,7 +129,7 @@ pub fn domain_to_ascii_strict(domain: &str) -> Result<String, Errors> {
 /// errors to the user. When the second item of the return tuple signals an error,
 /// the first item of the tuple must not be used in a network protocol.
 pub fn domain_to_unicode_cow<'a>(domain: &'a str) -> (Cow<'a, str>, Result<(), Errors>) {
-    Uts46::new().to_unicode(domain.as_bytes(), uts46bis::Strictness::WhatwgUserAgent)
+    Uts46::new().to_unicode(domain.as_bytes(), uts46::Strictness::WhatwgUserAgent)
 }
 
 /// The [domain to Unicode](https://url.spec.whatwg.org/#concept-domain-to-unicode) algorithm;

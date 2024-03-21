@@ -13,7 +13,7 @@
 
 use alloc::string::String;
 
-use crate::uts46bis::*;
+use crate::uts46::*;
 use crate::Errors;
 
 #[derive(Default)]

@@ -1,10 +1,10 @@
 use assert_matches::assert_matches;
-use idna::uts46bis::Strictness;
+use idna::uts46::Strictness;
 
 /// https://github.com/servo/rust-url/issues/373
 #[test]
 fn test_punycode_prefix_with_length_check() {
-    let config = idna::uts46bis::Uts46::new();
+    let config = idna::uts46::Uts46::new();
 
     assert!(config
         .to_ascii(b"xn--", Strictness::Std3ConformanceChecker)
@@ -38,7 +38,7 @@ fn test_punycode_prefix_with_length_check() {
 /// https://github.com/servo/rust-url/issues/373
 #[test]
 fn test_punycode_prefix_without_length_check() {
-    let config = idna::uts46bis::Uts46::new();
+    let config = idna::uts46::Uts46::new();
 
     assert!(config
         .to_ascii(b"xn--", Strictness::WhatwgUserAgent)
@@ -114,7 +114,7 @@ fn test_examples() {
 
 #[test]
 fn test_v5() {
-    let config = idna::uts46bis::Uts46::new();
+    let config = idna::uts46::Uts46::new();
 
     // IdnaTest:784 蔏｡𑰺
     assert!(config
@@ -136,7 +136,7 @@ fn test_v5() {
 
 #[test]
 fn test_v8_bidi_rules() {
-    let config = idna::uts46bis::Uts46::new();
+    let config = idna::uts46::Uts46::new();
 
     assert_eq!(
         config
@@ -192,7 +192,7 @@ fn test_v8_bidi_rules() {
 #[test]
 fn emoji_domains() {
     // HOT BEVERAGE is allowed here...
-    let config = idna::uts46bis::Uts46::new();
+    let config = idna::uts46::Uts46::new();
     assert_eq!(
         config
             .to_ascii("☕.com".as_bytes(), Strictness::Std3ConformanceChecker)
@@ -203,7 +203,7 @@ fn emoji_domains() {
 
 #[test]
 fn unicode_before_delimiter() {
-    let config = idna::uts46bis::Uts46::new();
+    let config = idna::uts46::Uts46::new();
     assert!(config
         .to_ascii(
             "xn--f\u{34a}-PTP".as_bytes(),
@@ -214,7 +214,7 @@ fn unicode_before_delimiter() {
 
 #[test]
 fn upper_case_ascii_in_punycode() {
-    let config = idna::uts46bis::Uts46::new();
+    let config = idna::uts46::Uts46::new();
     let (unicode, result) =
         config.to_unicode("xn--A-1ga".as_bytes(), Strictness::Std3ConformanceChecker);
     assert!(result.is_ok());
