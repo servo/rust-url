@@ -31,3 +31,4 @@ IDNA library for Rust implementing [UTS 46: Unicode IDNA Compatibility Processin
 * `domain_to_ascii_strict` now performs the _CheckHyphens_ check (matching previous documentation).
 * When `use_std3_ascii_rules` is `false` the [forbidden domain code point](https://url.spec.whatwg.org/#forbidden-domain-code-point) ASCII deny list from the WHATWG URL Standard is now enforced.
 * The `Idna::to_ascii_inner` method has been removed. It didn't make sense as a public method, since callers were unable to figure out if there were errors. (A GitHub search found no callers for this method.)
+* Punycode labels whose decoding does not yield any non-ASCII characters are now treated as being in error.
