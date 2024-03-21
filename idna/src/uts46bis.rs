@@ -410,6 +410,13 @@ impl From<crate::punycode::PunycodeEncodeError> for ProcessingError {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+enum AlreadyAsciiLabel<'a> {
+    MixedCaseAscii(&'a [u8]),
+    MixedCasePunycode(&'a [u8]),
+    Other,
+}
+
 /// Performs the _VerifyDNSLength_ check on the output of the _ToASCII_ operation with
 /// the modification that the trailing dot is allowed.
 ///
@@ -663,7 +670,7 @@ impl Uts46 {
     ) -> Result<ProcessingSuccess, ProcessingError> {
         let fail_fast = error_policy == ErrorPolicy::FailFast;
         let mut domain_buffer = SmallVec::<[char; 253]>::new();
-        let mut already_punycode = SmallVec::<[Option<&[u8]>; 8]>::new();
+        let mut already_punycode = SmallVec::<[AlreadyAsciiLabel; 8]>::new();
         // `process_inner` could be pasted inline here, but it's out of line in order
         // to avoid duplicating that code when monomorphizing over `W` and `OutputUnicode`.
         let (passthrough_up_to, is_bidi, had_errors) = self.process_inner(
@@ -682,10 +689,6 @@ impl Uts46 {
             return Err(ProcessingError::ValidityError);
         }
         debug_assert_eq!(had_errors, domain_buffer.contains(&'\u{FFFD}'));
-        // SAFETY: `process_inner` promises that `domain_name` is ASCII at least until `passthrough_up_to`.
-        sink.write_str(unsafe {
-            core::str::from_utf8_unchecked(&domain_name[..passthrough_up_to])
-        })?;
         let without_dot = if let Some(without_dot) = domain_buffer.strip_suffix(&['.']) {
             without_dot
         } else {
@@ -693,17 +696,62 @@ impl Uts46 {
         };
         // unwrap is OK, because we always have at least one label
         let tld = without_dot.rsplit(|c| *c == '.').next().unwrap();
-        let mut seen_label = false;
         let mut had_unicode_output = false;
+        let mut seen_label = false;
         let mut already_punycode_iter = already_punycode.iter();
+        let mut passthrough_up_to_extended = passthrough_up_to;
+        let mut flushed_prefix = false;
         for label in domain_buffer.split(|c| *c == '.') {
             // Unwrap is OK, because there are supposed to be as many items in
             // `already_punycode` as there are labels.
-            let input_punycode: Option<&[u8]> = *already_punycode_iter.next().unwrap();
+            let input_punycode = *already_punycode_iter.next().unwrap();
             if seen_label {
-                sink.write_char('.')?
+                if flushed_prefix {
+                    sink.write_char('.')?;
+                } else {
+                    debug_assert_eq!(domain_name[passthrough_up_to_extended], b'.');
+                    passthrough_up_to_extended += 1;
+                    if passthrough_up_to_extended == domain_name.len() {
+                        debug_assert!(!had_errors);
+                        return Ok(ProcessingSuccess::Passthrough);
+                    }
+                }
             }
             seen_label = true;
+
+            if let AlreadyAsciiLabel::MixedCaseAscii(mixed_case) = input_punycode {
+                if let Some(first_upper_case) =
+                    mixed_case.iter().position(|c| c.is_ascii_uppercase())
+                {
+                    let (head, tail) = mixed_case.split_at(first_upper_case);
+                    let slice_to_write = if flushed_prefix {
+                        head
+                    } else {
+                        flushed_prefix = true;
+                        passthrough_up_to_extended += head.len();
+                        debug_assert_ne!(passthrough_up_to_extended, domain_name.len());
+                        &domain_name[..passthrough_up_to_extended]
+                    };
+                    // SAFETY: `mixed_case` and `domain_name` up to `passthrough_up_to_extended` are known to be ASCII.
+                    sink.write_str(unsafe { core::str::from_utf8_unchecked(slice_to_write) })?;
+                    for c in tail.iter() {
+                        sink.write_char(char::from(c.to_ascii_lowercase()))?;
+                    }
+                } else {
+                    if flushed_prefix {
+                        // SAFETY: `mixed_case` is known to be ASCII.
+                        sink.write_str(unsafe { core::str::from_utf8_unchecked(mixed_case) })?;
+                    } else {
+                        passthrough_up_to_extended += mixed_case.len();
+                        if passthrough_up_to_extended == domain_name.len() {
+                            debug_assert!(!had_errors);
+                            return Ok(ProcessingSuccess::Passthrough);
+                        }
+                    }
+                }
+                continue;
+            }
+
             let potentially_punycode = if fail_fast {
                 debug_assert!(classify_for_punycode(label) != PunycodeClassification::Error);
                 !is_ascii(label)
@@ -718,49 +766,186 @@ impl Uts46 {
                 true
             };
             if passthrough {
+                if !flushed_prefix {
+                    flushed_prefix = true;
+                    // SAFETY: `domain_name` up to `passthrough_up_to_extended` is known to be ASCII.
+                    sink.write_str(unsafe {
+                        core::str::from_utf8_unchecked(&domain_name[..passthrough_up_to_extended])
+                    })?;
+                }
                 for c in label.iter().copied() {
                     sink.write_char(c)?;
                 }
-            } else if let Some(mixed_case_punycode_slice) = input_punycode {
-                for c in mixed_case_punycode_slice.iter() {
-                    sink.write_char(char::from(c.to_ascii_lowercase()))?;
+            } else if let AlreadyAsciiLabel::MixedCasePunycode(mixed_case) = input_punycode {
+                if let Some(first_upper_case) =
+                    mixed_case.iter().position(|c| c.is_ascii_uppercase())
+                {
+                    let (head, tail) = mixed_case.split_at(first_upper_case);
+                    let slice_to_write = if flushed_prefix {
+                        head
+                    } else {
+                        flushed_prefix = true;
+                        passthrough_up_to_extended += head.len();
+                        debug_assert_ne!(passthrough_up_to_extended, domain_name.len());
+                        &domain_name[..passthrough_up_to_extended]
+                    };
+                    // SAFETY: `mixed_case` and `domain_name` up to `passthrough_up_to_extended` are known to be ASCII.
+                    sink.write_str(unsafe { core::str::from_utf8_unchecked(slice_to_write) })?;
+                    for c in tail.iter() {
+                        sink.write_char(char::from(c.to_ascii_lowercase()))?;
+                    }
+                } else {
+                    if flushed_prefix {
+                        // SAFETY: `mixed_case` is known to be ASCII.
+                        sink.write_str(unsafe { core::str::from_utf8_unchecked(mixed_case) })?;
+                    } else {
+                        passthrough_up_to_extended += mixed_case.len();
+                        if passthrough_up_to_extended == domain_name.len() {
+                            debug_assert!(!had_errors);
+                            return Ok(ProcessingSuccess::Passthrough);
+                        }
+                    }
                 }
             } else {
+                if !flushed_prefix {
+                    flushed_prefix = true;
+                    // SAFETY: `domain_name` up to `passthrough_up_to_extended` is known to be ASCII.
+                    sink.write_str(unsafe {
+                        core::str::from_utf8_unchecked(&domain_name[..passthrough_up_to_extended])
+                    })?;
+                }
                 sink.write_str("xn--")?;
                 crate::punycode::encode_into::<_, _, InternalCaller>(label.iter().copied(), sink)?;
             }
         }
-        if !had_errors && had_unicode_output {
-            if let Some(ascii_sink) = ascii_sink {
-                ascii_sink.write_str(unsafe {
-                    core::str::from_utf8_unchecked(&domain_name[..passthrough_up_to])
-                })?;
-                seen_label = false;
+
+        if had_errors {
+            return Err(ProcessingError::ValidityError);
+        }
+
+        if had_unicode_output {
+            if let Some(sink) = ascii_sink {
+                let mut seen_label = false;
+                let mut already_punycode_iter = already_punycode.iter();
+                let mut passthrough_up_to_extended = passthrough_up_to;
+                let mut flushed_prefix = false;
                 for label in domain_buffer.split(|c| *c == '.') {
+                    // Unwrap is OK, because there are supposed to be as many items in
+                    // `already_punycode` as there are labels.
+                    let input_punycode = *already_punycode_iter.next().unwrap();
                     if seen_label {
-                        ascii_sink.write_char('.')?
+                        if flushed_prefix {
+                            sink.write_char('.')?;
+                        } else {
+                            debug_assert_eq!(domain_name[passthrough_up_to_extended], b'.');
+                            passthrough_up_to_extended += 1;
+                        }
                     }
                     seen_label = true;
-                    debug_assert!(classify_for_punycode(label) != PunycodeClassification::Error);
+
+                    if let AlreadyAsciiLabel::MixedCaseAscii(mixed_case) = input_punycode {
+                        if let Some(first_upper_case) =
+                            mixed_case.iter().position(|c| c.is_ascii_uppercase())
+                        {
+                            let (head, tail) = mixed_case.split_at(first_upper_case);
+                            let slice_to_write = if flushed_prefix {
+                                head
+                            } else {
+                                flushed_prefix = true;
+                                passthrough_up_to_extended += head.len();
+                                debug_assert_ne!(passthrough_up_to_extended, domain_name.len());
+                                &domain_name[..passthrough_up_to_extended]
+                            };
+                            // SAFETY: `mixed_case` and `domain_name` up to `passthrough_up_to_extended` are known to be ASCII.
+                            sink.write_str(unsafe {
+                                core::str::from_utf8_unchecked(slice_to_write)
+                            })?;
+                            for c in tail.iter() {
+                                sink.write_char(char::from(c.to_ascii_lowercase()))?;
+                            }
+                        } else {
+                            if flushed_prefix {
+                                // SAFETY: `mixed_case` is known to be ASCII.
+                                sink.write_str(unsafe {
+                                    core::str::from_utf8_unchecked(mixed_case)
+                                })?;
+                            } else {
+                                passthrough_up_to_extended += mixed_case.len();
+                            }
+                        }
+                        continue;
+                    }
+
                     if is_ascii(label) {
+                        if !flushed_prefix {
+                            flushed_prefix = true;
+                            // SAFETY: `domain_name` up to `passthrough_up_to_extended` is known to be ASCII.
+                            sink.write_str(unsafe {
+                                core::str::from_utf8_unchecked(
+                                    &domain_name[..passthrough_up_to_extended],
+                                )
+                            })?;
+                        }
                         for c in label.iter().copied() {
-                            ascii_sink.write_char(c)?;
+                            sink.write_char(c)?;
+                        }
+                    } else if let AlreadyAsciiLabel::MixedCasePunycode(mixed_case) = input_punycode
+                    {
+                        if let Some(first_upper_case) =
+                            mixed_case.iter().position(|c| c.is_ascii_uppercase())
+                        {
+                            let (head, tail) = mixed_case.split_at(first_upper_case);
+                            let slice_to_write = if flushed_prefix {
+                                head
+                            } else {
+                                flushed_prefix = true;
+                                passthrough_up_to_extended += head.len();
+                                debug_assert_ne!(passthrough_up_to_extended, domain_name.len());
+                                &domain_name[..passthrough_up_to_extended]
+                            };
+                            // SAFETY: `mixed_case` and `domain_name` up to `passthrough_up_to_extended` are known to be ASCII.
+                            sink.write_str(unsafe {
+                                core::str::from_utf8_unchecked(slice_to_write)
+                            })?;
+                            for c in tail.iter() {
+                                sink.write_char(char::from(c.to_ascii_lowercase()))?;
+                            }
+                        } else {
+                            if flushed_prefix {
+                                // SAFETY: `mixed_case` is known to be ASCII.
+                                sink.write_str(unsafe {
+                                    core::str::from_utf8_unchecked(mixed_case)
+                                })?;
+                            } else {
+                                passthrough_up_to_extended += mixed_case.len();
+                            }
                         }
                     } else {
-                        ascii_sink.write_str("xn--")?;
+                        if !flushed_prefix {
+                            flushed_prefix = true;
+                            // SAFETY: `domain_name` up to `passthrough_up_to_extended` is known to be ASCII.
+                            sink.write_str(unsafe {
+                                core::str::from_utf8_unchecked(
+                                    &domain_name[..passthrough_up_to_extended],
+                                )
+                            })?;
+                        }
+                        sink.write_str("xn--")?;
                         crate::punycode::encode_into::<_, _, InternalCaller>(
                             label.iter().copied(),
-                            ascii_sink,
+                            sink,
                         )?;
                     }
                 }
+                if !flushed_prefix {
+                    // SAFETY: `domain_name` up to `passthrough_up_to_extended` is known to be ASCII.
+                    sink.write_str(unsafe {
+                        core::str::from_utf8_unchecked(&domain_name[..passthrough_up_to_extended])
+                    })?;
+                }
             }
         }
-        if had_errors {
-            Err(ProcessingError::ValidityError)
-        } else {
-            Ok(ProcessingSuccess::WroteToSink)
-        }
+        Ok(ProcessingSuccess::WroteToSink)
     }
 
     /// The part of `process` that doesn't need to be generic over the sink and
@@ -771,7 +956,7 @@ impl Uts46 {
         strictness: Strictness,
         fail_fast: bool,
         domain_buffer: &mut SmallVec<[char; 253]>,
-        already_punycode: &mut SmallVec<[Option<&'a [u8]>; 8]>,
+        already_punycode: &mut SmallVec<[AlreadyAsciiLabel<'a>; 8]>,
     ) -> (usize, bool, bool) {
         // Sadly, this even faster-path ASCII tier is needed to avoid regressing
         // performance.
@@ -898,7 +1083,7 @@ impl Uts46 {
                             };
                             // If there were errors, we won't be trying to use this
                             // anyway later, so it's fine to put it here unconditionally.
-                            already_punycode.push(Some(label));
+                            already_punycode.push(AlreadyAsciiLabel::MixedCasePunycode(label));
                             continue;
                         } else if fail_fast {
                             return (0, false, true);
@@ -912,7 +1097,6 @@ impl Uts46 {
                 } else {
                     false
                 };
-                already_punycode.push(None);
                 for c in ascii.iter().map(|c| {
                     // Can't have dot here, so `deny_list` vs `deny_list_deny_dot` does
                     // not matter.
@@ -936,8 +1120,14 @@ impl Uts46 {
                             return (0, false, true);
                         }
                     }
+                    already_punycode.push(if had_errors {
+                        AlreadyAsciiLabel::Other
+                    } else {
+                        AlreadyAsciiLabel::MixedCaseAscii(label)
+                    });
                     continue;
                 }
+                already_punycode.push(AlreadyAsciiLabel::Other);
                 let mut first_needs_combining_mark_check = ascii.is_empty();
                 let mut needs_contextj_check = !non_ascii.is_empty();
                 let mut mapping = self
@@ -1054,7 +1244,7 @@ impl Uts46 {
                             current_label_start = domain_buffer.len();
                             first_needs_combining_mark_check = true;
                             needs_contextj_check = true;
-                            already_punycode.push(None);
+                            already_punycode.push(AlreadyAsciiLabel::Other);
                         }
                         Some(c) => {
                             if c == '\u{FFFD}' {
@@ -1069,7 +1259,7 @@ impl Uts46 {
                 }
             } else {
                 // Empty label
-                already_punycode.push(None);
+                already_punycode.push(AlreadyAsciiLabel::MixedCaseAscii(label));
             }
         }
 
