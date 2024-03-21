@@ -663,10 +663,16 @@ impl Uts46 {
     ) -> Result<ProcessingSuccess, ProcessingError> {
         let fail_fast = error_policy == ErrorPolicy::FailFast;
         let mut domain_buffer = SmallVec::<[char; 253]>::new();
+        let mut already_punycode = SmallVec::<[Option<&[u8]>; 8]>::new();
         // `process_inner` could be pasted inline here, but it's out of line in order
-        // to avoid duplicating that code when monomorphizing over `W`.
-        let (passthrough_up_to, is_bidi, had_errors) =
-            self.process_inner(domain_name, strictness, fail_fast, &mut domain_buffer);
+        // to avoid duplicating that code when monomorphizing over `W` and `OutputUnicode`.
+        let (passthrough_up_to, is_bidi, had_errors) = self.process_inner(
+            domain_name,
+            strictness,
+            fail_fast,
+            &mut domain_buffer,
+            &mut already_punycode,
+        );
         if passthrough_up_to == domain_name.len() {
             debug_assert!(!had_errors);
             return Ok(ProcessingSuccess::Passthrough);
@@ -689,7 +695,11 @@ impl Uts46 {
         let tld = without_dot.rsplit(|c| *c == '.').next().unwrap();
         let mut seen_label = false;
         let mut had_unicode_output = false;
+        let mut already_punycode_iter = already_punycode.iter();
         for label in domain_buffer.split(|c| *c == '.') {
+            // Unwrap is OK, because there are supposed to be as many items in
+            // `already_punycode` as there are labels.
+            let input_punycode: Option<&[u8]> = *already_punycode_iter.next().unwrap();
             if seen_label {
                 sink.write_char('.')?
             }
@@ -711,12 +721,11 @@ impl Uts46 {
                 for c in label.iter().copied() {
                     sink.write_char(c)?;
                 }
+            } else if let Some(mixed_case_punycode_slice) = input_punycode {
+                for c in mixed_case_punycode_slice.iter() {
+                    sink.write_char(char::from(c.to_ascii_lowercase()))?;
+                }
             } else {
-                // XXX: We could avoid the time complexity of the Punycode encode algorithm
-                // if we kept a record that enabled correlating this label with ASCII (not
-                // normalized from full-width characters or the like) Punycode in the input
-                // slice. If we had that, we could do an ASCII-lower-casing copy of the input
-                // label here without re-encoding into Punycode.
                 sink.write_str("xn--")?;
                 crate::punycode::encode_into::<_, _, InternalCaller>(label.iter().copied(), sink)?;
             }
@@ -756,12 +765,13 @@ impl Uts46 {
 
     /// The part of `process` that doesn't need to be generic over the sink and
     /// can avoid monomorphizing in the interest of code size.
-    fn process_inner(
+    fn process_inner<'a>(
         &self,
-        domain_name: &[u8],
+        domain_name: &'a [u8],
         strictness: Strictness,
         fail_fast: bool,
         domain_buffer: &mut SmallVec<[char; 253]>,
+        already_punycode: &mut SmallVec<[Option<&'a [u8]>; 8]>,
     ) -> (usize, bool, bool) {
         // Sadly, this even faster-path ASCII tier is needed to avoid regressing
         // performance.
@@ -886,6 +896,9 @@ impl Uts46 {
                                     )
                                 }));
                             };
+                            // If there were errors, we won't be trying to use this
+                            // anyway later, so it's fine to put it here unconditionally.
+                            already_punycode.push(Some(label));
                             continue;
                         } else if fail_fast {
                             return (0, false, true);
@@ -899,6 +912,7 @@ impl Uts46 {
                 } else {
                     false
                 };
+                already_punycode.push(None);
                 for c in ascii.iter().map(|c| {
                     // Can't have dot here, so `deny_list` vs `deny_list_deny_dot` does
                     // not matter.
@@ -1040,6 +1054,7 @@ impl Uts46 {
                             current_label_start = domain_buffer.len();
                             first_needs_combining_mark_check = true;
                             needs_contextj_check = true;
+                            already_punycode.push(None);
                         }
                         Some(c) => {
                             if c == '\u{FFFD}' {
@@ -1052,6 +1067,9 @@ impl Uts46 {
                         }
                     }
                 }
+            } else {
+                // Empty label
+                already_punycode.push(None);
             }
         }
 
