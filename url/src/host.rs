@@ -89,31 +89,7 @@ impl Host<String> {
             return Err(ParseError::EmptyHost);
         }
 
-        let is_invalid_domain_char = |c| {
-            matches!(
-                c,
-                '\0'..='\u{001F}'
-                    | ' '
-                    | '#'
-                    | '%'
-                    | '/'
-                    | ':'
-                    | '<'
-                    | '>'
-                    | '?'
-                    | '@'
-                    | '['
-                    | '\\'
-                    | ']'
-                    | '^'
-                    | '\u{007F}'
-                    | '|'
-            )
-        };
-
-        if domain.find(is_invalid_domain_char).is_some() {
-            Err(ParseError::InvalidDomainCharacter)
-        } else if ends_in_a_number(&domain) {
+        if ends_in_a_number(&domain) {
             let address = parse_ipv4addr(&domain)?;
             Ok(Host::Ipv4(address))
         } else {
