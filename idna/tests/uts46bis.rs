@@ -10,7 +10,10 @@ use crate::test::TestFn;
 use std::char;
 use std::fmt::Write;
 
-use idna::uts46bis::Strictness;
+use idna::uts46bis::verify_dns_length;
+use idna::uts46bis::ProcessingError;
+use idna::uts46bis::ProcessingSuccess;
+use idna::uts46bis::{ErrorPolicy, Strictness};
 use idna::Errors;
 
 pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
@@ -99,6 +102,64 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
                     &source,
                     (&to_ascii_n, &to_ascii_n_status),
                     to_ascii_n_result.map(|cow| cow.into_owned()),
+                    |e| false,
+                );
+
+                let mut to_unicode_simultaneous = String::new();
+                let mut to_ascii_simultaneous = String::new();
+                let (to_unicode_simultaneous_result, to_ascii_simultaneous_result) = match config
+                    .process(
+                        source.as_bytes(),
+                        Strictness::Std3ConformanceChecker,
+                        ErrorPolicy::MarkErrors,
+                        |_, _, _| true,
+                        &mut to_unicode_simultaneous,
+                        Some(&mut to_ascii_simultaneous),
+                    ) {
+                    Ok(ProcessingSuccess::Passthrough) => (
+                        Ok(source.to_string()),
+                        if verify_dns_length(&source) {
+                            Ok(source.to_string())
+                        } else {
+                            Err(Errors::default())
+                        },
+                    ),
+                    Ok(ProcessingSuccess::WroteToSink) => {
+                        if to_ascii_simultaneous.is_empty() {
+                            (
+                                Ok(to_unicode_simultaneous.clone()),
+                                if verify_dns_length(&to_unicode_simultaneous) {
+                                    Ok(to_unicode_simultaneous)
+                                } else {
+                                    Err(Errors::default())
+                                },
+                            )
+                        } else {
+                            (
+                                Ok(to_unicode_simultaneous),
+                                if verify_dns_length(&to_ascii_simultaneous) {
+                                    Ok(to_ascii_simultaneous)
+                                } else {
+                                    Err(Errors::default())
+                                },
+                            )
+                        }
+                    }
+                    Err(ProcessingError::ValidityError) => {
+                        (Err(Errors::default()), Err(Errors::default()))
+                    }
+                    Err(ProcessingError::SinkError) => unreachable!(),
+                };
+                check(
+                    &source,
+                    (&to_unicode, &to_unicode_status),
+                    to_unicode_simultaneous_result,
+                    |e| e == "X4_2",
+                );
+                check(
+                    &source,
+                    (&to_ascii_n, &to_ascii_n_status),
+                    to_ascii_simultaneous_result,
                     |e| false,
                 );
             })),
