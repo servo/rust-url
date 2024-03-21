@@ -51,11 +51,31 @@ use alloc::string::String;
 use uts46bis::Uts46;
 
 pub mod punycode;
-mod uts46;
+mod deprecated;
 pub mod uts46bis;
 
 #[allow(deprecated)]
-pub use crate::uts46::{Config, Errors, Idna};
+pub use crate::deprecated::{Config, Idna};
+
+/// Type indicating that there were errors during UTS #46 processing.
+#[derive(Default, Debug)]
+#[non_exhaustive]
+pub struct Errors {}
+
+impl From<Errors> for Result<(), Errors> {
+    fn from(e: Errors) -> Result<(), Errors> {
+        Err(e)
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for Errors {}
+
+impl core::fmt::Display for Errors {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Debug::fmt(self, f)
+    }
+}
 
 /// The [domain to ASCII](https://url.spec.whatwg.org/#concept-domain-to-ascii) algorithm;
 /// version returning a `Cow`.
@@ -65,7 +85,7 @@ pub use crate::uts46::{Config, Errors, Idna};
 /// and using Punycode as necessary.
 ///
 /// This process may fail.
-pub fn domain_to_ascii_cow<'a>(domain: &'a str) -> Result<Cow<'a, str>, uts46::Errors> {
+pub fn domain_to_ascii_cow<'a>(domain: &'a str) -> Result<Cow<'a, str>, Errors> {
     Uts46::new().to_ascii(domain.as_bytes(), uts46bis::Strictness::WhatwgUserAgent)
 }
 
@@ -77,7 +97,7 @@ pub fn domain_to_ascii_cow<'a>(domain: &'a str) -> Result<Cow<'a, str>, uts46::E
 /// and using Punycode as necessary.
 ///
 /// This process may fail.
-pub fn domain_to_ascii(domain: &str) -> Result<String, uts46::Errors> {
+pub fn domain_to_ascii(domain: &str) -> Result<String, Errors> {
     domain_to_ascii_cow(domain).map(|cow| cow.into_owned())
 }
 
@@ -88,7 +108,7 @@ pub fn domain_to_ascii(domain: &str) -> Result<String, uts46::Errors> {
 /// * YouTube CDN nodes
 /// * Some GitHub user pages
 /// * Pseudo-hosts used by various TXT record-based protocols.
-pub fn domain_to_ascii_strict(domain: &str) -> Result<String, uts46::Errors> {
+pub fn domain_to_ascii_strict(domain: &str) -> Result<String, Errors> {
     Uts46::new()
         .to_ascii(
             domain.as_bytes(),
@@ -108,7 +128,7 @@ pub fn domain_to_ascii_strict(domain: &str) -> Result<String, uts46::Errors> {
 /// denotes errors using the REPLACEMENT CHARACTERs in order to be able to illustrate
 /// errors to the user. When the second item of the return tuple signals an error,
 /// the first item of the tuple must not be used in a network protocol.
-pub fn domain_to_unicode_cow<'a>(domain: &'a str) -> (Cow<'a, str>, Result<(), uts46::Errors>) {
+pub fn domain_to_unicode_cow<'a>(domain: &'a str) -> (Cow<'a, str>, Result<(), Errors>) {
     Uts46::new().to_unicode(domain.as_bytes(), uts46bis::Strictness::WhatwgUserAgent)
 }
 
@@ -123,7 +143,7 @@ pub fn domain_to_unicode_cow<'a>(domain: &'a str) -> (Cow<'a, str>, Result<(), u
 /// denotes errors using the REPLACEMENT CHARACTERs in order to be able to illustrate
 /// errors to the user. When the second item of the return tuple signals an error,
 /// the first item of the tuple must not be used in a network protocol.
-pub fn domain_to_unicode(domain: &str) -> (String, Result<(), uts46::Errors>) {
+pub fn domain_to_unicode(domain: &str) -> (String, Result<(), Errors>) {
     let (cow, result) = domain_to_unicode_cow(domain);
     (cow.into_owned(), result)
 }

@@ -11,11 +11,10 @@
 
 #![allow(deprecated)]
 
-use core::fmt;
-
 use alloc::string::String;
 
 use crate::uts46bis::*;
+use crate::Errors;
 
 #[derive(Default)]
 #[deprecated]
@@ -155,25 +154,5 @@ impl Config {
         let mut out = String::with_capacity(domain.len());
         let result = codec.to_unicode(domain, &mut out);
         (out, result)
-    }
-}
-
-/// Type indicating that there were errors during UTS #46 processing.
-#[derive(Default, Debug)]
-#[non_exhaustive]
-pub struct Errors {}
-
-impl From<Errors> for Result<(), Errors> {
-    fn from(e: Errors) -> Result<(), Errors> {
-        Err(e)
-    }
-}
-
-#[cfg(feature = "std")]
-impl std::error::Error for Errors {}
-
-impl fmt::Display for Errors {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(self, f)
     }
 }
