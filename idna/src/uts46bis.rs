@@ -210,6 +210,8 @@ fn in_inclusive_range_char(c: char, start: char, end: char) -> bool {
 
 #[inline(always)]
 fn is_passthrough_ascii_label(label: &[u8]) -> bool {
+    // XXX if we aren't performing _CheckHyphens_, this could
+    // check for "xn--" and pass through YouTube CDN node names.
     if label.len() >= 4 && label[2] == b'-' && label[3] == b'-' {
         return false;
     }
@@ -219,6 +221,12 @@ fn is_passthrough_ascii_label(label: &[u8]) -> bool {
         // label in a bidi domain name. This has the side
         // effect that this function only accepts labels
         // that also conform to the STD3 rules.
+        //
+        // XXX: If we are in the fail-fast mode (i.e. we don't need
+        // to be able to overwrite anything with U+FFFD), we could
+        // merely record that we've seen a digit here and error out
+        // if we later discover that the domain name is a bidi
+        // domain name.
         if !in_inclusive_range8(first, b'a', b'z') {
             return false;
         }
@@ -401,15 +409,24 @@ impl From<crate::punycode::PunycodeEncodeError> for ProcessingError {
     }
 }
 
+/// Performs the _VerifyDNSLength_ check on the output of the _ToASCII_ operation with
+/// the modification that the trailing dot is allowed.
 ///
-pub fn verify_dns_length(domain_name: &[u8]) -> bool {
-    debug_assert!(domain_name.is_ascii());
+/// The trailing dot behavior may change in a future version. The UTS 46 test suite
+/// seems to require allowing the trailing dot, even though the spec says otherwise.
+///
+/// # Panics
+///
+/// Panics in debug mode if the argument isn't ASCII.
+pub fn verify_dns_length(domain_name: &str) -> bool {
+    let bytes = domain_name.as_bytes();
+    debug_assert!(bytes.is_ascii());
     // The UTS 46 test suite seems to disagree with the UTS 46 spec
     // regarding the trailing dot!
-    let domain_name_without_trailing_dot = if let Some(without) = domain_name.strip_suffix(b".") {
+    let domain_name_without_trailing_dot = if let Some(without) = bytes.strip_suffix(b".") {
         without
     } else {
-        domain_name
+        bytes
     };
     if domain_name_without_trailing_dot.len() > 253 {
         return false;
@@ -470,9 +487,7 @@ impl Uts46 {
             // SAFETY: `ProcessingSuccess::Passthrough` asserts that `domain_name` is ASCII.
             Ok(ProcessingSuccess::Passthrough) => {
                 let cow = Cow::Borrowed(unsafe { core::str::from_utf8_unchecked(domain_name) });
-                if strictness == Strictness::Std3ConformanceChecker
-                    && !verify_dns_length(cow.as_bytes())
-                {
+                if strictness == Strictness::Std3ConformanceChecker && !verify_dns_length(&cow) {
                     Err(crate::Errors::default())
                 } else {
                     Ok(cow)
@@ -480,9 +495,7 @@ impl Uts46 {
             }
             Ok(ProcessingSuccess::WroteToSink) => {
                 let cow: Cow<'_, str> = Cow::Owned(s);
-                if strictness == Strictness::Std3ConformanceChecker
-                    && !verify_dns_length(cow.as_bytes())
-                {
+                if strictness == Strictness::Std3ConformanceChecker && !verify_dns_length(&cow) {
                     Err(crate::Errors::default())
                 } else {
                     Ok(cow)
@@ -698,6 +711,11 @@ impl Uts46 {
                     sink.write_char(c)?;
                 }
             } else {
+                // XXX: We could avoid the time complexity of the Punycode encode algorithm
+                // if we kept a record that enabled correlating this label with ASCII (not
+                // normalized from full-width characters or the like) Punycode in the input
+                // slice. If we had that, we could do an ASCII-lower-casing copy of the input
+                // label here without re-encoding into Punycode.
                 sink.write_str("xn--")?;
                 crate::punycode::encode_into(label.iter().copied(), sink)?;
             }

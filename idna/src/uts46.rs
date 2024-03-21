@@ -40,14 +40,14 @@ impl Idna {
             None,
         ) {
             Ok(ProcessingSuccess::Passthrough) => {
-                if self.config.verify_dns_length && !verify_dns_length(domain.as_bytes()) {
+                if self.config.verify_dns_length && !verify_dns_length(domain) {
                     return Err(crate::Errors::default());
                 }
                 out.push_str(domain);
                 Ok(())
             }
             Ok(ProcessingSuccess::WroteToSink) => {
-                if self.config.verify_dns_length && !verify_dns_length(out.as_bytes()) {
+                if self.config.verify_dns_length && !verify_dns_length(out) {
                     return Err(crate::Errors::default());
                 }
                 Ok(())
