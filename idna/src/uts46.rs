@@ -185,7 +185,7 @@ const PUNYCODE_PREFIX: u32 =
 const PUNYCODE_PREFIX_MASK: u32 = (0xFF << 24) | (0xFF << 16) | (0xDF << 8) | 0xDF;
 
 #[inline(always)]
-pub fn has_punycode_prefix(slice: &[u8]) -> bool {
+fn has_punycode_prefix(slice: &[u8]) -> bool {
     if slice.len() < 4 {
         return false;
     }
@@ -338,6 +338,7 @@ fn classify_for_punycode(label: &[char]) -> PunycodeClassification {
 
 /// The strictness profile to be applied.
 #[derive(PartialEq, Eq, Copy, Clone)]
+#[non_exhaustive]
 pub enum Strictness {
     /// The _beStrict=false_ option from the WHATWG URL Standard for
     /// practical usage.
@@ -355,6 +356,7 @@ pub enum Strictness {
 
 /// Policy for customizing behavior in case of an error.
 #[derive(PartialEq, Eq, Copy, Clone)]
+#[non_exhaustive]
 pub enum ErrorPolicy {
     /// Return as early as possible without producing output in case of error.
     FailFast,
@@ -450,6 +452,7 @@ pub fn verify_dns_length(domain_name: &str) -> bool {
     true
 }
 
+/// An implementation of UTS #46.
 pub struct Uts46 {
     mapper: Uts46Mapper,
     canonical_combining_class: CanonicalCombiningClassMap,
@@ -460,6 +463,8 @@ pub struct Uts46 {
 
 impl Uts46 {
     // XXX Should this be behind a `compiled_data` feature?
+
+    /// Constructor using data compiled into the binary.
     pub const fn new() -> Self {
         Self {
             mapper: Uts46Mapper::new(),
@@ -580,9 +585,9 @@ impl Uts46 {
         }
     }
 
-    /// The lower-level function that [`to_ascii`], [`to_unicode`], and [`to_user_interface`] are
-    /// built on to allow support for output types other than `Cow<'a, str>` (e.g. string types
-    /// in a non-Rust programming language).
+    /// The lower-level function that [`Uts46::to_ascii`], [`Uts46::to_unicode`], and
+    /// [`Uts46::to_user_interface`] are built on to allow support for output types other
+    /// than `Cow<'a, str>` (e.g. string types in a non-Rust programming language).
     ///
     /// # Arguments
     ///
