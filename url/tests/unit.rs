@@ -1307,3 +1307,9 @@ fn issue_864() {
     url.set_path("x");
     dbg!(&url);
 }
+
+#[test]
+fn issue_889() {
+    let u = Url::parse("file:///C|/hello/world").unwrap();
+    assert_eq!(u.as_str(), "file:///C:/hello/world");
+}
