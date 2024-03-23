@@ -85,7 +85,12 @@ impl Origin {
         }
     }
 
+    /// Deprecated: There used to also be a Unicode serialization of an origin. However, it was never widely adopted.
     /// <https://html.spec.whatwg.org/multipage/#unicode-serialisation-of-an-origin>
+    #[deprecated(
+        since = "2.6.0",
+        note = "There used to also be a Unicode serialization of an origin. However, it was never widely adopted."
+    )]
     pub fn unicode_serialization(&self) -> String {
         match *self {
             Origin::Opaque(_) => "null".to_owned(),
