@@ -154,9 +154,12 @@ use std::borrow::Borrow;
 use std::cmp;
 use std::fmt::{self, Write};
 use std::hash;
+#[cfg(any(unix, windows, target_os = "redox", target_os = "wasi"))]
 use std::io;
 use std::mem;
-use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
+use std::net::IpAddr;
+#[cfg(any(unix, windows, target_os = "redox", target_os = "wasi"))]
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::ops::{Range, RangeFrom, RangeTo};
 use std::path::{Path, PathBuf};
 use std::str;
@@ -1252,6 +1255,7 @@ impl Url {
     ///     })
     /// }
     /// ```
+    #[cfg(any(unix, windows, target_os = "redox", target_os = "wasi"))]
     pub fn socket_addrs(
         &self,
         default_port_number: impl Fn() -> Option<u16>,
