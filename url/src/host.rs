@@ -89,29 +89,7 @@ impl Host<String> {
             return Err(ParseError::EmptyHost);
         }
 
-        let is_invalid_domain_char = |c| {
-            matches!(
-                c,
-                '\0'..='\u{001F}'
-                    | ' '
-                    | '#'
-                    | '%'
-                    | '/'
-                    | ':'
-                    | '<'
-                    | '>'
-                    | '?'
-                    | '@'
-                    | '['
-                    | '\\'
-                    | ']'
-                    | '^'
-                    | '\u{007F}'
-                    | '|'
-            )
-        };
-
-        if domain.find(is_invalid_domain_char).is_some() {
+        if domain.find(Self::is_invalid_domain_char).is_some() {
             Err(ParseError::InvalidDomainCharacter)
         } else if ends_in_a_number(&domain) {
             let address = parse_ipv4addr(&domain)?;
@@ -161,9 +139,64 @@ impl Host<String> {
         }
     }
 
-    /// convert domain with idna
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+    /// Convert IDN domain to ASCII form with [idna]
     fn domain_to_ascii(domain: &str) -> Result<String, ParseError> {
         idna::domain_to_ascii(domain).map_err(Into::into)
+    }
+
+    #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+    const SENTINEL_HOSTNAME: &'static str = "url-host-web-sys-sentinel";
+    #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+    const SENTINEL_URL: &'static str = "http://url-host-web-sys-sentinel";
+
+    #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+    /// Convert IDN domain to ASCII form with [web_sys::Url]
+    fn domain_to_ascii(domain: &str) -> Result<String, ParseError> {
+        debug_assert!(Self::SENTINEL_URL.ends_with(Self::SENTINEL_HOSTNAME));
+        // Url throws an error on empty hostnames
+        if domain.is_empty() {
+            return Ok(domain.to_string());
+        }
+        // Url returns strange results for invalid domain chars
+        if domain.contains(Self::is_invalid_domain_char) {
+            return Err(ParseError::InvalidDomainCharacter);
+        }
+
+        // Create a new Url with a sentinel value.
+        let u = web_sys::Url::new(Self::SENTINEL_URL).map_err(|_| ParseError::IdnaError)?;
+        debug_assert_eq!(u.hostname(), Self::SENTINEL_HOSTNAME);
+        // Whenever set_hostname fails, it doesn't update the Url.
+        u.set_hostname(domain);
+        let h = u.hostname();
+        if h.eq_ignore_ascii_case(Self::SENTINEL_HOSTNAME) || h.is_empty() {
+            // It's probably invalid
+            Err(ParseError::IdnaError)
+        } else {
+            Ok(h)
+        }
+    }
+
+    fn is_invalid_domain_char(c: char) -> bool {
+        matches!(
+            c,
+            '\0'..='\u{001F}'
+                | ' '
+                | '#'
+                | '%'
+                | '/'
+                | ':'
+                | '<'
+                | '>'
+                | '?'
+                | '@'
+                | '['
+                | '\\'
+                | ']'
+                | '^'
+                | '\u{007F}'
+                | '|'
+        )
     }
 }
 

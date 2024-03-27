@@ -57,7 +57,13 @@ pub fn internal_components(url: &Url) -> InternalComponents {
     }
 }
 
-/// https://url.spec.whatwg.org/#dom-url-domaintoascii
+/// Converts a domain name to its ASCII (punycode) form.
+///
+/// This feature was never implemented by browsers, and
+/// [has been removed from the URL spec][0].
+///
+/// [0]: https://github.com/whatwg/url/issues/63
+#[deprecated]
 pub fn domain_to_ascii(domain: &str) -> String {
     match Host::parse(domain) {
         Ok(Host::Domain(domain)) => domain,
@@ -65,7 +71,16 @@ pub fn domain_to_ascii(domain: &str) -> String {
     }
 }
 
-/// https://url.spec.whatwg.org/#dom-url-domaintounicode
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+#[deprecated]
+/// Converts a domain name to its Unicode form.
+///
+/// This feature was never implemented by browsers, and
+/// [has been removed from the URL spec][0].
+///
+/// This feature is not available on `wasm32-unknown-unknown` targets.
+///
+/// [0]: https://github.com/whatwg/url/issues/63
 pub fn domain_to_unicode(domain: &str) -> String {
     match Host::parse(domain) {
         Ok(Host::Domain(ref domain)) => {
