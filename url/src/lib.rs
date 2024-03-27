@@ -2781,16 +2781,15 @@ impl<'de> serde::Deserialize<'de> for Url {
             type Value = Url;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("a string representing an URL")
+                formatter.write_str("a string representing a URL")
             }
 
             fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
             where
                 E: Error,
             {
-                Url::parse(s).map_err(|err| {
-                    let err_s = format!("{}", err);
-                    Error::invalid_value(Unexpected::Str(s), &err_s.as_str())
+                Url::parse(s).map_err(|_| {
+                    Error::invalid_value(Unexpected::Str(s), &self)
                 })
             }
         }
