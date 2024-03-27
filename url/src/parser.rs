@@ -13,26 +13,9 @@ use std::str;
 use crate::host::{Host, HostInternal};
 use crate::Url;
 use form_urlencoded::EncodingOverride;
-use percent_encoding::{percent_encode, utf8_percent_encode, AsciiSet, CONTROLS};
-
-/// https://url.spec.whatwg.org/#fragment-percent-encode-set
-const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'<').add(b'>').add(b'`');
-
-/// https://url.spec.whatwg.org/#path-percent-encode-set
-const PATH: &AsciiSet = &FRAGMENT.add(b'#').add(b'?').add(b'{').add(b'}');
-
-/// https://url.spec.whatwg.org/#userinfo-percent-encode-set
-pub(crate) const USERINFO: &AsciiSet = &PATH
-    .add(b'/')
-    .add(b':')
-    .add(b';')
-    .add(b'=')
-    .add(b'@')
-    .add(b'[')
-    .add(b'\\')
-    .add(b']')
-    .add(b'^')
-    .add(b'|');
+use percent_encoding::{
+    percent_encode, utf8_percent_encode, AsciiSet, CONTROLS, FRAGMENT, PATH, USERINFO,
+};
 
 pub(crate) const PATH_SEGMENT: &AsciiSet = &PATH.add(b'/').add(b'%');
 
