@@ -21,11 +21,20 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 bencher = "0.1"
 
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dev-dependencies]
+wasm-bindgen-test = "0.3"
+web-sys = { version = "0.3.65", features = ["Navigator", "Window"] }
+
 [dependencies]
 form_urlencoded = { version = "1.2.1", path = "../form_urlencoded" }
-idna = { version = "0.5.0", path = "../idna" }
 percent-encoding = { version = "2.3.1", path = "../percent_encoding" }
 serde = { version = "1.0", optional = true, features = ["derive"] }
+
+[target.'cfg(not(all(target_arch = "wasm32", target_os = "unknown")))'.dependencies]
+idna = { version = "0.5.0", path = "../idna" }
+
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+web-sys = { version = "0.3.65", features = ["Url"] }
 
 [features]
 default = []
