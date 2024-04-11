@@ -6,6 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use std::borrow::Cow;
 use std::cmp;
 use std::fmt::{self, Formatter};
 use std::net::{Ipv4Addr, Ipv6Addr};
@@ -81,7 +82,7 @@ impl Host<String> {
             }
             return parse_ipv6addr(&input[1..input.len() - 1]).map(Host::Ipv6);
         }
-        let domain = percent_decode(input.as_bytes()).decode_utf8_lossy();
+        let domain: Cow<'_, [u8]> = percent_decode(input.as_bytes()).into();
 
         let domain = Self::domain_to_ascii(&domain)?;
 
@@ -93,7 +94,7 @@ impl Host<String> {
             let address = parse_ipv4addr(&domain)?;
             Ok(Host::Ipv4(address))
         } else {
-            Ok(Host::Domain(domain))
+            Ok(Host::Domain(domain.to_string()))
         }
     }
 
@@ -138,8 +139,10 @@ impl Host<String> {
     }
 
     /// convert domain with idna
-    fn domain_to_ascii(domain: &str) -> Result<String, ParseError> {
-        idna::domain_to_ascii(domain).map_err(Into::into)
+    fn domain_to_ascii(domain: &[u8]) -> Result<Cow<'_, str>, ParseError> {
+        idna::uts46::Uts46::new()
+            .to_ascii(domain, idna::uts46::Strictness::WhatwgUserAgent)
+            .map_err(Into::into)
     }
 }
 
