@@ -475,7 +475,7 @@ impl Idna {
         errors
     }
 
-    /// http://www.unicode.org/reports/tr46/#ToASCII
+    /// <http://www.unicode.org/reports/tr46/#ToASCII>
     #[allow(clippy::wrong_self_convention)]
     pub fn to_ascii(&mut self, domain: &str, out: &mut String) -> Result<(), Errors> {
         let mut errors = self.to_ascii_inner(domain, out);
@@ -497,7 +497,7 @@ impl Idna {
         errors.into()
     }
 
-    /// http://www.unicode.org/reports/tr46/#ToUnicode
+    /// <http://www.unicode.org/reports/tr46/#ToUnicode>
     #[allow(clippy::wrong_self_convention)]
     pub fn to_unicode(&mut self, domain: &str, out: &mut String) -> Result<(), Errors> {
         if is_simple(domain) {
@@ -518,7 +518,7 @@ pub struct Config {
     use_idna_2008_rules: bool,
 }
 
-/// The defaults are that of https://url.spec.whatwg.org/#idna
+/// The defaults are that of <https://url.spec.whatwg.org/#idna>
 impl Default for Config {
     fn default() -> Self {
         Config {
@@ -566,14 +566,14 @@ impl Config {
         self
     }
 
-    /// http://www.unicode.org/reports/tr46/#ToASCII
+    /// <http://www.unicode.org/reports/tr46/#ToASCII>
     pub fn to_ascii(self, domain: &str) -> Result<String, Errors> {
         let mut result = String::with_capacity(domain.len());
         let mut codec = Idna::new(self);
         codec.to_ascii(domain, &mut result).map(|()| result)
     }
 
-    /// http://www.unicode.org/reports/tr46/#ToUnicode
+    /// <http://www.unicode.org/reports/tr46/#ToUnicode>
     pub fn to_unicode(self, domain: &str) -> (String, Result<(), Errors>) {
         let mut codec = Idna::new(self);
         let mut out = String::with_capacity(domain.len());
