@@ -1,7 +1,7 @@
 use tester as test;
 
-mod punycode;
 mod deprecated;
+mod punycode;
 mod uts46;
 
 fn main() {

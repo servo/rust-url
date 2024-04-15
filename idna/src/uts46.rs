@@ -184,6 +184,15 @@ const PUNYCODE_PREFIX: u32 =
 
 const PUNYCODE_PREFIX_MASK: u32 = (0xFF << 24) | (0xFF << 16) | (0xDF << 8) | 0xDF;
 
+fn write_punycode_label<W: Write + ?Sized>(
+    label: &[char],
+    sink: &mut W,
+) -> Result<(), ProcessingError> {
+    sink.write_str("xn--")?;
+    crate::punycode::encode_into::<_, _, InternalCaller>(label.iter().copied(), sink)?;
+    Ok(())
+}
+
 #[inline(always)]
 fn has_punycode_prefix(slice: &[u8]) -> bool {
     if slice.len() < 4 {
@@ -819,8 +828,7 @@ impl Uts46 {
                         core::str::from_utf8_unchecked(&domain_name[..passthrough_up_to_extended])
                     })?;
                 }
-                sink.write_str("xn--")?;
-                crate::punycode::encode_into::<_, _, InternalCaller>(label.iter().copied(), sink)?;
+                write_punycode_label(label, sink)?;
             }
         }
 
@@ -935,11 +943,7 @@ impl Uts46 {
                                 )
                             })?;
                         }
-                        sink.write_str("xn--")?;
-                        crate::punycode::encode_into::<_, _, InternalCaller>(
-                            label.iter().copied(),
-                            sink,
-                        )?;
+                        write_punycode_label(label, sink)?;
                     }
                 }
                 if !flushed_prefix {
@@ -955,6 +959,7 @@ impl Uts46 {
 
     /// The part of `process` that doesn't need to be generic over the sink and
     /// can avoid monomorphizing in the interest of code size.
+    #[inline(never)]
     fn process_inner<'a>(
         &self,
         domain_name: &'a [u8],
@@ -1378,6 +1383,7 @@ impl Uts46 {
         (passthrough_up_to, is_bidi, had_errors)
     }
 
+    #[inline(never)]
     fn after_punycode_decode(
         &self,
         domain_buffer: &mut SmallVec<[char; 253]>,
@@ -1423,6 +1429,7 @@ impl Uts46 {
         false
     }
 
+    #[inline(never)]
     fn check_label(
         &self,
         strictness: Strictness,

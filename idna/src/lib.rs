@@ -50,8 +50,8 @@ use alloc::borrow::Cow;
 use alloc::string::String;
 use uts46::Uts46;
 
-pub mod punycode;
 mod deprecated;
+pub mod punycode;
 pub mod uts46;
 
 #[allow(deprecated)]
@@ -110,10 +110,7 @@ pub fn domain_to_ascii(domain: &str) -> Result<String, Errors> {
 /// * Pseudo-hosts used by various TXT record-based protocols.
 pub fn domain_to_ascii_strict(domain: &str) -> Result<String, Errors> {
     Uts46::new()
-        .to_ascii(
-            domain.as_bytes(),
-            uts46::Strictness::Std3ConformanceChecker,
-        )
+        .to_ascii(domain.as_bytes(), uts46::Strictness::Std3ConformanceChecker)
         .map(|cow| cow.into_owned())
 }
 
