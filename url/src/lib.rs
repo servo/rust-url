@@ -219,6 +219,9 @@ pub struct ParseOptions<'a> {
 
 impl<'a> ParseOptions<'a> {
     /// Change the base URL
+    ///
+    /// See the notes of [`Url::join`] for more details about how this base is considered
+    /// when parsing.
     pub fn base_url(mut self, new: Option<&'a Url>) -> Self {
         self.base_url = new;
         self
@@ -370,9 +373,14 @@ impl Url {
     ///
     /// The inverse of this is [`make_relative`].
     ///
-    /// Note: a trailing slash is significant.
+    /// # Notes
+    ///
+    /// - A trailing slash is significant.
     /// Without it, the last path component is considered to be a “file” name
-    /// to be removed to get at the “directory” that is used as the base:
+    /// to be removed to get at the “directory” that is used as the base.
+    /// - A [scheme relative special URL](https://url.spec.whatwg.org/#scheme-relative-special-url-string)
+    /// as input replaces everything in the base URL after the scheme.
+    /// - An absolute URL (with a scheme) as input replaces the whole base URL (even the scheme).
     ///
     /// # Examples
     ///
@@ -380,14 +388,27 @@ impl Url {
     /// use url::Url;
     /// # use url::ParseError;
     ///
+    /// // Base without a trailing slash
     /// # fn run() -> Result<(), ParseError> {
     /// let base = Url::parse("https://example.net/a/b.html")?;
     /// let url = base.join("c.png")?;
     /// assert_eq!(url.as_str(), "https://example.net/a/c.png");  // Not /a/b.html/c.png
     ///
+    /// // Base with a trailing slash
     /// let base = Url::parse("https://example.net/a/b/")?;
     /// let url = base.join("c.png")?;
     /// assert_eq!(url.as_str(), "https://example.net/a/b/c.png");
+    ///
+    /// // Input as scheme relative special URL
+    /// let base = Url::parse("https://alice.com/a")?;
+    /// let url = base.join("//eve.com/b")?;
+    /// assert_eq!(url.as_str(), "https://eve.com/b");
+    ///
+    /// // Input as absolute URL
+    /// let base = Url::parse("https://alice.com/a")?;
+    /// let url = base.join("http://eve.com/b")?;
+    /// assert_eq!(url.as_str(), "http://eve.com/b");  // http instead of https
+
     /// # Ok(())
     /// # }
     /// # run().unwrap();
