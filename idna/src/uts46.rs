@@ -363,6 +363,24 @@ pub enum Strictness {
     Std3ConformanceChecker,
 }
 
+/// The _CheckHyphens_ mode.
+#[derive(PartialEq, Eq, Copy, Clone)]
+#[non_exhaustive] // non_exhaustive in case a middle mode that prohibits only first and last position needs to be added
+pub enum Hyphens {
+    /// _CheckHyphens=true_: Prohibit hyphens in the first, third, fourth,
+    /// and last position in the label.
+    ///
+    /// Note that this mode rejects real-world names, including YouTube CDN nodes
+    /// and some GitHub user pages.
+    Check,
+
+    /// _CheckHyphens=false_: Do not place positional restrictions on hyphens.
+    ///
+    /// This mode is used by the WHATWG URL Standard for normal User Agent processing
+    /// (i.e. not conformance checking).
+    Allow,
+}
+
 /// Policy for customizing behavior in case of an error.
 #[derive(PartialEq, Eq, Copy, Clone)]
 #[non_exhaustive]
@@ -496,11 +514,13 @@ impl Uts46 {
         &self,
         domain_name: &'a [u8],
         strictness: Strictness,
+        hyphens: Hyphens,
     ) -> Result<Cow<'a, str>, crate::Errors> {
         let mut s = String::new();
         match self.process(
             domain_name,
             strictness,
+            hyphens,
             ErrorPolicy::FailFast,
             |_, _, _| false,
             &mut s,
@@ -539,8 +559,9 @@ impl Uts46 {
         &self,
         domain_name: &'a [u8],
         strictness: Strictness,
+        hyphens: Hyphens,
     ) -> (Cow<'a, str>, Result<(), crate::Errors>) {
-        self.to_user_interface(domain_name, strictness, |_, _, _| true)
+        self.to_user_interface(domain_name, strictness, hyphens, |_, _, _| true)
     }
 
     /// Performs the [ToUnicode](https://www.unicode.org/reports/tr46/#ToUnicode) operation
@@ -572,12 +593,14 @@ impl Uts46 {
         &self,
         domain_name: &'a [u8],
         strictness: Strictness,
+        hyphens: Hyphens,
         output_as_unicode: OutputUnicode,
     ) -> (Cow<'a, str>, Result<(), crate::Errors>) {
         let mut s = String::new();
         match self.process(
             domain_name,
             strictness,
+            hyphens,
             ErrorPolicy::MarkErrors,
             output_as_unicode,
             &mut s,
@@ -677,6 +700,7 @@ impl Uts46 {
         &self,
         domain_name: &[u8],
         strictness: Strictness,
+        hyphens: Hyphens,
         error_policy: ErrorPolicy,
         mut output_as_unicode: OutputUnicode,
         sink: &mut W,
@@ -690,6 +714,7 @@ impl Uts46 {
         let (passthrough_up_to, is_bidi, had_errors) = self.process_inner(
             domain_name,
             strictness,
+            hyphens,
             fail_fast,
             &mut domain_buffer,
             &mut already_punycode,
@@ -964,6 +989,7 @@ impl Uts46 {
         &self,
         domain_name: &'a [u8],
         strictness: Strictness,
+        hyphens: Hyphens,
         fail_fast: bool,
         domain_buffer: &mut SmallVec<[char; 253]>,
         already_punycode: &mut SmallVec<[AlreadyAsciiLabel<'a>; 8]>,
@@ -1064,7 +1090,7 @@ impl Uts46 {
                                 }
 
                                 if self.check_label(
-                                    strictness,
+                                    hyphens,
                                     &mut domain_buffer[current_label_start..],
                                     fail_fast,
                                     &mut had_errors,
@@ -1121,7 +1147,7 @@ impl Uts46 {
                     domain_buffer.push(c);
                 }
                 if non_punycode_ascii_label {
-                    if strictness == Strictness::Std3ConformanceChecker {
+                    if hyphens == Hyphens::Check {
                         if check_hyphens(
                             &mut domain_buffer[current_label_start..],
                             fail_fast,
@@ -1237,7 +1263,7 @@ impl Uts46 {
                                 }
                             }
                             if self.check_label(
-                                strictness,
+                                hyphens,
                                 &mut domain_buffer[current_label_start..],
                                 fail_fast,
                                 &mut had_errors,
@@ -1432,14 +1458,14 @@ impl Uts46 {
     #[inline(never)]
     fn check_label(
         &self,
-        strictness: Strictness,
+        hyphens: Hyphens,
         mut_label: &mut [char],
         fail_fast: bool,
         had_errors: &mut bool,
         first_needs_combining_mark_check: bool,
         needs_contextj_check: bool,
     ) -> bool {
-        if strictness == Strictness::Std3ConformanceChecker {
+        if hyphens == Hyphens::Check {
             if check_hyphens(mut_label, fail_fast, had_errors) {
                 return true;
             }

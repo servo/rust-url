@@ -1,4 +1,5 @@
 use assert_matches::assert_matches;
+use idna::uts46::Hyphens;
 use idna::uts46::Strictness;
 
 /// https://github.com/servo/rust-url/issues/373
@@ -7,31 +8,51 @@ fn test_punycode_prefix_with_length_check() {
     let config = idna::uts46::Uts46::new();
 
     assert!(config
-        .to_ascii(b"xn--", Strictness::Std3ConformanceChecker)
+        .to_ascii(b"xn--", Strictness::Std3ConformanceChecker, Hyphens::Check)
         .is_err());
     assert!(config
-        .to_ascii(b"xn---", Strictness::Std3ConformanceChecker)
+        .to_ascii(b"xn---", Strictness::Std3ConformanceChecker, Hyphens::Check)
         .is_err());
     assert!(config
-        .to_ascii(b"xn-----", Strictness::Std3ConformanceChecker)
+        .to_ascii(
+            b"xn-----",
+            Strictness::Std3ConformanceChecker,
+            Hyphens::Check
+        )
         .is_err());
     assert!(config
-        .to_ascii(b"xn--.", Strictness::Std3ConformanceChecker)
+        .to_ascii(b"xn--.", Strictness::Std3ConformanceChecker, Hyphens::Check)
         .is_err());
     assert!(config
-        .to_ascii(b"xn--...", Strictness::Std3ConformanceChecker)
+        .to_ascii(
+            b"xn--...",
+            Strictness::Std3ConformanceChecker,
+            Hyphens::Check
+        )
         .is_err());
     assert!(config
-        .to_ascii(b".xn--", Strictness::Std3ConformanceChecker)
+        .to_ascii(b".xn--", Strictness::Std3ConformanceChecker, Hyphens::Check)
         .is_err());
     assert!(config
-        .to_ascii(b"...xn--", Strictness::Std3ConformanceChecker)
+        .to_ascii(
+            b"...xn--",
+            Strictness::Std3ConformanceChecker,
+            Hyphens::Check
+        )
         .is_err());
     assert!(config
-        .to_ascii(b"xn--.xn--", Strictness::Std3ConformanceChecker)
+        .to_ascii(
+            b"xn--.xn--",
+            Strictness::Std3ConformanceChecker,
+            Hyphens::Check
+        )
         .is_err());
     assert!(config
-        .to_ascii(b"xn--.example.org", Strictness::Std3ConformanceChecker)
+        .to_ascii(
+            b"xn--.example.org",
+            Strictness::Std3ConformanceChecker,
+            Hyphens::Check
+        )
         .is_err());
 }
 
@@ -41,31 +62,35 @@ fn test_punycode_prefix_without_length_check() {
     let config = idna::uts46::Uts46::new();
 
     assert!(config
-        .to_ascii(b"xn--", Strictness::WhatwgUserAgent)
+        .to_ascii(b"xn--", Strictness::WhatwgUserAgent, Hyphens::Allow)
         .is_err());
     assert!(config
-        .to_ascii(b"xn---", Strictness::WhatwgUserAgent)
+        .to_ascii(b"xn---", Strictness::WhatwgUserAgent, Hyphens::Allow)
         .is_err());
     assert!(config
-        .to_ascii(b"xn-----", Strictness::WhatwgUserAgent)
+        .to_ascii(b"xn-----", Strictness::WhatwgUserAgent, Hyphens::Allow)
         .is_err());
     assert!(config
-        .to_ascii(b"xn--.", Strictness::WhatwgUserAgent)
+        .to_ascii(b"xn--.", Strictness::WhatwgUserAgent, Hyphens::Allow)
         .is_err());
     assert!(config
-        .to_ascii(b"xn--...", Strictness::WhatwgUserAgent)
+        .to_ascii(b"xn--...", Strictness::WhatwgUserAgent, Hyphens::Allow)
         .is_err());
     assert!(config
-        .to_ascii(b".xn--", Strictness::WhatwgUserAgent)
+        .to_ascii(b".xn--", Strictness::WhatwgUserAgent, Hyphens::Allow)
         .is_err());
     assert!(config
-        .to_ascii(b"...xn--", Strictness::WhatwgUserAgent)
+        .to_ascii(b"...xn--", Strictness::WhatwgUserAgent, Hyphens::Allow)
         .is_err());
     assert!(config
-        .to_ascii(b"xn--.xn--", Strictness::WhatwgUserAgent)
+        .to_ascii(b"xn--.xn--", Strictness::WhatwgUserAgent, Hyphens::Allow)
         .is_err());
     assert!(config
-        .to_ascii(b"xn--.example.org", Strictness::WhatwgUserAgent)
+        .to_ascii(
+            b"xn--.example.org",
+            Strictness::WhatwgUserAgent,
+            Hyphens::Allow
+        )
         .is_err());
 }
 /*
@@ -118,18 +143,24 @@ fn test_v5() {
 
     // IdnaTest:784 蔏｡𑰺
     assert!(config
-        .to_ascii("\u{11C3A}".as_bytes(), Strictness::Std3ConformanceChecker)
+        .to_ascii(
+            "\u{11C3A}".as_bytes(),
+            Strictness::Std3ConformanceChecker,
+            Hyphens::Check
+        )
         .is_err());
     assert!(config
         .to_ascii(
             "\u{850f}.\u{11C3A}".as_bytes(),
-            Strictness::Std3ConformanceChecker
+            Strictness::Std3ConformanceChecker,
+            Hyphens::Check
         )
         .is_err());
     assert!(config
         .to_ascii(
             "\u{850f}\u{ff61}\u{11C3A}".as_bytes(),
-            Strictness::Std3ConformanceChecker
+            Strictness::Std3ConformanceChecker,
+            Hyphens::Check
         )
         .is_err());
 }
@@ -140,52 +171,80 @@ fn test_v8_bidi_rules() {
 
     assert_eq!(
         config
-            .to_ascii(b"abc", Strictness::Std3ConformanceChecker)
+            .to_ascii(b"abc", Strictness::Std3ConformanceChecker, Hyphens::Check)
             .unwrap(),
         "abc"
     );
     assert_eq!(
         config
-            .to_ascii(b"123", Strictness::Std3ConformanceChecker)
+            .to_ascii(b"123", Strictness::Std3ConformanceChecker, Hyphens::Check)
             .unwrap(),
         "123"
     );
     assert_eq!(
         config
-            .to_ascii("אבּג".as_bytes(), Strictness::Std3ConformanceChecker)
+            .to_ascii(
+                "אבּג".as_bytes(),
+                Strictness::Std3ConformanceChecker,
+                Hyphens::Check
+            )
             .unwrap(),
         "xn--kdb3bdf"
     );
     assert_eq!(
         config
-            .to_ascii("ابج".as_bytes(), Strictness::Std3ConformanceChecker)
+            .to_ascii(
+                "ابج".as_bytes(),
+                Strictness::Std3ConformanceChecker,
+                Hyphens::Check
+            )
             .unwrap(),
         "xn--mgbcm"
     );
     assert_eq!(
         config
-            .to_ascii("abc.ابج".as_bytes(), Strictness::Std3ConformanceChecker)
+            .to_ascii(
+                "abc.ابج".as_bytes(),
+                Strictness::Std3ConformanceChecker,
+                Hyphens::Check
+            )
             .unwrap(),
         "abc.xn--mgbcm"
     );
     assert_eq!(
         config
-            .to_ascii("אבּג.ابج".as_bytes(), Strictness::Std3ConformanceChecker)
+            .to_ascii(
+                "אבּג.ابج".as_bytes(),
+                Strictness::Std3ConformanceChecker,
+                Hyphens::Check
+            )
             .unwrap(),
         "xn--kdb3bdf.xn--mgbcm"
     );
 
     // Bidi domain names cannot start with digits
     assert!(config
-        .to_ascii("0a.\u{05D0}".as_bytes(), Strictness::Std3ConformanceChecker)
+        .to_ascii(
+            "0a.\u{05D0}".as_bytes(),
+            Strictness::Std3ConformanceChecker,
+            Hyphens::Check
+        )
         .is_err());
     assert!(config
-        .to_ascii("0à.\u{05D0}".as_bytes(), Strictness::Std3ConformanceChecker)
+        .to_ascii(
+            "0à.\u{05D0}".as_bytes(),
+            Strictness::Std3ConformanceChecker,
+            Hyphens::Check
+        )
         .is_err());
 
     // Bidi chars may be punycode-encoded
     assert!(config
-        .to_ascii(b"xn--0ca24w", Strictness::Std3ConformanceChecker)
+        .to_ascii(
+            b"xn--0ca24w",
+            Strictness::Std3ConformanceChecker,
+            Hyphens::Check
+        )
         .is_err());
 }
 
@@ -195,7 +254,11 @@ fn emoji_domains() {
     let config = idna::uts46::Uts46::new();
     assert_eq!(
         config
-            .to_ascii("☕.com".as_bytes(), Strictness::Std3ConformanceChecker)
+            .to_ascii(
+                "☕.com".as_bytes(),
+                Strictness::Std3ConformanceChecker,
+                Hyphens::Check
+            )
             .unwrap(),
         "xn--53h.com"
     );
@@ -207,7 +270,8 @@ fn unicode_before_delimiter() {
     assert!(config
         .to_ascii(
             "xn--f\u{34a}-PTP".as_bytes(),
-            Strictness::Std3ConformanceChecker
+            Strictness::Std3ConformanceChecker,
+            Hyphens::Check
         )
         .is_err());
 }
@@ -215,8 +279,11 @@ fn unicode_before_delimiter() {
 #[test]
 fn upper_case_ascii_in_punycode() {
     let config = idna::uts46::Uts46::new();
-    let (unicode, result) =
-        config.to_unicode("xn--A-1ga".as_bytes(), Strictness::Std3ConformanceChecker);
+    let (unicode, result) = config.to_unicode(
+        "xn--A-1ga".as_bytes(),
+        Strictness::Std3ConformanceChecker,
+        Hyphens::Check,
+    );
     assert!(result.is_ok());
     assert_eq!(&unicode, "aö");
 }

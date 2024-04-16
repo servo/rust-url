@@ -86,7 +86,11 @@ impl core::fmt::Display for Errors {
 ///
 /// This process may fail.
 pub fn domain_to_ascii_cow<'a>(domain: &'a str) -> Result<Cow<'a, str>, Errors> {
-    Uts46::new().to_ascii(domain.as_bytes(), uts46::Strictness::WhatwgUserAgent)
+    Uts46::new().to_ascii(
+        domain.as_bytes(),
+        uts46::Strictness::WhatwgUserAgent,
+        uts46::Hyphens::Allow,
+    )
 }
 
 /// The [domain to ASCII](https://url.spec.whatwg.org/#concept-domain-to-ascii) algorithm;
@@ -110,7 +114,11 @@ pub fn domain_to_ascii(domain: &str) -> Result<String, Errors> {
 /// * Pseudo-hosts used by various TXT record-based protocols.
 pub fn domain_to_ascii_strict(domain: &str) -> Result<String, Errors> {
     Uts46::new()
-        .to_ascii(domain.as_bytes(), uts46::Strictness::Std3ConformanceChecker)
+        .to_ascii(
+            domain.as_bytes(),
+            uts46::Strictness::Std3ConformanceChecker,
+            uts46::Hyphens::Check,
+        )
         .map(|cow| cow.into_owned())
 }
 
@@ -126,7 +134,11 @@ pub fn domain_to_ascii_strict(domain: &str) -> Result<String, Errors> {
 /// errors to the user. When the second item of the return tuple signals an error,
 /// the first item of the tuple must not be used in a network protocol.
 pub fn domain_to_unicode_cow<'a>(domain: &'a str) -> (Cow<'a, str>, Result<(), Errors>) {
-    Uts46::new().to_unicode(domain.as_bytes(), uts46::Strictness::WhatwgUserAgent)
+    Uts46::new().to_unicode(
+        domain.as_bytes(),
+        uts46::Strictness::WhatwgUserAgent,
+        uts46::Hyphens::Allow,
+    )
 }
 
 /// The [domain to Unicode](https://url.spec.whatwg.org/#concept-domain-to-unicode) algorithm;

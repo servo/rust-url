@@ -34,6 +34,7 @@ impl Idna {
         match Uts46::new().process(
             domain.as_bytes(),
             self.config.strictness(),
+            self.config.hyphens(),
             ErrorPolicy::FailFast,
             |_, _, _| false,
             out,
@@ -63,6 +64,7 @@ impl Idna {
         match Uts46::new().process(
             domain.as_bytes(),
             self.config.strictness(),
+            self.config.hyphens(),
             ErrorPolicy::MarkErrors,
             |_, _, _| true,
             out,
@@ -107,8 +109,6 @@ impl Config {
     /// `true` for STD3, `false` for WHATWG.
     ///
     /// Note that `true` rejects pseudo-hosts used by various TXT record-based protocols.
-    ///
-    /// Must be set to the same value as [`Config::check_hyphens`].
     #[inline]
     pub fn use_std3_ascii_rules(mut self, value: bool) -> Self {
         self.use_std3_ascii_rules = value;
@@ -142,8 +142,6 @@ impl Config {
     ///
     /// Note that `true` rejects real-world names, including YouTube CDN nodes
     /// and some GitHub user pages.
-    ///
-    /// Must be set to the same value as [`Config::use_std3_ascii_rules`].
     #[inline]
     pub fn check_hyphens(mut self, value: bool) -> Self {
         self.check_hyphens = value;
@@ -164,11 +162,19 @@ impl Config {
 
     /// Compute strictness
     fn strictness(&self) -> Strictness {
-        assert_eq!(self.check_hyphens, self.use_std3_ascii_rules, "Setting check_hyphens and use_std3_ascii_rules to different values is no longer supported");
         if self.use_std3_ascii_rules {
             Strictness::Std3ConformanceChecker
         } else {
             Strictness::WhatwgUserAgent
+        }
+    }
+
+    /// Compute strictness
+    fn hyphens(&self) -> Hyphens {
+        if self.check_hyphens {
+            Hyphens::Check
+        } else {
+            Hyphens::Allow
         }
     }
 
