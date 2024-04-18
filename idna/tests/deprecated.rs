@@ -86,7 +86,7 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
                     &source,
                     (&to_ascii_n, &to_ascii_n_status),
                     to_ascii_n_result,
-                    |e| false,
+                    |_| false,
                 );
             })),
         )

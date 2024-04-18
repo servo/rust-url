@@ -88,7 +88,7 @@ impl core::fmt::Display for Errors {
 pub fn domain_to_ascii_cow<'a>(domain: &'a str) -> Result<Cow<'a, str>, Errors> {
     Uts46::new().to_ascii(
         domain.as_bytes(),
-        uts46::Strictness::WhatwgUserAgent,
+        uts46::AsciiDenyList::EMPTY,
         uts46::Hyphens::Allow,
     )
 }
@@ -116,7 +116,7 @@ pub fn domain_to_ascii_strict(domain: &str) -> Result<String, Errors> {
     Uts46::new()
         .to_ascii(
             domain.as_bytes(),
-            uts46::Strictness::Std3ConformanceChecker,
+            uts46::AsciiDenyList::STD3,
             uts46::Hyphens::Check,
         )
         .map(|cow| cow.into_owned())
@@ -136,7 +136,7 @@ pub fn domain_to_ascii_strict(domain: &str) -> Result<String, Errors> {
 pub fn domain_to_unicode_cow<'a>(domain: &'a str) -> (Cow<'a, str>, Result<(), Errors>) {
     Uts46::new().to_unicode(
         domain.as_bytes(),
-        uts46::Strictness::WhatwgUserAgent,
+        uts46::AsciiDenyList::EMPTY,
         uts46::Hyphens::Allow,
     )
 }

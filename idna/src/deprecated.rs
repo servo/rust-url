@@ -33,7 +33,7 @@ impl Idna {
     pub fn to_ascii(&mut self, domain: &str, out: &mut String) -> Result<(), Errors> {
         match Uts46::new().process(
             domain.as_bytes(),
-            self.config.strictness(),
+            self.config.deny_list(),
             self.config.hyphens(),
             ErrorPolicy::FailFast,
             |_, _, _| false,
@@ -63,7 +63,7 @@ impl Idna {
     pub fn to_unicode(&mut self, domain: &str, out: &mut String) -> Result<(), Errors> {
         match Uts46::new().process(
             domain.as_bytes(),
-            self.config.strictness(),
+            self.config.deny_list(),
             self.config.hyphens(),
             ErrorPolicy::MarkErrors,
             |_, _, _| true,
@@ -160,12 +160,12 @@ impl Config {
         self
     }
 
-    /// Compute strictness
-    fn strictness(&self) -> Strictness {
+    /// Compute the deny list
+    fn deny_list(&self) -> AsciiDenyList {
         if self.use_std3_ascii_rules {
-            Strictness::Std3ConformanceChecker
+            AsciiDenyList::STD3
         } else {
-            Strictness::WhatwgUserAgent
+            AsciiDenyList::WHATWG
         }
     }
 

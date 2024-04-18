@@ -13,7 +13,7 @@ use std::fmt::Write;
 use idna::uts46::verify_dns_length;
 use idna::uts46::ProcessingError;
 use idna::uts46::ProcessingSuccess;
-use idna::uts46::{ErrorPolicy, Hyphens, Strictness};
+use idna::uts46::{ErrorPolicy, Hyphens, AsciiDenyList};
 use idna::Errors;
 
 pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
@@ -74,7 +74,7 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
 
                 let (to_unicode_value, to_unicode_result) = config.to_unicode(
                     source.as_bytes(),
-                    Strictness::Std3ConformanceChecker,
+                    AsciiDenyList::STD3,
                     Hyphens::Check,
                 );
                 let to_unicode_result = to_unicode_result.map(|()| to_unicode_value.into_owned());
@@ -87,14 +87,14 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
 
                 let to_ascii_n_result = config.to_ascii(
                     source.as_bytes(),
-                    Strictness::Std3ConformanceChecker,
+                    AsciiDenyList::STD3,
                     Hyphens::Check,
                 );
                 check(
                     &source,
                     (&to_ascii_n, &to_ascii_n_status),
                     to_ascii_n_result.map(|cow| cow.into_owned()),
-                    |e| false,
+                    |_| false,
                 );
 
                 let mut to_unicode_simultaneous = String::new();
@@ -102,7 +102,7 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
                 let (to_unicode_simultaneous_result, to_ascii_simultaneous_result) = match config
                     .process(
                         source.as_bytes(),
-                        Strictness::Std3ConformanceChecker,
+                        AsciiDenyList::STD3,
                         Hyphens::Check,
                         ErrorPolicy::MarkErrors,
                         |_, _, _| true,
@@ -153,7 +153,7 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
                     &source,
                     (&to_ascii_n, &to_ascii_n_status),
                     to_ascii_simultaneous_result,
-                    |e| false,
+                    |_| false,
                 );
             })),
         )
