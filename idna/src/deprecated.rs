@@ -220,7 +220,7 @@ impl Config {
         }
     }
 
-    /// Compute strictness
+    /// Compute the hyphen mode
     fn hyphens(&self) -> Hyphens {
         if self.check_hyphens {
             Hyphens::Check
