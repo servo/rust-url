@@ -6,7 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-//! [*Unicode IDNA Compatibility Processing*
+//! Deprecated API for [*Unicode IDNA Compatibility Processing*
 //! (Unicode Technical Standard #46)](http://www.unicode.org/reports/tr46/)
 
 #![allow(deprecated)]
@@ -20,6 +20,8 @@ use crate::Errors;
 /// Performs preprocessing equivalent to UTS 46 transitional processing
 /// if `transitional` is `true`. If `transitional` is `false`, merely
 /// lets the input pass through as-is.
+///
+/// The output of this function is to be passed to [`Uts46::process`].
 ///
 /// Deprecated, since this functionality is deprecated in UTS 46 itself,
 /// and none of Firefox, Safari, or Chrome use transitional processing.
@@ -156,7 +158,7 @@ impl Default for Config {
 impl Config {
     /// Whether to enforce STD3 or WHATWG URL Standard ASCII deny list.
     ///
-    /// `true` for STD3, `false` for WHATWG.
+    /// `true` for STD3, `false` for no deny list.
     ///
     /// Note that `true` rejects pseudo-hosts used by various TXT record-based protocols.
     #[inline]
@@ -214,7 +216,7 @@ impl Config {
         if self.use_std3_ascii_rules {
             AsciiDenyList::STD3
         } else {
-            AsciiDenyList::WHATWG
+            AsciiDenyList::EMPTY
         }
     }
 
