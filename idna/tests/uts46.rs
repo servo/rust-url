@@ -13,7 +13,7 @@ use std::fmt::Write;
 use idna::uts46::verify_dns_length;
 use idna::uts46::ProcessingError;
 use idna::uts46::ProcessingSuccess;
-use idna::uts46::{ErrorPolicy, Hyphens, AsciiDenyList};
+use idna::uts46::{AsciiDenyList, ErrorPolicy, Hyphens};
 use idna::Errors;
 
 pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
@@ -72,11 +72,8 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
                 // was formerly being generated in toUnicode due to an empty label."
                 // This is not implemented yet, so we skip toUnicode X4_2 tests for now, too.
 
-                let (to_unicode_value, to_unicode_result) = config.to_unicode(
-                    source.as_bytes(),
-                    AsciiDenyList::STD3,
-                    Hyphens::Check,
-                );
+                let (to_unicode_value, to_unicode_result) =
+                    config.to_unicode(source.as_bytes(), AsciiDenyList::STD3, Hyphens::Check);
                 let to_unicode_result = to_unicode_result.map(|()| to_unicode_value.into_owned());
                 check(
                     &source,
@@ -85,11 +82,8 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
                     |e| e == "X4_2",
                 );
 
-                let to_ascii_n_result = config.to_ascii(
-                    source.as_bytes(),
-                    AsciiDenyList::STD3,
-                    Hyphens::Check,
-                );
+                let to_ascii_n_result =
+                    config.to_ascii(source.as_bytes(), AsciiDenyList::STD3, Hyphens::Check);
                 check(
                     &source,
                     (&to_ascii_n, &to_ascii_n_status),

@@ -48,8 +48,7 @@ const fn upper_case_mask() -> u128 {
     let mut accu = 0u128;
     let mut b = 0u8;
     while b < 128 {
-        if (b >= b'A') && (b <= b'Z')
-        {
+        if (b >= b'A') && (b <= b'Z') {
             accu |= 1u128 << b;
         }
         b += 1;
@@ -65,8 +64,7 @@ const fn glyphless_mask() -> u128 {
     let mut accu = 0u128;
     let mut b = 0u8;
     while b < 128 {
-        if (b <= b' ') || (b == 0x7F)
-        {
+        if (b <= b' ') || (b == 0x7F) {
             accu |= 1u128 << b;
         }
         b += 1;
@@ -85,11 +83,7 @@ const fn ldh_mask() -> u128 {
     let mut accu = 0u128;
     let mut b = 0u8;
     while b < 128 {
-        if !((b >= b'a' && b <= b'z')
-            || (b >= b'0' && b <= b'9')
-            || b == b'-'
-            || b == b'.')
-        {
+        if !((b >= b'a' && b <= b'z') || (b >= b'0' && b <= b'9') || b == b'-' || b == b'.') {
             accu |= 1u128 << b;
         }
         b += 1;
@@ -374,15 +368,22 @@ impl AsciiDenyList {
             // assert_ne not yet available in const context.
             assert!(b != b'.', "ASCII deny list must not contain the dot.");
             assert!(b != b'-', "ASCII deny list must not contain the hyphen.");
-            assert!(!((b >= b'0') && (b <= b'9')), "ASCII deny list must not contain digits.");
-            assert!(!((b >= b'a') && (b <= b'z')), "ASCII deny list must not contain letters.");
-            assert!(!((b >= b'A') && (b <= b'Z')), "ASCII deny list must not contain letters.");
+            assert!(
+                !((b >= b'0') && (b <= b'9')),
+                "ASCII deny list must not contain digits."
+            );
+            assert!(
+                !((b >= b'a') && (b <= b'z')),
+                "ASCII deny list must not contain letters."
+            );
+            assert!(
+                !((b >= b'A') && (b <= b'Z')),
+                "ASCII deny list must not contain letters."
+            );
             bits |= 1u128 << b;
             i += 1;
         }
-        AsciiDenyList {
-            bits
-        }
+        AsciiDenyList { bits }
     }
 
     /// No ASCII deny list. This corresponds to _UseSTD3ASCIIRules=false_.
@@ -558,6 +559,18 @@ impl Uts46 {
 
     /// Performs the [ToASCII](https://www.unicode.org/reports/tr46/#ToASCII) operation
     /// from UTS #46 with the options indicated.
+    ///
+    /// # Arguments
+    ///
+    /// * `domain_name` - The input domain name as UTF-8 bytes. (The UTF-8ness is checked by
+    /// this method and input that is not well-formed UTF-8 is treated as an error. If you
+    /// already have a `&str`, call `.as_bytes()` on it.)
+    /// * `ascii_deny_list` - What ASCII deny list, if any, to apply. The UTS 46
+    /// _UseSTD3ASCIIRules_ flag or the WHATWG URL Standard forbidden domain code point
+    /// processing is handled via this argument. Most callers are probably the best off
+    /// by using [`AsciiDenyList::WHATWG`] here.
+    /// * `hyphens` - The UTS 46 _CheckHyphens_ flag. Most callers are probably the best
+    /// off by using [`Hyphens::Allow`] here.
     pub fn to_ascii<'a>(
         &self,
         domain_name: &'a [u8],
@@ -603,6 +616,21 @@ impl Uts46 {
     /// by U+FFFD REPLACEMENT CHARACTERs in the output. (That is, if the second item of the
     /// return tuple is `Err`, the first item of the return tuple is guaranteed to contain
     /// at least one U+FFFD.)
+    ///
+    /// Most applications probably shouldn't use this method and should be using
+    /// [`Uts46::to_user_interface`] instead.
+    ///
+    /// # Arguments
+    ///
+    /// * `domain_name` - The input domain name as UTF-8 bytes. (The UTF-8ness is checked by
+    /// this method and input that is not well-formed UTF-8 is treated as an error. If you
+    /// already have a `&str`, call `.as_bytes()` on it.)
+    /// * `ascii_deny_list` - What ASCII deny list, if any, to apply. The UTS 46
+    /// _UseSTD3ASCIIRules_ flag or the WHATWG URL Standard forbidden domain code point
+    /// processing is handled via this argument. Most callers are probably the best off
+    /// by using [`AsciiDenyList::WHATWG`] here.
+    /// * `hyphens` - The UTS 46 _CheckHyphens_ flag. Most callers are probably the best
+    /// off by using [`Hyphens::Allow`] here.
     pub fn to_unicode<'a>(
         &self,
         domain_name: &'a [u8],
@@ -637,6 +665,27 @@ impl Uts46 {
     /// U+FFFD REPLACEMENT CHARACTERs in the output. (That is, if the second item
     /// of the return tuple is `Err`, the first item of the return tuple is guaranteed to contain
     /// at least one U+FFFD.) Labels that contain errors are not converted to Punycode.
+    ///
+    /// # Arguments
+    ///
+    /// * `domain_name` - The input domain name as UTF-8 bytes. (The UTF-8ness is checked by
+    /// this method and input that is not well-formed UTF-8 is treated as an error. If you
+    /// already have a `&str`, call `.as_bytes()` on it.)
+    /// * `ascii_deny_list` - What ASCII deny list, if any, to apply. The UTS 46
+    /// _UseSTD3ASCIIRules_ flag or the WHATWG URL Standard forbidden domain code point
+    /// processing is handled via this argument. Most callers are probably the best off
+    /// by using [`AsciiDenyList::WHATWG`] here.
+    /// * `hyphens` - The UTS 46 _CheckHyphens_ flag. Most callers are probably the best
+    /// off by using [`Hyphens::Allow`] here.
+    /// * `output_as_unicode` - A closure for deciding if a label should be output as Unicode
+    /// (as opposed to Punycode). The first argument is the label for which a decision is
+    /// needed (always non-empty slice). The second argument is the TLD (potentially empty).
+    /// The third argument is `true` iff the domain name as a whole is a bidi domain name.
+    /// Only non-erroneous labels that contain at least one non-ASCII character are passed
+    /// to the closure as the first argument. The second and third argument values are
+    /// guaranteed to remain the same during a single call to `process`, and the closure
+    /// may cache computations derived from the second and third argument (hence the
+    /// `FnMut` type).
     pub fn to_user_interface<'a, OutputUnicode: FnMut(&[char], &[char], bool) -> bool>(
         &self,
         domain_name: &'a [u8],
@@ -676,8 +725,10 @@ impl Uts46 {
     /// already have a `&str`, call `.as_bytes()` on it.)
     /// * `ascii_deny_list` - What ASCII deny list, if any, to apply. The UTS 46
     /// _UseSTD3ASCIIRules_ flag or the WHATWG URL Standard forbidden domain code point
-    /// processing is handled via this argument.
-    /// * `hyphens` - The UTS 46 _CheckHyphens_ flag.
+    /// processing is handled via this argument. Most callers are probably the best off
+    /// by using [`AsciiDenyList::WHATWG`] here.
+    /// * `hyphens` - The UTS 46 _CheckHyphens_ flag. Most callers are probably the best
+    /// off by using [`Hyphens::Allow`] here.
     /// * `error_policy` - Whether to fail fast or to produce output that may be rendered
     /// for the user to examine in case of errors.
     /// * `output_as_unicode` - A closure for deciding if a label should be output as Unicode
