@@ -49,7 +49,21 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
             status(to_ascii_n_status)
         };
 
-        let test_name = format!("UTS #46 line {}", i + 1);
+        // ToAsciiT
+        let to_ascii_t = pieces.remove(0);
+        let to_ascii_t = if to_ascii_t.is_empty() {
+            to_ascii_n.clone()
+        } else {
+            to_ascii_t.to_owned()
+        };
+        let to_ascii_t_status = pieces.remove(0);
+        let to_ascii_t_status = if to_ascii_t_status.is_empty() {
+            to_ascii_n_status.clone()
+        } else {
+            status(to_ascii_t_status)
+        };
+
+        let test_name = format!("UTS #46 (deprecated API) line {}", i + 1);
         add_test(
             test_name,
             TestFn::DynTestFn(Box::new(move || {
@@ -86,6 +100,14 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
                     &source,
                     (&to_ascii_n, &to_ascii_n_status),
                     to_ascii_n_result,
+                    |_| false,
+                );
+
+                let to_ascii_t_result = config.transitional_processing(true).to_ascii(&source);
+                check(
+                    &source,
+                    (&to_ascii_t, &to_ascii_t_status),
+                    to_ascii_t_result,
                     |_| false,
                 );
             })),

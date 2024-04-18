@@ -53,7 +53,7 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
             status(to_ascii_n_status)
         };
 
-        let test_name = format!("UTS #46 bis line {}", i + 1);
+        let test_name = format!("UTS #46 line {}", i + 1);
         add_test(
             test_name,
             TestFn::DynTestFn(Box::new(move || {
