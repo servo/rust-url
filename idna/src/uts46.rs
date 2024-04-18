@@ -433,6 +433,21 @@ pub enum Hyphens {
     Allow,
 }
 
+/// The UTS 46 _VerifyDNSLength_ flag.
+#[derive(PartialEq, Eq, Copy, Clone)]
+#[non_exhaustive]
+pub enum DnsLength {
+    /// _VerifyDNSLength=true_ but with the trailing dot allowed.
+    ///
+    /// The trailing dot behavior may change in a future version. The UTS 46 test suite
+    /// seems to require allowing the trailing dot, even though the spec says otherwise.
+    ///
+    /// See section 6.3 in <https://www.unicode.org/L2/L2024/24064-utc179-properties-recs.pdf>
+    Verify,
+    /// _VerifyDNSLength=false_. (Possibly relevant for allowing non-DNS naming systems.)
+    Ignore,
+}
+
 /// Policy for customizing behavior in case of an error.
 #[derive(PartialEq, Eq, Copy, Clone)]
 #[non_exhaustive]
@@ -571,11 +586,13 @@ impl Uts46 {
     /// by using [`AsciiDenyList::WHATWG`] here.
     /// * `hyphens` - The UTS 46 _CheckHyphens_ flag. Most callers are probably the best
     /// off by using [`Hyphens::Allow`] here.
+    /// * `dns_length` - The UTS 46 _VerifyDNSLength_ flag.
     pub fn to_ascii<'a>(
         &self,
         domain_name: &'a [u8],
         ascii_deny_list: AsciiDenyList,
         hyphens: Hyphens,
+        dns_length: DnsLength,
     ) -> Result<Cow<'a, str>, crate::Errors> {
         let mut s = String::new();
         match self.process(
@@ -590,7 +607,7 @@ impl Uts46 {
             // SAFETY: `ProcessingSuccess::Passthrough` asserts that `domain_name` is ASCII.
             Ok(ProcessingSuccess::Passthrough) => {
                 let cow = Cow::Borrowed(unsafe { core::str::from_utf8_unchecked(domain_name) });
-                if false /*XXX */ && !verify_dns_length(&cow) {
+                if dns_length == DnsLength::Verify && !verify_dns_length(&cow) {
                     Err(crate::Errors::default())
                 } else {
                     Ok(cow)
@@ -598,7 +615,7 @@ impl Uts46 {
             }
             Ok(ProcessingSuccess::WroteToSink) => {
                 let cow: Cow<'_, str> = Cow::Owned(s);
-                if false /*XXX */ && !verify_dns_length(&cow) {
+                if dns_length == DnsLength::Verify && !verify_dns_length(&cow) {
                     Err(crate::Errors::default())
                 } else {
                     Ok(cow)

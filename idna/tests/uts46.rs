@@ -13,7 +13,7 @@ use std::fmt::Write;
 use idna::uts46::verify_dns_length;
 use idna::uts46::ProcessingError;
 use idna::uts46::ProcessingSuccess;
-use idna::uts46::{AsciiDenyList, ErrorPolicy, Hyphens};
+use idna::uts46::{AsciiDenyList, DnsLength, ErrorPolicy, Hyphens};
 use idna::Errors;
 
 pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
@@ -82,8 +82,12 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
                     |e| e == "X4_2",
                 );
 
-                let to_ascii_n_result =
-                    config.to_ascii(source.as_bytes(), AsciiDenyList::STD3, Hyphens::Check);
+                let to_ascii_n_result = config.to_ascii(
+                    source.as_bytes(),
+                    AsciiDenyList::STD3,
+                    Hyphens::Check,
+                    DnsLength::Verify,
+                );
                 check(
                     &source,
                     (&to_ascii_n, &to_ascii_n_status),

@@ -1,6 +1,7 @@
 use assert_matches::assert_matches;
+use idna::uts46::AsciiDenyList;
+use idna::uts46::DnsLength;
 use idna::uts46::Hyphens;
-use idna::uts46::Strictness;
 
 /// https://github.com/servo/rust-url/issues/373
 #[test]
@@ -8,50 +9,75 @@ fn test_punycode_prefix_with_length_check() {
     let config = idna::uts46::Uts46::new();
 
     assert!(config
-        .to_ascii(b"xn--", Strictness::Std3ConformanceChecker, Hyphens::Check)
+        .to_ascii(
+            b"xn--",
+            AsciiDenyList::STD3,
+            Hyphens::Check,
+            DnsLength::Verify
+        )
         .is_err());
     assert!(config
-        .to_ascii(b"xn---", Strictness::Std3ConformanceChecker, Hyphens::Check)
+        .to_ascii(
+            b"xn---",
+            AsciiDenyList::STD3,
+            Hyphens::Check,
+            DnsLength::Verify
+        )
         .is_err());
     assert!(config
         .to_ascii(
             b"xn-----",
-            Strictness::Std3ConformanceChecker,
-            Hyphens::Check
+            AsciiDenyList::STD3,
+            Hyphens::Check,
+            DnsLength::Verify,
         )
         .is_err());
     assert!(config
-        .to_ascii(b"xn--.", Strictness::Std3ConformanceChecker, Hyphens::Check)
+        .to_ascii(
+            b"xn--.",
+            AsciiDenyList::STD3,
+            Hyphens::Check,
+            DnsLength::Verify
+        )
         .is_err());
     assert!(config
         .to_ascii(
             b"xn--...",
-            Strictness::Std3ConformanceChecker,
-            Hyphens::Check
+            AsciiDenyList::STD3,
+            Hyphens::Check,
+            DnsLength::Verify,
         )
         .is_err());
     assert!(config
-        .to_ascii(b".xn--", Strictness::Std3ConformanceChecker, Hyphens::Check)
+        .to_ascii(
+            b".xn--",
+            AsciiDenyList::STD3,
+            Hyphens::Check,
+            DnsLength::Verify,
+        )
         .is_err());
     assert!(config
         .to_ascii(
             b"...xn--",
-            Strictness::Std3ConformanceChecker,
-            Hyphens::Check
+            AsciiDenyList::STD3,
+            Hyphens::Check,
+            DnsLength::Verify,
         )
         .is_err());
     assert!(config
         .to_ascii(
             b"xn--.xn--",
-            Strictness::Std3ConformanceChecker,
-            Hyphens::Check
+            AsciiDenyList::STD3,
+            Hyphens::Check,
+            DnsLength::Verify,
         )
         .is_err());
     assert!(config
         .to_ascii(
             b"xn--.example.org",
-            Strictness::Std3ConformanceChecker,
-            Hyphens::Check
+            AsciiDenyList::STD3,
+            Hyphens::Check,
+            DnsLength::Verify,
         )
         .is_err());
 }
@@ -62,34 +88,75 @@ fn test_punycode_prefix_without_length_check() {
     let config = idna::uts46::Uts46::new();
 
     assert!(config
-        .to_ascii(b"xn--", Strictness::WhatwgUserAgent, Hyphens::Allow)
+        .to_ascii(
+            b"xn--",
+            AsciiDenyList::WHATWG,
+            Hyphens::Allow,
+            DnsLength::Ignore
+        )
         .is_err());
     assert!(config
-        .to_ascii(b"xn---", Strictness::WhatwgUserAgent, Hyphens::Allow)
+        .to_ascii(
+            b"xn---",
+            AsciiDenyList::WHATWG,
+            Hyphens::Allow,
+            DnsLength::Ignore
+        )
         .is_err());
     assert!(config
-        .to_ascii(b"xn-----", Strictness::WhatwgUserAgent, Hyphens::Allow)
+        .to_ascii(
+            b"xn-----",
+            AsciiDenyList::WHATWG,
+            Hyphens::Allow,
+            DnsLength::Ignore
+        )
         .is_err());
     assert!(config
-        .to_ascii(b"xn--.", Strictness::WhatwgUserAgent, Hyphens::Allow)
+        .to_ascii(
+            b"xn--.",
+            AsciiDenyList::WHATWG,
+            Hyphens::Allow,
+            DnsLength::Ignore
+        )
         .is_err());
     assert!(config
-        .to_ascii(b"xn--...", Strictness::WhatwgUserAgent, Hyphens::Allow)
+        .to_ascii(
+            b"xn--...",
+            AsciiDenyList::WHATWG,
+            Hyphens::Allow,
+            DnsLength::Ignore
+        )
         .is_err());
     assert!(config
-        .to_ascii(b".xn--", Strictness::WhatwgUserAgent, Hyphens::Allow)
+        .to_ascii(
+            b".xn--",
+            AsciiDenyList::WHATWG,
+            Hyphens::Allow,
+            DnsLength::Ignore
+        )
         .is_err());
     assert!(config
-        .to_ascii(b"...xn--", Strictness::WhatwgUserAgent, Hyphens::Allow)
+        .to_ascii(
+            b"...xn--",
+            AsciiDenyList::WHATWG,
+            Hyphens::Allow,
+            DnsLength::Ignore
+        )
         .is_err());
     assert!(config
-        .to_ascii(b"xn--.xn--", Strictness::WhatwgUserAgent, Hyphens::Allow)
+        .to_ascii(
+            b"xn--.xn--",
+            AsciiDenyList::WHATWG,
+            Hyphens::Allow,
+            DnsLength::Ignore
+        )
         .is_err());
     assert!(config
         .to_ascii(
             b"xn--.example.org",
-            Strictness::WhatwgUserAgent,
-            Hyphens::Allow
+            AsciiDenyList::WHATWG,
+            Hyphens::Allow,
+            DnsLength::Ignore
         )
         .is_err());
 }
@@ -145,22 +212,25 @@ fn test_v5() {
     assert!(config
         .to_ascii(
             "\u{11C3A}".as_bytes(),
-            Strictness::Std3ConformanceChecker,
-            Hyphens::Check
+            AsciiDenyList::STD3,
+            Hyphens::Check,
+            DnsLength::Verify,
         )
         .is_err());
     assert!(config
         .to_ascii(
             "\u{850f}.\u{11C3A}".as_bytes(),
-            Strictness::Std3ConformanceChecker,
-            Hyphens::Check
+            AsciiDenyList::STD3,
+            Hyphens::Check,
+            DnsLength::Verify,
         )
         .is_err());
     assert!(config
         .to_ascii(
             "\u{850f}\u{ff61}\u{11C3A}".as_bytes(),
-            Strictness::Std3ConformanceChecker,
-            Hyphens::Check
+            AsciiDenyList::STD3,
+            Hyphens::Check,
+            DnsLength::Verify,
         )
         .is_err());
 }
@@ -171,13 +241,23 @@ fn test_v8_bidi_rules() {
 
     assert_eq!(
         config
-            .to_ascii(b"abc", Strictness::Std3ConformanceChecker, Hyphens::Check)
+            .to_ascii(
+                b"abc",
+                AsciiDenyList::STD3,
+                Hyphens::Check,
+                DnsLength::Verify,
+            )
             .unwrap(),
         "abc"
     );
     assert_eq!(
         config
-            .to_ascii(b"123", Strictness::Std3ConformanceChecker, Hyphens::Check)
+            .to_ascii(
+                b"123",
+                AsciiDenyList::STD3,
+                Hyphens::Check,
+                DnsLength::Verify,
+            )
             .unwrap(),
         "123"
     );
@@ -185,8 +265,9 @@ fn test_v8_bidi_rules() {
         config
             .to_ascii(
                 "אבּג".as_bytes(),
-                Strictness::Std3ConformanceChecker,
-                Hyphens::Check
+                AsciiDenyList::STD3,
+                Hyphens::Check,
+                DnsLength::Verify,
             )
             .unwrap(),
         "xn--kdb3bdf"
@@ -195,8 +276,9 @@ fn test_v8_bidi_rules() {
         config
             .to_ascii(
                 "ابج".as_bytes(),
-                Strictness::Std3ConformanceChecker,
-                Hyphens::Check
+                AsciiDenyList::STD3,
+                Hyphens::Check,
+                DnsLength::Verify,
             )
             .unwrap(),
         "xn--mgbcm"
@@ -205,8 +287,9 @@ fn test_v8_bidi_rules() {
         config
             .to_ascii(
                 "abc.ابج".as_bytes(),
-                Strictness::Std3ConformanceChecker,
-                Hyphens::Check
+                AsciiDenyList::STD3,
+                Hyphens::Check,
+                DnsLength::Verify,
             )
             .unwrap(),
         "abc.xn--mgbcm"
@@ -215,8 +298,9 @@ fn test_v8_bidi_rules() {
         config
             .to_ascii(
                 "אבּג.ابج".as_bytes(),
-                Strictness::Std3ConformanceChecker,
-                Hyphens::Check
+                AsciiDenyList::STD3,
+                Hyphens::Check,
+                DnsLength::Verify,
             )
             .unwrap(),
         "xn--kdb3bdf.xn--mgbcm"
@@ -226,15 +310,17 @@ fn test_v8_bidi_rules() {
     assert!(config
         .to_ascii(
             "0a.\u{05D0}".as_bytes(),
-            Strictness::Std3ConformanceChecker,
-            Hyphens::Check
+            AsciiDenyList::STD3,
+            Hyphens::Check,
+            DnsLength::Verify,
         )
         .is_err());
     assert!(config
         .to_ascii(
             "0à.\u{05D0}".as_bytes(),
-            Strictness::Std3ConformanceChecker,
-            Hyphens::Check
+            AsciiDenyList::STD3,
+            Hyphens::Check,
+            DnsLength::Verify,
         )
         .is_err());
 
@@ -242,8 +328,9 @@ fn test_v8_bidi_rules() {
     assert!(config
         .to_ascii(
             b"xn--0ca24w",
-            Strictness::Std3ConformanceChecker,
-            Hyphens::Check
+            AsciiDenyList::STD3,
+            Hyphens::Check,
+            DnsLength::Verify,
         )
         .is_err());
 }
@@ -256,8 +343,9 @@ fn emoji_domains() {
         config
             .to_ascii(
                 "☕.com".as_bytes(),
-                Strictness::Std3ConformanceChecker,
-                Hyphens::Check
+                AsciiDenyList::STD3,
+                Hyphens::Check,
+                DnsLength::Verify,
             )
             .unwrap(),
         "xn--53h.com"
@@ -270,8 +358,9 @@ fn unicode_before_delimiter() {
     assert!(config
         .to_ascii(
             "xn--f\u{34a}-PTP".as_bytes(),
-            Strictness::Std3ConformanceChecker,
-            Hyphens::Check
+            AsciiDenyList::STD3,
+            Hyphens::Check,
+            DnsLength::Verify,
         )
         .is_err());
 }
@@ -279,11 +368,8 @@ fn unicode_before_delimiter() {
 #[test]
 fn upper_case_ascii_in_punycode() {
     let config = idna::uts46::Uts46::new();
-    let (unicode, result) = config.to_unicode(
-        "xn--A-1ga".as_bytes(),
-        Strictness::Std3ConformanceChecker,
-        Hyphens::Check,
-    );
+    let (unicode, result) =
+        config.to_unicode("xn--A-1ga".as_bytes(), AsciiDenyList::STD3, Hyphens::Check);
     assert!(result.is_ok());
     assert_eq!(&unicode, "aö");
 }
