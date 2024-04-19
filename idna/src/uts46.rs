@@ -6,6 +6,21 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+//! This module provides the lower-level API for UTS 46.
+//!
+//! [`Uts46::process`] is the core that the other convenience
+//! methods build on.
+//!
+//! UTS 46 flags map to this API as follows:
+//!
+//! * _CheckHyphens_ - _true_: [`Hyphens::Check`], _false_: [`Hyphens::Allow`]; the WHATWG URL Standard sets this to _false_ for normal (non-conformance-checker) user agents.
+//! * _CheckBidi_ - Always _true_; cannot be configured, since this flag is _true_ even when WHATWG URL Standard _beStrict_ is _false_.
+//! * _CheckJoiners_ - Always _true_; cannot be configured, since this flag is _true_ even when WHATWG URL Standard _beStrict_ is _false_.
+//! * _UseSTD3ASCIIRules_ - _true_: [`AsciiDenyList::STD3`], _false_: [`AsciiDenyList::EMPTY`]; however, the check the WHATWG URL Standard performs right after the UTS 46 invocation corresponds to [`AsciiDenyList::URL`].
+//! * _Transitional_Processing_ - Always _false_ but could be implemented as a preprocessing step. This flag is deprecated and for Web purposes the transition is over in the sense that all of Firefox, Safari, or Chrome set this flag to _false_.
+//! * _VerifyDnsLength_ - _true_: [`DnsLength::Verify`], _false_: [`DnsLength::Ignore`]; the WHATWG URL Standard sets this to _false_ for normal (non-conformance-checker) user agents.
+//! * _IgnoreInvalidPunycode_ - Always _false_; cannot be configured. (Not yet covered by the WHATWG URL Standard, but 2 out of 3 major browser clearly behave as if this was _false_).
+
 use crate::punycode::Decoder;
 use crate::punycode::InternalCaller;
 use alloc::borrow::Cow;
@@ -412,7 +427,7 @@ impl AsciiDenyList {
     /// Note that this deny list rejects IPv6 addresses, so (as in URL
     /// parsing) you need to check for IPv6 addresses first and not
     /// put them through UTS 46 processing.
-    pub const WHATWG: AsciiDenyList = AsciiDenyList::new(true, "%#/:<>?@[\\]^|");
+    pub const URL: AsciiDenyList = AsciiDenyList::new(true, "%#/:<>?@[\\]^|");
 }
 
 /// The _CheckHyphens_ mode.
@@ -583,7 +598,7 @@ impl Uts46 {
     /// * `ascii_deny_list` - What ASCII deny list, if any, to apply. The UTS 46
     /// _UseSTD3ASCIIRules_ flag or the WHATWG URL Standard forbidden domain code point
     /// processing is handled via this argument. Most callers are probably the best off
-    /// by using [`AsciiDenyList::WHATWG`] here.
+    /// by using [`AsciiDenyList::URL`] here.
     /// * `hyphens` - The UTS 46 _CheckHyphens_ flag. Most callers are probably the best
     /// off by using [`Hyphens::Allow`] here.
     /// * `dns_length` - The UTS 46 _VerifyDNSLength_ flag.
@@ -645,7 +660,7 @@ impl Uts46 {
     /// * `ascii_deny_list` - What ASCII deny list, if any, to apply. The UTS 46
     /// _UseSTD3ASCIIRules_ flag or the WHATWG URL Standard forbidden domain code point
     /// processing is handled via this argument. Most callers are probably the best off
-    /// by using [`AsciiDenyList::WHATWG`] here.
+    /// by using [`AsciiDenyList::URL`] here.
     /// * `hyphens` - The UTS 46 _CheckHyphens_ flag. Most callers are probably the best
     /// off by using [`Hyphens::Allow`] here.
     pub fn to_unicode<'a>(
@@ -691,7 +706,7 @@ impl Uts46 {
     /// * `ascii_deny_list` - What ASCII deny list, if any, to apply. The UTS 46
     /// _UseSTD3ASCIIRules_ flag or the WHATWG URL Standard forbidden domain code point
     /// processing is handled via this argument. Most callers are probably the best off
-    /// by using [`AsciiDenyList::WHATWG`] here.
+    /// by using [`AsciiDenyList::URL`] here.
     /// * `hyphens` - The UTS 46 _CheckHyphens_ flag. Most callers are probably the best
     /// off by using [`Hyphens::Allow`] here.
     /// * `output_as_unicode` - A closure for deciding if a label should be output as Unicode
@@ -743,7 +758,7 @@ impl Uts46 {
     /// * `ascii_deny_list` - What ASCII deny list, if any, to apply. The UTS 46
     /// _UseSTD3ASCIIRules_ flag or the WHATWG URL Standard forbidden domain code point
     /// processing is handled via this argument. Most callers are probably the best off
-    /// by using [`AsciiDenyList::WHATWG`] here.
+    /// by using [`AsciiDenyList::URL`] here.
     /// * `hyphens` - The UTS 46 _CheckHyphens_ flag. Most callers are probably the best
     /// off by using [`Hyphens::Allow`] here.
     /// * `error_policy` - Whether to fail fast or to produce output that may be rendered

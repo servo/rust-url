@@ -24,5 +24,6 @@ IDNA library for Rust implementing [UTS 46: Unicode IDNA Compatibility Processin
 * IDNA 2008 rules are no longer supported. Attempting to enable them panics immediately.
 * `check_hyphens` now also rejects the hyphen in the third and fourth position in a label.
 * `domain_to_ascii_strict` now performs the _CheckHyphens_ check (matching previous documentation).
+* The ContextJ rules are now implemented, so input that fails those rules is rejected.
 * The `Idna::to_ascii_inner` method has been removed. It didn't make sense as a public method, since callers were unable to figure out if there were errors. (A GitHub search found no callers for this method.)
 * Punycode labels whose decoding does not yield any non-ASCII characters are now treated as being in error.

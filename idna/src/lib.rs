@@ -48,6 +48,7 @@ extern crate assert_matches;
 
 use alloc::borrow::Cow;
 use alloc::string::String;
+pub use uts46::AsciiDenyList;
 use uts46::Uts46;
 
 mod deprecated;
@@ -80,33 +81,29 @@ impl core::fmt::Display for Errors {
 /// The [domain to ASCII](https://url.spec.whatwg.org/#concept-domain-to-ascii) algorithm;
 /// version returning a `Cow`.
 ///
-/// Return the ASCII representation a domain name,
+/// Most applications should be using this function rather than the sibling functions,
+/// and most applications should pass [`AsciiDenyList::URL`] as the second argument.
+/// Passing [`AsciiDenyList::URL`] as the second argument makes this function also
+/// perform the [forbidden domain code point](https://url.spec.whatwg.org/#forbidden-domain-code-point)
+/// check in addition to the [domain to ASCII](https://url.spec.whatwg.org/#concept-domain-to-ascii)
+/// algorithm.
+///
+/// Returns the ASCII representation a domain name,
 /// normalizing characters (upper-case to lower-case and other kinds of equivalence)
 /// and using Punycode as necessary.
 ///
 /// This process may fail.
 ///
-/// If the `reject_forbidden_domain_code_points` is `true`, [forbidden domain code
-/// points](https://url.spec.whatwg.org/#forbidden-domain-code-point) from the WHATWG URL
-/// Standard are treated as errors. If `reject_forbidden_domain_code_points` is `false`,
-/// there is no ASCII deny list, which corresponds to UTS 46 _UseSTD3ASCIIRules=false_,
-/// which means that the caller needs to do its own post-processing to reject forbidden
-/// ASCII characters.
-///
-/// If the input you have hasn't yet been checked to be UTF-8 well-formedness (i.e. you
-/// have `&[u8]`), it's more efficient to use [`Uts46::to_ascii`] directly than to first
-/// check for UTF-8 and then call this function.
+/// If you have a `&str` instead of `&[u8]`, just call `.to_bytes()` on it before
+/// passing it to this function. It's still preferable to use this function over
+/// the sibling functions that take `&str`.
 pub fn domain_to_ascii_cow<'a>(
-    domain: &'a str,
-    reject_forbidden_domain_code_points: bool,
+    domain: &'a [u8],
+    ascii_deny_list: AsciiDenyList,
 ) -> Result<Cow<'a, str>, Errors> {
     Uts46::new().to_ascii(
-        domain.as_bytes(),
-        if reject_forbidden_domain_code_points {
-            uts46::AsciiDenyList::WHATWG
-        } else {
-            uts46::AsciiDenyList::EMPTY
-        },
+        domain,
+        ascii_deny_list,
         uts46::Hyphens::Allow,
         uts46::DnsLength::Ignore,
     )
@@ -124,7 +121,7 @@ pub fn domain_to_ascii_cow<'a>(
 ///
 /// This process may fail.
 pub fn domain_to_ascii(domain: &str) -> Result<String, Errors> {
-    domain_to_ascii_cow(domain, false).map(|cow| cow.into_owned())
+    domain_to_ascii_cow(domain.as_bytes(), AsciiDenyList::EMPTY).map(|cow| cow.into_owned())
 }
 
 /// The [domain to ASCII](https://url.spec.whatwg.org/#concept-domain-to-ascii) algorithm,
@@ -146,45 +143,10 @@ pub fn domain_to_ascii_strict(domain: &str) -> Result<String, Errors> {
 }
 
 /// The [domain to Unicode](https://url.spec.whatwg.org/#concept-domain-to-unicode) algorithm;
-/// version returning a `Cow`.
-///
-/// Most apps probably should be using [`Uts46::to_user_interface`] instead.
-///
-/// Return the Unicode representation of a domain name,
-/// normalizing characters (upper-case to lower-case and other kinds of equivalence)
-/// and decoding Punycode as necessary.
-///
-/// If the second item of the tuple indicates an error, the first item of the tuple
-/// denotes errors using the REPLACEMENT CHARACTERs in order to be able to illustrate
-/// errors to the user. When the second item of the return tuple signals an error,
-/// the first item of the tuple must not be used in a network protocol.
-///
-/// If the `reject_forbidden_domain_code_points` is `true`, [forbidden domain code
-/// points](https://url.spec.whatwg.org/#forbidden-domain-code-point) from the WHATWG URL
-/// Standard are treated as errors. If `reject_forbidden_domain_code_points` is `false`,
-/// there is no ASCII deny list, which corresponds to UTS 46 _UseSTD3ASCIIRules=false_,
-/// which means that the caller needs to do its own post-processing to reject forbidden
-/// ASCII characters.
-pub fn domain_to_unicode_cow<'a>(
-    domain: &'a str,
-    reject_forbidden_domain_code_points: bool,
-) -> (Cow<'a, str>, Result<(), Errors>) {
-    Uts46::new().to_unicode(
-        domain.as_bytes(),
-        if reject_forbidden_domain_code_points {
-            uts46::AsciiDenyList::WHATWG
-        } else {
-            uts46::AsciiDenyList::EMPTY
-        },
-        uts46::Hyphens::Allow,
-    )
-}
-
-/// The [domain to Unicode](https://url.spec.whatwg.org/#concept-domain-to-unicode) algorithm;
 /// version returning `String` and no ASCII deny list (i.e. _UseSTD3ASCIIRules=false_).
 ///
-/// This function exists for backward-compatibility. Consider using [`Uts46::to_user_interface`].
-/// See also [`domain_to_unicode_cow`].
+/// This function exists for backward-compatibility. Consider using [`Uts46::to_user_interface`]
+/// or [`Uts46::to_unicode`].
 ///
 /// Return the Unicode representation of a domain name,
 /// normalizing characters (upper-case to lower-case and other kinds of equivalence)
@@ -195,6 +157,10 @@ pub fn domain_to_unicode_cow<'a>(
 /// errors to the user. When the second item of the return tuple signals an error,
 /// the first item of the tuple must not be used in a network protocol.
 pub fn domain_to_unicode(domain: &str) -> (String, Result<(), Errors>) {
-    let (cow, result) = domain_to_unicode_cow(domain, false);
+    let (cow, result) = Uts46::new().to_unicode(
+        domain.as_bytes(),
+        uts46::AsciiDenyList::EMPTY,
+        uts46::Hyphens::Allow,
+    );
     (cow.into_owned(), result)
 }

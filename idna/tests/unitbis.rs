@@ -90,7 +90,7 @@ fn test_punycode_prefix_without_length_check() {
     assert!(config
         .to_ascii(
             b"xn--",
-            AsciiDenyList::WHATWG,
+            AsciiDenyList::URL,
             Hyphens::Allow,
             DnsLength::Ignore
         )
@@ -98,7 +98,7 @@ fn test_punycode_prefix_without_length_check() {
     assert!(config
         .to_ascii(
             b"xn---",
-            AsciiDenyList::WHATWG,
+            AsciiDenyList::URL,
             Hyphens::Allow,
             DnsLength::Ignore
         )
@@ -106,7 +106,7 @@ fn test_punycode_prefix_without_length_check() {
     assert!(config
         .to_ascii(
             b"xn-----",
-            AsciiDenyList::WHATWG,
+            AsciiDenyList::URL,
             Hyphens::Allow,
             DnsLength::Ignore
         )
@@ -114,7 +114,7 @@ fn test_punycode_prefix_without_length_check() {
     assert!(config
         .to_ascii(
             b"xn--.",
-            AsciiDenyList::WHATWG,
+            AsciiDenyList::URL,
             Hyphens::Allow,
             DnsLength::Ignore
         )
@@ -122,7 +122,7 @@ fn test_punycode_prefix_without_length_check() {
     assert!(config
         .to_ascii(
             b"xn--...",
-            AsciiDenyList::WHATWG,
+            AsciiDenyList::URL,
             Hyphens::Allow,
             DnsLength::Ignore
         )
@@ -130,7 +130,7 @@ fn test_punycode_prefix_without_length_check() {
     assert!(config
         .to_ascii(
             b".xn--",
-            AsciiDenyList::WHATWG,
+            AsciiDenyList::URL,
             Hyphens::Allow,
             DnsLength::Ignore
         )
@@ -138,7 +138,7 @@ fn test_punycode_prefix_without_length_check() {
     assert!(config
         .to_ascii(
             b"...xn--",
-            AsciiDenyList::WHATWG,
+            AsciiDenyList::URL,
             Hyphens::Allow,
             DnsLength::Ignore
         )
@@ -146,7 +146,7 @@ fn test_punycode_prefix_without_length_check() {
     assert!(config
         .to_ascii(
             b"xn--.xn--",
-            AsciiDenyList::WHATWG,
+            AsciiDenyList::URL,
             Hyphens::Allow,
             DnsLength::Ignore
         )
@@ -154,7 +154,7 @@ fn test_punycode_prefix_without_length_check() {
     assert!(config
         .to_ascii(
             b"xn--.example.org",
-            AsciiDenyList::WHATWG,
+            AsciiDenyList::URL,
             Hyphens::Allow,
             DnsLength::Ignore
         )
