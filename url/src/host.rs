@@ -140,9 +140,7 @@ impl Host<String> {
 
     /// convert domain with idna
     fn domain_to_ascii(domain: &[u8]) -> Result<Cow<'_, str>, ParseError> {
-        idna::uts46::Uts46::new()
-            .to_ascii(domain, idna::uts46::Strictness::WhatwgUserAgent)
-            .map_err(Into::into)
+        idna::domain_to_ascii_cow(domain, idna::AsciiDenyList::URL).map_err(Into::into)
     }
 }
 
