@@ -19,46 +19,43 @@ use crate::Errors;
 
 /// Performs preprocessing equivalent to UTS 46 transitional processing
 /// if `transitional` is `true`. If `transitional` is `false`, merely
-/// lets the input pass through as-is.
+/// lets the input pass through as-is (for call site convenience).
 ///
 /// The output of this function is to be passed to [`Uts46::process`].
-///
-/// Deprecated, since this functionality is deprecated in UTS 46 itself,
-/// and none of Firefox, Safari, or Chrome use transitional processing.
-#[deprecated]
 fn map_transitional(domain: &str, transitional: bool) -> Cow<'_, str> {
-    if transitional {
-        let mut chars = domain.chars();
-        loop {
-            let prev = chars.clone();
-            if let Some(c) = chars.next() {
-                match c {
-                    'ß' | 'ẞ' | 'ς' | '\u{200C}' | '\u{200D}' => {
-                        let mut s = String::with_capacity(domain.len());
-                        let tail = prev.as_str();
-                        let head = &domain[..domain.len() - tail.len()];
-                        s.push_str(head);
-                        for c in tail.chars() {
-                            match c {
-                                'ß' | 'ẞ' => {
-                                    s.push_str("ss");
-                                }
-                                'ς' => {
-                                    s.push('σ');
-                                }
-                                '\u{200C}' | '\u{200D}' => {}
-                                _ => {
-                                    s.push(c);
-                                }
+    if !transitional {
+        return Cow::Borrowed(domain);
+    }
+    let mut chars = domain.chars();
+    loop {
+        let prev = chars.clone();
+        if let Some(c) = chars.next() {
+            match c {
+                'ß' | 'ẞ' | 'ς' | '\u{200C}' | '\u{200D}' => {
+                    let mut s = String::with_capacity(domain.len());
+                    let tail = prev.as_str();
+                    let head = &domain[..domain.len() - tail.len()];
+                    s.push_str(head);
+                    for c in tail.chars() {
+                        match c {
+                            'ß' | 'ẞ' => {
+                                s.push_str("ss");
+                            }
+                            'ς' => {
+                                s.push('σ');
+                            }
+                            '\u{200C}' | '\u{200D}' => {}
+                            _ => {
+                                s.push(c);
                             }
                         }
-                        return Cow::Owned(s);
                     }
-                    _ => {}
+                    return Cow::Owned(s);
                 }
-            } else {
-                break;
+                _ => {}
             }
+        } else {
+            break;
         }
     }
     Cow::Borrowed(domain)
