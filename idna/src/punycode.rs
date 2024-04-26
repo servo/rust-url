@@ -69,7 +69,18 @@ pub fn decode(input: &str) -> Option<Vec<char>> {
     )
 }
 
-// Marker for internal vs. external caller.
+/// Marker for internal vs. external caller to retain old API behavior
+/// while tweaking behavior for internal callers.
+///
+/// External callers retain the old behavior of the pre-existing
+/// public entry points to this module by 1) limiting input length
+/// to the 32-bit accumulator overflowing and 2) by not performing
+/// ASCII case folding.
+///
+/// Internal callers omit overflow checks due to the input length
+/// being constrained before calling into this module. Additionally,
+/// when the code unit is `u8`, upper-case ASCII is replaced with
+/// lower-case ASCII.
 pub(crate) trait PunycodeCaller {
     const EXTERNAL_CALLER: bool;
 }
