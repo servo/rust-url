@@ -1623,9 +1623,9 @@ impl Url {
     ///     .clear()
     ///     .append_pair("foo", "bar & baz")
     ///     .append_pair("saisons", "\u{00C9}t\u{00E9}+hiver");
-    /// assert_eq!(url.query(), Some("foo=bar+%26+baz&saisons=%C3%89t%C3%A9%2Bhiver"));
+    /// assert_eq!(url.query(), Some("foo=bar%20%26%20baz&saisons=%C3%89t%C3%A9%2Bhiver"));
     /// assert_eq!(url.as_str(),
-    ///            "https://example.net/?foo=bar+%26+baz&saisons=%C3%89t%C3%A9%2Bhiver#nav");
+    ///            "https://example.net/?foo=bar%20%26%20baz&saisons=%C3%89t%C3%A9%2Bhiver#nav");
     /// # Ok(())
     /// # }
     /// # run().unwrap();
