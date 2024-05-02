@@ -115,7 +115,7 @@ impl<'a> Iterator for ParseIntoOwned<'a> {
 }
 
 /// The [`application/x-www-form-urlencoded` byte serializer](
-/// https://url.spec.whatwg.org/#concept-urlencoded-byte-serializer).
+/// https://url.spec.whatwg.org/#string-percent-encode-after-encoding).
 /// Converts spaces (b' ') to the percent-encoded equivalent ("%20").
 ///
 /// Return an iterator of `&str` slices.
@@ -127,7 +127,7 @@ pub fn byte_serialize(input: &[u8]) -> ByteSerialize<'_> {
 }
 
 /// The [`application/x-www-form-urlencoded` byte serializer](
-/// https://url.spec.whatwg.org/#concept-urlencoded-byte-serializer).
+/// https://url.spec.whatwg.org/#string-percent-encode-after-encoding).
 /// Converts spaces (b' ') to plus signs (b'+').
 ///
 /// Return an iterator of `&str` slices.
