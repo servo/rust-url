@@ -74,7 +74,7 @@ impl Idna {
     }
 
     /// [UTS 46 ToASCII](http://www.unicode.org/reports/tr46/#ToASCII)
-    #[allow(clippy::wrong_self_convention)]
+    #[allow(clippy::wrong_self_convention)] // Retain old weirdness in deprecated API
     pub fn to_ascii(&mut self, domain: &str, out: &mut String) -> Result<(), Errors> {
         let mapped = map_transitional(domain, self.config.transitional_processing);
         match Uts46::new().process(
@@ -105,7 +105,7 @@ impl Idna {
     }
 
     /// [UTS 46 ToUnicode](http://www.unicode.org/reports/tr46/#ToUnicode)
-    #[allow(clippy::wrong_self_convention)]
+    #[allow(clippy::wrong_self_convention)] // Retain old weirdness in deprecated API
     pub fn to_unicode(&mut self, domain: &str, out: &mut String) -> Result<(), Errors> {
         let mapped = map_transitional(domain, self.config.transitional_processing);
         match Uts46::new().process(
