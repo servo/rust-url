@@ -434,24 +434,32 @@ impl AsciiDenyList {
 #[derive(PartialEq, Eq, Copy, Clone)]
 #[non_exhaustive] // non_exhaustive in case a middle mode that prohibits only first and last position needs to be added
 pub enum Hyphens {
+    /// _CheckHyphens=false_: Do not place positional restrictions on hyphens.
+    ///
+    /// This mode is used by the WHATWG URL Standard for normal User Agent processing
+    /// (i.e. not conformance checking).
+    Allow,
+
+    /// Prohibit hyphens in the first and last position in the label but allow in
+    /// the third and fourth position.
+    ///
+    /// Note that this mode rejects real-world names, including some GitHub user pages.
+    CheckFirstLast,
+
     /// _CheckHyphens=true_: Prohibit hyphens in the first, third, fourth,
     /// and last position in the label.
     ///
     /// Note that this mode rejects real-world names, including YouTube CDN nodes
     /// and some GitHub user pages.
     Check,
-
-    /// _CheckHyphens=false_: Do not place positional restrictions on hyphens.
-    ///
-    /// This mode is used by the WHATWG URL Standard for normal User Agent processing
-    /// (i.e. not conformance checking).
-    Allow,
 }
 
 /// The UTS 46 _VerifyDNSLength_ flag.
 #[derive(PartialEq, Eq, Copy, Clone)]
 #[non_exhaustive]
 pub enum DnsLength {
+    /// _VerifyDNSLength=false_. (Possibly relevant for allowing non-DNS naming systems.)
+    Ignore,
     /// _VerifyDNSLength=true_ but with the trailing dot allowed.
     ///
     /// The trailing dot behavior may change in a future version. The UTS 46 test suite
@@ -459,8 +467,6 @@ pub enum DnsLength {
     ///
     /// See section 6.3 in <https://www.unicode.org/L2/L2024/24064-utc179-properties-recs.pdf>
     Verify,
-    /// _VerifyDNSLength=false_. (Possibly relevant for allowing non-DNS naming systems.)
-    Ignore,
 }
 
 /// Policy for customizing behavior in case of an error.
@@ -1274,9 +1280,10 @@ impl Uts46 {
                     domain_buffer.push(c);
                 }
                 if non_punycode_ascii_label {
-                    if hyphens == Hyphens::Check {
+                    if hyphens != Hyphens::Allow {
                         if check_hyphens(
                             &mut domain_buffer[current_label_start..],
+                            hyphens == Hyphens::CheckFirstLast,
                             fail_fast,
                             &mut had_errors,
                         ) {
@@ -1592,8 +1599,13 @@ impl Uts46 {
         first_needs_combining_mark_check: bool,
         needs_contextj_check: bool,
     ) -> bool {
-        if hyphens == Hyphens::Check {
-            if check_hyphens(mut_label, fail_fast, had_errors) {
+        if hyphens != Hyphens::Allow {
+            if check_hyphens(
+                mut_label,
+                hyphens == Hyphens::CheckFirstLast,
+                fail_fast,
+                had_errors,
+            ) {
                 return true;
             }
         }
@@ -1722,7 +1734,12 @@ impl Uts46 {
     }
 }
 
-fn check_hyphens(mut_label: &mut [char], fail_fast: bool, had_errors: &mut bool) -> bool {
+fn check_hyphens(
+    mut_label: &mut [char],
+    allow_third_fourth: bool,
+    fail_fast: bool,
+    had_errors: &mut bool,
+) -> bool {
     if let Some(first) = mut_label.first_mut() {
         if *first == '-' {
             if fail_fast {
@@ -1740,6 +1757,9 @@ fn check_hyphens(mut_label: &mut [char], fail_fast: bool, had_errors: &mut bool)
             *had_errors = true;
             *last = '\u{FFFD}';
         }
+    }
+    if allow_third_fourth {
+        return false;
     }
     if mut_label.len() >= 4 && mut_label[2] == '-' && mut_label[3] == '-' {
         if fail_fast {

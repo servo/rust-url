@@ -169,7 +169,6 @@ impl Config {
     /// Note that Firefox, Safari, and Chrome do not use transitional
     /// processing.
     #[inline]
-    #[allow(unused_mut)]
     pub fn transitional_processing(mut self, value: bool) -> Self {
         self.transitional_processing = value;
         self
@@ -183,13 +182,16 @@ impl Config {
         self
     }
 
-    /// Whether to enforce IETF rules for hyphen placement.
+    /// Whether to enforce STD3 rules for hyphen placement.
     ///
-    /// `true` to deny hyphens in the first, last, third, and fourth
-    /// position of a label. `false` to not enforce.
+    /// `true` to deny hyphens in the first and last positions.
+    /// `false` to not enforce hyphen placement.
     ///
-    /// Note that `true` rejects real-world names, including YouTube CDN nodes
-    /// and some GitHub user pages.
+    /// Note that for backward compatibility this is not the same as
+    /// UTS 46 _CheckHyphens_, which also disallows hyphens in the
+    /// third and fourth positions.
+    ///
+    /// Note that `true` rejects real-world names, including some GitHub user pages.
     #[inline]
     pub fn check_hyphens(mut self, value: bool) -> Self {
         self.check_hyphens = value;
@@ -220,7 +222,7 @@ impl Config {
     /// Compute the hyphen mode
     fn hyphens(&self) -> Hyphens {
         if self.check_hyphens {
-            Hyphens::Check
+            Hyphens::CheckFirstLast
         } else {
             Hyphens::Allow
         }

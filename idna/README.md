@@ -27,8 +27,7 @@ Apps that need to display host names to the user should use `uts46::Uts46::to_us
 
 ## Breaking changes since 0.5.0
 
-* IDNA 2008 rules are no longer supported. Attempting to enable them panics immediately.
-* `check_hyphens` now also rejects the hyphen in the third and fourth position in a label.
+* IDNA 2008 rules are no longer supported. Attempting to enable them panics immediately. UTS 46 allows all the names that IDNA 2008 allows, and when transitional processing is disabled, they resolve to the name names. There are additional names that IDNA 2008 disallows but UTS 46 maps to names that IDNA 2008 allows (notably, upper-case input is mapped to lower-case output). UTS 46 also allows symbols that were allowed in IDNA 2003 as well as newer symbols that are allowed according to the same principle.
 * `domain_to_ascii_strict` now performs the _CheckHyphens_ check (matching previous documentation).
 * The ContextJ rules are now implemented and always enabled, so input that fails those rules is rejected.
 * The `Idna::to_ascii_inner` method has been removed. It didn't make sense as a public method, since callers were unable to figure out if there were errors. (A GitHub search found no callers for this method.)
