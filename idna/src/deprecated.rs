@@ -81,7 +81,7 @@ impl Idna {
             mapped.as_bytes(),
             self.config.deny_list(),
             self.config.hyphens(),
-            ErrorPolicy::FailFast,
+            ErrorPolicy::FailFast, // Old code did not appear to expect the output to be useful in the error case.
             |_, _, _| false,
             out,
             None,
