@@ -25,6 +25,13 @@ Apps that need to display host names to the user should use `uts46::Uts46::to_us
 
 * The `verify_dns_length` behavior that this crate implements allows a trailing dot in the input as required by the UTS 46 test suite despite the UTS 46 spec saying that this isn't allowed.
 
+## Cargo features
+
+* `alloc` - For future proofing. Currently always required. Currently, the crate internal may allocate heap but for typical inputs do not allocate on the heap (apart from the output `String` when applicable).
+* `compiled_data` - For future proofing. Currently always required. (Passed through to ICU4X.)
+* `std` - Adds `impl std::error::Error for Errors {}` (and implies `alloc`).
+* By default, all of the above are enabled.
+
 ## Breaking changes since 0.5.0
 
 * IDNA 2008 rules are no longer supported. Attempting to enable them panics immediately. UTS 46 allows all the names that IDNA 2008 allows, and when transitional processing is disabled, they resolve to the name names. There are additional names that IDNA 2008 disallows but UTS 46 maps to names that IDNA 2008 allows (notably, upper-case input is mapped to lower-case output). UTS 46 also allows symbols that were allowed in IDNA 2003 as well as newer symbols that are allowed according to the same principle.
@@ -32,3 +39,4 @@ Apps that need to display host names to the user should use `uts46::Uts46::to_us
 * The ContextJ rules are now implemented and always enabled, so input that fails those rules is rejected.
 * The `Idna::to_ascii_inner` method has been removed. It didn't make sense as a public method, since callers were unable to figure out if there were errors. (A GitHub search found no callers for this method.)
 * Punycode labels whose decoding does not yield any non-ASCII characters are now treated as being in error.
+* When turning off default cargo features, the cargo feature `compiled_data` needs to be explicitly enabled.

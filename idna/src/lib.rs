@@ -42,6 +42,12 @@ extern crate alloc;
 #[cfg(not(feature = "alloc"))]
 compile_error!("the `alloc` feature must be enabled");
 
+// Avoid a breaking change if in the future there's a use case for
+// having a Bring-Your-Own-ICU4X-Data constructor for `Uts46` and
+// not also having compiled data in the binary.
+#[cfg(not(feature = "compiled_data"))]
+compile_error!("the `compiled_data` feature must be enabled");
+
 #[cfg(test)]
 #[macro_use]
 extern crate assert_matches;
