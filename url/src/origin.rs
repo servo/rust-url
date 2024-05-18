@@ -9,7 +9,7 @@
 use crate::host::Host;
 use crate::parser::default_port;
 use crate::Url;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::{num::NonZeroU16, sync::atomic::{AtomicUsize, Ordering}};
 
 pub fn url_origin(url: &Url) -> Origin {
     let scheme = url.scheme();
@@ -24,7 +24,7 @@ pub fn url_origin(url: &Url) -> Origin {
         "ftp" | "http" | "https" | "ws" | "wss" => Origin::Tuple(
             scheme.to_owned(),
             url.host().unwrap().to_owned(),
-            url.port_or_known_default().unwrap(),
+            url.port_or_known_default_internal().unwrap(),
         ),
         // TODO: Figure out what to do if the scheme is a file
         "file" => Origin::new_opaque(),
@@ -55,7 +55,7 @@ pub enum Origin {
     Opaque(OpaqueOrigin),
 
     /// Consists of the URL's scheme, host and port
-    Tuple(String, Host<String>, u16),
+    Tuple(String, Host<String>, NonZeroU16),
 }
 
 impl Origin {

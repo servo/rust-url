@@ -8,6 +8,7 @@
 
 use std::error::Error;
 use std::fmt::{self, Formatter, Write};
+use std::num::NonZeroU16;
 use std::str;
 
 use crate::host::{Host, HostInternal};
@@ -172,11 +173,12 @@ impl<T: AsRef<str>> From<T> for SchemeType {
     }
 }
 
-pub fn default_port(scheme: &str) -> Option<u16> {
+pub fn default_port(scheme: &str) -> Option<NonZeroU16> {
     match scheme {
-        "http" | "ws" => Some(80),
-        "https" | "wss" => Some(443),
-        "ftp" => Some(21),
+        // SAFETY: We know these values are not zero because they are hardcoded.
+        "http" | "ws" => Some(unsafe { NonZeroU16::new_unchecked(80) }),
+        "https" | "wss" => Some(unsafe { NonZeroU16::new_unchecked(443) }),
+        "ftp" => Some(unsafe { NonZeroU16::new_unchecked(21) }),
         _ => None,
     }
 }
@@ -943,7 +945,7 @@ impl<'a> Parser<'a> {
         input: Input<'i>,
         scheme_end: u32,
         scheme_type: SchemeType,
-    ) -> ParseResult<(u32, HostInternal, Option<u16>, Input<'i>)> {
+    ) -> ParseResult<(u32, HostInternal, Option<NonZeroU16>, Input<'i>)> {
         let (host, remaining) = Parser::parse_host(input, scheme_type)?;
         write!(&mut self.serialization, "{}", host).unwrap();
         let host_end = to_u32(self.serialization.len())?;
@@ -1100,9 +1102,9 @@ impl<'a> Parser<'a> {
         mut input: Input<'_>,
         default_port: P,
         context: Context,
-    ) -> ParseResult<(Option<u16>, Input<'_>)>
+    ) -> ParseResult<(Option<NonZeroU16>, Input<'_>)>
     where
-        P: Fn() -> Option<u16>,
+        P: Fn() -> Option<NonZeroU16>,
     {
         let mut port: u32 = 0;
         let mut has_any_digit = false;
@@ -1120,7 +1122,12 @@ impl<'a> Parser<'a> {
             }
             input = remaining;
         }
-        let mut opt_port = Some(port as u16);
+        // NOTE: compiler should optimize away NonZeroU16::new's non-zero check
+        // during release builds
+        if port == 0 {
+            return Err(ParseError::InvalidPort);
+        }
+        let mut opt_port = NonZeroU16::new(port as u16);
         if !has_any_digit || opt_port == default_port() {
             opt_port = None;
         }
@@ -1368,7 +1375,7 @@ impl<'a> Parser<'a> {
         host_start: u32,
         host_end: u32,
         host: HostInternal,
-        port: Option<u16>,
+        port: Option<NonZeroU16>,
         mut path_start: u32,
         remaining: Input<'_>,
     ) -> ParseResult<Url> {

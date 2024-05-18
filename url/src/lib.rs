@@ -160,6 +160,7 @@ use std::mem;
 use std::net::IpAddr;
 #[cfg(any(unix, windows, target_os = "redox", target_os = "wasi"))]
 use std::net::{SocketAddr, ToSocketAddrs};
+use std::num::NonZeroU16;
 use std::ops::{Range, RangeFrom, RangeTo};
 use std::path::{Path, PathBuf};
 use std::str;
@@ -202,7 +203,7 @@ pub struct Url {
     host_start: u32,
     host_end: u32,
     host: HostInternal,
-    port: Option<u16>,
+    port: Option<NonZeroU16>,
     path_start: u32,             // Before initial '/', if any
     query_start: Option<u32>,    // Before '?', unlike Position::QueryStart
     fragment_start: Option<u32>, // Before '#', unlike Position::FragmentStart
@@ -708,7 +709,7 @@ impl Url {
                 let port_str = self.slice(self.host_end + 1..self.path_start);
                 assert_eq!(
                     self.port,
-                    Some(port_str.parse::<u16>().expect("Couldn't parse port?"))
+                    Some(port_str.parse::<NonZeroU16>().expect("Couldn't parse port?"))
                 );
             }
             assert!(
@@ -1214,7 +1215,7 @@ impl Url {
     /// ```
     #[inline]
     pub fn port(&self) -> Option<u16> {
-        self.port
+        self.port.map(Into::into)
     }
 
     /// Return the port number for this URL, or the default port number if it is known.
@@ -1246,7 +1247,13 @@ impl Url {
     /// ```
     #[inline]
     pub fn port_or_known_default(&self) -> Option<u16> {
-        self.port.or_else(|| parser::default_port(self.scheme()))
+        self.port_or_known_default_internal().map(Into::into)
+    }
+
+    #[inline]
+    pub(crate) fn port_or_known_default_internal(&self) -> Option<NonZeroU16> {
+        self.port
+            .or_else(|| parser::default_port(self.scheme()))
     }
 
     /// Resolve a URL’s host and port number to `SocketAddr`.
@@ -1757,8 +1764,8 @@ impl Url {
     ///
     /// Note that default port numbers are not reflected in the serialization.
     ///
-    /// If this URL is cannot-be-a-base, does not have a host, or has the `file` scheme;
-    /// do nothing and return `Err`.
+    /// If this URL is cannot-be-a-base, does not have a host, or has the `file`
+    /// scheme; or if the supplied port is `0`; do nothing and return [`Err`].
     ///
     /// # Examples
     ///
@@ -1814,11 +1821,12 @@ impl Url {
     /// # run().unwrap();
     /// ```
     #[allow(clippy::result_unit_err)]
-    pub fn set_port(&mut self, mut port: Option<u16>) -> Result<(), ()> {
+    pub fn set_port(&mut self, port: Option<u16>) -> Result<(), ()> {
         // has_host implies !cannot_be_a_base
         if !self.has_host() || self.host() == Some(Host::Domain("")) || self.scheme() == "file" {
             return Err(());
         }
+        let mut port = port.map(|port| NonZeroU16::new(port).ok_or(())).transpose()?;
         if port.is_some() && port == parser::default_port(self.scheme()) {
             port = None
         }
@@ -1826,7 +1834,7 @@ impl Url {
         Ok(())
     }
 
-    fn set_port_internal(&mut self, port: Option<u16>) {
+    fn set_port_internal(&mut self, port: Option<NonZeroU16>) {
         match (self.port, port) {
             (None, None) => {}
             (Some(_), None) => {
@@ -2012,7 +2020,7 @@ impl Url {
     }
 
     /// opt_new_port: None means leave unchanged, Some(None) means remove any port number.
-    fn set_host_internal(&mut self, host: Host<String>, opt_new_port: Option<Option<u16>>) {
+    fn set_host_internal(&mut self, host: Host<String>, opt_new_port: Option<Option<NonZeroU16>>) {
         let old_suffix_pos = if opt_new_port.is_some() {
             self.path_start
         } else {
