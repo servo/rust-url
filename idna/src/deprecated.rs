@@ -87,14 +87,14 @@ impl Idna {
             None,
         ) {
             Ok(ProcessingSuccess::Passthrough) => {
-                if self.config.verify_dns_length && !verify_dns_length(&mapped) {
+                if self.config.verify_dns_length && !verify_dns_length(&mapped, true) {
                     return Err(crate::Errors::default());
                 }
                 out.push_str(&mapped);
                 Ok(())
             }
             Ok(ProcessingSuccess::WroteToSink) => {
-                if self.config.verify_dns_length && !verify_dns_length(out) {
+                if self.config.verify_dns_length && !verify_dns_length(out, true) {
                     return Err(crate::Errors::default());
                 }
                 Ok(())
@@ -176,6 +176,9 @@ impl Config {
 
     /// Whether the _VerifyDNSLength_ operation should be performed
     /// by `to_ascii`.
+    ///
+    /// For compatibility with previous behavior, even when set to `true`,
+    /// the trailing root label dot is allowed contrary to the spec.
     #[inline]
     pub fn verify_dns_length(mut self, value: bool) -> Self {
         self.verify_dns_length = value;

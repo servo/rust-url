@@ -460,12 +460,10 @@ pub enum Hyphens {
 pub enum DnsLength {
     /// _VerifyDNSLength=false_. (Possibly relevant for allowing non-DNS naming systems.)
     Ignore,
-    /// _VerifyDNSLength=true_ but with the trailing dot allowed.
-    ///
-    /// The trailing dot behavior may change in a future version. The UTS 46 test suite
-    /// seems to require allowing the trailing dot, even though the spec says otherwise.
-    ///
-    /// See section 6.3 in <https://www.unicode.org/L2/L2024/24064-utc179-properties-recs.pdf>
+    /// _VerifyDNSLength=true_ with the exception that the trailing root label dot is
+    /// allowed.
+    VerifyAllowRootDot,
+    /// _VerifyDNSLength=true_. (The trailing root label dot is not allowed.)
     Verify,
 }
 
@@ -534,21 +532,20 @@ enum AlreadyAsciiLabel<'a> {
     Other,
 }
 
-/// Performs the _VerifyDNSLength_ check on the output of the _ToASCII_ operation with
-/// the modification that the trailing dot is allowed.
+/// Performs the _VerifyDNSLength_ check on the output of the _ToASCII_ operation.
 ///
-/// The trailing dot behavior may change in a future version. The UTS 46 test suite
-/// seems to require allowing the trailing dot, even though the spec says otherwise.
+/// If the second argument is `false`, the trailing root label dot is allowed.
 ///
 /// # Panics
 ///
 /// Panics in debug mode if the argument isn't ASCII.
-pub fn verify_dns_length(domain_name: &str) -> bool {
+pub fn verify_dns_length(domain_name: &str, allow_trailing_dot: bool) -> bool {
     let bytes = domain_name.as_bytes();
     debug_assert!(bytes.is_ascii());
-    // The UTS 46 test suite seems to disagree with the UTS 46 spec
-    // regarding the trailing dot!
     let domain_name_without_trailing_dot = if let Some(without) = bytes.strip_suffix(b".") {
+        if !allow_trailing_dot {
+            return false;
+        }
         without
     } else {
         bytes
@@ -628,7 +625,9 @@ impl Uts46 {
             // SAFETY: `ProcessingSuccess::Passthrough` asserts that `domain_name` is ASCII.
             Ok(ProcessingSuccess::Passthrough) => {
                 let cow = Cow::Borrowed(unsafe { core::str::from_utf8_unchecked(domain_name) });
-                if dns_length == DnsLength::Verify && !verify_dns_length(&cow) {
+                if dns_length != DnsLength::Ignore
+                    && !verify_dns_length(&cow, dns_length == DnsLength::VerifyAllowRootDot)
+                {
                     Err(crate::Errors::default())
                 } else {
                     Ok(cow)
@@ -636,7 +635,9 @@ impl Uts46 {
             }
             Ok(ProcessingSuccess::WroteToSink) => {
                 let cow: Cow<'_, str> = Cow::Owned(s);
-                if dns_length == DnsLength::Verify && !verify_dns_length(&cow) {
+                if dns_length != DnsLength::Ignore
+                    && !verify_dns_length(&cow, dns_length == DnsLength::VerifyAllowRootDot)
+                {
                     Err(crate::Errors::default())
                 } else {
                     Ok(cow)

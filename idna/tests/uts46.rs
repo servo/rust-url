@@ -86,7 +86,7 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
                     source.as_bytes(),
                     AsciiDenyList::STD3,
                     Hyphens::Check,
-                    DnsLength::Verify,
+                    DnsLength::VerifyAllowRootDot,
                 );
                 check(
                     &source,
@@ -109,7 +109,7 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
                     ) {
                     Ok(ProcessingSuccess::Passthrough) => (
                         Ok(source.to_string()),
-                        if verify_dns_length(&source) {
+                        if verify_dns_length(&source, true) {
                             Ok(source.to_string())
                         } else {
                             Err(Errors::default())
@@ -119,7 +119,7 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
                         if to_ascii_simultaneous.is_empty() {
                             (
                                 Ok(to_unicode_simultaneous.clone()),
-                                if verify_dns_length(&to_unicode_simultaneous) {
+                                if verify_dns_length(&to_unicode_simultaneous, true) {
                                     Ok(to_unicode_simultaneous)
                                 } else {
                                     Err(Errors::default())
@@ -128,7 +128,7 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
                         } else {
                             (
                                 Ok(to_unicode_simultaneous),
-                                if verify_dns_length(&to_ascii_simultaneous) {
+                                if verify_dns_length(&to_ascii_simultaneous, true) {
                                     Ok(to_ascii_simultaneous)
                                 } else {
                                     Err(Errors::default())
