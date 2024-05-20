@@ -11,7 +11,7 @@ IDNA library for Rust implementing [UTS 46: Unicode IDNA Compatibility Processin
 ## What it does not do
 
 * There is no default/sample policy provided for the callback mechanism mentioned above.
-* Earlier variants of IDNA (2003, 2008) are not implemented—only UTS 46.
+* Only UTS 46 is implemented: There is no API to request strictly IDNA 2008 only or strictly IDNA 2003 only.
 * There is no API for categorizing errors beyond there being an error.
 * Checks that are configurable in UTS 46 but that the WHATWG URL Standard always set a particular way (regardless of the _beStrict_ flag in the URL Standard) cannot be configured (with the exception of the old deprecated API supporting transitional processing).
 
