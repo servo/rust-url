@@ -7,7 +7,7 @@
 // except according to those terms.
 
 use crate::parser::{self, to_u32, SchemeType};
-use crate::Url;
+use crate::{ByteAt as _, Truncate as _, Url};
 use std::str;
 
 /// Exposes methods to manipulate the path of an URL that is not cannot-be-base.
@@ -144,9 +144,7 @@ impl<'a> PathSegmentsMut<'a> {
         let last_slash = self.url.serialization[self.after_first_slash..]
             .rfind('/')
             .unwrap_or(0);
-        self.url
-            .serialization
-            .truncate(self.after_first_slash + last_slash);
+        self.url.truncate(self.after_first_slash + last_slash);
         self
     }
 
