@@ -6,6 +6,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+#![allow(clippy::assigning_clones)]
+
 use crate::test::TestFn;
 use std::char;
 use std::fmt::Write;

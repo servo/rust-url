@@ -1,4 +1,3 @@
-use assert_matches::assert_matches;
 use idna::uts46::AsciiDenyList;
 use idna::uts46::DnsLength;
 use idna::uts46::Hyphens;

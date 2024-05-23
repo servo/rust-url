@@ -303,7 +303,7 @@ fn apply_ascii_deny_list_to_potentially_upper_case_ascii(b: u8, deny_list: u128)
     if in_inclusive_range8(b, b'A', b'Z') {
         return char::from(b + 0x20);
     }
-    return '\u{FFFD}';
+    '\u{FFFD}'
 }
 
 #[inline(always)]
@@ -573,10 +573,16 @@ pub struct Uts46 {
     joining_type: CodePointMapDataBorrowed<'static, JoiningType>,
 }
 
-impl Uts46 {
-    // XXX Should this be behind a `compiled_data` feature?
+#[cfg(feature = "compiled_data")]
+impl Default for Uts46 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
+impl Uts46 {
     /// Constructor using data compiled into the binary.
+    #[cfg(feature = "compiled_data")]
     pub const fn new() -> Self {
         Self {
             mapper: Uts46Mapper::new(),
@@ -832,6 +838,7 @@ impl Uts46 {
     /// length limits on Punycode treating especially long inputs as being in error. These
     /// limits are well higher than the DNS length limits and are not more restrictive than
     /// the limits imposed by ICU4C.
+    #[allow(clippy::too_many_arguments)]
     pub fn process<W: Write + ?Sized, OutputUnicode: FnMut(&[char], &[char], bool) -> bool>(
         &self,
         domain_name: &[u8],
@@ -912,16 +919,14 @@ impl Uts46 {
                     for c in tail.iter() {
                         sink.write_char(char::from(c.to_ascii_lowercase()))?;
                     }
+                } else if flushed_prefix {
+                    // SAFETY: `mixed_case` is known to be ASCII.
+                    sink.write_str(unsafe { core::str::from_utf8_unchecked(mixed_case) })?;
                 } else {
-                    if flushed_prefix {
-                        // SAFETY: `mixed_case` is known to be ASCII.
-                        sink.write_str(unsafe { core::str::from_utf8_unchecked(mixed_case) })?;
-                    } else {
-                        passthrough_up_to_extended += mixed_case.len();
-                        if passthrough_up_to_extended == domain_name.len() {
-                            debug_assert!(!had_errors);
-                            return Ok(ProcessingSuccess::Passthrough);
-                        }
+                    passthrough_up_to_extended += mixed_case.len();
+                    if passthrough_up_to_extended == domain_name.len() {
+                        debug_assert!(!had_errors);
+                        return Ok(ProcessingSuccess::Passthrough);
                     }
                 }
                 continue;
@@ -969,16 +974,14 @@ impl Uts46 {
                     for c in tail.iter() {
                         sink.write_char(char::from(c.to_ascii_lowercase()))?;
                     }
+                } else if flushed_prefix {
+                    // SAFETY: `mixed_case` is known to be ASCII.
+                    sink.write_str(unsafe { core::str::from_utf8_unchecked(mixed_case) })?;
                 } else {
-                    if flushed_prefix {
-                        // SAFETY: `mixed_case` is known to be ASCII.
-                        sink.write_str(unsafe { core::str::from_utf8_unchecked(mixed_case) })?;
-                    } else {
-                        passthrough_up_to_extended += mixed_case.len();
-                        if passthrough_up_to_extended == domain_name.len() {
-                            debug_assert!(!had_errors);
-                            return Ok(ProcessingSuccess::Passthrough);
-                        }
+                    passthrough_up_to_extended += mixed_case.len();
+                    if passthrough_up_to_extended == domain_name.len() {
+                        debug_assert!(!had_errors);
+                        return Ok(ProcessingSuccess::Passthrough);
                     }
                 }
             } else {
@@ -1037,15 +1040,11 @@ impl Uts46 {
                             for c in tail.iter() {
                                 sink.write_char(char::from(c.to_ascii_lowercase()))?;
                             }
+                        } else if flushed_prefix {
+                            // SAFETY: `mixed_case` is known to be ASCII.
+                            sink.write_str(unsafe { core::str::from_utf8_unchecked(mixed_case) })?;
                         } else {
-                            if flushed_prefix {
-                                // SAFETY: `mixed_case` is known to be ASCII.
-                                sink.write_str(unsafe {
-                                    core::str::from_utf8_unchecked(mixed_case)
-                                })?;
-                            } else {
-                                passthrough_up_to_extended += mixed_case.len();
-                            }
+                            passthrough_up_to_extended += mixed_case.len();
                         }
                         continue;
                     }
@@ -1084,15 +1083,11 @@ impl Uts46 {
                             for c in tail.iter() {
                                 sink.write_char(char::from(c.to_ascii_lowercase()))?;
                             }
+                        } else if flushed_prefix {
+                            // SAFETY: `mixed_case` is known to be ASCII.
+                            sink.write_str(unsafe { core::str::from_utf8_unchecked(mixed_case) })?;
                         } else {
-                            if flushed_prefix {
-                                // SAFETY: `mixed_case` is known to be ASCII.
-                                sink.write_str(unsafe {
-                                    core::str::from_utf8_unchecked(mixed_case)
-                                })?;
-                            } else {
-                                passthrough_up_to_extended += mixed_case.len();
-                            }
+                            passthrough_up_to_extended += mixed_case.len();
                         }
                     } else {
                         if !flushed_prefix {
@@ -1174,17 +1169,15 @@ impl Uts46 {
             // an ASCII fast path that bypasses the normalizer for ASCII
             // after a pre-existing ASCII dot (pre-existing in the sense
             // of not coming from e.g. normalizing an ideographic dot).
-            if in_prefix {
-                if is_passthrough_ascii_label(label) {
-                    if seen_label {
-                        debug_assert_eq!(domain_name[passthrough_up_to], b'.');
-                        passthrough_up_to += 1;
-                    }
-                    seen_label = true;
-
-                    passthrough_up_to += label.len();
-                    continue;
+            if in_prefix && is_passthrough_ascii_label(label) {
+                if seen_label {
+                    debug_assert_eq!(domain_name[passthrough_up_to], b'.');
+                    passthrough_up_to += 1;
                 }
+                seen_label = true;
+
+                passthrough_up_to += label.len();
+                continue;
             }
             if seen_label {
                 if in_prefix {
@@ -1281,15 +1274,15 @@ impl Uts46 {
                     domain_buffer.push(c);
                 }
                 if non_punycode_ascii_label {
-                    if hyphens != Hyphens::Allow {
-                        if check_hyphens(
+                    if hyphens != Hyphens::Allow
+                        && check_hyphens(
                             &mut domain_buffer[current_label_start..],
                             hyphens == Hyphens::CheckFirstLast,
                             fail_fast,
                             &mut had_errors,
-                        ) {
-                            return (0, false, true);
-                        }
+                        )
+                    {
+                        return (0, false, true);
                     }
                     already_punycode.push(if had_errors {
                         AlreadyAsciiLabel::Other
@@ -1408,7 +1401,7 @@ impl Uts46 {
                                 return (0, false, true);
                             }
 
-                            if n == None {
+                            if n.is_none() {
                                 break;
                             }
                             domain_buffer.push('.');
@@ -1434,7 +1427,7 @@ impl Uts46 {
             }
         }
 
-        let is_bidi = self.is_bidi(&domain_buffer);
+        let is_bidi = self.is_bidi(domain_buffer);
         if is_bidi {
             for label in domain_buffer.split_mut(|c| *c == '.') {
                 if let Some((first, tail)) = label.split_first_mut() {
@@ -1451,6 +1444,7 @@ impl Uts46 {
                     let is_ltr = first_bc == BidiClass::LeftToRight;
                     // Trim NSM
                     let mut middle = tail;
+                    #[allow(clippy::while_let_loop)]
                     loop {
                         if let Some((last, prior)) = middle.split_last_mut() {
                             let last_bc = self.bidi_class.get(*last);
@@ -1583,7 +1577,7 @@ impl Uts46 {
                 })
         {
             if fail_fast {
-                true;
+                return true;
             }
             *had_errors = true;
         }
@@ -1600,15 +1594,15 @@ impl Uts46 {
         first_needs_combining_mark_check: bool,
         needs_contextj_check: bool,
     ) -> bool {
-        if hyphens != Hyphens::Allow {
-            if check_hyphens(
+        if hyphens != Hyphens::Allow
+            && check_hyphens(
                 mut_label,
                 hyphens == Hyphens::CheckFirstLast,
                 fail_fast,
                 had_errors,
-            ) {
-                return true;
-            }
+            )
+        {
+            return true;
         }
         if first_needs_combining_mark_check {
             if let Some(first) = mut_label.first_mut() {
@@ -1675,7 +1669,7 @@ impl Uts46 {
             }
         }
 
-        if !is_ascii(&mut_label) && mut_label.len() > PUNYCODE_ENCODE_MAX_INPUT_LENGTH {
+        if !is_ascii(mut_label) && mut_label.len() > PUNYCODE_ENCODE_MAX_INPUT_LENGTH {
             // Limit quadratic behavior
             // https://github.com/whatwg/url/issues/824
             // https://unicode-org.atlassian.net/browse/ICU-13727

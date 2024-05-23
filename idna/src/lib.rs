@@ -48,10 +48,6 @@ compile_error!("the `alloc` feature must be enabled");
 #[cfg(not(feature = "compiled_data"))]
 compile_error!("the `compiled_data` feature must be enabled");
 
-#[cfg(test)]
-#[macro_use]
-extern crate assert_matches;
-
 use alloc::borrow::Cow;
 use alloc::string::String;
 pub use uts46::AsciiDenyList;
@@ -103,10 +99,10 @@ impl core::fmt::Display for Errors {
 /// If you have a `&str` instead of `&[u8]`, just call `.to_bytes()` on it before
 /// passing it to this function. It's still preferable to use this function over
 /// the sibling functions that take `&str`.
-pub fn domain_to_ascii_cow<'a>(
-    domain: &'a [u8],
+pub fn domain_to_ascii_cow(
+    domain: &[u8],
     ascii_deny_list: AsciiDenyList,
-) -> Result<Cow<'a, str>, Errors> {
+) -> Result<Cow<'_, str>, Errors> {
     Uts46::new().to_ascii(
         domain,
         ascii_deny_list,
