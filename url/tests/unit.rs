@@ -1012,6 +1012,31 @@ fn test_null_host_with_leading_empty_path_segment() {
 }
 
 #[test]
+fn test_pop_if_empty_for_empty_path() {
+    let urls = [
+        "https://github.com",
+        "https://github.com/",
+        "https://github.com//",
+    ];
+    for url in &urls {
+        let mut url = Url::parse(url).unwrap();
+        url.path_segments_mut().unwrap().pop_if_empty();
+        assert_eq!(url.as_str(), "https://github.com/");
+    }
+}
+
+#[test]
+fn test_pop_if_empty_when_nonempty() {
+    let mut url = Url::parse("https://github.com/servo/rust-url").unwrap();
+    url.path_segments_mut().unwrap().push("").pop_if_empty();
+    assert_eq!(url.as_str(), "https://github.com/servo/rust-url");
+
+    let mut url = Url::parse("https://github.com/servo/rust-url/").unwrap();
+    url.path_segments_mut().unwrap().pop_if_empty();
+    assert_eq!(url.as_str(), "https://github.com/servo/rust-url");
+}
+
+#[test]
 fn pop_if_empty_in_bounds() {
     let mut url = Url::parse("m://").unwrap();
     let mut segments = url.path_segments_mut().unwrap();
