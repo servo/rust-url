@@ -789,6 +789,8 @@ fn test_domain_encoding_quirks() {
 #[cfg(feature = "expose_internals")]
 #[test]
 fn test_expose_internals() {
+    use std::num::NonZeroU32;
+
     use url::quirks::internal_components;
     use url::quirks::InternalComponents;
 
@@ -810,8 +812,8 @@ fn test_expose_internals() {
     assert_eq!(host_end, 19);
     assert_eq!(port, None);
     assert_eq!(path_start, 19);
-    assert_eq!(query_start, Some(33));
-    assert_eq!(fragment_start, Some(51));
+    assert_eq!(query_start, Some(NonZeroU32::new(33).unwrap()));
+    assert_eq!(fragment_start, Some(NonZeroU32::new(51).unwrap()));
 }
 
 #[test]
