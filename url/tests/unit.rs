@@ -1392,3 +1392,42 @@ fn test_parse_url_with_single_byte_control_host() {
     let url2 = Url::parse(url1.as_str()).unwrap();
     assert_eq!(url2, url1);
 }
+
+#[test]
+/// append_path is an alternative to Url::join addressing issues described in
+/// https://github.com/servo/rust-url/issues/333
+fn test_append_path() {
+    // append_path behaves as expected when path is `/` regardless of trailing & leading slashes
+    let mut url = Url::parse("http://test.com").unwrap();
+    url.append_path("/a/b/c").unwrap();
+    assert_eq!(url.as_str(), "http://test.com/a/b/c");
+
+    let mut url = Url::parse("http://test.com").unwrap();
+    url.append_path("a/b/c").unwrap();
+    assert_eq!(url.as_str(), "http://test.com/a/b/c");
+
+    let mut url = Url::parse("http://test.com/").unwrap();
+    url.append_path("/a/b/c").unwrap();
+    assert_eq!(url.as_str(), "http://test.com/a/b/c");
+
+    let mut url = Url::parse("http://test.com/").unwrap();
+    url.append_path("a/b/c").unwrap();
+    assert_eq!(url.as_str(), "http://test.com/a/b/c");
+
+    // append_path behaves as expected when path is `/api/v1` regardless of trailing & leading slashes
+    let mut url = Url::parse("http://test.com/api/v1").unwrap();
+    url.append_path("/a/b/c").unwrap();
+    assert_eq!(url.as_str(), "http://test.com/api/v1/a/b/c");
+
+    let mut url = Url::parse("http://test.com/api/v1").unwrap();
+    url.append_path("a/b/c").unwrap();
+    assert_eq!(url.as_str(), "http://test.com/api/v1/a/b/c");
+
+    let mut url = Url::parse("http://test.com/api/v1/").unwrap();
+    url.append_path("/a/b/c").unwrap();
+    assert_eq!(url.as_str(), "http://test.com/api/v1/a/b/c");
+
+    let mut url = Url::parse("http://test.com/api/v1/").unwrap();
+    url.append_path("a/b/c").unwrap();
+    assert_eq!(url.as_str(), "http://test.com/api/v1/a/b/c");
+}
