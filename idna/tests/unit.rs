@@ -40,6 +40,12 @@ fn test_punycode_prefix_without_length_check() {
     assert!(config.to_ascii("xn--.example.org").is_err());
 }
 
+#[test]
+fn test_punycode_invalid_encoding() {
+    let config = idna::Config::default();
+    assert_eq!(config.to_ascii("xn--55555577").unwrap_err().to_string(), "Errors { punycode }");
+}
+
 // http://www.unicode.org/reports/tr46/#Table_Example_Processing
 #[test]
 fn test_examples() {
