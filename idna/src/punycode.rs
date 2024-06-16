@@ -17,7 +17,6 @@ use alloc::{string::String, vec::Vec};
 use core::char;
 use core::fmt::Write;
 use core::marker::PhantomData;
-use core::u32;
 
 // Bootstring parameters for Punycode
 const BASE: u32 = 36;

@@ -309,7 +309,7 @@ fn parse_ipv4addr(input: &str) -> ParseResult<Ipv4Addr> {
     }
     let mut ipv4 = numbers.pop().expect("a non-empty list of numbers");
     // Equivalent to: ipv4 >= 256 ** (4 − numbers.len())
-    if ipv4 > u32::max_value() >> (8 * numbers.len() as u32) {
+    if ipv4 > u32::MAX >> (8 * numbers.len() as u32) {
         return Err(ParseError::InvalidIpv4Address);
     }
     if numbers.iter().any(|x| *x > 255) {
