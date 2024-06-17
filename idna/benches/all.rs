@@ -1,5 +1,3 @@
-#![allow(deprecated)]
-
 #[macro_use]
 extern crate bencher;
 extern crate idna;
