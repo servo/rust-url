@@ -450,8 +450,13 @@ impl<'a> Parser<'a> {
                     input
                         .clone()
                         .take_while(|&c| matches!(c, '/' | '\\'))
-                        .collect::<String>()
-                        != "//"
+                        .take(3)
+                        .fold((0, 0), |(slashes, backslashes), c| match c {
+                            '/' => (slashes + 1, backslashes),
+                            '\\' => (slashes, backslashes + 1),
+                            _ => unreachable!(),
+                        })
+                        != (2, 0)
                 });
                 self.after_double_slash(remaining, scheme_type, scheme_end)
             }
@@ -754,8 +759,13 @@ impl<'a> Parser<'a> {
                         input
                             .clone()
                             .take_while(|&c| matches!(c, '/' | '\\'))
-                            .collect::<String>()
-                            != "//"
+                            .take(3)
+                            .fold((0, 0), |(slashes, backslashes), c| match c {
+                                '/' => (slashes + 1, backslashes),
+                                '\\' => (slashes, backslashes + 1),
+                                _ => unreachable!(),
+                            })
+                            != (2, 0)
                     });
                     let scheme_end = base_url.scheme_end;
                     debug_assert!(base_url.byte_at(scheme_end) == b':');
