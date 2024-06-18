@@ -1,6 +1,6 @@
 [package]
 name = "idna"
-version = "1.0.1"
+version = "0.5.0"
 authors = ["The rust-url developers"]
 description = "IDNA (Internationalizing Domain Names in Applications) and Punycode."
 categories = ["no_std"]
@@ -8,16 +8,15 @@ repository = "https://github.com/servo/rust-url/"
 license = "MIT OR Apache-2.0"
 autotests = false
 edition = "2018"
-rust-version = "1.67"
+rust-version = "1.51"
 
 [lib]
 doctest = false
 
 [features]
-default = ["std", "compiled_data"]
-std = ["alloc"]
+default = ["std"]
+std = ["alloc", "unicode-bidi/std", "unicode-normalization/std"]
 alloc = []
-compiled_data = ["icu_normalizer/compiled_data", "icu_properties/compiled_data"]
 
 [[test]]
 name = "tests"
@@ -26,9 +25,6 @@ harness = false
 [[test]]
 name = "unit"
 
-[[test]]
-name = "unitbis"
-
 [dev-dependencies]
 assert_matches = "1.3"
 bencher = "0.1"
@@ -36,10 +32,8 @@ tester = "0.9"
 serde_json = "1.0"
 
 [dependencies]
-icu_normalizer = "1.4.3"
-icu_properties = "1.4.2"
-utf8_iter = "1.0.4"
-smallvec = { version = "1.13.1", features = ["const_generics"]}
+unicode-bidi = { version = "0.3.10", default-features = false, features = ["hardcoded-data"] }
+unicode-normalization = { version = "0.1.22", default-features = false }
 
 [[bench]]
 name = "all"
