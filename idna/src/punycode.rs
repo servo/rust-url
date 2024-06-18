@@ -112,7 +112,7 @@ impl Decoder {
                 if digit > (u32::MAX - i) / weight {
                     return Err(()); // Overflow
                 }
-                i += digit * weight;
+                i = i.checked_add(digit * weight).ok_or(())?;
                 let t = if k <= bias {
                     T_MIN
                 } else if k >= bias + T_MAX {
