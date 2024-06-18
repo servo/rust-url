@@ -134,7 +134,7 @@ url = { version = "2", features = ["debugger_visualizer"] }
 
 */
 
-#![doc(html_root_url = "https://docs.rs/url/2.5.1")]
+#![doc(html_root_url = "https://docs.rs/url/2.5.2")]
 #![cfg_attr(
     feature = "debugger_visualizer",
     debugger_visualizer(natvis_file = "../../debug_metadata/url.natvis")
