@@ -15,7 +15,6 @@
 
 use alloc::{string::String, vec::Vec};
 use core::char;
-use core::u32;
 
 // Bootstring parameters for Punycode
 static BASE: u32 = 36;
