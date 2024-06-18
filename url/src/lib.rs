@@ -1723,6 +1723,32 @@ impl Url {
                 );
             }
         });
+
+        // To handle cases like <non-spec:/> set pathname to </..//p>
+        // For instance, //p should be converted to /..//p here
+        // At this point, we would get "non-spec://p" for serialization
+        // and "/..//p" for path
+        if let Some(path_pos) = path.rfind("//") {
+            if let Some(serialization_pos) = self.serialization.rfind("//") {
+                const PATH_INCREMENT: usize = 2; // length of "/."
+
+                if path_pos + PATH_INCREMENT <= path.len()
+                    && serialization_pos + PATH_INCREMENT <= self.serialization.len()
+                {
+                    let rest_path = &path[(path_pos + PATH_INCREMENT)..];
+                    let rest_serialization =
+                        &self.serialization[(serialization_pos + PATH_INCREMENT)..];
+
+                    // rest should be the same
+                    if rest_path == rest_serialization {
+                        self.serialization
+                            .replace_range(serialization_pos.., &format!("/.//{}", rest_path));
+                        self.path_start += PATH_INCREMENT as u32;
+                    }
+                }
+            }
+        }
+
         self.restore_after_path(old_after_path_pos, &after_path);
     }
 
