@@ -8,10 +8,11 @@
 
 use std::error::Error;
 use std::fmt::{self, Formatter, Write};
+use std::num::NonZeroU32;
 use std::str;
 
 use crate::host::{Host, HostInternal};
-use crate::Url;
+use crate::{ByteAt as _, Url};
 use form_urlencoded::EncodingOverride;
 use percent_encoding::{percent_encode, utf8_percent_encode, AsciiSet, CONTROLS};
 
@@ -608,7 +609,7 @@ impl<'a> Parser<'a> {
                 None => {
                     // Copy everything except the fragment
                     let before_fragment = match base_url.fragment_start {
-                        Some(i) => &base_url.serialization[..i as usize],
+                        Some(i) => &base_url.serialization[..i.get() as usize],
                         None => &*base_url.serialization,
                     };
                     self.serialization.push_str(before_fragment);
@@ -720,7 +721,7 @@ impl<'a> Parser<'a> {
             None => {
                 // Copy everything except the fragment
                 let before_fragment = match base_url.fragment_start {
-                    Some(i) => &base_url.serialization[..i as usize],
+                    Some(i) => &base_url.serialization[..i.get() as usize],
                     None => &*base_url.serialization,
                 };
                 self.serialization.push_str(before_fragment);
@@ -1435,12 +1436,12 @@ impl<'a> Parser<'a> {
         scheme_type: SchemeType,
         scheme_end: u32,
         mut input: Input<'_>,
-    ) -> ParseResult<(Option<u32>, Option<u32>)> {
+    ) -> ParseResult<(Option<NonZeroU32>, Option<NonZeroU32>)> {
         let mut query_start = None;
         match input.next() {
             Some('#') => {}
             Some('?') => {
-                query_start = Some(to_u32(self.serialization.len())?);
+                query_start = Some(to_u32_non_zero(self.serialization.len())?);
                 self.serialization.push('?');
                 let remaining = self.parse_query(scheme_type, scheme_end, input);
                 if let Some(remaining) = remaining {
@@ -1453,7 +1454,7 @@ impl<'a> Parser<'a> {
             _ => panic!("Programming error. parse_query_and_fragment() called without ? or #"),
         }
 
-        let fragment_start = to_u32(self.serialization.len())?;
+        let fragment_start = to_u32_non_zero(self.serialization.len())?;
         self.serialization.push('#');
         self.parse_fragment(input);
         Ok((query_start, Some(fragment_start)))
@@ -1511,7 +1512,7 @@ impl<'a> Parser<'a> {
         self.parse_fragment(input);
         Ok(Url {
             serialization: self.serialization,
-            fragment_start: Some(to_u32(before_fragment.len())?),
+            fragment_start: Some(to_u32_non_zero(before_fragment.len())?),
             ..*base_url
         })
     }
@@ -1595,6 +1596,10 @@ pub fn to_u32(i: usize) -> ParseResult<u32> {
     } else {
         Err(ParseError::Overflow)
     }
+}
+#[inline]
+pub fn to_u32_non_zero(i: usize) -> ParseResult<NonZeroU32> {
+    to_u32(i).and_then(|n| NonZeroU32::new(n).ok_or(ParseError::Overflow))
 }
 
 fn is_normalized_windows_drive_letter(segment: &str) -> bool {

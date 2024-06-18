@@ -6,7 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use crate::Url;
+use crate::{ByteAt as _, Url};
 use std::ops::{Index, Range, RangeFrom, RangeFull, RangeTo};
 
 impl Index<RangeFull> for Url {
@@ -184,29 +184,29 @@ impl Url {
             Position::BeforePath => self.path_start as usize,
 
             Position::AfterPath => match (self.query_start, self.fragment_start) {
-                (Some(q), _) => q as usize,
-                (None, Some(f)) => f as usize,
+                (Some(q), _) => q.get() as usize,
+                (None, Some(f)) => f.get() as usize,
                 (None, None) => self.serialization.len(),
             },
 
             Position::BeforeQuery => match (self.query_start, self.fragment_start) {
                 (Some(q), _) => {
                     debug_assert!(self.byte_at(q) == b'?');
-                    q as usize + "?".len()
+                    q.get() as usize + "?".len()
                 }
-                (None, Some(f)) => f as usize,
+                (None, Some(f)) => f.get() as usize,
                 (None, None) => self.serialization.len(),
             },
 
             Position::AfterQuery => match self.fragment_start {
                 None => self.serialization.len(),
-                Some(f) => f as usize,
+                Some(f) => f.get() as usize,
             },
 
             Position::BeforeFragment => match self.fragment_start {
                 Some(f) => {
                     debug_assert!(self.byte_at(f) == b'#');
-                    f as usize + "#".len()
+                    f.get() as usize + "#".len()
                 }
                 None => self.serialization.len(),
             },

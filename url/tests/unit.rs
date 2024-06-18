@@ -789,6 +789,8 @@ fn test_domain_encoding_quirks() {
 #[cfg(feature = "expose_internals")]
 #[test]
 fn test_expose_internals() {
+    use std::num::NonZeroU32;
+
     use url::quirks::internal_components;
     use url::quirks::InternalComponents;
 
@@ -810,8 +812,8 @@ fn test_expose_internals() {
     assert_eq!(host_end, 19);
     assert_eq!(port, None);
     assert_eq!(path_start, 19);
-    assert_eq!(query_start, Some(33));
-    assert_eq!(fragment_start, Some(51));
+    assert_eq!(query_start, Some(NonZeroU32::new(33).unwrap()));
+    assert_eq!(fragment_start, Some(NonZeroU32::new(51).unwrap()));
 }
 
 #[test]
@@ -1007,6 +1009,31 @@ fn test_null_host_with_leading_empty_path_segment() {
     let encoded = url.as_str();
     let reparsed = Url::parse(encoded).unwrap();
     assert_eq!(reparsed, url);
+}
+
+#[test]
+fn test_pop_if_empty_for_empty_path() {
+    let urls = [
+        "https://github.com",
+        "https://github.com/",
+        "https://github.com//",
+    ];
+    for url in &urls {
+        let mut url = Url::parse(url).unwrap();
+        url.path_segments_mut().unwrap().pop_if_empty();
+        assert_eq!(url.as_str(), "https://github.com/");
+    }
+}
+
+#[test]
+fn test_pop_if_empty_when_nonempty() {
+    let mut url = Url::parse("https://github.com/servo/rust-url").unwrap();
+    url.path_segments_mut().unwrap().push("").pop_if_empty();
+    assert_eq!(url.as_str(), "https://github.com/servo/rust-url");
+
+    let mut url = Url::parse("https://github.com/servo/rust-url/").unwrap();
+    url.path_segments_mut().unwrap().pop_if_empty();
+    assert_eq!(url.as_str(), "https://github.com/servo/rust-url");
 }
 
 #[test]

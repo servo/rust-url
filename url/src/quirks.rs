@@ -11,6 +11,8 @@
 //! Unless you need to be interoperable with web browsers,
 //! you probably want to use `Url` method instead.
 
+use std::num::NonZeroU32;
+
 use crate::parser::{default_port, Context, Input, Parser, SchemeType};
 use crate::{Host, ParseError, Position, Url};
 
@@ -35,8 +37,8 @@ pub struct InternalComponents {
     pub host_end: u32,
     pub port: Option<u16>,
     pub path_start: u32,
-    pub query_start: Option<u32>,
-    pub fragment_start: Option<u32>,
+    pub query_start: Option<NonZeroU32>,
+    pub fragment_start: Option<NonZeroU32>,
 }
 
 /// Internal component / parsed offsets of the URL.
