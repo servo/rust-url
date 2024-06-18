@@ -17,7 +17,6 @@ use alloc::{string::String, vec::Vec};
 use core::char;
 use core::fmt::Write;
 use core::marker::PhantomData;
-use core::u32;
 
 // Bootstring parameters for Punycode
 const BASE: u32 = 36;
@@ -215,7 +214,7 @@ impl Decoder {
                 if C::EXTERNAL_CALLER && (digit > (u32::MAX - i) / weight) {
                     return Err(()); // Overflow
                 }
-                i += digit * weight;
+                i = i.checked_add(digit * weight).ok_or(())?;
                 let t = if k <= bias {
                     T_MIN
                 } else if k >= bias + T_MAX {
