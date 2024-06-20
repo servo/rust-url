@@ -2813,9 +2813,8 @@ impl<'de> serde::Deserialize<'de> for Url {
             where
                 E: Error,
             {
-                Url::parse(s).map_err(|err| {
-                    let err_s = format!("{}", err);
-                    Error::invalid_value(Unexpected::Str(s), &err_s.as_str())
+                Url::parse(s).map_err(|_| {
+                    Error::invalid_value(Unexpected::Str(s), &self)
                 })
             }
         }
