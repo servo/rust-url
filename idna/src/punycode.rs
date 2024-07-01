@@ -71,15 +71,16 @@ pub fn decode(input: &str) -> Option<Vec<char>> {
 /// Marker for internal vs. external caller to retain old API behavior
 /// while tweaking behavior for internal callers.
 ///
-/// External callers retain the old behavior of the pre-existing
-/// public entry points to this module by 1) limiting input length
-/// to the 32-bit accumulator overflowing and 2) by not performing
-/// ASCII case folding.
+/// External callers need overflow checks when encoding, but internal
+/// callers don't, because `PUNYCODE_ENCODE_MAX_INPUT_LENGTH` is set
+/// to 1000, and per RFC 3492 section 6.4, the integer variable does
+/// not need to be able to represent values larger than
+/// (char::MAX - INITIAL_N) * (PUNYCODE_ENCODE_MAX_INPUT_LENGTH + 1),
+/// which is less than u32::MAX.
 ///
-/// Internal callers omit overflow checks due to the input length
-/// being constrained before calling into this module. Additionally,
-/// when the code unit is `u8`, upper-case ASCII is replaced with
-/// lower-case ASCII.
+/// External callers need to handle upper-case ASCII when decoding,
+/// but internal callers don't, because the internal code calls the
+/// decoder only with lower-case inputs.
 pub(crate) trait PunycodeCaller {
     const EXTERNAL_CALLER: bool;
 }
@@ -162,8 +163,6 @@ pub(crate) struct Decoder {
 
 impl Decoder {
     /// Split the input iterator and return a Vec with insertions of encoded characters
-    ///
-    /// XXX: Add a policy parameter to skip overflow checks
     pub(crate) fn decode<'a, T: PunycodeCodeUnit + Copy, C: PunycodeCaller>(
         &'a mut self,
         input: &'a [T],
@@ -192,7 +191,7 @@ impl Decoder {
         let mut length = base_len as u32;
         let mut code_point = INITIAL_N;
         let mut bias = INITIAL_BIAS;
-        let mut i = 0;
+        let mut i = 0u32;
         let mut iter = input.iter();
         loop {
             let previous_i = i;
@@ -211,10 +210,8 @@ impl Decoder {
                 } else {
                     return Err(());
                 };
-                if C::EXTERNAL_CALLER && (digit > (u32::MAX - i) / weight) {
-                    return Err(()); // Overflow
-                }
-                i = i.checked_add(digit * weight).ok_or(())?;
+                let product = digit.checked_mul(weight).ok_or(())?;
+                i = i.checked_add(product).ok_or(())?;
                 let t = if k <= bias {
                     T_MIN
                 } else if k >= bias + T_MAX {
@@ -225,10 +222,7 @@ impl Decoder {
                 if digit < t {
                     break;
                 }
-                if C::EXTERNAL_CALLER && (weight > u32::MAX / (BASE - t)) {
-                    return Err(()); // Overflow
-                }
-                weight *= BASE - t;
+                weight = weight.checked_mul(BASE - t).ok_or(())?;
                 k += BASE;
                 byte = match iter.next() {
                     None => return Err(()), // End of input before the end of this delta
@@ -237,13 +231,10 @@ impl Decoder {
             }
 
             bias = adapt(i - previous_i, length + 1, previous_i == 0);
-            if C::EXTERNAL_CALLER && (i / (length + 1) > u32::MAX - code_point) {
-                return Err(()); // Overflow
-            }
 
             // i was supposed to wrap around from length+1 to 0,
             // incrementing code_point each time.
-            code_point += i / (length + 1);
+            code_point = code_point.checked_add(i / (length + 1)).ok_or(())?;
             i %= length + 1;
             let c = match char::from_u32(code_point) {
                 Some(c) => c,
@@ -381,11 +372,24 @@ where
         }
     }
 
+    if !C::EXTERNAL_CALLER {
+        // We should never get an overflow here with the internal caller being
+        // length-limited, but let's check anyway once here trusting the math
+        // from  RFC 3492 section 6.4 and then omit the overflow checks in the
+        // loop below.
+        let len_plus_one = input_length
+            .checked_add(1)
+            .ok_or(PunycodeEncodeError::Overflow)?;
+        len_plus_one
+            .checked_mul(u32::from(char::MAX) - INITIAL_N)
+            .ok_or(PunycodeEncodeError::Overflow)?;
+    }
+
     if basic_length > 0 {
         output.write_char('-')?;
     }
     let mut code_point = INITIAL_N;
-    let mut delta = 0;
+    let mut delta = 0u32;
     let mut bias = INITIAL_BIAS;
     let mut processed = basic_length;
     while processed < input_length {
@@ -397,18 +401,26 @@ where
             .filter(|&c| c >= code_point)
             .min()
             .unwrap();
-        if C::EXTERNAL_CALLER
-            && (min_code_point - code_point > (u32::MAX - delta) / (processed + 1))
-        {
-            return Err(PunycodeEncodeError::Overflow); // Overflow
-        }
         // Increase delta to advance the decoder’s <code_point,i> state to <min_code_point,0>
-        delta += (min_code_point - code_point) * (processed + 1);
+        if C::EXTERNAL_CALLER {
+            let product = (min_code_point - code_point)
+                .checked_mul(processed + 1)
+                .ok_or(PunycodeEncodeError::Overflow)?;
+            delta = delta
+                .checked_add(product)
+                .ok_or(PunycodeEncodeError::Overflow)?;
+        } else {
+            delta += (min_code_point - code_point) * (processed + 1);
+        }
         code_point = min_code_point;
         for c in input.clone() {
             let c = c as u32;
             if c < code_point {
-                delta = delta.checked_add(1).ok_or(PunycodeEncodeError::Overflow)?;
+                if C::EXTERNAL_CALLER {
+                    delta = delta.checked_add(1).ok_or(PunycodeEncodeError::Overflow)?;
+                } else {
+                    delta += 1;
+                }
             }
             if c == code_point {
                 // Represent delta as a generalized variable-length integer:
