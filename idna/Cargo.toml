@@ -17,7 +17,7 @@ doctest = false
 default = ["std", "compiled_data"]
 std = ["alloc"]
 alloc = []
-compiled_data = ["icu_normalizer/compiled_data", "icu_properties/compiled_data"]
+compiled_data = ["idna_adapter/compiled_data"]
 
 [[test]]
 name = "tests"
@@ -36,10 +36,9 @@ tester = "0.9"
 serde_json = "1.0"
 
 [dependencies]
-icu_normalizer = "1.4.3"
-icu_properties = "1.4.2"
 utf8_iter = "1.0.4"
 smallvec = { version = "1.13.1", features = ["const_generics"]}
+idna_adapter = { path = "../../idna_adapter" }
 
 [[bench]]
 name = "all"
