@@ -54,6 +54,11 @@ fn to_ascii_cow_plain(bench: &mut Bencher) {
     bench.iter(|| idna::domain_to_ascii_cow(black_box(encoded), idna::AsciiDenyList::URL));
 }
 
+fn to_ascii_cow_hyphen(bench: &mut Bencher) {
+    let encoded = "hyphenated-example.com".as_bytes();
+    bench.iter(|| idna::domain_to_ascii_cow(black_box(encoded), idna::AsciiDenyList::URL));
+}
+
 fn to_ascii_cow_leading_digit(bench: &mut Bencher) {
     let encoded = "1test.example".as_bytes();
     bench.iter(|| idna::domain_to_ascii_cow(black_box(encoded), idna::AsciiDenyList::URL));
@@ -99,6 +104,7 @@ benchmark_group!(
     to_ascii_simple,
     to_ascii_merged,
     to_ascii_cow_plain,
+    to_ascii_cow_hyphen,
     to_ascii_cow_leading_digit,
     to_ascii_cow_unicode_mixed,
     to_ascii_cow_punycode_mixed,
