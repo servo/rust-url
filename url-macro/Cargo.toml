@@ -1,0 +1,18 @@
+[package]
+name = "url-macro"
+version = "0.1.0"
+edition = "2018"
+rust-version = "1.56"
+
+authors = ["The rust-url developers"]
+description = "URL library for Rust, based on the WHATWG URL Standard"
+documentation = "https://docs.rs/url"
+repository = "https://github.com/servo/rust-url"
+readme = "../README.md"
+keywords = ["url", "parser"]
+categories = ["parser-implementations", "web-programming", "encoding"]
+license = "MIT OR Apache-2.0"
+
+include = ["src/**/*", "LICENSE-*", "README.md", "tests/**"]
+
+[dependencies]
