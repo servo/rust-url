@@ -1,13 +1,10 @@
 #![no_main]
-#[macro_use] extern crate libfuzzer_sys;
-extern crate url;
-use std::str;
+use libfuzzer_sys::fuzz_target;
 
-fuzz_target!(|data: &[u8]| {
-    if let Ok(utf8) = str::from_utf8(data) {
-        if let Ok(parsed) = url::Url::parse(utf8) {
-            let as_str = parsed.as_str();
-            assert_eq!(parsed, url::Url::parse(as_str).unwrap());
-        }
+fuzz_target!(|data: String| {
+    if let Ok(parsed) = url::Url::parse(data.as_str()) {
+        let as_str = parsed.as_str();
+        let parsed_again = url::Url::parse(as_str).unwrap();
+        assert_eq!(parsed, parsed_again);
     }
 });
