@@ -90,7 +90,7 @@ impl<'a> PathSegmentsMut<'a> {
     /// # run().unwrap();
     /// ```
     pub fn clear(&mut self) -> &mut Self {
-        self.url.serialization.truncate(self.after_first_slash);
+        self.url.truncate(self.after_first_slash);
         self
     }
 
@@ -127,7 +127,7 @@ impl<'a> PathSegmentsMut<'a> {
             return self;
         }
         if self.url.serialization[self.after_first_slash..].ends_with('/') {
-            self.url.serialization.pop();
+            self.url.serialization.to_mut().pop();
         }
         self
     }
@@ -144,9 +144,7 @@ impl<'a> PathSegmentsMut<'a> {
         let last_slash = self.url.serialization[self.after_first_slash..]
             .rfind('/')
             .unwrap_or(0);
-        self.url
-            .serialization
-            .truncate(self.after_first_slash + last_slash);
+        self.url.truncate(self.after_first_slash + last_slash);
         self
     }
 

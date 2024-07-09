@@ -150,7 +150,7 @@ use crate::parser::{
     to_u32, Context, Parser, SchemeType, PATH_SEGMENT, SPECIAL_PATH_SEGMENT, USERINFO,
 };
 use percent_encoding::{percent_decode, percent_encode, utf8_percent_encode};
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::cmp;
 use std::fmt::{self, Write};
 use std::hash;
@@ -194,7 +194,7 @@ pub struct Url {
     ///   authority = "//" userinfo? host [ ":" port ]?
     ///   userinfo = username [ ":" password ]? "@"
     ///   hierarchical-path = [ "/" path-segment ]+
-    serialization: String,
+    serialization: Cow<'static, str>,
 
     // Components
     scheme_end: u32,   // Before ':'
@@ -366,7 +366,7 @@ impl Url {
 
         let start = self.serialization.len() - trailing_space_count;
 
-        self.serialization.truncate(start);
+        self.serialization.to_mut().truncate(start);
     }
 
     /// Parse a string as an URL, with this URL as the base URL.
@@ -1487,10 +1487,21 @@ impl Url {
     }
 
     fn mutate<F: FnOnce(&mut Parser<'_>) -> R, R>(&mut self, f: F) -> R {
-        let mut parser = Parser::for_setter(mem::take(&mut self.serialization));
+        let mut parser = Parser::for_setter(mem::take(self.serialization.to_mut()));
         let result = f(&mut parser);
-        self.serialization = parser.serialization;
+        self.serialization = Cow::Owned(parser.serialization);
         result
+    }
+
+    fn truncate(&mut self, new_len: usize) {
+        match &mut self.serialization {
+            Cow::Owned(s) => s.truncate(new_len),
+            Cow::Borrowed(s) => {
+                if new_len < s.len() {
+                    *s = &(*s)[..new_len];
+                }
+            }
+        }
     }
 
     /// Change this URL’s fragment identifier.
@@ -1520,12 +1531,12 @@ impl Url {
         // Remove any previous fragment
         if let Some(start) = self.fragment_start {
             debug_assert!(self.byte_at(start) == b'#');
-            self.serialization.truncate(start as usize);
+            self.truncate(start as usize);
         }
         // Write the new one
         if let Some(input) = fragment {
             self.fragment_start = Some(to_u32(self.serialization.len()).unwrap());
-            self.serialization.push('#');
+            self.serialization.to_mut().push('#');
             self.mutate(|parser| parser.parse_fragment(parser::Input::new_no_trim(input)))
         } else {
             self.fragment_start = None;
@@ -1537,7 +1548,7 @@ impl Url {
         self.fragment_start.take().map(|start| {
             debug_assert!(self.byte_at(start) == b'#');
             let fragment = self.slice(start + 1..).to_owned();
-            self.serialization.truncate(start as usize);
+            self.serialization.to_mut().truncate(start as usize);
             fragment
         })
     }
@@ -1546,8 +1557,10 @@ impl Url {
         if let Some(ref fragment) = fragment {
             assert!(self.fragment_start.is_none());
             self.fragment_start = Some(to_u32(self.serialization.len()).unwrap());
-            self.serialization.push('#');
-            self.serialization.push_str(fragment);
+
+            let serialization = self.serialization.to_mut();
+            serialization.push('#');
+            serialization.push_str(fragment);
         }
     }
 
@@ -1577,12 +1590,12 @@ impl Url {
         // Remove any previous query
         if let Some(start) = self.query_start.take() {
             debug_assert!(self.byte_at(start) == b'?');
-            self.serialization.truncate(start as usize);
+            self.serialization.to_mut().truncate(start as usize);
         }
         // Write the new query, if any
         if let Some(input) = query {
             self.query_start = Some(to_u32(self.serialization.len()).unwrap());
-            self.serialization.push('?');
+            self.serialization.to_mut().push('?');
             let scheme_type = SchemeType::from(self.scheme());
             let scheme_end = self.scheme_end;
             self.mutate(|parser| {
@@ -1645,7 +1658,7 @@ impl Url {
         } else {
             query_start = self.serialization.len();
             self.query_start = Some(to_u32(query_start).unwrap());
-            self.serialization.push('?');
+            self.serialization.to_mut().push('?');
         }
 
         let query = UrlQuery {
@@ -1659,7 +1672,7 @@ impl Url {
         match (self.query_start, self.fragment_start) {
             (Some(i), _) | (None, Some(i)) => {
                 let after_path = self.slice(i..).to_owned();
-                self.serialization.truncate(i as usize);
+                self.truncate(i as usize);
                 after_path
             }
             (None, None) => String::new(),
@@ -1706,7 +1719,7 @@ impl Url {
         let old_after_path_pos = to_u32(self.serialization.len()).unwrap();
         let cannot_be_a_base = self.cannot_be_a_base();
         let scheme_type = SchemeType::from(self.scheme());
-        self.serialization.truncate(self.path_start as usize);
+        self.truncate(self.path_start as usize);
         self.mutate(|parser| {
             if cannot_be_a_base {
                 if path.starts_with('/') {
@@ -1750,7 +1763,7 @@ impl Url {
         if let Some(ref mut index) = self.fragment_start {
             adjust(index)
         }
-        self.serialization.push_str(after_path)
+        self.serialization.to_mut().push_str(after_path)
     }
 
     /// Change this URL’s port number.
@@ -1831,6 +1844,7 @@ impl Url {
             (None, None) => {}
             (Some(_), None) => {
                 self.serialization
+                    .to_mut()
                     .drain(self.host_end as usize..self.path_start as usize);
                 let offset = self.path_start - self.host_end;
                 self.path_start = self.host_end;
@@ -1844,8 +1858,8 @@ impl Url {
             (Some(old), Some(new)) if old == new => {}
             (_, Some(new)) => {
                 let path_and_after = self.slice(self.path_start..).to_owned();
-                self.serialization.truncate(self.host_end as usize);
-                write!(&mut self.serialization, ":{}", new).unwrap();
+                self.truncate(self.host_end as usize);
+                write!(self.serialization.to_mut(), ":{}", new).unwrap();
                 let old_path_start = self.path_start;
                 let new_path_start = to_u32(self.serialization.len()).unwrap();
                 self.path_start = new_path_start;
@@ -1859,7 +1873,7 @@ impl Url {
                 if let Some(ref mut index) = self.fragment_start {
                     adjust(index)
                 }
-                self.serialization.push_str(&path_and_after);
+                self.serialization.to_mut().push_str(&path_and_after);
             }
         }
         self.port = port;
@@ -1982,7 +1996,7 @@ impl Url {
             if scheme_type.is_special() && !scheme_type.is_file() {
                 return Err(ParseError::EmptyHost);
             } else if self.serialization.len() == self.path_start as usize {
-                self.serialization.push('/');
+                self.serialization.to_mut().push('/');
             }
             debug_assert!(self.byte_at(self.scheme_end) == b':');
             debug_assert!(self.byte_at(self.path_start) == b'/');
@@ -1994,6 +2008,7 @@ impl Url {
             };
 
             self.serialization
+                .to_mut()
                 .drain(new_path_start as usize..self.path_start as usize);
             let offset = self.path_start - new_path_start;
             self.path_start = new_path_start;
@@ -2019,27 +2034,27 @@ impl Url {
             self.host_end
         };
         let suffix = self.slice(old_suffix_pos..).to_owned();
-        self.serialization.truncate(self.host_start as usize);
+        self.truncate(self.host_start as usize);
         if !self.has_authority() {
             debug_assert!(self.slice(self.scheme_end..self.host_start) == ":");
             debug_assert!(self.username_end == self.host_start);
-            self.serialization.push('/');
-            self.serialization.push('/');
+            self.serialization.to_mut().push('/');
+            self.serialization.to_mut().push('/');
             self.username_end += 2;
             self.host_start += 2;
         }
-        write!(&mut self.serialization, "{}", host).unwrap();
+        write!(self.serialization.to_mut(), "{}", host).unwrap();
         self.host_end = to_u32(self.serialization.len()).unwrap();
         self.host = host.into();
 
         if let Some(new_port) = opt_new_port {
             self.port = new_port;
             if let Some(port) = new_port {
-                write!(&mut self.serialization, ":{}", port).unwrap();
+                write!(self.serialization.to_mut(), ":{}", port).unwrap();
             }
         }
         let new_suffix_pos = to_u32(self.serialization.len()).unwrap();
-        self.serialization.push_str(&suffix);
+        self.serialization.to_mut().push_str(&suffix);
 
         let adjust = |index: &mut u32| {
             *index -= old_suffix_pos;
@@ -2140,11 +2155,12 @@ impl Url {
         let password = password.unwrap_or_default();
         if !password.is_empty() {
             let host_and_after = self.slice(self.host_start..).to_owned();
-            self.serialization.truncate(self.username_end as usize);
-            self.serialization.push(':');
+            self.truncate(self.username_end as usize);
+            self.serialization.to_mut().push(':');
             self.serialization
+                .to_mut()
                 .extend(utf8_percent_encode(password, USERINFO));
-            self.serialization.push('@');
+            self.serialization.to_mut().push('@');
 
             let old_host_start = self.host_start;
             let new_host_start = to_u32(self.serialization.len()).unwrap();
@@ -2162,7 +2178,7 @@ impl Url {
                 adjust(index)
             }
 
-            self.serialization.push_str(&host_and_after);
+            self.serialization.to_mut().push_str(&host_and_after);
         } else if self.byte_at(self.username_end) == b':' {
             // If there is a password to remove
             let has_username_or_password = self.byte_at(self.host_start - 1) == b'@';
@@ -2175,7 +2191,9 @@ impl Url {
             } else {
                 self.host_start - 1 // Keep the '@' to separate the username from the host
             };
-            self.serialization.drain(start as usize..end as usize);
+            self.serialization
+                .to_mut()
+                .drain(start as usize..end as usize);
             let offset = end - start;
             self.host_start -= offset;
             self.host_end -= offset;
@@ -2237,8 +2255,9 @@ impl Url {
             return Ok(());
         }
         let after_username = self.slice(self.username_end..).to_owned();
-        self.serialization.truncate(username_start as usize);
+        self.truncate(username_start as usize);
         self.serialization
+            .to_mut()
             .extend(utf8_percent_encode(username, USERINFO));
 
         let mut removed_bytes = self.username_end;
@@ -2249,15 +2268,15 @@ impl Url {
         match (new_username_is_empty, after_username.chars().next()) {
             (true, Some('@')) => {
                 removed_bytes += 1;
-                self.serialization.push_str(&after_username[1..]);
+                self.serialization.to_mut().push_str(&after_username[1..]);
             }
             (false, Some('@')) | (_, Some(':')) | (true, _) => {
-                self.serialization.push_str(&after_username);
+                self.serialization.to_mut().push_str(&after_username);
             }
             (false, _) => {
                 added_bytes += 1;
-                self.serialization.push('@');
-                self.serialization.push_str(&after_username);
+                self.serialization.to_mut().push('@');
+                self.serialization.to_mut().push_str(&after_username);
             }
         }
 
@@ -2427,7 +2446,7 @@ impl Url {
         }
 
         parser.serialization.push_str(self.slice(old_scheme_end..));
-        self.serialization = parser.serialization;
+        self.serialization = Cow::Owned(parser.serialization);
 
         // Update the port so it can be removed
         // If it is the scheme's default
@@ -2473,7 +2492,7 @@ impl Url {
         let host_start = serialization.len() as u32;
         let (host_end, host) = path_to_file_url_segments(path.as_ref(), &mut serialization)?;
         Ok(Url {
-            serialization,
+            serialization: Cow::Owned(serialization),
             scheme_end: "file".len() as u32,
             username_end: host_start,
             host_start,
@@ -2508,7 +2527,7 @@ impl Url {
     pub fn from_directory_path<P: AsRef<Path>>(path: P) -> Result<Url, ()> {
         let mut url = Url::from_file_path(path)?;
         if !url.serialization.ends_with('/') {
-            url.serialization.push('/')
+            url.serialization.to_mut().push('/')
         }
         Ok(url)
     }
@@ -2682,7 +2701,7 @@ impl fmt::Display for Url {
 /// String conversion.
 impl From<Url> for String {
     fn from(value: Url) -> String {
-        value.serialization
+        value.serialization.into_owned()
     }
 }
 
@@ -3051,7 +3070,7 @@ pub struct UrlQuery<'a> {
 // * Unlike in other `Target` impls, `UrlQuery::finished` does not return `Self`.
 impl<'a> form_urlencoded::Target for UrlQuery<'a> {
     fn as_mut_string(&mut self) -> &mut String {
-        &mut self.url.as_mut().unwrap().serialization
+        self.url.as_mut().unwrap().serialization.to_mut()
     }
 
     fn finish(mut self) -> &'a mut Url {

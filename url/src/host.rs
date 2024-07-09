@@ -36,6 +36,23 @@ impl From<Host<String>> for HostInternal {
     }
 }
 
+impl Host<&'static str> {
+    pub(crate) const fn into_internal(self) -> HostInternal {
+        match self {
+            Host::Domain(s) if s.is_empty() => HostInternal::None,
+            Host::Domain(_) => HostInternal::Domain,
+            Host::Ipv4(address) => HostInternal::Ipv4(address),
+            Host::Ipv6(address) => HostInternal::Ipv6(address),
+        }
+    }
+}
+
+impl From<Host<&'static str>> for HostInternal {
+    fn from(host: Host<&'static str>) -> HostInternal {
+        host.into_internal()
+    }
+}
+
 /// The host name of an URL.
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, Eq, Ord, PartialOrd, Hash)]

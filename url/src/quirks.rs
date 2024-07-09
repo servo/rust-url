@@ -11,8 +11,48 @@
 //! Unless you need to be interoperable with web browsers,
 //! you probably want to use `Url` method instead.
 
+use std::borrow::Cow;
+
 use crate::parser::{default_port, Context, Input, Parser, SchemeType};
 use crate::{Host, ParseError, Position, Url};
+
+pub struct UrlInternal {
+    pub serialization: &'static str,
+    pub host: Host<&'static str>,
+    pub components: InternalComponents,
+}
+
+#[doc(hidden)]
+pub const fn url_from_parts(
+    UrlInternal {
+        serialization,
+        host,
+        components:
+            InternalComponents {
+                scheme_end,
+                username_end,
+                host_start,
+                host_end,
+                port,
+                path_start,
+                query_start,
+                fragment_start,
+            },
+    }: UrlInternal,
+) -> Url {
+    Url {
+        serialization: Cow::Borrowed(serialization),
+        scheme_end,
+        username_end,
+        host_start,
+        host_end,
+        host: host.into_internal(),
+        port,
+        path_start,
+        query_start,
+        fragment_start,
+    }
+}
 
 /// Internal components / offsets of a URL.
 ///

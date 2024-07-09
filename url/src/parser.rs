@@ -6,6 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use std::borrow::Cow;
 use std::error::Error;
 use std::fmt::{self, Formatter, Write};
 use std::str;
@@ -539,7 +540,7 @@ impl<'a> Parser<'a> {
                 let (query_start, fragment_start) =
                     self.parse_query_and_fragment(scheme_type, scheme_end, remaining)?;
                 return Ok(Url {
-                    serialization: self.serialization,
+                    serialization: Cow::Owned(self.serialization),
                     scheme_end,
                     username_end: host_start,
                     host_start,
@@ -590,7 +591,7 @@ impl<'a> Parser<'a> {
 
                 let host_end = host_end as u32;
                 return Ok(Url {
-                    serialization: self.serialization,
+                    serialization: Cow::Owned(self.serialization),
                     scheme_end,
                     username_end: host_start,
                     host_start,
@@ -613,7 +614,7 @@ impl<'a> Parser<'a> {
                     };
                     self.serialization.push_str(before_fragment);
                     Ok(Url {
-                        serialization: self.serialization,
+                        serialization: Cow::Owned(self.serialization),
                         fragment_start: None,
                         ..*base_url
                     })
@@ -628,7 +629,7 @@ impl<'a> Parser<'a> {
                     let (query_start, fragment_start) =
                         self.parse_query_and_fragment(scheme_type, base_url.scheme_end, input)?;
                     Ok(Url {
-                        serialization: self.serialization,
+                        serialization: Cow::Owned(self.serialization),
                         query_start,
                         fragment_start,
                         ..*base_url
@@ -670,7 +671,7 @@ impl<'a> Parser<'a> {
                             self.parse_query_and_fragment(SchemeType::File, scheme_end, remaining)?;
                         let path_start = path_start as u32;
                         Ok(Url {
-                            serialization: self.serialization,
+                            serialization: Cow::Owned(self.serialization),
                             scheme_end,
                             username_end: path_start,
                             host_start: path_start,
@@ -693,7 +694,7 @@ impl<'a> Parser<'a> {
                 self.parse_query_and_fragment(SchemeType::File, scheme_end, remaining)?;
             let path_start = path_start as u32;
             Ok(Url {
-                serialization: self.serialization,
+                serialization: Cow::Owned(self.serialization),
                 scheme_end,
                 username_end: path_start,
                 host_start: path_start,
@@ -725,7 +726,7 @@ impl<'a> Parser<'a> {
                 };
                 self.serialization.push_str(before_fragment);
                 Ok(Url {
-                    serialization: self.serialization,
+                    serialization: Cow::Owned(self.serialization),
                     fragment_start: None,
                     ..*base_url
                 })
@@ -740,7 +741,7 @@ impl<'a> Parser<'a> {
                 let (query_start, fragment_start) =
                     self.parse_query_and_fragment(scheme_type, base_url.scheme_end, input)?;
                 Ok(Url {
-                    serialization: self.serialization,
+                    serialization: Cow::Owned(self.serialization),
                     query_start,
                     fragment_start,
                     ..*base_url
@@ -1416,7 +1417,7 @@ impl<'a> Parser<'a> {
         let (query_start, fragment_start) =
             self.parse_query_and_fragment(scheme_type, scheme_end, remaining)?;
         Ok(Url {
-            serialization: self.serialization,
+            serialization: Cow::Owned(self.serialization),
             scheme_end,
             username_end,
             host_start,
@@ -1510,7 +1511,7 @@ impl<'a> Parser<'a> {
         debug_assert!(next == Some('#'));
         self.parse_fragment(input);
         Ok(Url {
-            serialization: self.serialization,
+            serialization: Cow::Owned(self.serialization),
             fragment_start: Some(to_u32(before_fragment.len())?),
             ..*base_url
         })
