@@ -15,4 +15,16 @@ license = "MIT OR Apache-2.0"
 
 include = ["src/**/*", "LICENSE-*", "README.md", "tests/**"]
 
+[lib]
+proc-macro = true
+
 [dependencies]
+url = { version = "2.5.2", path = "../url", default-features = false, features = [
+    "expose_internals",
+] }
+proc-macro2 = "1.0.68"
+syn = { version = "2.0.43", default-features = false, features = [
+    "proc-macro",
+    "parsing",
+] }
+quote = "1.0.28"
