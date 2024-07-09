@@ -366,7 +366,7 @@ impl Url {
 
         let start = self.serialization.len() - trailing_space_count;
 
-        self.serialization.to_mut().truncate(start);
+        self.truncate(start);
     }
 
     /// Parse a string as an URL, with this URL as the base URL.
@@ -1548,7 +1548,7 @@ impl Url {
         self.fragment_start.take().map(|start| {
             debug_assert!(self.byte_at(start) == b'#');
             let fragment = self.slice(start + 1..).to_owned();
-            self.serialization.to_mut().truncate(start as usize);
+            self.truncate(start as usize);
             fragment
         })
     }
