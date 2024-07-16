@@ -2883,9 +2883,9 @@ fn path_to_file_url_segments(
     Ok((host_end, HostInternal::None))
 }
 
-#[cfg(windows)]
+#[cfg(all(feature = "std", windows))]
 fn path_to_file_url_segments(
-    path: &Path,
+    path: &std::path::Path,
     serialization: &mut String,
 ) -> Result<(u32, HostInternal), ()> {
     path_to_file_url_segments_windows(path, serialization)
@@ -3002,11 +3002,11 @@ fn file_url_segments_to_pathbuf(
     Ok(path)
 }
 
-#[cfg(windows)]
+#[cfg(all(feature = "std", windows))]
 fn file_url_segments_to_pathbuf(
     host: Option<&str>,
     segments: str::Split<char>,
-) -> Result<PathBuf, ()> {
+) -> Result<std::path::PathBuf, ()> {
     file_url_segments_to_pathbuf_windows(host, segments)
 }
 
