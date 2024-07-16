@@ -8,8 +8,8 @@
 
 use crate::parser::{self, to_u32, SchemeType};
 use crate::Url;
-use core::str;
 use alloc::string::String;
+use core::str;
 
 /// Exposes methods to manipulate the path of an URL that is not cannot-be-base.
 ///

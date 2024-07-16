@@ -164,15 +164,15 @@ use crate::host::HostInternal;
 use crate::parser::{
     to_u32, Context, Parser, SchemeType, PATH_SEGMENT, SPECIAL_PATH_SEGMENT, USERINFO,
 };
-use percent_encoding::{percent_decode, percent_encode, utf8_percent_encode};
 use core::borrow::Borrow;
 use core::cmp;
 use core::fmt::{self, Write};
 use core::hash;
 use core::mem;
-use std_core_compat::net::IpAddr;
 use core::ops::{Range, RangeFrom, RangeTo};
 use core::str;
+use percent_encoding::{percent_decode, percent_encode, utf8_percent_encode};
+use std_core_compat::net::IpAddr;
 
 use alloc::borrow::ToOwned;
 use alloc::format;
@@ -1291,13 +1291,16 @@ impl Url {
     ///     })
     /// }
     /// ```
-    #[cfg(all(feature = "std", any(unix, windows, target_os = "redox", target_os = "wasi")))]
+    #[cfg(all(
+        feature = "std",
+        any(unix, windows, target_os = "redox", target_os = "wasi")
+    ))]
     pub fn socket_addrs(
         &self,
         default_port_number: impl Fn() -> Option<u16>,
     ) -> std::io::Result<Vec<std::net::SocketAddr>> {
-        use std::net::ToSocketAddrs;
         use std::io;
+        use std::net::ToSocketAddrs;
         // Note: trying to avoid the Vec allocation by returning `impl AsRef<[SocketAddr]>`
         // causes borrowck issues because the return value borrows `default_port_number`:
         //
@@ -2483,7 +2486,10 @@ impl Url {
     /// # run().unwrap();
     /// # }
     /// ```
-    #[cfg(all(feature = "std", any(unix, windows, target_os = "redox", target_os = "wasi")))]
+    #[cfg(all(
+        feature = "std",
+        any(unix, windows, target_os = "redox", target_os = "wasi")
+    ))]
     #[allow(clippy::result_unit_err)]
     pub fn from_file_path<P: AsRef<std::path::Path>>(path: P) -> Result<Url, ()> {
         let mut serialization = "file://".to_owned();
@@ -2520,7 +2526,10 @@ impl Url {
     ///
     /// Note that `std::path` does not consider trailing slashes significant
     /// and usually does not include them (e.g. in `Path::parent()`).
-    #[cfg(all(feature = "std", any(unix, windows, target_os = "redox", target_os = "wasi")))]
+    #[cfg(all(
+        feature = "std",
+        any(unix, windows, target_os = "redox", target_os = "wasi")
+    ))]
     #[allow(clippy::result_unit_err)]
     pub fn from_directory_path<P: AsRef<std::path::Path>>(path: P) -> Result<Url, ()> {
         let mut url = Url::from_file_path(path)?;
@@ -2637,7 +2646,10 @@ impl Url {
     /// (That is, if the percent-decoded path contains a NUL byte or,
     /// for a Windows path, is not UTF-8.)
     #[inline]
-    #[cfg(all(feature = "std", any(unix, windows, target_os = "redox", target_os = "wasi")))]
+    #[cfg(all(
+        feature = "std",
+        any(unix, windows, target_os = "redox", target_os = "wasi")
+    ))]
     #[allow(clippy::result_unit_err)]
     pub fn to_file_path(&self) -> Result<std::path::PathBuf, ()> {
         if let Some(segments) = self.path_segments() {
@@ -2950,11 +2962,11 @@ fn file_url_segments_to_pathbuf(
     segments: str::Split<'_, char>,
 ) -> Result<std::path::PathBuf, ()> {
     use std::ffi::OsStr;
-    use std::path::PathBuf;
     #[cfg(any(unix, target_os = "redox"))]
     use std::os::unix::prelude::OsStrExt;
     #[cfg(target_os = "wasi")]
     use std::os::wasi::prelude::OsStrExt;
+    use std::path::PathBuf;
 
     if host.is_some() {
         return Err(());
