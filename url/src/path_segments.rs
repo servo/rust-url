@@ -20,22 +20,13 @@ use core::str;
 ///
 /// ```rust
 /// use url::Url;
-/// # use url::ParseError;
-/// # #[derive(Debug)]
-/// # /// A simple wrapper error struct for `no_std` support
-/// # struct TestError;
-/// # impl From<ParseError> for TestError {
-/// #   fn from(value: ParseError) -> Self {
-/// #       TestError {}
-/// #   }
-/// # }
-/// # impl From<&str> for TestError {
-/// #   fn from(value: &str) -> Self {
-/// #       TestError {}
-/// #   }
-/// # }
 ///
-/// # fn run() -> Result<(), TestError> {
+/// # #[cfg(feature = "std")]
+/// # use std::error::Error;
+/// # #[cfg(not(feature = "std"))]
+/// # use core::error::Error;
+///
+/// # fn run() -> Result<(), Box<dyn Error>> {
 /// let mut url = Url::parse("mailto:me@example.com")?;
 /// assert!(url.path_segments_mut().is_err());
 ///
@@ -92,22 +83,13 @@ impl<'a> PathSegmentsMut<'a> {
     ///
     /// ```rust
     /// use url::Url;
-    /// # use url::ParseError;
-    /// # #[derive(Debug)]
-    /// # /// A simple wrapper error struct for `no_std` support
-    /// # struct TestError;
-    /// # impl From<ParseError> for TestError {
-    /// #   fn from(value: ParseError) -> Self {
-    /// #       TestError {}
-    /// #   }
-    /// # }
-    /// # impl From<&str> for TestError {
-    /// #   fn from(value: &str) -> Self {
-    /// #       TestError {}
-    /// #   }
-    /// # }
     ///
-    /// # fn run() -> Result<(), TestError> {
+    /// # #[cfg(feature = "std")]
+    /// # use std::error::Error;
+    /// # #[cfg(not(feature = "std"))]
+    /// # use core::error::Error;
+    ///
+    /// # fn run() -> Result<(), Box<dyn Error>> {
     /// let mut url = Url::parse("https://github.com/servo/rust-url/")?;
     /// url.path_segments_mut().map_err(|_| "cannot be base")?
     ///     .clear().push("logout");
@@ -133,22 +115,13 @@ impl<'a> PathSegmentsMut<'a> {
     ///
     /// ```rust
     /// use url::Url;
-    /// # use url::ParseError;
-    /// # #[derive(Debug)]
-    /// # /// A simple wrapper error struct for `no_std` support
-    /// # struct TestError;
-    /// # impl From<ParseError> for TestError {
-    /// #   fn from(value: ParseError) -> Self {
-    /// #       TestError {}
-    /// #   }
-    /// # }
-    /// # impl From<&str> for TestError {
-    /// #   fn from(value: &str) -> Self {
-    /// #       TestError {}
-    /// #   }
-    /// # }
     ///
-    /// # fn run() -> Result<(), TestError> {
+    /// # #[cfg(feature = "std")]
+    /// # use std::error::Error;
+    /// # #[cfg(not(feature = "std"))]
+    /// # use core::error::Error;
+    ///
+    /// # fn run() -> Result<(), Box<dyn Error>> {
     /// let mut url = Url::parse("https://github.com/servo/rust-url/")?;
     /// url.path_segments_mut().map_err(|_| "cannot be base")?
     ///     .push("pulls");
@@ -221,22 +194,13 @@ impl<'a> PathSegmentsMut<'a> {
     ///
     /// ```rust
     /// use url::Url;
-    /// # use url::ParseError;
-    /// # #[derive(Debug)]
-    /// # /// A simple wrapper error struct for `no_std` support
-    /// # struct TestError;
-    /// # impl From<ParseError> for TestError {
-    /// #   fn from(value: ParseError) -> Self {
-    /// #       TestError {}
-    /// #   }
-    /// # }
-    /// # impl From<&str> for TestError {
-    /// #   fn from(value: &str) -> Self {
-    /// #       TestError {}
-    /// #   }
-    /// # }
     ///
-    /// # fn run() -> Result<(), TestError> {
+    /// # #[cfg(feature = "std")]
+    /// # use std::error::Error;
+    /// # #[cfg(not(feature = "std"))]
+    /// # use core::error::Error;
+    ///
+    /// # fn run() -> Result<(), Box<dyn Error>> {
     /// let mut url = Url::parse("https://github.com/")?;
     /// let org = "servo";
     /// let repo = "rust-url";
@@ -254,22 +218,13 @@ impl<'a> PathSegmentsMut<'a> {
     ///
     /// ```rust
     /// use url::Url;
-    /// # use url::ParseError;
-    /// # #[derive(Debug)]
-    /// # /// A simple wrapper error struct for `no_std` support
-    /// # struct TestError;
-    /// # impl From<ParseError> for TestError {
-    /// #   fn from(value: ParseError) -> Self {
-    /// #       TestError {}
-    /// #   }
-    /// # }
-    /// # impl From<&str> for TestError {
-    /// #   fn from(value: &str) -> Self {
-    /// #       TestError {}
-    /// #   }
-    /// # }
     ///
-    /// # fn run() -> Result<(), TestError> {
+    /// # #[cfg(feature = "std")]
+    /// # use std::error::Error;
+    /// # #[cfg(not(feature = "std"))]
+    /// # use core::error::Error;
+    ///
+    /// # fn run() -> Result<(), Box<dyn Error>> {
     /// let mut url = Url::parse("https://github.com/servo")?;
     /// url.path_segments_mut().map_err(|_| "cannot be base")?
     ///     .extend(&["..", "rust-url", ".", "pulls"]);

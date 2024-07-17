@@ -1384,22 +1384,12 @@ impl Url {
     /// ```
     /// use url::Url;
     ///
-    /// # use url::ParseError;
-    /// # #[derive(Debug)]
-    /// # /// A simple wrapper error struct for `no_std` support
-    /// # struct TestError;
-    /// # impl From<ParseError> for TestError {
-    /// #   fn from(value: ParseError) -> Self {
-    /// #       TestError {}
-    /// #   }
-    /// # }
-    /// # impl From<&str> for TestError {
-    /// #   fn from(value: &str) -> Self {
-    /// #       TestError {}
-    /// #   }
-    /// # }
+    /// # #[cfg(feature = "std")]
+    /// # use std::error::Error;
+    /// # #[cfg(not(feature = "std"))]
+    /// # use core::error::Error;
     ///
-    /// # fn run() -> Result<(), TestError> {
+    /// # fn run() -> Result<(), Box<dyn Error>> {
     /// let url = Url::parse("https://example.com/foo/bar")?;
     /// let mut path_segments = url.path_segments().ok_or_else(|| "cannot be base")?;
     /// assert_eq!(path_segments.next(), Some("foo"));
@@ -1811,22 +1801,13 @@ impl Url {
     ///
     /// ```
     /// use url::Url;
-    /// # use url::ParseError;
-    /// # #[derive(Debug)]
-    /// # /// A simple wrapper error struct for `no_std` support
-    /// # struct TestError;
-    /// # impl From<ParseError> for TestError {
-    /// #   fn from(value: ParseError) -> Self {
-    /// #       TestError {}
-    /// #   }
-    /// # }
-    /// # impl From<&str> for TestError {
-    /// #   fn from(value: &str) -> Self {
-    /// #       TestError {}
-    /// #   }
-    /// # }
     ///
-    /// # fn run() -> Result<(), TestError> {
+    /// # #[cfg(feature = "std")]
+    /// # use std::error::Error;
+    /// # #[cfg(not(feature = "std"))]
+    /// # use core::error::Error;
+    ///
+    /// # fn run() -> Result<(), Box<dyn Error>> {
     /// let mut url = Url::parse("ssh://example.net:2048/")?;
     ///
     /// url.set_port(Some(4096)).map_err(|_| "cannot be base")?;
@@ -1843,22 +1824,13 @@ impl Url {
     ///
     /// ```rust
     /// use url::Url;
-    /// # use url::ParseError;
-    /// # #[derive(Debug)]
-    /// # /// A simple wrapper error struct for `no_std` support
-    /// # struct TestError;
-    /// # impl From<ParseError> for TestError {
-    /// #   fn from(value: ParseError) -> Self {
-    /// #       TestError {}
-    /// #   }
-    /// # }
-    /// # impl From<&str> for TestError {
-    /// #   fn from(value: &str) -> Self {
-    /// #       TestError {}
-    /// #   }
-    /// # }
     ///
-    /// # fn run() -> Result<(), TestError> {
+    /// # #[cfg(feature = "std")]
+    /// # use std::error::Error;
+    /// # #[cfg(not(feature = "std"))]
+    /// # use core::error::Error;
+    ///
+    /// # fn run() -> Result<(), Box<dyn Error>> {
     /// let mut url = Url::parse("https://example.org/")?;
     ///
     /// url.set_port(Some(443)).map_err(|_| "cannot be base")?;

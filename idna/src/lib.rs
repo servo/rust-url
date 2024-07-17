@@ -32,6 +32,7 @@
 //! > that minimizes the impact of this transition for client software,
 //! > allowing client software to access domains that are valid under either system.
 #![no_std]
+
 // For forwards compatibility
 #[cfg(feature = "std")]
 extern crate std;
