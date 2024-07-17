@@ -10,7 +10,7 @@ documentation = "https://docs.rs/url"
 repository = "https://github.com/servo/rust-url"
 readme = "../README.md"
 keywords = ["url", "parser"]
-categories = ["parser-implementations", "web-programming", "encoding"]
+categories = ["parser-implementations", "web-programming", "encoding", "no_std"]
 license = "MIT OR Apache-2.0"
 include = ["src/**/*", "LICENSE-*", "README.md", "tests/**"]
 edition = "2018"
@@ -34,7 +34,8 @@ no-std-net = { version = "0.6.0", default-features = false, optional = true }
 [features]
 default = ["std"]
 std = ["idna/std", "percent-encoding/std", "form_urlencoded/std", "alloc"]
-alloc = []
+alloc = ["form_urlencoded/alloc", "idna/alloc", "percent-encoding/alloc"]
+
 # Enable to use the #[debugger_visualizer] attribute. This feature requires Rust >= 1.71.
 debugger_visualizer = []
 # Expose internal offsets of the URL.

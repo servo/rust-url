@@ -73,6 +73,14 @@ assert!(data_url.fragment() == Some(""));
 # run().unwrap();
 ```
 
+## Default Features
+
+Versions `< 3` of the crate have no default features. Versions `>= 3` have the default feature 'std'.
+If you are upgrading across this boundary and you have specified `default-features = false`, then
+you will need to add the 'std' feature or the 'alloc' feature to your dependency.
+The 'std' feature has the same behavior as the previous versions. The 'alloc' feature
+provides no_std support.
+
 ## Serde
 
 Enable the `serde` feature to include `Deserialize` and `Serialize` implementations for `url::Url`.
@@ -140,18 +148,6 @@ url = { version = "2", features = ["debugger_visualizer"] }
     feature = "debugger_visualizer",
     debugger_visualizer(natvis_file = "../../debug_metadata/url.natvis")
 )]
-#![cfg_attr(
-    all(
-        not(feature = "std"),
-        not(feature = "no_std_net"),
-        feature = "unstable"
-    ),
-    feature(ip_in_core)
-)]
-#![cfg_attr(
-    all(not(feature = "std"), feature = "unstable"),
-    feature(error_in_core)
-)]
 
 pub use form_urlencoded;
 
@@ -165,11 +161,6 @@ extern crate alloc;
 #[cfg(not(feature = "alloc"))]
 compile_error!("the `alloc` feature must be enabled");
 
-#[cfg(not(any(feature = "no_std_net", feature = "std", feature = "unstable")))]
-compile_error!(
-    "Either the `no_std_net`, `std` or, on nightly, the `unstable` feature, must be enabled"
-);
-
 #[cfg(feature = "serde")]
 extern crate serde;
 
@@ -180,13 +171,11 @@ use crate::parser::{
 };
 use percent_encoding::utf8_percent_encode;
 use core::borrow::Borrow;
-use core::cmp;
-use core::fmt::{self, Write};
-use core::hash;
+use core::fmt::Write;
 #[cfg(feature = "std")]
 #[cfg(any(unix, windows, target_os = "redox", target_os = "wasi"))]
 use std::io;
-use core::mem;
+use core::{cmp, fmt, hash, mem};
 use crate::net::IpAddr;
 #[cfg(feature = "std")]
 #[cfg(any(unix, windows, target_os = "redox", target_os = "wasi"))]
@@ -196,7 +185,7 @@ use alloc::str;
 use alloc::string::{String, ToString};
 use alloc::borrow::ToOwned;
 #[cfg(feature = "std")]
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use core::convert::TryFrom;
 
 /// `std` version of `net`
@@ -2564,7 +2553,7 @@ impl Url {
         any(unix, windows, target_os = "redox", target_os = "wasi")
     ))]
     #[allow(clippy::result_unit_err)]
-    pub fn from_file_path<P: AsRef<Path>>(path: P) -> Result<Url, ()> {
+    pub fn from_file_path<P: AsRef<std::path::Path>>(path: P) -> Result<Url, ()> {
         let mut serialization = "file://".to_owned();
         let host_start = serialization.len() as u32;
         let (host_end, host) = path_to_file_url_segments(path.as_ref(), &mut serialization)?;
@@ -2606,7 +2595,7 @@ impl Url {
         any(unix, windows, target_os = "redox", target_os = "wasi")
     ))]
     #[allow(clippy::result_unit_err)]
-    pub fn from_directory_path<P: AsRef<Path>>(path: P) -> Result<Url, ()> {
+    pub fn from_directory_path<P: AsRef<std::path::Path>>(path: P) -> Result<Url, ()> {
         let mut url = Url::from_file_path(path)?;
         if !url.serialization.ends_with('/') {
             url.serialization.push('/')
@@ -2728,7 +2717,7 @@ impl Url {
         any(unix, windows, target_os = "redox", target_os = "wasi")
     ))]
     #[allow(clippy::result_unit_err)]
-    pub fn to_file_path(&self) -> Result<PathBuf, ()> {
+    pub fn to_file_path(&self) -> Result<std::path::PathBuf, ()> {
         if let Some(segments) = self.path_segments() {
             let host = match self.host() {
                 None | Some(Host::Domain("localhost")) => None,
@@ -2932,9 +2921,10 @@ impl<'de> serde::Deserialize<'de> for Url {
 
 #[cfg(all(feature = "std", any(unix, target_os = "redox", target_os = "wasi")))]
 fn path_to_file_url_segments(
-    path: &Path,
+    path: &std::path::Path,
     serialization: &mut String,
 ) -> Result<(u32, HostInternal), ()> {
+    use parser::SPECIAL_PATH_SEGMENT;
     use percent_encoding::percent_encode;
     #[cfg(any(unix, target_os = "redox"))]
     use std::os::unix::prelude::OsStrExt;
@@ -2963,7 +2953,7 @@ fn path_to_file_url_segments(
 
 #[cfg(all(feature = "std", windows))]
 fn path_to_file_url_segments(
-    path: &Path,
+    path: &std::path::Path,
     serialization: &mut String,
 ) -> Result<(u32, HostInternal), ()> {
     path_to_file_url_segments_windows(path, serialization)
@@ -2972,8 +2962,9 @@ fn path_to_file_url_segments(
 #[cfg(feature = "std")]
 // Build this unconditionally to alleviate https://github.com/servo/rust-url/issues/102
 #[cfg_attr(not(windows), allow(dead_code))]
+#[cfg(feature = "std")]
 fn path_to_file_url_segments_windows(
-    path: &Path,
+    path: &std::path::Path,
     serialization: &mut String,
 ) -> Result<(u32, HostInternal), ()> {
     use crate::parser::PATH_SEGMENT;
@@ -3048,6 +3039,7 @@ fn file_url_segments_to_pathbuf(
     use std::os::unix::prelude::OsStrExt;
     #[cfg(target_os = "wasi")]
     use std::os::wasi::prelude::OsStrExt;
+    use std::path::PathBuf;
 
     if host.is_some() {
         return Err(());
@@ -3087,13 +3079,14 @@ fn file_url_segments_to_pathbuf(
 fn file_url_segments_to_pathbuf(
     host: Option<&str>,
     segments: str::Split<char>,
-) -> Result<PathBuf, ()> {
+) -> Result<std::path::PathBuf, ()> {
     file_url_segments_to_pathbuf_windows(host, segments)
 }
 
 #[cfg(feature = "std")]
 // Build this unconditionally to alleviate https://github.com/servo/rust-url/issues/102
 #[cfg_attr(not(windows), allow(dead_code))]
+#[cfg(feature = "std")]
 fn file_url_segments_to_pathbuf_windows(
     host: Option<&str>,
     mut segments: str::Split<'_, char>,
@@ -3138,7 +3131,7 @@ fn file_url_segments_to_pathbuf_windows(
             Err(..) => return Err(()),
         }
     }
-    let path = PathBuf::from(string);
+    let path = std::path::PathBuf::from(string);
     debug_assert!(
         path.is_absolute(),
         "to_file_path() failed to produce an absolute Path"

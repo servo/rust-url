@@ -6,16 +6,13 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use alloc::borrow::ToOwned;
+use alloc::string::String;
+use alloc::string::ToString;
+use alloc::vec::Vec;
+use core::cmp;
+use core::fmt::{self, Formatter};
 use crate::net::{Ipv4Addr, Ipv6Addr};
-use alloc::{
-    borrow::ToOwned,
-    string::{String, ToString},
-    vec::Vec,
-};
-use core::{
-    cmp,
-    fmt::{self, Formatter},
-};
 
 use percent_encoding::{percent_decode, utf8_percent_encode, CONTROLS};
 #[cfg(feature = "serde")]
