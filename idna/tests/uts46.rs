@@ -31,7 +31,7 @@ pub fn collect_tests<F: FnMut(String, TestFn)>(add_test: &mut F) {
         // ToUnicode
         let mut to_unicode = unescape(pieces.remove(0));
         if to_unicode.is_empty() {
-            to_unicode = source.clone();
+            to_unicode.clone_from(&source)
         }
         let to_unicode_status = status(pieces.remove(0));
 

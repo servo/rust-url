@@ -11,6 +11,12 @@ fn to_unicode_puny_label(bench: &mut Bencher) {
     bench.iter(|| config.to_unicode(black_box(encoded)));
 }
 
+fn to_ascii_already_puny_label(bench: &mut Bencher) {
+    let encoded = "abc.xn--mgbcm";
+    let config = Config::default();
+    bench.iter(|| config.to_ascii(black_box(encoded)));
+}
+
 fn to_unicode_ascii(bench: &mut Bencher) {
     let encoded = "example.com";
     let config = Config::default();
@@ -47,6 +53,7 @@ benchmark_group!(
     to_unicode_ascii,
     to_unicode_merged_label,
     to_ascii_puny_label,
+    to_ascii_already_puny_label,
     to_ascii_simple,
     to_ascii_merged,
 );
