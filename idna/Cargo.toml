@@ -17,8 +17,6 @@ doctest = false
 default = ["std"]
 std = ["alloc", "unicode-bidi/std", "unicode-normalization/std"]
 alloc = []
-# Enable nightly features
-unstable = []
 
 [[test]]
 name = "tests"

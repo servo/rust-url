@@ -29,7 +29,6 @@ form_urlencoded = { version = "1.2.1", path = "../form_urlencoded", default-feat
 idna = { version = "0.5.0", path = "../idna", default-features = false, features = ["alloc"] }
 percent-encoding = { version = "2.3.1", path = "../percent_encoding", default-features = false, features = ["alloc"] }
 serde = {version = "1.0", optional = true, features = ["derive"]}
-no-std-net = { version = "0.6.0", default-features = false, optional = true }
 
 [features]
 default = ["std"]
@@ -40,11 +39,6 @@ alloc = ["form_urlencoded/alloc", "idna/alloc", "percent-encoding/alloc"]
 debugger_visualizer = []
 # Expose internal offsets of the URL.
 expose_internals = []
-# For no_std: Allow the use of no_std_net instead of nightly
-no_std_net = ["no-std-net"]
-# UNSTABLE FEATURES (requires Rust nightly)
-# For no_std: Use errors_in_core and net_in_core
-unstable = ["idna/unstable"]
 
 [[test]]
 name = "url_wpt"

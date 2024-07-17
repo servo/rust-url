@@ -8,18 +8,6 @@
 
 //! Unit tests
 #![no_std]
-#![cfg_attr(
-    all(
-        not(feature = "std"),
-        not(feature = "no_std_net"),
-        feature = "unstable"
-    ),
-    feature(ip_in_core)
-)]
-#![cfg_attr(
-    all(not(feature = "std"), feature = "unstable"),
-    feature(error_in_core)
-)]
 
 #[cfg(feature = "std")]
 extern crate std;
@@ -29,20 +17,6 @@ extern crate alloc;
 
 #[cfg(not(feature = "alloc"))]
 compile_error!("the `alloc` feature must be enabled");
-
-#[cfg(feature = "std")]
-extern crate std;
-
-#[macro_use]
-extern crate alloc;
-
-#[cfg(not(feature = "alloc"))]
-compile_error!("the `alloc` feature must be enabled");
-
-#[cfg(not(any(feature = "no_std_net", feature = "std", feature = "unstable")))]
-compile_error!(
-    "Either the `no_std_net`, `std` or, on nightly, the `unstable` feature, must be enabled"
-);
 
 use alloc::borrow::Cow;
 use alloc::borrow::ToOwned;
@@ -50,10 +24,7 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::cell::{Cell, RefCell};
 #[cfg(feature = "std")]
-use std::{
-    dbg,
-    path::{Path, PathBuf},
-};
+use std::dbg;
 use url::{form_urlencoded, Host, Origin, Url};
 
 /// `std` version of `net`
@@ -61,13 +32,8 @@ use url::{form_urlencoded, Host, Origin, Url};
 pub(crate) mod net {
     pub use std::net::*;
 }
-/// `no_std` non-nightly of `net`
-#[cfg(all(not(feature = "std"), feature = "no_std_net"))]
-pub(crate) mod net {
-    pub use no_std_net::*;
-}
 /// `no_std` nightly version of `net`
-#[cfg(all(not(feature = "std"), not(feature = "no_std_net")))]
+#[cfg(not(feature = "std"))]
 pub(crate) mod net {
     pub use core::net::*;
 }

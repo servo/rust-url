@@ -714,7 +714,7 @@ impl From<Errors> for Result<(), Errors> {
 #[cfg(feature = "std")]
 impl std::error::Error for Errors {}
 
-#[cfg(feature = "unstable")]
+#[cfg(not(feature = "std"))]
 impl core::error::Error for Errors {}
 
 impl fmt::Display for Errors {

@@ -185,7 +185,7 @@ use alloc::str;
 use alloc::string::{String, ToString};
 use alloc::borrow::ToOwned;
 #[cfg(feature = "std")]
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use core::convert::TryFrom;
 
 /// `std` version of `net`
@@ -193,13 +193,8 @@ use core::convert::TryFrom;
 pub(crate) mod net {
     pub use std::net::*;
 }
-/// `no_std` non-nightly of `net`
-#[cfg(all(not(feature = "std"), feature = "no_std_net"))]
-pub(crate) mod net {
-    pub use no_std_net::*;
-}
 /// `no_std` nightly version of `net`
-#[cfg(all(not(feature = "std"), not(feature = "no_std_net")))]
+#[cfg(not(feature = "std"))]
 pub(crate) mod net {
     pub use core::net::*;
 }
@@ -2717,7 +2712,7 @@ impl Url {
         any(unix, windows, target_os = "redox", target_os = "wasi")
     ))]
     #[allow(clippy::result_unit_err)]
-    pub fn to_file_path(&self) -> Result<std::path::PathBuf, ()> {
+    pub fn to_file_path(&self) -> Result<PathBuf, ()> {
         if let Some(segments) = self.path_segments() {
             let host = match self.host() {
                 None | Some(Host::Domain("localhost")) => None,
@@ -2921,7 +2916,7 @@ impl<'de> serde::Deserialize<'de> for Url {
 
 #[cfg(all(feature = "std", any(unix, target_os = "redox", target_os = "wasi")))]
 fn path_to_file_url_segments(
-    path: &std::path::Path,
+    path: &Path,
     serialization: &mut String,
 ) -> Result<(u32, HostInternal), ()> {
     use parser::SPECIAL_PATH_SEGMENT;
@@ -2953,7 +2948,7 @@ fn path_to_file_url_segments(
 
 #[cfg(all(feature = "std", windows))]
 fn path_to_file_url_segments(
-    path: &std::path::Path,
+    path: &Path,
     serialization: &mut String,
 ) -> Result<(u32, HostInternal), ()> {
     path_to_file_url_segments_windows(path, serialization)
@@ -2964,7 +2959,7 @@ fn path_to_file_url_segments(
 #[cfg_attr(not(windows), allow(dead_code))]
 #[cfg(feature = "std")]
 fn path_to_file_url_segments_windows(
-    path: &std::path::Path,
+    path: &Path,
     serialization: &mut String,
 ) -> Result<(u32, HostInternal), ()> {
     use crate::parser::PATH_SEGMENT;
@@ -3079,14 +3074,13 @@ fn file_url_segments_to_pathbuf(
 fn file_url_segments_to_pathbuf(
     host: Option<&str>,
     segments: str::Split<char>,
-) -> Result<std::path::PathBuf, ()> {
+) -> Result<PathBuf, ()> {
     file_url_segments_to_pathbuf_windows(host, segments)
 }
 
-#[cfg(feature = "std")]
 // Build this unconditionally to alleviate https://github.com/servo/rust-url/issues/102
-#[cfg_attr(not(windows), allow(dead_code))]
 #[cfg(feature = "std")]
+#[cfg_attr(not(windows), allow(dead_code))]
 fn file_url_segments_to_pathbuf_windows(
     host: Option<&str>,
     mut segments: str::Split<'_, char>,
@@ -3131,7 +3125,7 @@ fn file_url_segments_to_pathbuf_windows(
             Err(..) => return Err(()),
         }
     }
-    let path = std::path::PathBuf::from(string);
+    let path = PathBuf::from(string);
     debug_assert!(
         path.is_absolute(),
         "to_file_path() failed to produce an absolute Path"
