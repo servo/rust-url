@@ -2952,10 +2952,9 @@ fn path_to_file_url_segments(
     path_to_file_url_segments_windows(path, serialization)
 }
 
-#[cfg(feature = "std")]
 // Build this unconditionally to alleviate https://github.com/servo/rust-url/issues/102
-#[cfg_attr(not(windows), allow(dead_code))]
 #[cfg(feature = "std")]
+#[cfg_attr(not(windows), allow(dead_code))]
 fn path_to_file_url_segments_windows(
     path: &Path,
     serialization: &mut String,
