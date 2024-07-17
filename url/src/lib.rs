@@ -75,7 +75,7 @@ assert!(data_url.fragment() == Some(""));
 
 ## Default Features
 
-Versions `< 3` of the crate have no default features. Versions `>= 3` have the default feature 'std'.
+Versions `<= 2.5.2` of the crate have no default features. Versions `> 2.5.2` have the default feature 'std'.
 If you are upgrading across this boundary and you have specified `default-features = false`, then
 you will need to add the 'std' feature or the 'alloc' feature to your dependency.
 The 'std' feature has the same behavior as the previous versions. The 'alloc' feature
