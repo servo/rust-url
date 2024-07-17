@@ -166,27 +166,25 @@ extern crate serde;
 
 use crate::host::HostInternal;
 
-use crate::parser::{
-    to_u32, Context, Parser, SchemeType, USERINFO,
-};
-use percent_encoding::utf8_percent_encode;
-use core::borrow::Borrow;
-use core::fmt::Write;
-#[cfg(feature = "std")]
-#[cfg(any(unix, windows, target_os = "redox", target_os = "wasi"))]
-use std::io;
-use core::{cmp, fmt, hash, mem};
 use crate::net::IpAddr;
 #[cfg(feature = "std")]
 #[cfg(any(unix, windows, target_os = "redox", target_os = "wasi"))]
 use crate::net::{SocketAddr, ToSocketAddrs};
-use core::ops::{Range, RangeFrom, RangeTo};
+use crate::parser::{to_u32, Context, Parser, SchemeType, USERINFO};
+use alloc::borrow::ToOwned;
 use alloc::str;
 use alloc::string::{String, ToString};
-use alloc::borrow::ToOwned;
+use core::borrow::Borrow;
+use core::convert::TryFrom;
+use core::fmt::Write;
+use core::ops::{Range, RangeFrom, RangeTo};
+use core::{cmp, fmt, hash, mem};
+use percent_encoding::utf8_percent_encode;
+#[cfg(feature = "std")]
+#[cfg(any(unix, windows, target_os = "redox", target_os = "wasi"))]
+use std::io;
 #[cfg(feature = "std")]
 use std::path::{Path, PathBuf};
-use core::convert::TryFrom;
 
 /// `std` version of `net`
 #[cfg(feature = "std")]

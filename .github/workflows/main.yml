@@ -57,15 +57,14 @@ jobs:
           matrix.rust != '1.56.0'
         run: cargo test --test debugger_visualizer --features "url/debugger_visualizer,url_debug_tests/debugger_visualizer" -- --test-threads=1
       - name: Test `no_std` support
-        run: cargo test --no-default-features --features=alloc,no_std_net
+        run: cargo test --no-default-features --features=alloc
       - name: Build `url` crate for `aarch64-unknown-none` with `no_std`
         if: |
           matrix.os == 'ubuntu-latest' &&
           matrix.rust == 'nightly'
         run: >
           cd url
-          && cargo +nightly check -Zbuild-std=core,alloc --target aarch64-unknown-none -v --release --no-default-features --features=alloc,unstable
-          && cargo +nightly check -Zbuild-std=core,alloc --target aarch64-unknown-none -v --release --no-default-features --features=alloc,no_std_net
+          && cargo +nightly check -Zbuild-std=core,alloc --target aarch64-unknown-none -v --release --no-default-features --features=alloc
 
   WASM:
     runs-on: ubuntu-latest
