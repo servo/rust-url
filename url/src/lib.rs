@@ -139,6 +139,9 @@ url = { version = "2", features = ["debugger_visualizer"] }
     feature = "debugger_visualizer",
     debugger_visualizer(natvis_file = "../../debug_metadata/url.natvis")
 )]
+// We use std::os::wasi::prelude::OsStrExt, and that is conditionally feature gated
+// to be unstable on wasm32-wasip2. https://github.com/rust-lang/rust/issues/130323
+#![cfg_attr(all(target_os = "wasi", target_env = "p2"), feature(wasip2))]
 
 pub use form_urlencoded;
 
