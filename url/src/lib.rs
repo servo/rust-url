@@ -379,10 +379,10 @@ impl Url {
     /// # Notes
     ///
     /// - A trailing slash is significant.
-    /// Without it, the last path component is considered to be a “file” name
-    /// to be removed to get at the “directory” that is used as the base.
+    ///   Without it, the last path component is considered to be a “file” name
+    ///   to be removed to get at the “directory” that is used as the base.
     /// - A [scheme relative special URL](https://url.spec.whatwg.org/#scheme-relative-special-url-string)
-    /// as input replaces everything in the base URL after the scheme.
+    ///   as input replaces everything in the base URL after the scheme.
     /// - An absolute URL (with a scheme) as input replaces the whole base URL (even the scheme).
     ///
     /// # Examples
