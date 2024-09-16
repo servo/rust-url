@@ -26,6 +26,13 @@ fn plain(bench: &mut Bencher) {
     bench.iter(|| black_box(url).parse::<Url>().unwrap());
 }
 
+fn hyphen(bench: &mut Bencher) {
+    let url = "https://hyphenated-example.com/";
+
+    bench.bytes = url.len() as u64;
+    bench.iter(|| black_box(url).parse::<Url>().unwrap());
+}
+
 fn leading_digit(bench: &mut Bencher) {
     let url = "https://1test.example/";
 
@@ -80,6 +87,7 @@ benchmark_group!(
     short,
     long,
     plain,
+    hyphen,
     leading_digit,
     unicode_mixed,
     punycode_mixed,
