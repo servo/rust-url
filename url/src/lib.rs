@@ -148,6 +148,9 @@ url = { version = "2", features = ["debugger_visualizer"] }
     feature = "debugger_visualizer",
     debugger_visualizer(natvis_file = "../../debug_metadata/url.natvis")
 )]
+// We use std::os::wasi::prelude::OsStrExt, and that is conditionally feature gated
+// to be unstable on wasm32-wasip2. https://github.com/rust-lang/rust/issues/130323
+#![cfg_attr(all(target_os = "wasi", target_env = "p2"), feature(wasip2))]
 
 pub use form_urlencoded;
 
@@ -407,10 +410,10 @@ impl Url {
     /// # Notes
     ///
     /// - A trailing slash is significant.
-    /// Without it, the last path component is considered to be a “file” name
-    /// to be removed to get at the “directory” that is used as the base.
+    ///   Without it, the last path component is considered to be a “file” name
+    ///   to be removed to get at the “directory” that is used as the base.
     /// - A [scheme relative special URL](https://url.spec.whatwg.org/#scheme-relative-special-url-string)
-    /// as input replaces everything in the base URL after the scheme.
+    ///   as input replaces everything in the base URL after the scheme.
     /// - An absolute URL (with a scheme) as input replaces the whole base URL (even the scheme).
     ///
     /// # Examples
