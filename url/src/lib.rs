@@ -1321,7 +1321,6 @@ impl Url {
         // > This RFC proposes that *all* type parameters are considered in scope
         // > for `impl Trait` in return position
 
-        // TODO: Return custom error type to support no_std
         fn io_result<T>(opt: Option<T>, message: &str) -> io::Result<T> {
             opt.ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, message))
         }
