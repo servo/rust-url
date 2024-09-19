@@ -15,9 +15,6 @@ extern crate std;
 #[macro_use]
 extern crate alloc;
 
-#[cfg(not(feature = "alloc"))]
-compile_error!("the `alloc` feature must be enabled");
-
 use alloc::borrow::Cow;
 use alloc::borrow::ToOwned;
 use alloc::string::{String, ToString};

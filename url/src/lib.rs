@@ -161,9 +161,6 @@ extern crate std;
 #[macro_use]
 extern crate alloc;
 
-#[cfg(not(feature = "alloc"))]
-compile_error!("the `alloc` feature must be enabled");
-
 #[cfg(feature = "serde")]
 extern crate serde;
 
