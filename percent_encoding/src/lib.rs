@@ -66,7 +66,7 @@ use core::{fmt, mem, ops, slice, str};
 /// /// https://url.spec.whatwg.org/#fragment-percent-encode-set
 /// const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'<').add(b'>').add(b'`');
 /// ```
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct AsciiSet {
     mask: [Chunk; ASCII_RANGE_LEN / BITS_PER_CHUNK],
 }
@@ -79,7 +79,7 @@ const BITS_PER_CHUNK: usize = 8 * mem::size_of::<Chunk>();
 
 impl AsciiSet {
     /// An empty set.
-    pub const EMPTY: AsciiSet = AsciiSet {
+    pub const EMPTY: &'static AsciiSet = &AsciiSet {
         mask: [0; ASCII_RANGE_LEN / BITS_PER_CHUNK],
     };
 
@@ -101,6 +101,18 @@ impl AsciiSet {
         AsciiSet { mask }
     }
 
+    pub const fn add_range(&self, start: u8, end: u8) -> Self {
+        let mut new = AsciiSet { mask: self.mask };
+
+        let mut i = start;
+        while i <= end {
+            new = new.add(i);
+            i += 1;
+        }
+
+        new
+    }
+
     pub const fn remove(&self, byte: u8) -> Self {
         let mut mask = self.mask;
         mask[byte as usize / BITS_PER_CHUNK] &= !(1 << (byte as usize % BITS_PER_CHUNK));
@@ -108,7 +120,7 @@ impl AsciiSet {
     }
 
     /// Return the union of two sets.
-    pub const fn union(&self, other: Self) -> Self {
+    pub const fn union(&self, other: &Self) -> Self {
         let mask = [
             self.mask[0] | other.mask[0],
             self.mask[1] | other.mask[1],
@@ -128,7 +140,15 @@ impl AsciiSet {
 impl ops::Add for AsciiSet {
     type Output = Self;
 
-    fn add(self, other: Self) -> Self {
+    fn add(self, other: Self) -> Self::Output {
+        self.union(&other)
+    }
+}
+
+impl ops::Add for &AsciiSet {
+    type Output = AsciiSet;
+
+    fn add(self, other: Self) -> Self::Output {
         self.union(other)
     }
 }
@@ -136,7 +156,15 @@ impl ops::Add for AsciiSet {
 impl ops::Not for AsciiSet {
     type Output = Self;
 
-    fn not(self) -> Self {
+    fn not(self) -> Self::Output {
+        self.complement()
+    }
+}
+
+impl ops::Not for &AsciiSet {
+    type Output = AsciiSet;
+
+    fn not(self) -> Self::Output {
         self.complement()
     }
 }
@@ -176,40 +204,100 @@ static_assert! {
 /// Everything that is not an ASCII letter or digit.
 ///
 /// This is probably more eager than necessary in any context.
-pub const NON_ALPHANUMERIC: &AsciiSet = &CONTROLS
-    .add(b' ')
-    .add(b'!')
-    .add(b'"')
-    .add(b'#')
-    .add(b'$')
-    .add(b'%')
+pub const NON_ALPHANUMERIC: &AsciiSet = &ALPHA_NUM.complement();
+
+/// [RFC2396](https://datatracker.ietf.org/doc/html/rfc2396).
+///
+/// ```txt
+/// lowalpha = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" |
+///            "j" | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" |
+///            "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z"
+/// ```
+pub const LOW_ALPHA: &AsciiSet = &AsciiSet::EMPTY.add_range(b'a', b'z');
+
+/// [RFC2396](https://datatracker.ietf.org/doc/html/rfc2396).
+///
+/// ```txt
+/// lowalpha = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" |
+///            "j" | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" |
+///            "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z"
+/// ```
+pub const UP_ALPHA: &AsciiSet = &AsciiSet::EMPTY.add_range(b'A', b'Z');
+
+/// [RFC2396](https://datatracker.ietf.org/doc/html/rfc2396).
+///
+/// ```txt
+/// alpha    = lowalpha | upalpha
+/// ```
+pub const ALPHA: &AsciiSet = &LOW_ALPHA.union(UP_ALPHA);
+
+/// [RFC2396](https://datatracker.ietf.org/doc/html/rfc2396).
+///
+/// ```txt
+/// digit    = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" |
+///            "8" | "9"
+/// ```
+pub const DIGIT: &AsciiSet = &AsciiSet::EMPTY.add_range(b'0', b'9');
+
+/// [RFC2396](https://datatracker.ietf.org/doc/html/rfc2396).
+///
+/// ```txt
+/// alphanum = alpha | digit
+/// ```
+pub const ALPHA_NUM: &AsciiSet = &ALPHA.union(DIGIT);
+
+/// [RFC2396](https://datatracker.ietf.org/doc/html/rfc2396).
+///
+/// ```txt
+/// reserved    = ";" | "/" | "?" | ":" | "@" | "&" | "=" | "+" |
+///               "$" | ","
+/// ```
+///
+/// Matches JavaScript's `decodeURI`.
+pub const RESERVED: &AsciiSet = &AsciiSet::EMPTY
+    .add(b';')
+    .add(b'/')
+    .add(b'?')
+    .add(b':')
+    .add(b'@')
     .add(b'&')
+    .add(b'=')
+    .add(b'+')
+    .add(b'$')
+    .add(b',')
+    .add(b'[')
+    .add(b']');
+
+/// [RFC2396](https://datatracker.ietf.org/doc/html/rfc2396).
+///
+/// ```txt
+/// mark        = "-" | "_" | "." | "!" | "~" | "*" | "'" | "(" | ")"
+/// ```
+pub const MARK: &AsciiSet = &AsciiSet::EMPTY
+    .add(b'-')
+    .add(b'_')
+    .add(b'.')
+    .add(b'!')
+    .add(b'~')
+    .add(b'*')
     .add(b'\'')
     .add(b'(')
-    .add(b')')
-    .add(b'*')
-    .add(b'+')
-    .add(b',')
-    .add(b'-')
-    .add(b'.')
-    .add(b'/')
-    .add(b':')
-    .add(b';')
-    .add(b'<')
-    .add(b'=')
-    .add(b'>')
-    .add(b'?')
-    .add(b'@')
-    .add(b'[')
-    .add(b'\\')
-    .add(b']')
-    .add(b'^')
-    .add(b'_')
-    .add(b'`')
-    .add(b'{')
-    .add(b'|')
-    .add(b'}')
-    .add(b'~');
+    .add(b')');
+
+/// [RFC2396](https://datatracker.ietf.org/doc/html/rfc2396).
+///
+/// ```txt
+/// unreserved  = alphanum | mark
+/// ```
+///
+/// Matches JavaScript's `encodeURIComponent` / `decodeURIComponent`.
+pub const UNRESERVED: &AsciiSet = &ALPHA_NUM.union(MARK);
+
+/// All reserved and unreserved characters,
+/// according to [RFC2396](https://datatracker.ietf.org/doc/html/rfc2396).
+///
+/// Matches JavaScript's `encodeURI`.
+pub const UNRESERVED_RESERVED: &AsciiSet = &UNRESERVED.union(RESERVED);
 
 /// Return the percent-encoding of the given byte.
 ///
@@ -542,8 +630,8 @@ mod tests {
     /// useful for defining sets in a modular way.
     #[test]
     fn union() {
-        const A: AsciiSet = AsciiSet::EMPTY.add(b'A');
-        const B: AsciiSet = AsciiSet::EMPTY.add(b'B');
+        const A: &AsciiSet = &AsciiSet::EMPTY.add(b'A');
+        const B: &AsciiSet = &AsciiSet::EMPTY.add(b'B');
         const UNION: AsciiSet = A.union(B);
         const EXPECTED: AsciiSet = AsciiSet::EMPTY.add(b'A').add(b'B');
         assert_eq!(UNION, EXPECTED);
