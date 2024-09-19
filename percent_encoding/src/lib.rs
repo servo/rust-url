@@ -120,6 +120,15 @@ impl ops::Add for AsciiSet {
     }
 }
 
+impl ops::Not for AsciiSet {
+    type Output = Self;
+
+    fn not(self) -> Self {
+        let mask = self.mask.map(|chunk| !chunk);
+        AsciiSet { mask }
+    }
+}
+
 /// The set of 0x00 to 0x1F (C0 controls), and 0x7F (DEL).
 ///
 /// Note that this includes the newline and tab characters, but not the space 0x20.
@@ -507,5 +516,13 @@ mod tests {
         let right = AsciiSet::EMPTY.add(b'B');
         let expected = AsciiSet::EMPTY.add(b'A').add(b'B');
         assert_eq!(left + right, expected);
+    }
+
+    #[test]
+    fn not() {
+        let set = AsciiSet::EMPTY.add(b'A').add(b'B');
+        let not_set = !set;
+        assert!(!not_set.contains(b'A'));
+        assert!(not_set.contains(b'C'));
     }
 }
