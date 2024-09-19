@@ -51,7 +51,7 @@ use alloc::{
     string::String,
     vec::Vec,
 };
-use core::{fmt, mem, slice, str};
+use core::{fmt, mem, ops, slice, str};
 
 /// Represents a set of characters or bytes in the ASCII range.
 ///
@@ -66,6 +66,7 @@ use core::{fmt, mem, slice, str};
 /// /// https://url.spec.whatwg.org/#fragment-percent-encode-set
 /// const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'<').add(b'>').add(b'`');
 /// ```
+#[derive(Debug, PartialEq, Eq)]
 pub struct AsciiSet {
     mask: [Chunk; ASCII_RANGE_LEN / BITS_PER_CHUNK],
 }
@@ -77,6 +78,11 @@ const ASCII_RANGE_LEN: usize = 0x80;
 const BITS_PER_CHUNK: usize = 8 * mem::size_of::<Chunk>();
 
 impl AsciiSet {
+    /// An empty set.
+    pub const EMPTY: AsciiSet = AsciiSet {
+        mask: [0; ASCII_RANGE_LEN / BITS_PER_CHUNK],
+    };
+
     /// Called with UTF-8 bytes rather than code points.
     /// Not used for non-ASCII bytes.
     const fn contains(&self, byte: u8) -> bool {
@@ -98,6 +104,18 @@ impl AsciiSet {
     pub const fn remove(&self, byte: u8) -> Self {
         let mut mask = self.mask;
         mask[byte as usize / BITS_PER_CHUNK] &= !(1 << (byte as usize % BITS_PER_CHUNK));
+        AsciiSet { mask }
+    }
+}
+
+impl ops::Add for AsciiSet {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        let mut mask = self.mask.clone();
+        for i in 0..mask.len() {
+            mask[i] |= other.mask[i];
+        }
         AsciiSet { mask }
     }
 }
@@ -476,5 +494,18 @@ fn decode_utf8_lossy(input: Cow<'_, [u8]>) -> Cow<'_, str> {
                 Cow::Owned(s) => Cow::Owned(s),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn add() {
+        let left = AsciiSet::EMPTY.add(b'A');
+        let right = AsciiSet::EMPTY.add(b'B');
+        let expected = AsciiSet::EMPTY.add(b'A').add(b'B');
+        assert_eq!(left + right, expected);
     }
 }
