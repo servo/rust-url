@@ -1820,6 +1820,9 @@ impl Url {
     pub fn set_port(&mut self, mut port: Option<u16>) -> Result<(), ()> {
         // has_host implies !cannot_be_a_base
         if !self.has_host() || self.host() == Some(Host::Domain("")) || self.scheme() == "file" {
+            if port.is_none() {
+                return Ok(());
+            }
             return Err(());
         }
         if port.is_some() && port == parser::default_port(self.scheme()) {
@@ -2138,6 +2141,9 @@ impl Url {
     pub fn set_password(&mut self, password: Option<&str>) -> Result<(), ()> {
         // has_host implies !cannot_be_a_base
         if !self.has_host() || self.host() == Some(Host::Domain("")) || self.scheme() == "file" {
+            if password.is_none() || password == Some("") {
+                return Ok(());
+            }
             return Err(());
         }
         let password = password.unwrap_or_default();
@@ -2232,6 +2238,9 @@ impl Url {
     pub fn set_username(&mut self, username: &str) -> Result<(), ()> {
         // has_host implies !cannot_be_a_base
         if !self.has_host() || self.host() == Some(Host::Domain("")) || self.scheme() == "file" {
+            if username.is_empty() {
+                return Ok(());
+            }
             return Err(());
         }
         let username_start = self.scheme_end + 3;
