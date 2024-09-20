@@ -1041,25 +1041,24 @@ impl<'a> Parser<'a> {
         &mut self,
         input: Input<'i>,
     ) -> ParseResult<(bool, HostInternal, Input<'i>)> {
-        let has_host;
-        let (_, host_str, remaining) = Parser::file_host(input)?;
+        let (has_host, host_str, remaining) = Parser::file_host(input)?;
+        if !has_host {
+            return Ok((false, HostInternal::None, remaining));
+        }
         let host = if host_str.is_empty() {
-            has_host = false;
             HostInternal::None
         } else {
             match Host::parse(&host_str)? {
                 Host::Domain(ref d) if d == "localhost" => {
-                    has_host = false;
                     HostInternal::None
                 }
                 host => {
                     write!(&mut self.serialization, "{}", host).unwrap();
-                    has_host = true;
                     host.into()
                 }
             }
         };
-        Ok((has_host, host, remaining))
+        Ok((true, host, remaining))
     }
 
     pub fn file_host(input: Input) -> ParseResult<(bool, String, Input)> {
