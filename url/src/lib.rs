@@ -2640,6 +2640,40 @@ impl Url {
         Err(())
     }
 
+    /// Append path segments to the path of a Url, escaping if necesary.
+    ///
+    /// This differs from Url::join in that it is insensitive to trailing slashes
+    /// in the url and leading slashes in the passed string. See documentation of Url::join for discussion
+    /// of this subtlety. Also, this function cannot change any part of the Url other than the path.
+    ///
+    /// Examples:
+    ///
+    /// ```
+    /// # use url::Url;
+    /// let mut my_url = Url::parse("http://www.example.com/api/v1").unwrap();
+    /// my_url.append_path("system/status").unwrap();
+    /// assert_eq!(my_url.as_str(), "http://www.example.com/api/v1/system/status");
+    /// ```
+    ///
+    /// Fails if the Url is cannot-be-a-base.
+    #[allow(clippy::result_unit_err)]
+    #[inline]
+    pub fn append_path(&mut self, path: impl AsRef<str>) -> Result<(), ()> {
+        // This fails if self is cannot-be-a-base but succeeds otherwise.
+        let mut path_segments_mut = self.path_segments_mut()?;
+
+        // Remove the last segment if it is empty, this makes our code tolerate trailing `/`'s
+        path_segments_mut.pop_if_empty();
+
+        // Remove any leading `/` from the path we are appending, this makes our code tolerate leading `/`'s
+        let path = path.as_ref();
+        let path = path.strip_prefix('/').unwrap_or(path);
+        for segment in path.split('/') {
+            path_segments_mut.push(segment);
+        }
+        Ok(())
+    }
+
     // Private helper methods:
 
     #[inline]
