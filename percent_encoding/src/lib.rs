@@ -51,7 +51,7 @@ use alloc::{
     string::String,
     vec::Vec,
 };
-use core::{fmt, mem, slice, str};
+use core::{fmt, mem, ops, slice, str};
 
 /// Represents a set of characters or bytes in the ASCII range.
 ///
@@ -66,6 +66,7 @@ use core::{fmt, mem, slice, str};
 /// /// https://url.spec.whatwg.org/#fragment-percent-encode-set
 /// const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'<').add(b'>').add(b'`');
 /// ```
+#[derive(Debug, PartialEq, Eq)]
 pub struct AsciiSet {
     mask: [Chunk; ASCII_RANGE_LEN / BITS_PER_CHUNK],
 }
@@ -77,6 +78,11 @@ const ASCII_RANGE_LEN: usize = 0x80;
 const BITS_PER_CHUNK: usize = 8 * mem::size_of::<Chunk>();
 
 impl AsciiSet {
+    /// An empty set.
+    pub const EMPTY: AsciiSet = AsciiSet {
+        mask: [0; ASCII_RANGE_LEN / BITS_PER_CHUNK],
+    };
+
     /// Called with UTF-8 bytes rather than code points.
     /// Not used for non-ASCII bytes.
     const fn contains(&self, byte: u8) -> bool {
@@ -99,6 +105,39 @@ impl AsciiSet {
         let mut mask = self.mask;
         mask[byte as usize / BITS_PER_CHUNK] &= !(1 << (byte as usize % BITS_PER_CHUNK));
         AsciiSet { mask }
+    }
+
+    /// Return the union of two sets.
+    pub const fn union(&self, other: Self) -> Self {
+        let mask = [
+            self.mask[0] | other.mask[0],
+            self.mask[1] | other.mask[1],
+            self.mask[2] | other.mask[2],
+            self.mask[3] | other.mask[3],
+        ];
+        AsciiSet { mask }
+    }
+
+    /// Return the negation of the set.
+    pub const fn complement(&self) -> Self {
+        let mask = [!self.mask[0], !self.mask[1], !self.mask[2], !self.mask[3]];
+        AsciiSet { mask }
+    }
+}
+
+impl ops::Add for AsciiSet {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        self.union(other)
+    }
+}
+
+impl ops::Not for AsciiSet {
+    type Output = Self;
+
+    fn not(self) -> Self {
+        self.complement()
     }
 }
 
@@ -449,8 +488,8 @@ impl<'a> PercentDecode<'a> {
 
 // std::ptr::addr_eq was stabilized in rust 1.76. Once we upgrade
 // the MSRV we can remove this lint override.
-#[allow(ambiguous_wide_pointer_comparisons)]
 #[cfg(feature = "alloc")]
+#[allow(ambiguous_wide_pointer_comparisons)]
 fn decode_utf8_lossy(input: Cow<'_, [u8]>) -> Cow<'_, str> {
     // Note: This function is duplicated in `form_urlencoded/src/query_encoding.rs`.
     match input {
@@ -476,5 +515,48 @@ fn decode_utf8_lossy(input: Cow<'_, [u8]>) -> Cow<'_, str> {
                 Cow::Owned(s) => Cow::Owned(s),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn add_op() {
+        let left = AsciiSet::EMPTY.add(b'A');
+        let right = AsciiSet::EMPTY.add(b'B');
+        let expected = AsciiSet::EMPTY.add(b'A').add(b'B');
+        assert_eq!(left + right, expected);
+    }
+
+    #[test]
+    fn not_op() {
+        let set = AsciiSet::EMPTY.add(b'A').add(b'B');
+        let not_set = !set;
+        assert!(!not_set.contains(b'A'));
+        assert!(not_set.contains(b'C'));
+    }
+
+    /// This test ensures that we can get the union of two sets as a constant value, which is
+    /// useful for defining sets in a modular way.
+    #[test]
+    fn union() {
+        const A: AsciiSet = AsciiSet::EMPTY.add(b'A');
+        const B: AsciiSet = AsciiSet::EMPTY.add(b'B');
+        const UNION: AsciiSet = A.union(B);
+        const EXPECTED: AsciiSet = AsciiSet::EMPTY.add(b'A').add(b'B');
+        assert_eq!(UNION, EXPECTED);
+    }
+
+    /// This test ensures that we can get the complement of a set as a constant value, which is
+    /// useful for defining sets in a modular way.
+    #[test]
+    fn complement() {
+        const BOTH: AsciiSet = AsciiSet::EMPTY.add(b'A').add(b'B');
+        const COMPLEMENT: AsciiSet = BOTH.complement();
+        assert!(!COMPLEMENT.contains(b'A'));
+        assert!(!COMPLEMENT.contains(b'B'));
+        assert!(COMPLEMENT.contains(b'C'));
     }
 }
