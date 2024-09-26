@@ -1320,6 +1320,6 @@ fn issue_864() {
 #[test]
 fn issue_port_974() {
     let mut url = url::Url::parse("http://example.com:8000").unwrap();
-    url::quirks::set_port(&mut url, "\u{0000}9000").unwrap();
+    let _ = url::quirks::set_port(&mut url, "\u{0000}9000");
     assert_eq!(url.port(), Some(8000));
 }
