@@ -41,7 +41,7 @@ pub mod forgiving_base64;
 pub mod mime;
 
 pub struct DataUrl<'a> {
-    mime_type: mime::Mime,
+    mime_type: String,
     base64: bool,
     encoded_body_plus_fragment: &'a str,
 }
@@ -87,7 +87,7 @@ impl<'a> DataUrl<'a> {
         })
     }
 
-    pub fn mime_type(&self) -> &mime::Mime {
+    pub fn mime_type(&self) -> &String {
         &self.mime_type
     }
 
@@ -190,7 +190,7 @@ fn find_comma_before_fragment(after_colon: &str) -> Option<(&str, &str)> {
     None
 }
 
-fn parse_header(from_colon_to_comma: &str) -> (mime::Mime, bool) {
+fn parse_header(from_colon_to_comma: &str) -> (String, bool) {
     // "Strip leading and trailing ASCII whitespace"
     //     \t, \n, and \r would have been filtered by the URL parser
     //     \f percent-encoded by the URL parser
@@ -230,15 +230,7 @@ fn parse_header(from_colon_to_comma: &str) -> (mime::Mime, bool) {
         }
     }
 
-    // FIXME: does Mime::from_str match the MIME Sniffing Standard’s parsing algorithm?
-    // <https://mimesniff.spec.whatwg.org/#parse-a-mime-type>
-    let mime_type = string.parse().unwrap_or_else(|_| mime::Mime {
-        type_: String::from("text"),
-        subtype: String::from("plain"),
-        parameters: vec![(String::from("charset"), String::from("US-ASCII"))],
-    });
-
-    (mime_type, base64)
+    (string, base64)
 }
 
 /// None: no base64 suffix
