@@ -163,6 +163,7 @@ use std::mem;
 use std::net::IpAddr;
 #[cfg(any(unix, windows, target_os = "redox", target_os = "wasi"))]
 use std::net::{SocketAddr, ToSocketAddrs};
+use std::num::NonZeroU32;
 use std::ops::{Range, RangeFrom, RangeTo};
 use std::path::{Path, PathBuf};
 use std::str;
@@ -206,9 +207,9 @@ pub struct Url {
     host_end: u32,
     host: HostInternal,
     port: Option<u16>,
-    path_start: u32,             // Before initial '/', if any
-    query_start: Option<u32>,    // Before '?', unlike Position::QueryStart
-    fragment_start: Option<u32>, // Before '#', unlike Position::FragmentStart
+    path_start: u32,                    // Before initial '/', if any
+    query_start: Option<NonZeroU32>,    // Before '?', unlike Position::QueryStart
+    fragment_start: Option<NonZeroU32>, // Before '#', unlike Position::FragmentStart
 }
 
 /// Full configuration for the URL parser.
@@ -735,11 +736,11 @@ impl Url {
             }
         }
         if let Some(start) = self.query_start {
-            assert!(start >= self.path_start);
+            assert!(start.get() >= self.path_start);
             assert_eq!(self.byte_at(start), b'?');
         }
         if let Some(start) = self.fragment_start {
-            assert!(start >= self.path_start);
+            assert!(start.get() >= self.path_start);
             assert_eq!(self.byte_at(start), b'#');
         }
         if let (Some(query_start), Some(fragment_start)) = (self.query_start, self.fragment_start) {
@@ -1335,7 +1336,7 @@ impl Url {
         match (self.query_start, self.fragment_start) {
             (None, None) => self.slice(self.path_start..),
             (Some(next_component_start), _) | (None, Some(next_component_start)) => {
-                self.slice(self.path_start..next_component_start)
+                self.slice(self.path_start..next_component_start.get())
             }
         }
     }
@@ -1412,11 +1413,11 @@ impl Url {
             (None, _) => None,
             (Some(query_start), None) => {
                 debug_assert!(self.byte_at(query_start) == b'?');
-                Some(self.slice(query_start + 1..))
+                Some(self.slice(query_start.saturating_add(1)..))
             }
             (Some(query_start), Some(fragment_start)) => {
                 debug_assert!(self.byte_at(query_start) == b'?');
-                Some(self.slice(query_start + 1..fragment_start))
+                Some(self.slice(query_start.saturating_add(1)..fragment_start))
             }
         }
     }
@@ -1485,7 +1486,7 @@ impl Url {
     pub fn fragment(&self) -> Option<&str> {
         self.fragment_start.map(|start| {
             debug_assert!(self.byte_at(start) == b'#');
-            self.slice(start + 1..)
+            self.slice(start.saturating_add(1)..)
         })
     }
 
@@ -1523,11 +1524,12 @@ impl Url {
         // Remove any previous fragment
         if let Some(start) = self.fragment_start {
             debug_assert!(self.byte_at(start) == b'#');
-            self.serialization.truncate(start as usize);
+            self.truncate(start);
         }
         // Write the new one
         if let Some(input) = fragment {
-            self.fragment_start = Some(to_u32(self.serialization.len()).unwrap());
+            self.fragment_start =
+                Some(NonZeroU32::new(to_u32(self.serialization.len()).unwrap()).unwrap());
             self.serialization.push('#');
             self.mutate(|parser| parser.parse_fragment(parser::Input::new_no_trim(input)))
         } else {
@@ -1539,8 +1541,8 @@ impl Url {
     fn take_fragment(&mut self) -> Option<String> {
         self.fragment_start.take().map(|start| {
             debug_assert!(self.byte_at(start) == b'#');
-            let fragment = self.slice(start + 1..).to_owned();
-            self.serialization.truncate(start as usize);
+            let fragment = self.slice(start.saturating_add(1)..).to_owned();
+            self.truncate(start);
             fragment
         })
     }
@@ -1548,7 +1550,8 @@ impl Url {
     fn restore_already_parsed_fragment(&mut self, fragment: Option<String>) {
         if let Some(ref fragment) = fragment {
             assert!(self.fragment_start.is_none());
-            self.fragment_start = Some(to_u32(self.serialization.len()).unwrap());
+            self.fragment_start =
+                Some(NonZeroU32::new(to_u32(self.serialization.len()).unwrap()).unwrap());
             self.serialization.push('#');
             self.serialization.push_str(fragment);
         }
@@ -1580,11 +1583,12 @@ impl Url {
         // Remove any previous query
         if let Some(start) = self.query_start.take() {
             debug_assert!(self.byte_at(start) == b'?');
-            self.serialization.truncate(start as usize);
+            self.truncate(start);
         }
         // Write the new query, if any
         if let Some(input) = query {
-            self.query_start = Some(to_u32(self.serialization.len()).unwrap());
+            self.query_start =
+                Some(NonZeroU32::new(to_u32(self.serialization.len()).unwrap()).unwrap());
             self.serialization.push('?');
             let scheme_type = SchemeType::from(self.scheme());
             let scheme_end = self.scheme_end;
@@ -1644,10 +1648,10 @@ impl Url {
         let query_start;
         if let Some(start) = self.query_start {
             debug_assert!(self.byte_at(start) == b'?');
-            query_start = start as usize;
+            query_start = start.get() as usize;
         } else {
             query_start = self.serialization.len();
-            self.query_start = Some(to_u32(query_start).unwrap());
+            self.query_start = Some(NonZeroU32::new(to_u32(query_start).unwrap()).unwrap());
             self.serialization.push('?');
         }
 
@@ -1662,7 +1666,7 @@ impl Url {
         match (self.query_start, self.fragment_start) {
             (Some(i), _) | (None, Some(i)) => {
                 let after_path = self.slice(i..).to_owned();
-                self.serialization.truncate(i as usize);
+                self.truncate(i);
                 after_path
             }
             (None, None) => String::new(),
@@ -1743,9 +1747,10 @@ impl Url {
 
     fn restore_after_path(&mut self, old_after_path_position: u32, after_path: &str) {
         let new_after_path_position = to_u32(self.serialization.len()).unwrap();
-        let adjust = |index: &mut u32| {
-            *index -= old_after_path_position;
-            *index += new_after_path_position;
+        let adjust = |index: &mut NonZeroU32| {
+            *index =
+                NonZeroU32::new(index.get() - old_after_path_position + new_after_path_position)
+                    .unwrap();
         };
         if let Some(ref mut index) = self.query_start {
             adjust(index)
@@ -1838,10 +1843,10 @@ impl Url {
                 let offset = self.path_start - self.host_end;
                 self.path_start = self.host_end;
                 if let Some(ref mut index) = self.query_start {
-                    *index -= offset
+                    *index = NonZeroU32::new(index.get() - offset).unwrap();
                 }
                 if let Some(ref mut index) = self.fragment_start {
-                    *index -= offset
+                    *index = NonZeroU32::new(index.get() - offset).unwrap();
                 }
             }
             (Some(old), Some(new)) if old == new => {}
@@ -1852,9 +1857,9 @@ impl Url {
                 let old_path_start = self.path_start;
                 let new_path_start = to_u32(self.serialization.len()).unwrap();
                 self.path_start = new_path_start;
-                let adjust = |index: &mut u32| {
-                    *index -= old_path_start;
-                    *index += new_path_start;
+                let adjust = |index: &mut NonZeroU32| {
+                    *index =
+                        NonZeroU32::new(index.get() - old_path_start + new_path_start).unwrap();
                 };
                 if let Some(ref mut index) = self.query_start {
                     adjust(index)
@@ -2005,10 +2010,12 @@ impl Url {
             self.host_end = new_path_start;
             self.port = None;
             if let Some(ref mut index) = self.query_start {
-                *index -= offset
+                // *index -= offset
+                *index = NonZeroU32::new(index.get() - offset).unwrap();
             }
             if let Some(ref mut index) = self.fragment_start {
-                *index -= offset
+                // *index -= offset
+                *index = NonZeroU32::new(index.get() - offset).unwrap();
             }
         }
         Ok(())
@@ -2048,12 +2055,15 @@ impl Url {
             *index -= old_suffix_pos;
             *index += new_suffix_pos;
         };
+        let adjust_nonzero = |index: &mut NonZeroU32| {
+            *index = NonZeroU32::new(index.get() - old_suffix_pos + new_suffix_pos).unwrap();
+        };
         adjust(&mut self.path_start);
         if let Some(ref mut index) = self.query_start {
-            adjust(index)
+            adjust_nonzero(index)
         }
         if let Some(ref mut index) = self.fragment_start {
-            adjust(index)
+            adjust_nonzero(index)
         }
     }
 
@@ -2155,14 +2165,17 @@ impl Url {
                 *index -= old_host_start;
                 *index += new_host_start;
             };
+            let adjust_nonzero = |index: &mut NonZeroU32| {
+                *index = NonZeroU32::new(index.get() - old_host_start + new_host_start).unwrap();
+            };
             self.host_start = new_host_start;
             adjust(&mut self.host_end);
             adjust(&mut self.path_start);
             if let Some(ref mut index) = self.query_start {
-                adjust(index)
+                adjust_nonzero(index)
             }
             if let Some(ref mut index) = self.fragment_start {
-                adjust(index)
+                adjust_nonzero(index)
             }
 
             self.serialization.push_str(&host_and_after);
@@ -2184,10 +2197,10 @@ impl Url {
             self.host_end -= offset;
             self.path_start -= offset;
             if let Some(ref mut index) = self.query_start {
-                *index -= offset
+                *index = NonZeroU32::new(index.get() - offset).unwrap();
             }
             if let Some(ref mut index) = self.fragment_start {
-                *index -= offset
+                *index = NonZeroU32::new(index.get() - offset).unwrap();
             }
         }
         Ok(())
@@ -2268,14 +2281,17 @@ impl Url {
             *index -= removed_bytes;
             *index += added_bytes;
         };
+        let adjust_nonzero = |index: &mut NonZeroU32| {
+            *index = NonZeroU32::new(index.get() - removed_bytes + added_bytes).unwrap();
+        };
         adjust(&mut self.host_start);
         adjust(&mut self.host_end);
         adjust(&mut self.path_start);
         if let Some(ref mut index) = self.query_start {
-            adjust(index)
+            adjust_nonzero(index)
         }
         if let Some(ref mut index) = self.fragment_start {
-            adjust(index)
+            adjust_nonzero(index)
         }
         Ok(())
     }
@@ -2416,6 +2432,9 @@ impl Url {
             *index -= old_scheme_end;
             *index += new_scheme_end;
         };
+        let adjust_nonzero = |index: &mut NonZeroU32| {
+            *index = NonZeroU32::new(index.get() - old_scheme_end + new_scheme_end).unwrap();
+        };
 
         self.scheme_end = new_scheme_end;
         adjust(&mut self.username_end);
@@ -2423,10 +2442,10 @@ impl Url {
         adjust(&mut self.host_end);
         adjust(&mut self.path_start);
         if let Some(ref mut index) = self.query_start {
-            adjust(index)
+            adjust_nonzero(index)
         }
         if let Some(ref mut index) = self.fragment_start {
-            adjust(index)
+            adjust_nonzero(index)
         }
 
         parser.serialization.push_str(self.slice(old_scheme_end..));
@@ -2649,10 +2668,46 @@ impl Url {
     {
         range.slice_of(&self.serialization)
     }
+}
 
+trait ByteAt<T> {
+    fn byte_at(&self, i: T) -> u8;
+}
+
+impl ByteAt<u32> for Url {
     #[inline]
     fn byte_at(&self, i: u32) -> u8 {
         self.serialization.as_bytes()[i as usize]
+    }
+}
+
+impl ByteAt<NonZeroU32> for Url {
+    #[inline]
+    fn byte_at(&self, i: NonZeroU32) -> u8 {
+        self.serialization.as_bytes()[i.get() as usize]
+    }
+}
+
+trait Truncate<T> {
+    /// Truncate the URL's serialization to the given length.
+    fn truncate(&mut self, len: T);
+}
+impl Truncate<u32> for Url {
+    #[inline]
+    fn truncate(&mut self, len: u32) {
+        self.serialization.truncate(len as usize)
+    }
+}
+impl Truncate<NonZeroU32> for Url {
+    #[inline]
+    fn truncate(&mut self, len: NonZeroU32) {
+        self.serialization.truncate(len.get() as usize)
+    }
+}
+impl Truncate<usize> for Url {
+    #[inline]
+    fn truncate(&mut self, len: usize) {
+        self.serialization.truncate(len)
     }
 }
 
@@ -2776,6 +2831,27 @@ impl RangeArg for RangeTo<u32> {
     #[inline]
     fn slice_of<'a>(&self, s: &'a str) -> &'a str {
         &s[..self.end as usize]
+    }
+}
+
+impl RangeArg for Range<NonZeroU32> {
+    #[inline]
+    fn slice_of<'a>(&self, s: &'a str) -> &'a str {
+        &s[self.start.get() as usize..self.end.get() as usize]
+    }
+}
+
+impl RangeArg for RangeFrom<NonZeroU32> {
+    #[inline]
+    fn slice_of<'a>(&self, s: &'a str) -> &'a str {
+        &s[self.start.get() as usize..]
+    }
+}
+
+impl RangeArg for RangeTo<NonZeroU32> {
+    #[inline]
+    fn slice_of<'a>(&self, s: &'a str) -> &'a str {
+        &s[..self.end.get() as usize]
     }
 }
 
