@@ -1120,6 +1120,11 @@ impl<'a> Parser<'a> {
             }
             input = remaining;
         }
+
+        if !has_any_digit && context == Context::Setter && !input.is_empty() {
+            return Err(ParseError::InvalidPort);
+        }
+
         let mut opt_port = Some(port as u16);
         if !has_any_digit || opt_port == default_port() {
             opt_port = None;
