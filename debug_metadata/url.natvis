@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
   <Type Name="url::Url">
-    <Intrinsic Name="ptr" Expression="serialization.vec.buf.ptr.pointer.pointer" />
+    <Intrinsic Name="ptr" Expression="serialization.vec.buf.inner.ptr.pointer.pointer" />
     <DisplayString>{serialization}</DisplayString>
     <Expand>
       <Synthetic Name="[scheme]">
