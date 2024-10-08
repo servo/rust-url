@@ -43,7 +43,3 @@
 <file://monkey/> set pathname to <\\\\>
 <file:///unicorn> set pathname to <//\\/>
 <file:///unicorn> set pathname to <//monkey/..//>
-<non-spec:/> set pathname to </.//p>
-<non-spec:/> set pathname to </..//p>
-<non-spec:/> set pathname to <//p>
-<non-spec:/.//> set pathname to <p>
