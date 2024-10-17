@@ -35,6 +35,13 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
+      # Add toolchain for no_std tests
+      - run: rustup toolchain install nightly
+      - name: Add `aarch64-unknown-none` toolchain for `no_std` tests
+        if: |
+          matrix.os == 'ubuntu-latest' &&
+          matrix.rust == 'nightly'
+        run: rustup target add aarch64-unknown-none && rustup component add rust-src --toolchain nightly-x86_64-unknown-linux-gnu
       - run: cargo build --all-targets
         # Run tests
       - name: Run tests
@@ -52,6 +59,13 @@ jobs:
         continue-on-error: true # Fails on GH actions, but not locally.
       - name: Test `no_std` support
         run: cargo test --no-default-features --features=alloc
+      - name: Build `url` crate for `aarch64-unknown-none` with `no_std`
+        if: |
+          matrix.os == 'ubuntu-latest' &&
+          matrix.rust == 'nightly'
+        run: >
+          cd url
+          && cargo check --target aarch64-unknown-none -v --no-default-features
 
   WASM:
     runs-on: ubuntu-latest
