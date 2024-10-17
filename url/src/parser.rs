@@ -6,9 +6,10 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use std::error::Error;
-use std::fmt::{self, Formatter, Write};
-use std::str;
+use alloc::string::String;
+use alloc::string::ToString;
+use core::fmt::{self, Formatter, Write};
+use core::str;
 
 use crate::host::{Host, HostInternal};
 use crate::Url;
@@ -72,7 +73,11 @@ macro_rules! simple_enum_error {
     }
 }
 
-impl Error for ParseError {}
+#[cfg(feature = "std")]
+impl std::error::Error for ParseError {}
+
+#[cfg(not(feature = "std"))]
+impl core::error::Error for ParseError {}
 
 simple_enum_error! {
     EmptyHost => "empty host",
