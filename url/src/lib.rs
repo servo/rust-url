@@ -148,9 +148,6 @@ url = { version = "2", features = ["debugger_visualizer"] }
     feature = "debugger_visualizer",
     debugger_visualizer(natvis_file = "../../debug_metadata/url.natvis")
 )]
-// We use std::os::wasi::prelude::OsStrExt, and that is conditionally feature gated
-// to be unstable on wasm32-wasip2. https://github.com/rust-lang/rust/issues/130323
-#![cfg_attr(all(target_os = "wasi", target_env = "p2"), feature(wasip2))]
 
 pub use form_urlencoded;
 
@@ -2892,8 +2889,6 @@ fn path_to_file_url_segments(
     use percent_encoding::percent_encode;
     #[cfg(any(unix, target_os = "redox"))]
     use std::os::unix::prelude::OsStrExt;
-    #[cfg(target_os = "wasi")]
-    use std::os::wasi::prelude::OsStrExt;
     if !path.is_absolute() {
         return Err(());
     }
@@ -2903,8 +2898,14 @@ fn path_to_file_url_segments(
     for component in path.components().skip(1) {
         empty = false;
         serialization.push('/');
+        #[cfg(not(target_os = "wasi"))]
         serialization.extend(percent_encode(
             component.as_os_str().as_bytes(),
+            SPECIAL_PATH_SEGMENT,
+        ));
+        #[cfg(target_os = "wasi")]
+        serialization.extend(percent_encode(
+            component.as_os_str().to_string_lossy().as_bytes(),
             SPECIAL_PATH_SEGMENT,
         ));
     }
@@ -2997,11 +2998,10 @@ fn file_url_segments_to_pathbuf(
 ) -> Result<PathBuf, ()> {
     use alloc::vec::Vec;
     use percent_encoding::percent_decode;
+    #[cfg(not(target_os = "wasi"))]
     use std::ffi::OsStr;
     #[cfg(any(unix, target_os = "redox"))]
     use std::os::unix::prelude::OsStrExt;
-    #[cfg(target_os = "wasi")]
-    use std::os::wasi::prelude::OsStrExt;
     use std::path::PathBuf;
 
     if host.is_some() {
@@ -3027,8 +3027,12 @@ fn file_url_segments_to_pathbuf(
         bytes.push(b'/');
     }
 
-    let os_str = OsStr::from_bytes(&bytes);
-    let path = PathBuf::from(os_str);
+    #[cfg(not(target_os = "wasi"))]
+    let path = PathBuf::from(OsStr::from_bytes(&bytes));
+    #[cfg(target_os = "wasi")]
+    let path = String::from_utf8(bytes)
+        .map(|path| PathBuf::from(path))
+        .map_err(|_| ())?;
 
     debug_assert!(
         path.is_absolute(),
