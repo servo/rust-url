@@ -714,6 +714,9 @@ impl From<Errors> for Result<(), Errors> {
 #[cfg(feature = "std")]
 impl std::error::Error for Errors {}
 
+#[cfg(not(feature = "std"))]
+impl core::error::Error for Errors {}
+
 impl fmt::Display for Errors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(self, f)
