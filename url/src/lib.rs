@@ -2621,7 +2621,7 @@ impl Url {
     where
         D: serde::Deserializer<'de>,
     {
-        use serde::de::{Deserialize, Error, Unexpected};
+        use serde::de::{Deserialize, Error};
         let (
             serialization,
             scheme_end,
@@ -2647,10 +2647,8 @@ impl Url {
             fragment_start,
         };
         if cfg!(debug_assertions) {
-            url.check_invariants().map_err(|reason| {
-                let reason: &str = &reason;
-                Error::invalid_value(Unexpected::Other("value"), &reason)
-            })?
+            url.check_invariants()
+                .map_err(|reason| Error::custom(reason))?
         }
         Ok(url)
     }
@@ -2857,7 +2855,7 @@ impl<'de> serde::Deserialize<'de> for Url {
     where
         D: serde::Deserializer<'de>,
     {
-        use serde::de::{Error, Unexpected, Visitor};
+        use serde::de::{Error, Visitor};
 
         struct UrlVisitor;
 
@@ -2872,10 +2870,7 @@ impl<'de> serde::Deserialize<'de> for Url {
             where
                 E: Error,
             {
-                Url::parse(s).map_err(|err| {
-                    let err_s = format!("{}", err);
-                    Error::invalid_value(Unexpected::Str(s), &err_s.as_str())
-                })
+                Url::parse(s).map_err(|err| Error::custom(format!("{}: {:?}", err, s)))
             }
         }
 

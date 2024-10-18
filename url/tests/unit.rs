@@ -1362,3 +1362,20 @@ fn issue_974() {
     let _ = url::quirks::set_port(&mut url, "\u{0000}9000");
     assert_eq!(url.port(), Some(8000));
 }
+
+#[cfg(feature = "serde")]
+#[test]
+fn serde_error_message() {
+    use serde::Deserialize;
+    #[derive(Debug, Deserialize)]
+    #[allow(dead_code)]
+    struct TypeWithUrl {
+        url: Url,
+    }
+
+    let err = serde_json::from_str::<TypeWithUrl>(r#"{"url": "§invalid#+#*Ä"}"#).unwrap_err();
+    assert_eq!(
+        err.to_string(),
+        r#"relative URL without a base: "§invalid#+#*Ä" at line 1 column 25"#
+    );
+}
