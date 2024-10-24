@@ -168,7 +168,13 @@ use crate::host::HostInternal;
 
 use crate::net::IpAddr;
 #[cfg(feature = "std")]
-#[cfg(any(unix, windows, target_os = "redox", target_os = "wasi"))]
+#[cfg(any(
+    unix,
+    windows,
+    target_os = "redox",
+    target_os = "wasi",
+    target_os = "hermit"
+))]
 use crate::net::{SocketAddr, ToSocketAddrs};
 use crate::parser::{to_u32, Context, Parser, SchemeType, USERINFO};
 use alloc::borrow::ToOwned;
@@ -181,7 +187,13 @@ use core::ops::{Range, RangeFrom, RangeTo};
 use core::{cmp, fmt, hash, mem};
 use percent_encoding::utf8_percent_encode;
 #[cfg(feature = "std")]
-#[cfg(any(unix, windows, target_os = "redox", target_os = "wasi"))]
+#[cfg(any(
+    unix,
+    windows,
+    target_os = "redox",
+    target_os = "wasi",
+    target_os = "hermit"
+))]
 use std::io;
 #[cfg(feature = "std")]
 use std::path::{Path, PathBuf};
@@ -1308,7 +1320,13 @@ impl Url {
     /// }
     /// ```
     #[cfg(feature = "std")]
-    #[cfg(any(unix, windows, target_os = "redox", target_os = "wasi"))]
+    #[cfg(any(
+        unix,
+        windows,
+        target_os = "redox",
+        target_os = "wasi",
+        target_os = "hermit"
+    ))]
     pub fn socket_addrs(
         &self,
         default_port_number: impl Fn() -> Option<u16>,
@@ -2566,7 +2584,13 @@ impl Url {
     /// This method is only available if the `std` Cargo feature is enabled.
     #[cfg(all(
         feature = "std",
-        any(unix, windows, target_os = "redox", target_os = "wasi")
+        any(
+            unix,
+            windows,
+            target_os = "redox",
+            target_os = "wasi",
+            target_os = "hermit"
+        )
     ))]
     #[allow(clippy::result_unit_err)]
     pub fn from_file_path<P: AsRef<std::path::Path>>(path: P) -> Result<Url, ()> {
@@ -2608,7 +2632,13 @@ impl Url {
     /// This method is only available if the `std` Cargo feature is enabled.
     #[cfg(all(
         feature = "std",
-        any(unix, windows, target_os = "redox", target_os = "wasi")
+        any(
+            unix,
+            windows,
+            target_os = "redox",
+            target_os = "wasi",
+            target_os = "hermit"
+        )
     ))]
     #[allow(clippy::result_unit_err)]
     pub fn from_directory_path<P: AsRef<std::path::Path>>(path: P) -> Result<Url, ()> {
@@ -2730,7 +2760,13 @@ impl Url {
     #[inline]
     #[cfg(all(
         feature = "std",
-        any(unix, windows, target_os = "redox", target_os = "wasi")
+        any(
+            unix,
+            windows,
+            target_os = "redox",
+            target_os = "wasi",
+            target_os = "hermit"
+        )
     ))]
     #[allow(clippy::result_unit_err)]
     pub fn to_file_path(&self) -> Result<PathBuf, ()> {
@@ -2935,13 +2971,18 @@ impl<'de> serde::Deserialize<'de> for Url {
     }
 }
 
-#[cfg(all(feature = "std", any(unix, target_os = "redox", target_os = "wasi")))]
+#[cfg(all(
+    feature = "std",
+    any(unix, target_os = "redox", target_os = "wasi", target_os = "hermit")
+))]
 fn path_to_file_url_segments(
     path: &Path,
     serialization: &mut String,
 ) -> Result<(u32, HostInternal), ()> {
     use parser::SPECIAL_PATH_SEGMENT;
     use percent_encoding::percent_encode;
+    #[cfg(target_os = "hermit")]
+    use std::os::hermit::ffi::OsStrExt;
     #[cfg(any(unix, target_os = "redox"))]
     use std::os::unix::prelude::OsStrExt;
     #[cfg(target_os = "wasi")]
@@ -3042,7 +3083,10 @@ fn path_to_file_url_segments_windows(
     Ok((host_end, host_internal))
 }
 
-#[cfg(all(feature = "std", any(unix, target_os = "redox", target_os = "wasi")))]
+#[cfg(all(
+    feature = "std",
+    any(unix, target_os = "redox", target_os = "wasi", target_os = "hermit")
+))]
 fn file_url_segments_to_pathbuf(
     host: Option<&str>,
     segments: str::Split<'_, char>,
@@ -3050,6 +3094,8 @@ fn file_url_segments_to_pathbuf(
     use alloc::vec::Vec;
     use percent_encoding::percent_decode;
     use std::ffi::OsStr;
+    #[cfg(target_os = "hermit")]
+    use std::os::hermit::ffi::OsStrExt;
     #[cfg(any(unix, target_os = "redox"))]
     use std::os::unix::prelude::OsStrExt;
     #[cfg(target_os = "wasi")]
