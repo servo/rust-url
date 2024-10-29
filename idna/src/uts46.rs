@@ -515,14 +515,14 @@ impl Uts46 {
     /// # Arguments
     ///
     /// * `domain_name` - The input domain name as UTF-8 bytes. (The UTF-8ness is checked by
-    /// this method and input that is not well-formed UTF-8 is treated as an error. If you
-    /// already have a `&str`, call `.as_bytes()` on it.)
+    ///   this method and input that is not well-formed UTF-8 is treated as an error. If you
+    ///   already have a `&str`, call `.as_bytes()` on it.)
     /// * `ascii_deny_list` - What ASCII deny list, if any, to apply. The UTS 46
-    /// _UseSTD3ASCIIRules_ flag or the WHATWG URL Standard forbidden domain code point
-    /// processing is handled via this argument. Most callers are probably the best off
-    /// by using [`AsciiDenyList::URL`] here.
+    ///   _UseSTD3ASCIIRules_ flag or the WHATWG URL Standard forbidden domain code point
+    ///   processing is handled via this argument. Most callers are probably the best off
+    ///   by using [`AsciiDenyList::URL`] here.
     /// * `hyphens` - The UTS 46 _CheckHyphens_ flag. Most callers are probably the best
-    /// off by using [`Hyphens::Allow`] here.
+    ///   off by using [`Hyphens::Allow`] here.
     /// * `dns_length` - The UTS 46 _VerifyDNSLength_ flag.
     pub fn to_ascii<'a>(
         &self,
@@ -581,14 +581,14 @@ impl Uts46 {
     /// # Arguments
     ///
     /// * `domain_name` - The input domain name as UTF-8 bytes. (The UTF-8ness is checked by
-    /// this method and input that is not well-formed UTF-8 is treated as an error. If you
-    /// already have a `&str`, call `.as_bytes()` on it.)
+    ///   this method and input that is not well-formed UTF-8 is treated as an error. If you
+    ///   already have a `&str`, call `.as_bytes()` on it.)
     /// * `ascii_deny_list` - What ASCII deny list, if any, to apply. The UTS 46
-    /// _UseSTD3ASCIIRules_ flag or the WHATWG URL Standard forbidden domain code point
-    /// processing is handled via this argument. Most callers are probably the best off
-    /// by using [`AsciiDenyList::URL`] here.
+    ///   _UseSTD3ASCIIRules_ flag or the WHATWG URL Standard forbidden domain code point
+    ///   processing is handled via this argument. Most callers are probably the best off
+    ///   by using [`AsciiDenyList::URL`] here.
     /// * `hyphens` - The UTS 46 _CheckHyphens_ flag. Most callers are probably the best
-    /// off by using [`Hyphens::Allow`] here.
+    ///   off by using [`Hyphens::Allow`] here.
     pub fn to_unicode<'a>(
         &self,
         domain_name: &'a [u8],
@@ -627,23 +627,23 @@ impl Uts46 {
     /// # Arguments
     ///
     /// * `domain_name` - The input domain name as UTF-8 bytes. (The UTF-8ness is checked by
-    /// this method and input that is not well-formed UTF-8 is treated as an error. If you
-    /// already have a `&str`, call `.as_bytes()` on it.)
+    ///   this method and input that is not well-formed UTF-8 is treated as an error. If you
+    ///   already have a `&str`, call `.as_bytes()` on it.)
     /// * `ascii_deny_list` - What ASCII deny list, if any, to apply. The UTS 46
-    /// _UseSTD3ASCIIRules_ flag or the WHATWG URL Standard forbidden domain code point
-    /// processing is handled via this argument. Most callers are probably the best off
-    /// by using [`AsciiDenyList::URL`] here.
+    ///   _UseSTD3ASCIIRules_ flag or the WHATWG URL Standard forbidden domain code point
+    ///   processing is handled via this argument. Most callers are probably the best off
+    ///   by using [`AsciiDenyList::URL`] here.
     /// * `hyphens` - The UTS 46 _CheckHyphens_ flag. Most callers are probably the best
-    /// off by using [`Hyphens::Allow`] here.
+    ///   off by using [`Hyphens::Allow`] here.
     /// * `output_as_unicode` - A closure for deciding if a label should be output as Unicode
-    /// (as opposed to Punycode). The first argument is the label for which a decision is
-    /// needed (always non-empty slice). The second argument is the TLD (potentially empty).
-    /// The third argument is `true` iff the domain name as a whole is a bidi domain name.
-    /// Only non-erroneous labels that contain at least one non-ASCII character are passed
-    /// to the closure as the first argument. The second and third argument values are
-    /// guaranteed to remain the same during a single call to `process`, and the closure
-    /// may cache computations derived from the second and third argument (hence the
-    /// `FnMut` type).
+    ///   (as opposed to Punycode). The first argument is the label for which a decision is
+    ///   needed (always non-empty slice). The second argument is the TLD (potentially empty).
+    ///   The third argument is `true` iff the domain name as a whole is a bidi domain name.
+    ///   Only non-erroneous labels that contain at least one non-ASCII character are passed
+    ///   to the closure as the first argument. The second and third argument values are
+    ///   guaranteed to remain the same during a single call to `process`, and the closure
+    ///   may cache computations derived from the second and third argument (hence the
+    ///   `FnMut` type).
     pub fn to_user_interface<'a, OutputUnicode: FnMut(&[char], &[char], bool) -> bool>(
         &self,
         domain_name: &'a [u8],
@@ -679,59 +679,59 @@ impl Uts46 {
     /// # Arguments
     ///
     /// * `domain_name` - The input domain name as UTF-8 bytes. (The UTF-8ness is checked by
-    /// this method and input that is not well-formed UTF-8 is treated as an error. If you
-    /// already have a `&str`, call `.as_bytes()` on it.)
+    ///   this method and input that is not well-formed UTF-8 is treated as an error. If you
+    ///   already have a `&str`, call `.as_bytes()` on it.)
     /// * `ascii_deny_list` - What ASCII deny list, if any, to apply. The UTS 46
-    /// _UseSTD3ASCIIRules_ flag or the WHATWG URL Standard forbidden domain code point
-    /// processing is handled via this argument. Most callers are probably the best off
-    /// by using [`AsciiDenyList::URL`] here.
+    ///   _UseSTD3ASCIIRules_ flag or the WHATWG URL Standard forbidden domain code point
+    ///   processing is handled via this argument. Most callers are probably the best off
+    ///   by using [`AsciiDenyList::URL`] here.
     /// * `hyphens` - The UTS 46 _CheckHyphens_ flag. Most callers are probably the best
-    /// off by using [`Hyphens::Allow`] here.
+    ///   off by using [`Hyphens::Allow`] here.
     /// * `error_policy` - Whether to fail fast or to produce output that may be rendered
-    /// for the user to examine in case of errors.
+    ///   for the user to examine in case of errors.
     /// * `output_as_unicode` - A closure for deciding if a label should be output as Unicode
-    /// (as opposed to Punycode). The first argument is the label for which a decision is
-    /// needed (always non-empty slice). The second argument is the TLD (potentially empty).
-    /// The third argument is `true` iff the domain name as a whole is a bidi domain name.
-    /// Only non-erroneous labels that contain at least one non-ASCII character are passed
-    /// to the closure as the first argument. The second and third argument values are
-    /// guaranteed to remain the same during a single call to `process`, and the closure
-    /// may cache computations derived from the second and third argument (hence the
-    /// `FnMut` type). To perform the _ToASCII_ operation, `|_, _, _| false` must be
-    /// passed as the closure. To perform the _ToUnicode_ operation, `|_, _, _| true` must
-    /// be passed as the closure. A more complex closure may be used to prepare a domain
-    /// name for display in a user interface so that labels are converted to the Unicode
-    /// form in general but potentially misleading labels are converted to the Punycode
-    /// form.
-    /// `sink` - The object that receives the output (in the non-passthrough case).
-    /// `ascii_sink` - A second sink that receives the _ToASCII_ form only if there
-    /// were no errors and `sink` received at least one character of non-ASCII output.
-    /// The purpose of this argument is to enable a user interface display form of the
-    /// domain and the _ToASCII_ form of the domain to be computed efficiently together.
-    /// This argument is useless when `output_as_unicode` always returns `false`, in
-    /// which case the _ToASCII_ form ends up in `sink` already. If `ascii_sink` receives
-    /// no output and the return value is `Ok(ProcessingSuccess::WroteToSink)`, use the
-    /// output received by `sink` also as the _ToASCII_ result.
+    ///   (as opposed to Punycode). The first argument is the label for which a decision is
+    ///   needed (always non-empty slice). The second argument is the TLD (potentially empty).
+    ///   The third argument is `true` iff the domain name as a whole is a bidi domain name.
+    ///   Only non-erroneous labels that contain at least one non-ASCII character are passed
+    ///   to the closure as the first argument. The second and third argument values are
+    ///   guaranteed to remain the same during a single call to `process`, and the closure
+    ///   may cache computations derived from the second and third argument (hence the
+    ///   `FnMut` type). To perform the _ToASCII_ operation, `|_, _, _| false` must be
+    ///   passed as the closure. To perform the _ToUnicode_ operation, `|_, _, _| true` must
+    ///   be passed as the closure. A more complex closure may be used to prepare a domain
+    ///   name for display in a user interface so that labels are converted to the Unicode
+    ///   form in general but potentially misleading labels are converted to the Punycode
+    ///   form.
+    /// * `sink` - The object that receives the output (in the non-passthrough case).
+    /// * `ascii_sink` - A second sink that receives the _ToASCII_ form only if there
+    ///   were no errors and `sink` received at least one character of non-ASCII output.
+    ///   The purpose of this argument is to enable a user interface display form of the
+    ///   domain and the _ToASCII_ form of the domain to be computed efficiently together.
+    ///   This argument is useless when `output_as_unicode` always returns `false`, in
+    ///   which case the _ToASCII_ form ends up in `sink` already. If `ascii_sink` receives
+    ///   no output and the return value is `Ok(ProcessingSuccess::WroteToSink)`, use the
+    ///   output received by `sink` also as the _ToASCII_ result.
     ///
     /// # Return value
     ///
     /// * `Ok(ProcessingSuccess::Passthrough)` - The caller must treat
-    /// `unsafe { core::str::from_utf8_unchecked(domain_name) }` as the output. (This
-    /// return value asserts that calling `core::str::from_utf8_unchecked(domain_name)`
-    /// is safe.)
+    ///   `unsafe { core::str::from_utf8_unchecked(domain_name) }` as the output. (This
+    ///   return value asserts that calling `core::str::from_utf8_unchecked(domain_name)`
+    ///   is safe.)
     /// * `Ok(ProcessingSuccess::WroteToSink)` - The caller must treat was was written
-    /// to `sink` as the output. If another sink was passed as `ascii_sink` but it did
-    /// not receive output, the caller must treat what was written to `sink` also as
-    /// the _ToASCII_ output. Otherwise, if `ascii_sink` received output, the caller
-    /// must treat what was written to `ascii_sink` as the _ToASCII_ output.
+    ///   to `sink` as the output. If another sink was passed as `ascii_sink` but it did
+    ///   not receive output, the caller must treat what was written to `sink` also as
+    ///   the _ToASCII_ output. Otherwise, if `ascii_sink` received output, the caller
+    ///   must treat what was written to `ascii_sink` as the _ToASCII_ output.
     /// * `Err(ProcessingError::ValidityError)` - The input was in error and must
-    /// not be used for DNS lookup or otherwise in a network protocol. If `error_policy`
-    /// was `ErrorPolicy::MarkErrors`, the output written to `sink` may be displayed
-    /// to the user as an illustration of where the error was or the errors were.
+    ///   not be used for DNS lookup or otherwise in a network protocol. If `error_policy`
+    ///   was `ErrorPolicy::MarkErrors`, the output written to `sink` may be displayed
+    ///   to the user as an illustration of where the error was or the errors were.
     /// * `Err(ProcessingError::SinkError)` - Either `sink` or `ascii_sink` returned
-    /// [`core::fmt::Error`]. The partial output written to `sink` `ascii_sink` must not
-    /// be used. If `W` never returns [`core::fmt::Error`], this method never returns
-    /// `Err(ProcessingError::SinkError)`.
+    ///   [`core::fmt::Error`]. The partial output written to `sink` `ascii_sink` must not
+    ///   be used. If `W` never returns [`core::fmt::Error`], this method never returns
+    ///   `Err(ProcessingError::SinkError)`.
     ///
     /// # Safety-usable invariant
     ///
@@ -1070,6 +1070,7 @@ impl Uts46 {
     /// can avoid monomorphizing in the interest of code size.
     /// Separating this into a different stack frame compared to `process_inner`
     /// improves performance in the ICU4X case.
+    #[allow(clippy::too_many_arguments)]
     #[inline(never)]
     fn process_innermost<'a>(
         &self,
