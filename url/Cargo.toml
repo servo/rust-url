@@ -10,7 +10,7 @@ documentation = "https://docs.rs/url"
 repository = "https://github.com/servo/rust-url"
 readme = "../README.md"
 keywords = ["url", "parser"]
-categories = ["parser-implementations", "web-programming", "encoding"]
+categories = ["parser-implementations", "web-programming", "encoding", "no_std"]
 license = "MIT OR Apache-2.0"
 include = ["src/**/*", "LICENSE-*", "README.md", "tests/**"]
 edition = "2018"
@@ -25,13 +25,15 @@ bencher = "0.1"
 wasm-bindgen-test = "0.3"
 
 [dependencies]
-form_urlencoded = { version = "1.2.1", path = "../form_urlencoded" }
-idna = { version = "1.0.2", path = "../idna" }
-percent-encoding = { version = "2.3.1", path = "../percent_encoding" }
+form_urlencoded = { version = "1.2.1", path = "../form_urlencoded", default-features = false, features = ["alloc"] }
+idna = { version = "1.0.2", path = "../idna", default-features = false, features = ["alloc", "compiled_data"] }
+percent-encoding = { version = "2.3.1", path = "../percent_encoding", default-features = false, features = ["alloc"] }
 serde = { version = "1.0", optional = true, features = ["derive"] }
 
 [features]
-default = []
+default = ["std"]
+std = ["idna/std", "percent-encoding/std", "form_urlencoded/std"]
+
 # Enable to use the #[debugger_visualizer] attribute. This feature requires Rust >= 1.71.
 debugger_visualizer = []
 # Expose internal offsets of the URL.
