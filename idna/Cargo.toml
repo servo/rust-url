@@ -38,7 +38,7 @@ serde_json = "1.0"
 [dependencies]
 utf8_iter = "1.0.4"
 smallvec = { version = "1.13.1", features = ["const_generics"]}
-idna_adapter = { path = "../../idna_adapter" }
+idna_adapter = "1"
 
 [[bench]]
 name = "all"
