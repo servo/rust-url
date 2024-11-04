@@ -143,7 +143,7 @@ url = { version = "2", features = ["debugger_visualizer"] }
 */
 
 #![no_std]
-#![doc(html_root_url = "https://docs.rs/url/2.5.3")]
+#![doc(html_root_url = "https://docs.rs/url/2.5.4")]
 #![cfg_attr(
     feature = "debugger_visualizer",
     debugger_visualizer(natvis_file = "../../debug_metadata/url.natvis")
@@ -1398,10 +1398,7 @@ impl Url {
     /// ```
     /// use url::Url;
     ///
-    /// # #[cfg(feature = "std")]
     /// # use std::error::Error;
-    /// # #[cfg(not(feature = "std"))]
-    /// # use core::error::Error;
     ///
     /// # fn run() -> Result<(), Box<dyn Error>> {
     /// let url = Url::parse("https://example.com/foo/bar")?;
@@ -1868,10 +1865,7 @@ impl Url {
     /// ```
     /// use url::Url;
     ///
-    /// # #[cfg(feature = "std")]
     /// # use std::error::Error;
-    /// # #[cfg(not(feature = "std"))]
-    /// # use core::error::Error;
     ///
     /// # fn run() -> Result<(), Box<dyn Error>> {
     /// let mut url = Url::parse("ssh://example.net:2048/")?;
@@ -1891,10 +1885,7 @@ impl Url {
     /// ```rust
     /// use url::Url;
     ///
-    /// # #[cfg(feature = "std")]
     /// # use std::error::Error;
-    /// # #[cfg(not(feature = "std"))]
-    /// # use core::error::Error;
     ///
     /// # fn run() -> Result<(), Box<dyn Error>> {
     /// let mut url = Url::parse("https://example.org/")?;
