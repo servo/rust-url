@@ -14,10 +14,16 @@ use alloc::string::ToString;
 use alloc::vec::Vec;
 use core::cmp;
 use core::fmt::{self, Formatter};
+use std::mem;
 
 use percent_encoding::{percent_decode, utf8_percent_encode, CONTROLS};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "sqlx_postgres")]
+use sqlx::postgres::{PgHasArrayType, PgTypeInfo};
+#[cfg(feature = "sqlx")]
+use sqlx::{encode::IsNull, error::BoxDynError, Database, Decode, Encode, Type};
 
 use crate::parser::{ParseError, ParseResult};
 
@@ -173,6 +179,57 @@ where
             (Host::Ipv6(a), Host::Ipv6(b)) => a == b,
             (_, _) => false,
         }
+    }
+}
+
+#[cfg(feature = "sqlx")]
+impl<DB: Database> Type<DB> for Host
+where
+    String: Type<DB>,
+{
+    fn type_info() -> DB::TypeInfo {
+        <String as Type<DB>>::type_info()
+    }
+
+    fn compatible(ty: &DB::TypeInfo) -> bool {
+        <String as Type<DB>>::compatible(ty)
+    }
+}
+
+#[cfg(feature = "sqlx_postgres")]
+impl PgHasArrayType for Host
+where
+    String: PgHasArrayType,
+{
+    fn array_type_info() -> PgTypeInfo {
+        <String as PgHasArrayType>::array_type_info()
+    }
+}
+
+#[cfg(feature = "sqlx")]
+impl<'a, DB: Database> Encode<'a, DB> for Host
+where
+    String: Encode<'a, DB>,
+{
+    fn encode_by_ref(
+        &self,
+        buf: &mut <DB as Database>::ArgumentBuffer<'a>,
+    ) -> Result<IsNull, BoxDynError> {
+        <String as Encode<'a, DB>>::encode_by_ref(&self.to_string(), buf)
+    }
+
+    fn size_hint(&self) -> usize {
+        mem::size_of::<String>()
+    }
+}
+
+#[cfg(feature = "sqlx")]
+impl<'a, DB: Database> Decode<'a, DB> for Host
+where
+    String: Decode<'a, DB>,
+{
+    fn decode(value: <DB as Database>::ValueRef<'a>) -> Result<Self, BoxDynError> {
+        Ok(Self::parse(&<String as Decode<'a, DB>>::decode(value)?)?)
     }
 }
 

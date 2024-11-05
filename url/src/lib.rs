@@ -161,6 +161,9 @@ extern crate alloc;
 #[cfg(feature = "serde")]
 extern crate serde;
 
+#[cfg(feature = "sqlx")]
+extern crate sqlx;
+
 use crate::host::HostInternal;
 
 use crate::net::IpAddr;
@@ -183,6 +186,10 @@ use core::fmt::Write;
 use core::ops::{Range, RangeFrom, RangeTo};
 use core::{cmp, fmt, hash, mem};
 use percent_encoding::utf8_percent_encode;
+#[cfg(feature = "sqlx_postgres")]
+use sqlx::postgres::{PgHasArrayType, PgTypeInfo};
+#[cfg(feature = "sqlx")]
+use sqlx::{encode::IsNull, error::BoxDynError, Database, Decode, Encode, Type};
 #[cfg(feature = "std")]
 #[cfg(any(
     unix,
@@ -2960,6 +2967,61 @@ impl<'de> serde::Deserialize<'de> for Url {
         }
 
         deserializer.deserialize_str(UrlVisitor)
+    }
+}
+
+#[cfg(feature = "sqlx")]
+impl<DB: Database> Type<DB> for Url
+where
+    String: Type<DB>,
+{
+    fn type_info() -> DB::TypeInfo {
+        <String as Type<DB>>::type_info()
+    }
+
+    fn compatible(ty: &DB::TypeInfo) -> bool {
+        <String as Type<DB>>::compatible(ty)
+    }
+}
+
+#[cfg(feature = "sqlx_postgres")]
+impl PgHasArrayType for Url
+where
+    String: PgHasArrayType,
+{
+    fn array_type_info() -> PgTypeInfo {
+        <String as PgHasArrayType>::array_type_info()
+    }
+}
+
+#[cfg(feature = "sqlx")]
+impl<'a, DB: Database> Encode<'a, DB> for Url
+where
+    String: Encode<'a, DB>,
+{
+    fn encode_by_ref(
+        &self,
+        buf: &mut <DB as Database>::ArgumentBuffer<'a>,
+    ) -> Result<IsNull, BoxDynError> {
+        <String as Encode<'a, DB>>::encode_by_ref(&self.serialization, buf)
+    }
+
+    fn produces(&self) -> Option<DB::TypeInfo> {
+        <String as Encode<'a, DB>>::produces(&self.serialization)
+    }
+
+    fn size_hint(&self) -> usize {
+        <String as Encode<'a, DB>>::size_hint(&self.serialization)
+    }
+}
+
+#[cfg(feature = "sqlx")]
+impl<'a, DB: Database> Decode<'a, DB> for Url
+where
+    String: Decode<'a, DB>,
+{
+    fn decode(value: <DB as Database>::ValueRef<'a>) -> Result<Self, BoxDynError> {
+        Ok(Self::parse(&<String as Decode<'a, DB>>::decode(value)?)?)
     }
 }
 

@@ -1379,3 +1379,35 @@ fn serde_error_message() {
         r#"relative URL without a base: "§invalid#+#*Ä" at line 1 column 25"#
     );
 }
+
+#[cfg(feature = "sqlx")]
+#[test]
+fn sqlx_url_error() {
+    use sqlx::{any::AnyValue, Any, Decode, Value};
+    use sqlx_core::any::AnyValueKind;
+    use url::ParseError;
+
+    let value = AnyValue {
+        kind: AnyValueKind::Text(Cow::from("§invalid#+#*Ä")),
+    };
+    let boxed_err = <Url as Decode<'_, Any>>::decode(value.as_ref()).unwrap_err();
+    let err = boxed_err.downcast::<ParseError>().unwrap();
+
+    assert_eq!(*err, ParseError::RelativeUrlWithoutBase);
+}
+
+#[cfg(feature = "sqlx")]
+#[test]
+fn sqlx_host_error() {
+    use sqlx::{any::AnyValue, Any, Decode, Value};
+    use sqlx_core::any::AnyValueKind;
+    use url::ParseError;
+
+    let value = AnyValue {
+        kind: AnyValueKind::Text(Cow::from("§invalid#+#*Ä")),
+    };
+    let boxed_err = <Host as Decode<'_, Any>>::decode(value.as_ref()).unwrap_err();
+    let err = boxed_err.downcast::<ParseError>().unwrap();
+
+    assert_eq!(*err, ParseError::IdnaError);
+}

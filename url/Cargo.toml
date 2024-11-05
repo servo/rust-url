@@ -20,6 +20,7 @@ rust-version = "1.57" # From idna
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 bencher = "0.1"
+sqlx-core = "0.8"
 
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dev-dependencies]
 wasm-bindgen-test = "0.3"
@@ -29,10 +30,12 @@ form_urlencoded = { version = "1.2.1", path = "../form_urlencoded", default-feat
 idna = { version = "1.0.3", path = "../idna", default-features = false, features = ["alloc", "compiled_data"] }
 percent-encoding = { version = "2.3.1", path = "../percent_encoding", default-features = false, features = ["alloc"] }
 serde = { version = "1.0", optional = true, features = ["derive"] }
+sqlx = { version = "0.8", optional = true }
 
 [features]
 default = ["std"]
 std = ["idna/std", "percent-encoding/std", "form_urlencoded/std"]
+sqlx_postgres = ["sqlx", "sqlx/postgres"]
 
 # Enable to use the #[debugger_visualizer] attribute. This feature requires Rust >= 1.71.
 debugger_visualizer = []
