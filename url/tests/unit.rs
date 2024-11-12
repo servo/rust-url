@@ -1382,6 +1382,7 @@ fn serde_error_message() {
 
 #[test]
 fn test_can_be_a_base_with_set_path() {
+    use url::quirks;
     let mut url = Url::parse("web+demo:/").unwrap();
     assert!(!url.cannot_be_a_base());
 
@@ -1396,6 +1397,10 @@ fn test_can_be_a_base_with_set_path() {
     assert_eq!(segments, vec!["", "not-a-host"]);
 
     assert_eq!(url.as_str(), "web+demo:/.//not-a-host");
+    quirks::set_hostname(&mut url, "test").unwrap();
+    assert_eq!(url.as_str(), "web+demo://test//not-a-host");
+    quirks::set_hostname(&mut url, "").unwrap();
+    assert_eq!(url.as_str(), "web+demo:////not-a-host");
 }
 
 #[test]

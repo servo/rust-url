@@ -2129,7 +2129,7 @@ impl Url {
         } else {
             self.host_end
         };
-        let suffix = self.slice(old_suffix_pos..).to_owned();
+        let mut suffix = self.slice(old_suffix_pos..).to_owned();
         self.serialization.truncate(self.host_start as usize);
         if !self.has_authority() {
             debug_assert!(self.slice(self.scheme_end..self.host_start) == ":");
@@ -2142,6 +2142,13 @@ impl Url {
         write!(&mut self.serialization, "{}", host).unwrap();
         self.host_end = to_u32(self.serialization.len()).unwrap();
         self.host = host.into();
+
+        // Adjust serialization to switch from host to empty segment
+        if suffix.starts_with("/.//") {
+            suffix.drain(.."/.".len());
+            // pathname should be "//p" not "p" given that the first segment was empty
+            self.path_start -= "//".len() as u32;
+        }
 
         if let Some(new_port) = opt_new_port {
             self.port = new_port;
