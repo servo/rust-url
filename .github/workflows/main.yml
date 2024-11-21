@@ -15,7 +15,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        rust: [1.57.0, 1.67.0, stable, beta, nightly]
+        rust: [1.63.0, 1.67.0, stable, beta, nightly]
         exclude:
           - os: macos-latest
             rust: 1.67.0
@@ -37,9 +37,9 @@ jobs:
           toolchain: ${{ matrix.rust }}
       # Add toolchain for no_std tests
       - run: rustup toolchain install nightly
-      - name: Downgrade idna_adapter on Rust 1.57.0
+      - name: Downgrade idna_adapter on Rust 1.63.0
         if: |
-          matrix.rust == '1.57.0'
+          matrix.rust == '1.63.0'
         run: cargo update -p idna_adapter --precise 1.1.0
       - name: Add `aarch64-unknown-none` toolchain for `no_std` tests
         if: |
@@ -58,7 +58,7 @@ jobs:
       - name: Run debugger_visualizer tests
         if: |
           matrix.os == 'windows-latest' &&
-          matrix.rust != '1.57.0' &&
+          matrix.rust != '1.63.0' &&
           matrix.rust != '1.67.0'
         run: cargo test --test debugger_visualizer --features "url/debugger_visualizer,url_debug_tests/debugger_visualizer" -- --test-threads=1 || echo "debugger test failed"
         continue-on-error: true # Fails on GH actions, but not locally.
