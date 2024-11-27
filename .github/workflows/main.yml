@@ -37,10 +37,18 @@ jobs:
           toolchain: ${{ matrix.rust }}
       # Add toolchain for no_std tests
       - run: rustup toolchain install nightly
-      - name: Downgrade idna_adapter on Rust 1.63.0
+      - name: Downgrade deps on Rust 1.63.0
         if: |
           matrix.rust == '1.63.0'
-        run: cargo update -p idna_adapter --precise 1.1.0
+        run: |
+          cargo update -p idna_adapter --precise 1.1.0
+      - name: Downgrade deps on Rust 1.67.0
+        if: |
+          matrix.rust == '1.67.0'
+        run: |
+          cargo update -p zerofrom --precise 0.1.4
+          cargo update -p yoke --precise 0.7.4
+          cargo update -p litemap --precise 0.7.3
       - name: Add `aarch64-unknown-none` toolchain for `no_std` tests
         if: |
           matrix.os == 'ubuntu-latest' &&
