@@ -1379,3 +1379,46 @@ fn serde_error_message() {
         r#"relative URL without a base: "§invalid#+#*Ä" at line 1 column 25"#
     );
 }
+
+#[test]
+fn test_can_be_a_base_with_set_path() {
+    use url::quirks;
+    let mut url = Url::parse("web+demo:/").unwrap();
+    assert!(!url.cannot_be_a_base());
+
+    url.set_path("//not-a-host");
+    assert_eq!(url.path(), "//not-a-host");
+
+    let segments: Vec<_> = url
+        .path_segments()
+        .expect("should have path segments")
+        .collect();
+
+    assert_eq!(segments, vec!["", "not-a-host"]);
+
+    assert_eq!(url.as_str(), "web+demo:/.//not-a-host");
+    quirks::set_hostname(&mut url, "test").unwrap();
+    assert_eq!(url.as_str(), "web+demo://test//not-a-host");
+    quirks::set_hostname(&mut url, "").unwrap();
+    assert_eq!(url.as_str(), "web+demo:////not-a-host");
+}
+
+#[test]
+fn test_can_be_a_base_with_path_segments_mut() {
+    let mut url = Url::parse("web+demo:/").unwrap();
+    assert!(!url.cannot_be_a_base());
+
+    url.path_segments_mut()
+        .expect("should have path segments")
+        .push("")
+        .push("not-a-host");
+
+    assert_eq!(url.as_str(), "web+demo:/.//not-a-host");
+    assert_eq!(url.path(), "//not-a-host");
+
+    let segments: Vec<_> = url
+        .path_segments()
+        .expect("should have path segments")
+        .collect();
+    assert_eq!(segments, vec!["", "not-a-host"]);
+}
