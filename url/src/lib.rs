@@ -820,7 +820,7 @@ impl Url {
     /// assert_eq!(url.origin(),
     ///            Origin::Tuple("ftp".into(),
     ///                          Host::Domain("example.com".into()),
-    ///                          21));
+    ///                          None));
     /// # Ok(())
     /// # }
     /// # run().unwrap();
@@ -837,7 +837,7 @@ impl Url {
     /// assert_eq!(url.origin(),
     ///            Origin::Tuple("https".into(),
     ///                          Host::Domain("example.com".into()),
-    ///                          443));
+    ///                          None));
     /// # Ok(())
     /// # }
     /// # run().unwrap();
