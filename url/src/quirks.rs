@@ -13,6 +13,8 @@
 
 use crate::parser::{default_port, Context, Input, Parser, SchemeType};
 use crate::{Host, ParseError, Position, Url};
+use alloc::string::String;
+use alloc::string::ToString;
 
 /// Internal components / offsets of a URL.
 ///
@@ -279,10 +281,15 @@ pub fn set_pathname(url: &mut Url, new_pathname: &str) {
             && new_pathname.starts_with('\\'))
     {
         url.set_path(new_pathname)
-    } else {
+    } else if SchemeType::from(url.scheme()).is_special()
+        || !new_pathname.is_empty()
+        || !url.has_host()
+    {
         let mut path_to_set = String::from("/");
         path_to_set.push_str(new_pathname);
         url.set_path(&path_to_set)
+    } else {
+        url.set_path(new_pathname)
     }
 }
 

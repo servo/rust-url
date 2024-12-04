@@ -51,245 +51,11 @@ use alloc::{
     string::String,
     vec::Vec,
 };
-use core::{fmt, mem, slice, str};
+use core::{fmt, slice, str};
 
-/// Represents a set of characters or bytes in the ASCII range.
-///
-/// This is used in [`percent_encode`] and [`utf8_percent_encode`].
-/// This is similar to [percent-encode sets](https://url.spec.whatwg.org/#percent-encoded-bytes).
-///
-/// Use the `add` method of an existing set to define a new set. For example:
-///
-/// ```
-/// use percent_encoding::{AsciiSet, CONTROLS};
-///
-/// /// https://url.spec.whatwg.org/#fragment-percent-encode-set
-/// const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'<').add(b'>').add(b'`');
-/// ```
-pub struct AsciiSet {
-    mask: [Chunk; ASCII_RANGE_LEN / BITS_PER_CHUNK],
-}
+pub use self::ascii_set::{AsciiSet, CONTROLS, NON_ALPHANUMERIC};
 
-type Chunk = u32;
-
-const ASCII_RANGE_LEN: usize = 0x80;
-
-const BITS_PER_CHUNK: usize = 8 * mem::size_of::<Chunk>();
-
-impl AsciiSet {
-    /// Called with UTF-8 bytes rather than code points.
-    /// Not used for non-ASCII bytes.
-    const fn contains(&self, byte: u8) -> bool {
-        let chunk = self.mask[byte as usize / BITS_PER_CHUNK];
-        let mask = 1 << (byte as usize % BITS_PER_CHUNK);
-        (chunk & mask) != 0
-    }
-
-    fn should_percent_encode(&self, byte: u8) -> bool {
-        !byte.is_ascii() || self.contains(byte)
-    }
-
-    pub const fn add(&self, byte: u8) -> Self {
-        let mut mask = self.mask;
-        mask[byte as usize / BITS_PER_CHUNK] |= 1 << (byte as usize % BITS_PER_CHUNK);
-        AsciiSet { mask }
-    }
-
-    pub const fn remove(&self, byte: u8) -> Self {
-        let mut mask = self.mask;
-        mask[byte as usize / BITS_PER_CHUNK] &= !(1 << (byte as usize % BITS_PER_CHUNK));
-        AsciiSet { mask }
-    }
-}
-
-/// The set of 0x00 to 0x1F (C0 controls), and 0x7F (DEL).
-///
-/// Note that this includes the newline and tab characters, but not the space 0x20.
-///
-/// <https://url.spec.whatwg.org/#c0-control-percent-encode-set>
-pub const CONTROLS: &AsciiSet = &AsciiSet {
-    mask: [
-        !0_u32, // C0: 0x00 to 0x1F (32 bits set)
-        0,
-        0,
-        1 << (0x7F_u32 % 32), // DEL: 0x7F (one bit set)
-    ],
-};
-
-/// The fragment percent-encode set.
-///
-/// The C0 control percent-encode set and U+0020 SPACE, U+0022 ("), U+003C (<), U+003E (>), and U+0060 (`).
-///
-/// <https://url.spec.whatwg.org/#fragment-percent-encode-set>
-pub const FRAGMENT: &AsciiSet = &CONTROLS
-    // U+0020 SPACE
-    .add(b' ')
-    // U+0022 (")
-    .add(b'"')
-    // U+003C (<)
-    .add(b'<')
-    // U+003E (>)
-    .add(b'>')
-    // U+0060 (`)
-    .add(b'`');
-
-/// The query percent-encode set.
-///
-/// The C0 control percent-encode set and U+0020 SPACE, U+0022 ("), U+0023 (#), U+003C (<), and U+003E (>).
-///
-/// <https://url.spec.whatwg.org/#query-percent-encode-set>
-pub const QUERY: &AsciiSet = &CONTROLS
-    // U+0020 SPACE
-    .add(b' ')
-    // U+0022 (")
-    .add(b'"')
-    // U+0023 (#)
-    .add(b'#')
-    // U+003C (<)
-    .add(b'<')
-    // U+003E (>)
-    .add(b'>');
-
-/// The special-query percent-encode set.
-///
-/// The query percent-encode set and U+0027 (').
-///
-/// <https://url.spec.whatwg.org/#special-query-percent-encode-set>
-pub const SPECIAL_QUERY: &AsciiSet = &QUERY
-    // U+0027 (')
-    .add(b'\'');
-
-/// The path percent-encode set.
-///
-/// The query percent-encode set and U+003F (?), U+0060 (`), U+007B ({), and U+007D (}).
-///
-/// <https://url.spec.whatwg.org/#path-percent-encode-set>
-pub const PATH: &AsciiSet = &QUERY
-    // U+003F (?)
-    .add(b'?')
-    // U+0060 (`)
-    .add(b'`')
-    // U+007B ({)
-    .add(b'{')
-    // U+007D (})
-    .add(b'}');
-
-/// The userinfo percent-encode set.
-///
-/// The path percent-encode set and U+002F (/), U+003A (:), U+003B (;), U+003D (=), U+0040 (@), U+005B ([) to U+005E (^), inclusive, and U+007C (|).
-///
-/// <https://url.spec.whatwg.org/#userinfo-percent-encode-set>
-pub const USERINFO: &AsciiSet = &PATH
-    // U+002F (/)
-    .add(b'/')
-    // U+003A (:)
-    .add(b':')
-    // U+003B (;)
-    .add(b';')
-    // U+003D (=)
-    .add(b'=')
-    // U+0040 (@)
-    .add(b'@')
-    // U+005B ([)
-    .add(b'[')
-    // U+005C (\)
-    .add(b'\\')
-    // U+005D (])
-    .add(b']')
-    // U+005E (^)
-    .add(b'^')
-    // U+007C (|)
-    .add(b'|');
-
-/// The component percent-encode set.
-///
-/// The userinfo percent-encode set and U+0024 ($) to U+0026 (&), inclusive, U+002B (+), and U+002C (,).
-///
-/// <https://url.spec.whatwg.org/#component-percent-encode-set>
-pub const COMPONENT: &AsciiSet = &USERINFO
-    // U+0024 ($)
-    .add(b'$')
-    // U+0025 (%)
-    .add(b'%')
-    // U+0026 (&)
-    .add(b'&')
-    // U+002B (+)
-    .add(b'+')
-    // U+002C (,)
-    .add(b',');
-
-/// The `application/x-www-form-urlencoded` percent-encode set.
-///
-/// The component percent-encode set and U+0021 (!), U+0027 (') to U+0029 RIGHT PARENTHESIS, inclusive, and U+007E (~).
-///
-/// <https://url.spec.whatwg.org/#application-x-www-form-urlencoded-percent-encode-set>
-pub const FORM: &AsciiSet = &COMPONENT
-    // U+0021 (!)
-    .add(b'!')
-    // U+0027 (')
-    .add(b'\'')
-    // U+0028 LEFT PARENTHESIS
-    .add(b'(')
-    // U+0029 RIGHT PARENTHESIS
-    .add(b')')
-    // and U+007E (~)
-    .add(b'~');
-
-macro_rules! static_assert {
-    ($( $bool: expr, )+) => {
-        fn _static_assert() {
-            $(
-                let _ = mem::transmute::<[u8; $bool as usize], u8>;
-            )+
-        }
-    }
-}
-
-static_assert! {
-    CONTROLS.contains(0x00),
-    CONTROLS.contains(0x1F),
-    !CONTROLS.contains(0x20),
-    !CONTROLS.contains(0x7E),
-    CONTROLS.contains(0x7F),
-}
-
-/// Everything that is not an ASCII letter or digit.
-///
-/// This is probably more eager than necessary in any context.
-pub const NON_ALPHANUMERIC: &AsciiSet = &CONTROLS
-    .add(b' ')
-    .add(b'!')
-    .add(b'"')
-    .add(b'#')
-    .add(b'$')
-    .add(b'%')
-    .add(b'&')
-    .add(b'\'')
-    .add(b'(')
-    .add(b')')
-    .add(b'*')
-    .add(b'+')
-    .add(b',')
-    .add(b'-')
-    .add(b'.')
-    .add(b'/')
-    .add(b':')
-    .add(b';')
-    .add(b'<')
-    .add(b'=')
-    .add(b'>')
-    .add(b'?')
-    .add(b'@')
-    .add(b'[')
-    .add(b'\\')
-    .add(b']')
-    .add(b'^')
-    .add(b'_')
-    .add(b'`')
-    .add(b'{')
-    .add(b'|')
-    .add(b'}')
-    .add(b'~');
+pub mod ascii_set;
 
 /// Return the percent-encoding of the given byte.
 ///
@@ -372,7 +138,7 @@ pub fn utf8_percent_encode<'a>(input: &'a str, ascii_set: &'static AsciiSet) -> 
 }
 
 /// The return type of [`percent_encode`] and [`utf8_percent_encode`].
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PercentEncode<'a> {
     bytes: &'a [u8],
     ascii_set: &'static AsciiSet,
@@ -566,7 +332,10 @@ impl<'a> PercentDecode<'a> {
     }
 }
 
+// std::ptr::addr_eq was stabilized in rust 1.76. Once we upgrade
+// the MSRV we can remove this lint override.
 #[cfg(feature = "alloc")]
+#[allow(ambiguous_wide_pointer_comparisons)]
 fn decode_utf8_lossy(input: Cow<'_, [u8]>) -> Cow<'_, str> {
     // Note: This function is duplicated in `form_urlencoded/src/query_encoding.rs`.
     match input {
@@ -592,5 +361,121 @@ fn decode_utf8_lossy(input: Cow<'_, [u8]>) -> Cow<'_, str> {
                 Cow::Owned(s) => Cow::Owned(s),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn percent_encode_byte() {
+        for i in 0..=0xFF {
+            let encoded = super::percent_encode_byte(i);
+            assert_eq!(encoded, alloc::format!("%{:02X}", i));
+        }
+    }
+
+    #[test]
+    fn percent_encode_accepts_ascii_set_ref() {
+        let encoded = percent_encode(b"foo bar?", &AsciiSet::EMPTY);
+        assert_eq!(encoded.collect::<String>(), "foo bar?");
+    }
+
+    #[test]
+    fn percent_encode_collect() {
+        let encoded = percent_encode(b"foo bar?", NON_ALPHANUMERIC);
+        assert_eq!(encoded.collect::<String>(), String::from("foo%20bar%3F"));
+
+        let encoded = percent_encode(b"\x00\x01\x02\x03", CONTROLS);
+        assert_eq!(encoded.collect::<String>(), String::from("%00%01%02%03"));
+    }
+
+    #[test]
+    fn percent_encode_display() {
+        let encoded = percent_encode(b"foo bar?", NON_ALPHANUMERIC);
+        assert_eq!(alloc::format!("{}", encoded), "foo%20bar%3F");
+    }
+
+    #[test]
+    fn percent_encode_cow() {
+        let encoded = percent_encode(b"foo bar?", NON_ALPHANUMERIC);
+        assert_eq!(Cow::from(encoded), "foo%20bar%3F");
+    }
+
+    #[test]
+    fn utf8_percent_encode_accepts_ascii_set_ref() {
+        let encoded = super::utf8_percent_encode("foo bar?", &AsciiSet::EMPTY);
+        assert_eq!(encoded.collect::<String>(), "foo bar?");
+    }
+
+    #[test]
+    fn utf8_percent_encode() {
+        assert_eq!(
+            super::utf8_percent_encode("foo bar?", NON_ALPHANUMERIC),
+            percent_encode(b"foo bar?", NON_ALPHANUMERIC)
+        );
+    }
+
+    #[test]
+    fn percent_decode() {
+        assert_eq!(
+            super::percent_decode(b"foo%20bar%3f")
+                .decode_utf8()
+                .unwrap(),
+            "foo bar?"
+        );
+    }
+
+    #[test]
+    fn percent_decode_str() {
+        assert_eq!(
+            super::percent_decode_str("foo%20bar%3f")
+                .decode_utf8()
+                .unwrap(),
+            "foo bar?"
+        );
+    }
+
+    #[test]
+    fn percent_decode_collect() {
+        let decoded = super::percent_decode(b"foo%20bar%3f");
+        assert_eq!(decoded.collect::<Vec<u8>>(), b"foo bar?");
+    }
+
+    #[test]
+    fn percent_decode_cow() {
+        let decoded = super::percent_decode(b"foo%20bar%3f");
+        assert_eq!(Cow::from(decoded), Cow::Owned::<[u8]>(b"foo bar?".to_vec()));
+
+        let decoded = super::percent_decode(b"foo bar?");
+        assert_eq!(Cow::from(decoded), Cow::Borrowed(b"foo bar?"));
+    }
+
+    #[test]
+    fn percent_decode_invalid_utf8() {
+        // Invalid UTF-8 sequence
+        let decoded = super::percent_decode(b"%00%9F%92%96")
+            .decode_utf8()
+            .unwrap_err();
+        assert_eq!(decoded.valid_up_to(), 1);
+        assert_eq!(decoded.error_len(), Some(1));
+    }
+
+    #[test]
+    fn percent_decode_utf8_lossy() {
+        assert_eq!(
+            super::percent_decode(b"%F0%9F%92%96").decode_utf8_lossy(),
+            "💖"
+        );
+    }
+
+    #[test]
+    fn percent_decode_utf8_lossy_invalid_utf8() {
+        assert_eq!(
+            super::percent_decode(b"%00%9F%92%96").decode_utf8_lossy(),
+            "\u{0}���"
+        );
     }
 }
