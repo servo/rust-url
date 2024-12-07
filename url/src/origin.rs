@@ -80,9 +80,9 @@ impl Origin {
             Origin::Opaque(_) => "null".to_owned(),
             Origin::Tuple(ref scheme, ref host, port) => {
                 if default_port(scheme) == Some(port) {
-                    format!("{}://{}", scheme, host)
+                    format!("{scheme}://{host}")
                 } else {
-                    format!("{}://{}:{}", scheme, host, port)
+                    format!("{scheme}://{host}:{port}")
                 }
             }
         }
@@ -101,9 +101,9 @@ impl Origin {
                     _ => host.clone(),
                 };
                 if default_port(scheme) == Some(port) {
-                    format!("{}://{}", scheme, host)
+                    format!("{scheme}://{host}")
                 } else {
-                    format!("{}://{}:{}", scheme, host, port)
+                    format!("{scheme}://{host}:{port}")
                 }
             }
         }
