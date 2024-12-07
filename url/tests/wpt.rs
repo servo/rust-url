@@ -278,8 +278,7 @@ fn run_url_test(
 ) -> Result<(), String> {
     let base = match base {
         Some(base) => {
-            let base =
-                Url::parse(&base).map_err(|e| format!("errored while parsing base: {e}"))?;
+            let base = Url::parse(&base).map_err(|e| format!("errored while parsing base: {e}"))?;
             Some(base)
         }
         None => None,
@@ -422,9 +421,7 @@ fn run_setter_test(
     if let Some(expected_href) = expected.href {
         let href = url::quirks::href(&url);
         if href != expected_href {
-            return Err(format!(
-                "expected href {expected_href:?}, but got {href:?}"
-            ));
+            return Err(format!("expected href {expected_href:?}, but got {href:?}"));
         }
     }
 
@@ -458,9 +455,7 @@ fn run_setter_test(
     if let Some(expected_host) = expected.host {
         let host = url::quirks::host(&url);
         if host != expected_host {
-            return Err(format!(
-                "expected host {expected_host:?}, but got {host:?}"
-            ));
+            return Err(format!("expected host {expected_host:?}, but got {host:?}"));
         }
     }
 
@@ -476,9 +471,7 @@ fn run_setter_test(
     if let Some(expected_port) = expected.port {
         let port = url::quirks::port(&url);
         if port != expected_port {
-            return Err(format!(
-                "expected port {expected_port:?}, but got {port:?}"
-            ));
+            return Err(format!("expected port {expected_port:?}, but got {port:?}"));
         }
     }
 
@@ -503,9 +496,7 @@ fn run_setter_test(
     if let Some(expected_hash) = expected.hash {
         let hash = url::quirks::hash(&url);
         if hash != expected_hash {
-            return Err(format!(
-                "expected hash {expected_hash:?}, but got {hash:?}"
-            ));
+            return Err(format!("expected hash {expected_hash:?}, but got {hash:?}"));
         }
     }
 
