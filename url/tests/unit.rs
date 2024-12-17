@@ -1387,3 +1387,43 @@ fn serde_error_message() {
         r#"relative URL without a base: "§invalid#+#*Ä" at line 1 column 25"#
     );
 }
+
+#[test]
+fn test_fuzzing_uri_failures() {
+    use url::quirks;
+    let mut url = Url::parse("data:/.dummy.path").unwrap();
+    assert!(!url.cannot_be_a_base());
+
+    url.set_path(".dummy.path");
+    assert_eq!(url.as_str(), "data:/.dummy.path");
+    assert_eq!(url.path(), "/.dummy.path");
+    url.check_invariants().unwrap();
+
+    url.path_segments_mut()
+        .expect("should have path segments")
+        .push(".another.dummy.path");
+    assert_eq!(url.as_str(), "data:/.dummy.path/.another.dummy.path");
+    assert_eq!(url.path(), "/.dummy.path/.another.dummy.path");
+    url.check_invariants().unwrap();
+
+    url = Url::parse("web+demo:/").unwrap();
+    assert!(!url.cannot_be_a_base());
+
+    url.set_path("//.dummy.path");
+    assert_eq!(url.path(), "//.dummy.path");
+
+    let segments: Vec<_> = url
+        .path_segments()
+        .expect("should have path segments")
+        .collect();
+    assert_eq!(segments, vec!["", ".dummy.path"]);
+    assert_eq!(url.as_str(), "web+demo:/.//.dummy.path");
+
+    quirks::set_hostname(&mut url, ".dummy.host").unwrap();
+    assert_eq!(url.as_str(), "web+demo://.dummy.host//.dummy.path");
+    url.check_invariants().unwrap();
+
+    quirks::set_hostname(&mut url, "").unwrap();
+    assert_eq!(url.as_str(), "web+demo:////.dummy.path");
+    url.check_invariants().unwrap();
+}
