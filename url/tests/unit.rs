@@ -1427,3 +1427,55 @@ fn test_fuzzing_uri_failures() {
     assert_eq!(url.as_str(), "web+demo:////.dummy.path");
     url.check_invariants().unwrap();
 }
+
+#[test]
+fn test_can_be_a_base_with_set_path() {
+    use url::quirks;
+    let mut url = Url::parse("web+demo:/").unwrap();
+    assert!(!url.cannot_be_a_base());
+
+    url.set_path("//not-a-host");
+    assert_eq!(url.path(), "//not-a-host");
+
+    let segments: Vec<_> = url
+        .path_segments()
+        .expect("should have path segments")
+        .collect();
+
+    assert_eq!(segments, vec!["", "not-a-host"]);
+
+    url.set_query(Some("query"));
+    url.set_fragment(Some("frag"));
+
+    assert_eq!(url.as_str(), "web+demo:/.//not-a-host?query#frag");
+    quirks::set_hostname(&mut url, "test").unwrap();
+    assert_eq!(url.as_str(), "web+demo://test//not-a-host?query#frag");
+    url.check_invariants().unwrap();
+    quirks::set_hostname(&mut url, "").unwrap();
+    assert_eq!(url.as_str(), "web+demo:////not-a-host?query#frag");
+    url.check_invariants().unwrap();
+}
+
+#[test]
+fn test_can_be_a_base_with_path_segments_mut() {
+    let mut url = Url::parse("web+demo:/").unwrap();
+    assert!(!url.cannot_be_a_base());
+
+    url.path_segments_mut()
+        .expect("should have path segments")
+        .push("")
+        .push("not-a-host");
+
+    url.set_query(Some("query"));
+    url.set_fragment(Some("frag"));
+
+    assert_eq!(url.as_str(), "web+demo:/.//not-a-host?query#frag");
+    assert_eq!(url.path(), "//not-a-host");
+    url.check_invariants().unwrap();
+
+    let segments: Vec<_> = url
+        .path_segments()
+        .expect("should have path segments")
+        .collect();
+    assert_eq!(segments, vec!["", "not-a-host"]);
+}

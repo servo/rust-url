@@ -2128,7 +2128,7 @@ impl Url {
         } else {
             self.host_end
         };
-        let suffix = self.slice(old_suffix_pos..).to_owned();
+        let mut suffix = self.slice(old_suffix_pos..).to_owned();
         self.serialization.truncate(self.host_start as usize);
         if !self.has_authority() {
             debug_assert!(self.slice(self.scheme_end..self.host_start) == ":");
@@ -2148,7 +2148,16 @@ impl Url {
                 write!(&mut self.serialization, ":{}", port).unwrap();
             }
         }
-        let new_suffix_pos = to_u32(self.serialization.len()).unwrap();
+        let mut new_suffix_pos = to_u32(self.serialization.len()).unwrap();
+
+        // Remove starting "/." for empty path segment followed by the host
+        if suffix.starts_with("/.//") {
+            let adjustment: usize = "/.".len();
+            suffix.drain(..adjustment);
+            // pathname should be "//p" not "p" given that the first segment was empty
+            new_suffix_pos -= adjustment as u32;
+        }
+
         self.serialization.push_str(&suffix);
 
         let adjust = |index: &mut u32| {
