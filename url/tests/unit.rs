@@ -1479,3 +1479,35 @@ fn test_can_be_a_base_with_path_segments_mut() {
         .collect();
     assert_eq!(segments, vec!["", "not-a-host"]);
 }
+
+#[test]
+fn test_valid_indices_after_set_path() {
+    // Testing everything
+    let mut url = Url::parse("moz:/").unwrap();
+    assert!(!url.cannot_be_a_base());
+
+    url.set_path("/.//p");
+    url.set_host(Some("host")).unwrap();
+    url.set_query(Some("query"));
+    url.set_fragment(Some("frag"));
+    assert_eq!(url.as_str(), "moz://host//p?query#frag");
+    assert_eq!(url.host(), Some(Host::Domain("host")));
+    assert_eq!(url.path(), "//p");
+    assert_eq!(url.query(), Some("query"));
+    assert_eq!(url.fragment(), Some("frag"));
+    url.check_invariants().unwrap();
+
+    url = Url::parse("moz:/.//").unwrap();
+    assert!(!url.cannot_be_a_base());
+
+    url.set_path("p");
+    url.set_host(Some("host")).unwrap();
+    url.set_query(Some("query"));
+    url.set_fragment(Some("frag"));
+    assert_eq!(url.as_str(), "moz://host/p?query#frag");
+    assert_eq!(url.host(), Some(Host::Domain("host")));
+    assert_eq!(url.path(), "/p");
+    assert_eq!(url.query(), Some("query"));
+    assert_eq!(url.fragment(), Some("frag"));
+    url.check_invariants().unwrap();
+}
