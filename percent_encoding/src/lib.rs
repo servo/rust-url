@@ -91,7 +91,7 @@ pub fn percent_encode_byte(byte: u8) -> &'static str {
       ";
 
     let index = usize::from(byte) * 3;
-    // SAFETY: ENC_TABLE is ascii-only, so any subset if it should be
+    // SAFETY: ENC_TABLE is ascii-only, so any subset of it should be
     // ascii-only too, which is valid utf8.
     unsafe { str::from_utf8_unchecked(&ENC_TABLE[index..index + 3]) }
 }
