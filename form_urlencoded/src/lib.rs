@@ -128,8 +128,26 @@ pub struct ByteSerialize<'a> {
     bytes: &'a [u8],
 }
 
-fn byte_serialized_unchanged(byte: u8) -> bool {
-    matches!(byte, b'*' | b'-' | b'.' | b'0' ..= b'9' | b'A' ..= b'Z' | b'_' | b'a' ..= b'z')
+/// This is a precomputed table of which chars match and which don't.
+const fn glyphless_mask() -> u128 {
+    let mut magic = 0_u128;
+    let mut c = 0;
+    while c < 128 {
+        magic |= (matches!(c, b'*' | b'-' | b'.' | b'0' ..= b'9' | b'A' ..= b'Z' | b'_' | b'a' ..= b'z')
+            as u128)
+            << c;
+        c += 1;
+    }
+    magic
+}
+const GLYPHLESS_MASK: u128 = glyphless_mask();
+
+#[inline]
+pub fn byte_serialized_unchanged(byte: u8) -> bool {
+    if byte > b'z' {
+        return false;
+    }
+    ((GLYPHLESS_MASK >> byte) & 1) == 1
 }
 
 impl<'a> Iterator for ByteSerialize<'a> {
