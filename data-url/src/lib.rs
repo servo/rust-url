@@ -124,7 +124,7 @@ impl<'a> DataUrl<'a> {
 /// The URL’s fragment identifier (after `#`)
 pub struct FragmentIdentifier<'a>(&'a str);
 
-impl<'a> FragmentIdentifier<'a> {
+impl FragmentIdentifier<'_> {
     /// Like in a parsed URL
     pub fn to_percent_encoded(&self) -> String {
         let mut string = String::new();

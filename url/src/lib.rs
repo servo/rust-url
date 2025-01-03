@@ -448,7 +448,7 @@ impl Url {
     /// let base = Url::parse("https://alice.com/a")?;
     /// let url = base.join("http://eve.com/b")?;
     /// assert_eq!(url.as_str(), "http://eve.com/b");  // http instead of https
-
+    ///
     /// # Ok(())
     /// # }
     /// # run().unwrap();
@@ -1492,7 +1492,7 @@ impl Url {
     /// # }
     /// # run().unwrap();
     /// ```
-
+    ///
     #[inline]
     pub fn query_pairs(&self) -> form_urlencoded::Parse<'_> {
         form_urlencoded::parse(self.query().unwrap_or("").as_bytes())
@@ -1555,7 +1555,7 @@ impl Url {
     /// # fn run() -> Result<(), ParseError> {
     /// let mut url = Url::parse("https://example.com/data.csv")?;
     /// assert_eq!(url.as_str(), "https://example.com/data.csv");
-
+    ///
     /// url.set_fragment(Some("cell=4,1-6,2"));
     /// assert_eq!(url.as_str(), "https://example.com/data.csv#cell=4,1-6,2");
     /// assert_eq!(url.fragment(), Some("cell=4,1-6,2"));
@@ -3177,7 +3177,7 @@ impl<'a> form_urlencoded::Target for UrlQuery<'a> {
     type Finished = &'a mut Url;
 }
 
-impl<'a> Drop for UrlQuery<'a> {
+impl Drop for UrlQuery<'_> {
     fn drop(&mut self) {
         if let Some(url) = self.url.take() {
             url.restore_already_parsed_fragment(self.fragment.take())
