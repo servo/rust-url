@@ -153,18 +153,15 @@ impl<'a> Iterator for PercentEncode<'a> {
                 self.bytes = remaining;
                 Some(percent_encode_byte(first_byte))
             } else {
-                // The unsafe blocks here are appropriate because the bytes are
-                // confirmed as a subset of UTF-8 in should_percent_encode.
-                for (i, &byte) in remaining.iter().enumerate() {
-                    if self.ascii_set.should_percent_encode(byte) {
-                        // 1 for first_byte + i for previous iterations of this loop
-                        let (unchanged_slice, remaining) = self.bytes.split_at(1 + i);
-                        self.bytes = remaining;
-                        return Some(unsafe { str::from_utf8_unchecked(unchanged_slice) });
-                    }
-                }
-                let unchanged_slice = self.bytes;
-                self.bytes = &[][..];
+                let (unchanged_slice, remaining) = self.bytes.split_at(
+                    // 1 for the first byte + rest in remaining
+                    1 + remaining
+                        .iter()
+                        .position(|&byte| self.ascii_set.should_percent_encode(byte))
+                        .unwrap_or(remaining.len()),
+                );
+                self.bytes = remaining;
+                // SAFETY: bytes are confirmed as a subset of UTF-8 in should_percent_encode.
                 Some(unsafe { str::from_utf8_unchecked(unchanged_slice) })
             }
         } else {
@@ -181,7 +178,7 @@ impl<'a> Iterator for PercentEncode<'a> {
     }
 }
 
-impl<'a> fmt::Display for PercentEncode<'a> {
+impl fmt::Display for PercentEncode<'_> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         for c in (*self).clone() {
             formatter.write_str(c)?
@@ -257,7 +254,7 @@ fn after_percent_sign(iter: &mut slice::Iter<'_, u8>) -> Option<u8> {
     Some(h as u8 * 0x10 + l as u8)
 }
 
-impl<'a> Iterator for PercentDecode<'a> {
+impl Iterator for PercentDecode<'_> {
     type Item = u8;
 
     fn next(&mut self) -> Option<u8> {
