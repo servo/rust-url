@@ -453,7 +453,7 @@ impl Url {
     /// let base = Url::parse("https://alice.com/a")?;
     /// let url = base.join("http://eve.com/b")?;
     /// assert_eq!(url.as_str(), "http://eve.com/b");  // http instead of https
-
+    ///
     /// # Ok(())
     /// # }
     /// # run().unwrap();
