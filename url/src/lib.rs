@@ -3103,7 +3103,7 @@ fn file_url_segments_to_pathbuf_windows(
     use percent_encoding::percent_decode_str;
     let mut string = String::with_capacity(estimated_capacity);
     if let Some(host) = host {
-        string.push('\\');
+        string.push_str(r"\\");
         string.push_str(host);
     } else {
         let first = segments.next().ok_or(())?;
