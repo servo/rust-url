@@ -2673,8 +2673,7 @@ impl Url {
             fragment_start,
         };
         if cfg!(debug_assertions) {
-            url.check_invariants()
-                .map_err(Error::custom)?
+            url.check_invariants().map_err(Error::custom)?
         }
         Ok(url)
     }
