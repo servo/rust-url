@@ -301,7 +301,7 @@ impl Pattern for char {
     }
 }
 
-impl<'a> Pattern for &'a str {
+impl Pattern for &str {
     fn split_prefix(self, input: &mut Input) -> bool {
         for c in self.chars() {
             if input.next() != Some(c) {
@@ -318,7 +318,7 @@ impl<F: FnMut(char) -> bool> Pattern for F {
     }
 }
 
-impl<'i> Iterator for Input<'i> {
+impl Iterator for Input<'_> {
     type Item = char;
     fn next(&mut self) -> Option<char> {
         self.chars
