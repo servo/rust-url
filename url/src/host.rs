@@ -64,7 +64,7 @@ pub enum Host<S = String> {
     Ipv6(Ipv6Addr),
 }
 
-impl<'a> Host<&'a str> {
+impl Host<&str> {
     /// Return a copy of `self` that owns an allocated `String` but does not borrow an `&Url`.
     pub fn to_owned(&self) -> Host<String> {
         match *self {
