@@ -161,7 +161,7 @@ pub fn set_host(url: &mut Url, new_host: &str) -> Result<(), ()> {
         let scheme = url.scheme();
         let scheme_type = SchemeType::from(scheme);
         if scheme_type == SchemeType::File && new_host.is_empty() {
-            url.set_host_internal(Host::Domain(String::new()), None);
+            url.set_host_internal(Host::Domain("".into()), None);
             return Ok(());
         }
 
@@ -208,7 +208,7 @@ pub fn set_hostname(url: &mut Url, new_hostname: &str) -> Result<(), ()> {
     let input = Input::new_no_trim(new_hostname);
     let scheme_type = SchemeType::from(url.scheme());
     if scheme_type == SchemeType::File && new_hostname.is_empty() {
-        url.set_host_internal(Host::Domain(String::new()), None);
+        url.set_host_internal(Host::Domain("".into()), None);
         return Ok(());
     }
 

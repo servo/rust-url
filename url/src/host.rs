@@ -10,7 +10,6 @@ use crate::net::{Ipv4Addr, Ipv6Addr};
 use alloc::borrow::Cow;
 use alloc::borrow::ToOwned;
 use alloc::string::String;
-use alloc::string::ToString;
 use alloc::vec::Vec;
 use core::cmp;
 use core::fmt::{self, Formatter};
@@ -30,8 +29,8 @@ pub(crate) enum HostInternal {
     Ipv6(Ipv6Addr),
 }
 
-impl From<Host<String>> for HostInternal {
-    fn from(host: Host<String>) -> HostInternal {
+impl From<Host<Cow<'_, str>>> for HostInternal {
+    fn from(host: Host<Cow<'_, str>>) -> HostInternal {
         match host {
             Host::Domain(ref s) if s.is_empty() => HostInternal::None,
             Host::Domain(_) => HostInternal::Domain,
@@ -75,11 +74,8 @@ impl Host<&str> {
     }
 }
 
-impl Host<String> {
-    /// Parse a host: either an IPv6 address in [] square brackets, or a domain.
-    ///
-    /// <https://url.spec.whatwg.org/#host-parsing>
-    pub fn parse(input: &str) -> Result<Self, ParseError> {
+impl<'a> Host<Cow<'a, str>> {
+    pub(crate) fn parse_cow(input: Cow<'a, str>) -> Result<Self, ParseError> {
         if input.starts_with('[') {
             if !input.ends_with(']') {
                 return Err(ParseError::InvalidIpv6Address);
@@ -87,8 +83,15 @@ impl Host<String> {
             return parse_ipv6addr(&input[1..input.len() - 1]).map(Host::Ipv6);
         }
         let domain: Cow<'_, [u8]> = percent_decode(input.as_bytes()).into();
+        let domain: Cow<'a, [u8]> = match domain {
+            Cow::Borrowed(_) => match input {
+                Cow::Borrowed(input) => Cow::Borrowed(input.as_bytes()),
+                Cow::Owned(input) => Cow::Owned(input.into_bytes()),
+            },
+            Cow::Owned(v) => Cow::Owned(v),
+        };
 
-        let domain = Self::domain_to_ascii(&domain)?;
+        let domain = domain_to_ascii(domain)?;
 
         if domain.is_empty() {
             return Err(ParseError::EmptyHost);
@@ -98,12 +101,11 @@ impl Host<String> {
             let address = parse_ipv4addr(&domain)?;
             Ok(Host::Ipv4(address))
         } else {
-            Ok(Host::Domain(domain.to_string()))
+            Ok(Host::Domain(domain))
         }
     }
 
-    // <https://url.spec.whatwg.org/#concept-opaque-host-parser>
-    pub fn parse_opaque(input: &str) -> Result<Self, ParseError> {
+    pub(crate) fn parse_opaque_cow(input: Cow<'a, str>) -> Result<Self, ParseError> {
         if input.starts_with('[') {
             if !input.ends_with(']') {
                 return Err(ParseError::InvalidIpv6Address);
@@ -137,15 +139,47 @@ impl Host<String> {
             Err(ParseError::InvalidDomainCharacter)
         } else {
             Ok(Host::Domain(
-                utf8_percent_encode(input, CONTROLS).to_string(),
+                match utf8_percent_encode(&input, CONTROLS).into() {
+                    Cow::Owned(v) => Cow::Owned(v),
+                    Cow::Borrowed(_) => input,
+                },
             ))
         }
     }
 
-    /// convert domain with idna
-    fn domain_to_ascii(domain: &[u8]) -> Result<Cow<'_, str>, ParseError> {
-        idna::domain_to_ascii_cow(domain, idna::AsciiDenyList::URL).map_err(Into::into)
+    pub(crate) fn into_owned(self) -> Host<String> {
+        match self {
+            Host::Domain(s) => Host::Domain(s.into_owned()),
+            Host::Ipv4(ip) => Host::Ipv4(ip),
+            Host::Ipv6(ip) => Host::Ipv6(ip),
+        }
     }
+}
+
+impl Host<String> {
+    /// Parse a host: either an IPv6 address in [] square brackets, or a domain.
+    ///
+    /// <https://url.spec.whatwg.org/#host-parsing>
+    pub fn parse(input: &str) -> Result<Self, ParseError> {
+        Host::<Cow<str>>::parse_cow(input.into()).map(|i| i.into_owned())
+    }
+
+    // <https://url.spec.whatwg.org/#concept-opaque-host-parser>
+    pub fn parse_opaque(input: &str) -> Result<Self, ParseError> {
+        Host::<Cow<str>>::parse_opaque_cow(input.into()).map(|i| i.into_owned())
+    }
+}
+
+/// convert domain with idna
+fn domain_to_ascii(domain: Cow<'_, [u8]>) -> Result<Cow<'_, str>, ParseError> {
+    let value = idna::domain_to_ascii_cow(&domain, idna::AsciiDenyList::URL)?;
+    Ok(match value {
+        Cow::Owned(value) => Cow::Owned(value),
+        Cow::Borrowed(_) => match domain {
+            Cow::Borrowed(value) => unsafe { Cow::Borrowed(std::str::from_utf8_unchecked(value)) },
+            Cow::Owned(value) => unsafe { String::from_utf8_unchecked(value).into() },
+        },
+    })
 }
 
 impl<S: AsRef<str>> fmt::Display for Host<S> {
