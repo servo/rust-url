@@ -1487,6 +1487,7 @@ impl<'a> Parser<'a> {
             fn next(&mut self) -> Option<Self::Item> {
                 let start = self.input.chars.as_str();
                 // bypass self.input.next() in order to get string slices
+                // which are faster to operate on
                 while let Some(c) = self.input.chars.next() {
                     match c {
                         '\t' | '\n' | '\r' => {
@@ -1533,7 +1534,7 @@ impl<'a> Parser<'a> {
             )
         });
 
-        // it's faster to be repetitive here
+        // it's slightly faster to be repetitive here
         match query_encoding_override {
             Some(o) => {
                 while let Some((part, is_finished)) = part_iter.next() {
