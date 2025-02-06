@@ -325,6 +325,10 @@ impl Iterator for Input<'_> {
             .by_ref()
             .find(|&c| !matches!(c, '\t' | '\n' | '\r'))
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (0, Some(self.chars.as_str().len()))
+    }
 }
 
 pub struct Parser<'a> {
