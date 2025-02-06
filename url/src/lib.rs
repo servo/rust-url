@@ -2720,7 +2720,18 @@ impl Url {
                 _ => return Err(()),
             };
 
-            return file_url_segments_to_pathbuf(self.as_str().len(), host, segments);
+            let estimated_capacity = self.as_str().len()
+                - if cfg!(target_os = "redox") {
+                    // remove only // because it still has file:
+                    2
+                } else if cfg!(windows) {
+                    // remove file: - has posssible \\ for hostname
+                    5
+                } else {
+                    // remove file://
+                    7
+                };
+            return file_url_segments_to_pathbuf(estimated_capacity, host, segments);
         }
         Err(())
     }
@@ -3141,6 +3152,13 @@ fn file_url_segments_to_pathbuf_windows(
             Err(..) => return Err(()),
         }
     }
+    // ensure our estimated capacity was good
+    debug_assert!(
+        string.len() <= estimated_capacity,
+        "len: {}, capacity: {}",
+        string.len(),
+        estimated_capacity
+    );
     let path = PathBuf::from(string);
     debug_assert!(
         path.is_absolute(),
