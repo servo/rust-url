@@ -176,7 +176,7 @@ fn domain_to_ascii(domain: Cow<'_, [u8]>) -> Result<Cow<'_, str>, ParseError> {
     Ok(match value {
         Cow::Owned(value) => Cow::Owned(value),
         Cow::Borrowed(_) => match domain {
-            Cow::Borrowed(value) => unsafe { Cow::Borrowed(std::str::from_utf8_unchecked(value)) },
+            Cow::Borrowed(value) => unsafe { Cow::Borrowed(core::str::from_utf8_unchecked(value)) },
             Cow::Owned(value) => unsafe { String::from_utf8_unchecked(value).into() },
         },
     })

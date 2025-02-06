@@ -9,7 +9,7 @@
 use alloc::string::String;
 use core::fmt::{self, Formatter, Write};
 use core::str;
-use std::borrow::Cow;
+use alloc::borrow::Cow;
 
 use crate::host::{Host, HostInternal};
 use crate::Url;

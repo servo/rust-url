@@ -175,6 +175,7 @@ use crate::net::IpAddr;
 use crate::net::{SocketAddr, ToSocketAddrs};
 use crate::parser::{to_u32, Context, Parser, SchemeType, USERINFO};
 use alloc::borrow::ToOwned;
+use alloc::borrow::Cow;
 use alloc::str;
 use alloc::string::{String, ToString};
 use core::borrow::Borrow;
@@ -183,7 +184,6 @@ use core::fmt::Write;
 use core::ops::{Range, RangeFrom, RangeTo};
 use core::{cmp, fmt, hash, mem};
 use percent_encoding::utf8_percent_encode;
-use std::borrow::Cow;
 #[cfg(feature = "std")]
 #[cfg(any(
     unix,
