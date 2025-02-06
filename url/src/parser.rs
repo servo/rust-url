@@ -73,6 +73,12 @@ macro_rules! simple_enum_error {
     }
 }
 
+macro_rules! ascii_tab_or_new_line_pattern {
+    () => {
+        '\t' | '\n' | '\r'
+    };
+}
+
 #[cfg(feature = "std")]
 impl std::error::Error for ParseError {}
 
@@ -207,7 +213,7 @@ impl<'i> Input<'i> {
             if input.len() < original_input.len() {
                 vfn(SyntaxViolation::C0SpaceIgnored)
             }
-            if input.chars().any(|c| matches!(c, '\t' | '\n' | '\r')) {
+            if input.chars().any(ascii_tab_or_new_line) {
                 vfn(SyntaxViolation::TabOrNewlineIgnored)
             }
         }
@@ -225,7 +231,7 @@ impl<'i> Input<'i> {
             if input.len() < original_input.len() {
                 vfn(SyntaxViolation::C0SpaceIgnored)
             }
-            if input.chars().any(|c| matches!(c, '\t' | '\n' | '\r')) {
+            if input.chars().any(ascii_tab_or_new_line) {
                 vfn(SyntaxViolation::TabOrNewlineIgnored)
             }
         }
@@ -281,7 +287,7 @@ impl<'i> Input<'i> {
             let utf8 = self.chars.as_str();
             match self.chars.next() {
                 Some(c) => {
-                    if !matches!(c, '\t' | '\n' | '\r') {
+                    if !ascii_tab_or_new_line(c) {
                         return Some((c, &utf8[..c.len_utf8()]));
                     }
                 }
@@ -321,9 +327,7 @@ impl<F: FnMut(char) -> bool> Pattern for F {
 impl Iterator for Input<'_> {
     type Item = char;
     fn next(&mut self) -> Option<char> {
-        self.chars
-            .by_ref()
-            .find(|&c| !matches!(c, '\t' | '\n' | '\r'))
+        self.chars.by_ref().find(|&c| !ascii_tab_or_new_line(c))
     }
 }
 
@@ -995,7 +999,7 @@ impl<'a> Parser<'a> {
                 ':' if !inside_square_brackets => break,
                 '\\' if scheme_type.is_special() => break,
                 '/' | '?' | '#' => break,
-                '\t' | '\n' | '\r' => {
+                ascii_tab_or_new_line_pattern!() => {
                     has_ignored_chars = true;
                 }
                 '[' => {
@@ -1077,7 +1081,7 @@ impl<'a> Parser<'a> {
         for c in input_str.chars() {
             match c {
                 '/' | '\\' | '?' | '#' => break,
-                '\t' | '\n' | '\r' => has_ignored_chars = true,
+                ascii_tab_or_new_line_pattern!() => has_ignored_chars = true,
                 _ => non_ignored_chars += 1,
             }
             bytes += c.len_utf8();
@@ -1490,7 +1494,7 @@ impl<'a> Parser<'a> {
                 // which are faster to operate on
                 while let Some(c) = self.input.chars.next() {
                     match c {
-                        '\t' | '\n' | '\r' => {
+                        ascii_tab_or_new_line_pattern!() => {
                             return Some((
                                 &start[..start.len() - self.input.chars.as_str().len() - 1],
                                 false,
@@ -1585,7 +1589,7 @@ impl<'a> Parser<'a> {
                 // which are faster to operate on
                 while let Some(c) = self.input.chars.next() {
                     match c {
-                        '\t' | '\n' | '\r' => {
+                        ascii_tab_or_new_line_pattern!() => {
                             return Some(
                                 &start[..start.len() - self.input.chars.as_str().len() - 1],
                             );
@@ -1677,7 +1681,7 @@ fn c0_control_or_space(ch: char) -> bool {
 /// https://infra.spec.whatwg.org/#ascii-tab-or-newline
 #[inline]
 fn ascii_tab_or_new_line(ch: char) -> bool {
-    matches!(ch, '\t' | '\r' | '\n')
+    matches!(ch, ascii_tab_or_new_line_pattern!())
 }
 
 /// https://url.spec.whatwg.org/#ascii-alpha
