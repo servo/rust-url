@@ -1534,24 +1534,16 @@ impl<'a> Parser<'a> {
             )
         });
 
-        // it's slightly faster to be repetitive here
-        match query_encoding_override {
-            Some(o) => {
-                while let Some((part, is_finished)) = part_iter.next() {
-                    self.serialization.extend(percent_encode(&o(part), set));
-                    if is_finished {
-                        return Some(part_iter.input);
-                    }
-                }
+        while let Some((part, is_finished)) = part_iter.next() {
+            match query_encoding_override {
+                // slightly faster to be repetitive and not convert text to Cow
+                Some(o) => self.serialization.extend(percent_encode(&o(part), set)),
+                None => self
+                    .serialization
+                    .extend(percent_encode(part.as_bytes(), set)),
             }
-            None => {
-                while let Some((part, is_finished)) = part_iter.next() {
-                    self.serialization
-                        .extend(percent_encode(part.as_bytes(), set));
-                    if is_finished {
-                        return Some(part_iter.input);
-                    }
-                }
+            if is_finished {
+                return Some(part_iter.input);
             }
         }
 
