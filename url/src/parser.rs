@@ -1475,6 +1475,52 @@ impl<'a> Parser<'a> {
         scheme_end: u32,
         input: Input<'i>,
     ) -> Option<Input<'i>> {
+        struct PartIter<'i, 'p> {
+            is_url_parser: bool,
+            input: Input<'i>,
+            violation_fn: Option<&'p dyn Fn(SyntaxViolation)>,
+        }
+
+        impl<'i> Iterator for PartIter<'i, '_> {
+            type Item = (&'i str, bool);
+
+            fn next(&mut self) -> Option<Self::Item> {
+                let start = self.input.chars.as_str();
+                // bypass self.input.next() in order to get string slices
+                while let Some(c) = self.input.chars.next() {
+                    match c {
+                        '\t' | '\n' | '\r' => {
+                            return Some((
+                                &start[..start.len() - self.input.chars.as_str().len() - 1],
+                                false,
+                            ));
+                        }
+                        '#' if self.is_url_parser => {
+                            return Some((
+                                &start[..start.len() - self.input.chars.as_str().len() - 1],
+                                true,
+                            ));
+                        }
+                        c => {
+                            if let Some(vfn) = &self.violation_fn {
+                                check_url_code_point(vfn, c, &self.input);
+                            }
+                        }
+                    }
+                }
+                if start.is_empty() {
+                    None
+                } else {
+                    Some((start, false))
+                }
+            }
+        }
+
+        let mut part_iter = PartIter {
+            is_url_parser: self.context == Context::UrlParser,
+            input,
+            violation_fn: self.violation_fn,
+        };
         let set = if scheme_type.is_special() {
             SPECIAL_QUERY
         } else {
@@ -1486,31 +1532,26 @@ impl<'a> Parser<'a> {
                 "http" | "https" | "file" | "ftp"
             )
         });
-        let input_str = input.chars.as_str();
-        let mut position = 0;
-        for part in input_str.split(['\t' , '\n' , '\r', '#']) {
-            let (prev_str, next_str) = input_str.split_at(position);
-            let mut input = Input {
-                chars: next_str.chars(),
-            };
-            if prev_str.ends_with('#') {
-                if self.context == Context::UrlParser {
-                    return Some(input);
-                } else {
-                    match query_encoding_override {
-                        Some(o) => self.serialization.extend(percent_encode(&o("#"), set)),
-                        None => self.serialization.extend(percent_encode(b"#", set)),
+
+        // it's faster to be repetitive here
+        match query_encoding_override {
+            Some(o) => {
+                while let Some((part, is_finished)) = part_iter.next() {
+                    self.serialization.extend(percent_encode(&o(part), set));
+                    if is_finished {
+                        return Some(part_iter.input);
                     }
                 }
             }
-            while let Some(c) = input.next() {
-                self.check_url_code_point(c, &input);
+            None => {
+                while let Some((part, is_finished)) = part_iter.next() {
+                    self.serialization
+                        .extend(percent_encode(part.as_bytes(), set));
+                    if is_finished {
+                        return Some(part_iter.input);
+                    }
+                }
             }
-            match query_encoding_override {
-                Some(o) => self.serialization.extend(percent_encode(&o(part), set)),
-                None => self.serialization.extend(percent_encode(part.as_bytes(), set)),
-            }
-            position += part.len() + 1;
         }
 
         None
@@ -1548,19 +1589,24 @@ impl<'a> Parser<'a> {
         }
     }
 
+    #[inline]
     fn check_url_code_point(&self, c: char, input: &Input<'_>) {
         if let Some(vfn) = self.violation_fn {
-            if c == '%' {
-                let mut input = input.clone();
-                if !matches!((input.next(), input.next()), (Some(a), Some(b))
-                             if a.is_ascii_hexdigit() && b.is_ascii_hexdigit())
-                {
-                    vfn(SyntaxViolation::PercentDecode)
-                }
-            } else if !is_url_code_point(c) {
-                vfn(SyntaxViolation::NonUrlCodePoint)
-            }
+            check_url_code_point(vfn, c, input)
         }
+    }
+}
+
+fn check_url_code_point(vfn: &dyn Fn(SyntaxViolation), c: char, input: &Input<'_>) {
+    if c == '%' {
+        let mut input = input.clone();
+        if !matches!((input.next(), input.next()), (Some(a), Some(b))
+                             if a.is_ascii_hexdigit() && b.is_ascii_hexdigit())
+        {
+            vfn(SyntaxViolation::PercentDecode)
+        }
+    } else if !is_url_code_point(c) {
+        vfn(SyntaxViolation::NonUrlCodePoint)
     }
 }
 
