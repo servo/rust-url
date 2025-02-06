@@ -19,7 +19,7 @@ fn long(bench: &mut Bencher) {
     bench.iter(|| black_box(url).parse::<Url>().unwrap());
 }
 
-fn long_with_fragment(bench: &mut Bencher) {
+fn fragment(bench: &mut Bencher) {
     let url = "https://example.com/parkbench?tre=es&st=uff#fragment";
 
     bench.bytes = url.len() as u64;
@@ -93,7 +93,7 @@ benchmark_group!(
     benches,
     short,
     long,
-    long_with_fragment,
+    fragment,
     plain,
     hyphen,
     leading_digit,
