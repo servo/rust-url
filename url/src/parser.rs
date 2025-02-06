@@ -1473,37 +1473,47 @@ impl<'a> Parser<'a> {
         &mut self,
         scheme_type: SchemeType,
         scheme_end: u32,
-        mut input: Input<'i>,
+        input: Input<'i>,
     ) -> Option<Input<'i>> {
-        let len = input.chars.as_str().len();
-        let mut query = String::with_capacity(len); // FIXME: use a streaming decoder instead
-        let mut remaining = None;
-        while let Some(c) = input.next() {
-            if c == '#' && self.context == Context::UrlParser {
-                remaining = Some(input);
-                break;
-            } else {
-                self.check_url_code_point(c, &input);
-                query.push(c);
-            }
-        }
-
-        let encoding = match &self.serialization[..scheme_end as usize] {
-            "http" | "https" | "file" | "ftp" => self.query_encoding_override,
-            _ => None,
-        };
-        let query_bytes = if let Some(o) = encoding {
-            o(&query)
-        } else {
-            query.as_bytes().into()
-        };
         let set = if scheme_type.is_special() {
             SPECIAL_QUERY
         } else {
             QUERY
         };
-        self.serialization.extend(percent_encode(&query_bytes, set));
-        remaining
+        let query_encoding_override = self.query_encoding_override.filter(|_| {
+            matches!(
+                &self.serialization[..scheme_end as usize],
+                "http" | "https" | "file" | "ftp"
+            )
+        });
+        let input_str = input.chars.as_str();
+        let mut position = 0;
+        for part in input_str.split(['\t' , '\n' , '\r', '#']) {
+            let (prev_str, next_str) = input_str.split_at(position);
+            let mut input = Input {
+                chars: next_str.chars(),
+            };
+            if prev_str.ends_with('#') {
+                if self.context == Context::UrlParser {
+                    return Some(input);
+                } else {
+                    match query_encoding_override {
+                        Some(o) => self.serialization.extend(percent_encode(&o("#"), set)),
+                        None => self.serialization.extend(percent_encode(b"#", set)),
+                    }
+                }
+            }
+            while let Some(c) = input.next() {
+                self.check_url_code_point(c, &input);
+            }
+            match query_encoding_override {
+                Some(o) => self.serialization.extend(percent_encode(&o(part), set)),
+                None => self.serialization.extend(percent_encode(part.as_bytes(), set)),
+            }
+            position += part.len() + 1;
+        }
+
+        None
     }
 
     fn fragment_only(mut self, base_url: &Url, mut input: Input<'_>) -> ParseResult<Url> {
