@@ -1768,5 +1768,5 @@ fn fast_u16_to_str(
 
     // SAFETY: we know the values in the buffer from the
     // current index on will be a number
-    unsafe { std::str::from_utf8_unchecked(&buffer[index..]) }
+    unsafe { core::str::from_utf8_unchecked(&buffer[index..]) }
 }
