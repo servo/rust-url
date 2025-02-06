@@ -99,7 +99,7 @@ impl core::fmt::Display for Errors {
 ///
 /// This process may fail.
 ///
-/// If you have a `&str` instead of `&[u8]`, just call `.to_bytes()` on it before
+/// If you have a `&str` instead of `&[u8]`, just call `.as_bytes()` on it before
 /// passing it to this function. It's still preferable to use this function over
 /// the sibling functions that take `&str`.
 pub fn domain_to_ascii_cow(

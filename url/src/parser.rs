@@ -6,10 +6,10 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use alloc::borrow::Cow;
 use alloc::string::String;
 use core::fmt::{self, Formatter, Write};
 use core::str;
-use alloc::borrow::Cow;
 
 use crate::host::{Host, HostInternal};
 use crate::Url;

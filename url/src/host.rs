@@ -74,6 +74,20 @@ impl Host<&str> {
     }
 }
 
+impl Host<String> {
+    /// Parse a host: either an IPv6 address in [] square brackets, or a domain.
+    ///
+    /// <https://url.spec.whatwg.org/#host-parsing>
+    pub fn parse(input: &str) -> Result<Self, ParseError> {
+        Host::<Cow<str>>::parse_cow(input.into()).map(|i| i.into_owned())
+    }
+
+    /// <https://url.spec.whatwg.org/#concept-opaque-host-parser>
+    pub fn parse_opaque(input: &str) -> Result<Self, ParseError> {
+        Host::<Cow<str>>::parse_opaque_cow(input.into()).map(|i| i.into_owned())
+    }
+}
+
 impl<'a> Host<Cow<'a, str>> {
     pub(crate) fn parse_cow(input: Cow<'a, str>) -> Result<Self, ParseError> {
         if input.starts_with('[') {
@@ -84,11 +98,12 @@ impl<'a> Host<Cow<'a, str>> {
         }
         let domain: Cow<'_, [u8]> = percent_decode(input.as_bytes()).into();
         let domain: Cow<'a, [u8]> = match domain {
+            Cow::Owned(v) => Cow::Owned(v),
+            // if borrowed then we can use the original cow
             Cow::Borrowed(_) => match input {
                 Cow::Borrowed(input) => Cow::Borrowed(input.as_bytes()),
                 Cow::Owned(input) => Cow::Owned(input.into_bytes()),
             },
-            Cow::Owned(v) => Cow::Owned(v),
         };
 
         let domain = domain_to_ascii(domain)?;
@@ -141,6 +156,7 @@ impl<'a> Host<Cow<'a, str>> {
             Ok(Host::Domain(
                 match utf8_percent_encode(&input, CONTROLS).into() {
                     Cow::Owned(v) => Cow::Owned(v),
+                    // if we're borrowing, then we can return the original Cow
                     Cow::Borrowed(_) => input,
                 },
             ))
@@ -156,25 +172,14 @@ impl<'a> Host<Cow<'a, str>> {
     }
 }
 
-impl Host<String> {
-    /// Parse a host: either an IPv6 address in [] square brackets, or a domain.
-    ///
-    /// <https://url.spec.whatwg.org/#host-parsing>
-    pub fn parse(input: &str) -> Result<Self, ParseError> {
-        Host::<Cow<str>>::parse_cow(input.into()).map(|i| i.into_owned())
-    }
-
-    // <https://url.spec.whatwg.org/#concept-opaque-host-parser>
-    pub fn parse_opaque(input: &str) -> Result<Self, ParseError> {
-        Host::<Cow<str>>::parse_opaque_cow(input.into()).map(|i| i.into_owned())
-    }
-}
-
 /// convert domain with idna
 fn domain_to_ascii(domain: Cow<'_, [u8]>) -> Result<Cow<'_, str>, ParseError> {
     let value = idna::domain_to_ascii_cow(&domain, idna::AsciiDenyList::URL)?;
+    // TODO: would be better to move this into the idna crate
     Ok(match value {
         Cow::Owned(value) => Cow::Owned(value),
+        // SAFETY: If borrowed, then the original string is ascii and we can return the
+        // original Cow in order to save an allocation
         Cow::Borrowed(_) => match domain {
             Cow::Borrowed(value) => unsafe { Cow::Borrowed(core::str::from_utf8_unchecked(value)) },
             Cow::Owned(value) => unsafe { String::from_utf8_unchecked(value).into() },

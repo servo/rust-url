@@ -174,8 +174,8 @@ use crate::net::IpAddr;
 ))]
 use crate::net::{SocketAddr, ToSocketAddrs};
 use crate::parser::{to_u32, Context, Parser, SchemeType, USERINFO};
-use alloc::borrow::ToOwned;
 use alloc::borrow::Cow;
+use alloc::borrow::ToOwned;
 use alloc::str;
 use alloc::string::{String, ToString};
 use core::borrow::Borrow;
