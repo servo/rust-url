@@ -3067,7 +3067,8 @@ fn file_url_segments_to_pathbuf(
         return Err(());
     }
 
-    let mut bytes = Vec::with_capacity(estimated_capacity);
+    let mut bytes = Vec::new();
+    bytes.try_reserve(estimated_capacity).map_err(|_| ())?;
     if cfg!(target_os = "redox") {
         bytes.extend(b"file:");
     }
