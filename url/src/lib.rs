@@ -3041,7 +3041,6 @@ fn file_url_segments_to_pathbuf(
     use std::os::hermit::ffi::OsStrExt;
     #[cfg(any(unix, target_os = "redox"))]
     use std::os::unix::prelude::OsStrExt;
-    use std::path::PathBuf;
 
     if host.is_some() {
         return Err(());

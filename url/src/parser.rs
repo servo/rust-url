@@ -1223,7 +1223,9 @@ impl<'a> Parser<'a> {
                 let input_before_c = input.clone();
                 // bypass input.next() and manually handle ascii_tab_or_new_line
                 // in order to encode string slices in bulk
-                let Some(c) = input.chars.next() else {
+                let c = if let Some(c) = input.chars.next() {
+                    c
+                } else {
                     push_pending(
                         &mut self.serialization,
                         start_str,
