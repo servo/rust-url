@@ -33,6 +33,13 @@ fn plain(bench: &mut Bencher) {
     bench.iter(|| black_box(url).parse::<Url>().unwrap());
 }
 
+fn port(bench: &mut Bencher) {
+    let url = "https://example.com:8080";
+
+    bench.bytes = url.len() as u64;
+    bench.iter(|| black_box(url).parse::<Url>().unwrap());
+}
+
 fn hyphen(bench: &mut Bencher) {
     let url = "https://hyphenated-example.com/";
 
@@ -95,6 +102,7 @@ benchmark_group!(
     long,
     fragment,
     plain,
+    port,
     hyphen,
     leading_digit,
     unicode_mixed,
