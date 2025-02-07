@@ -531,7 +531,12 @@ impl Uts46 {
         hyphens: Hyphens,
         dns_length: DnsLength,
     ) -> Result<Cow<'a, str>, crate::Errors> {
-        self.to_ascii_from_cow(Cow::Borrowed(domain_name), ascii_deny_list, hyphens, dns_length)
+        self.to_ascii_from_cow(
+            Cow::Borrowed(domain_name),
+            ascii_deny_list,
+            hyphens,
+            dns_length,
+        )
     }
 
     pub(crate) fn to_ascii_from_cow<'a>(

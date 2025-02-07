@@ -129,7 +129,10 @@ pub fn domain_to_ascii_cow(
 /// and using Punycode as necessary.
 ///
 /// This process may fail.
-pub fn domain_to_ascii_from_cow(domain: Cow<'_, [u8]>, ascii_deny_list: AsciiDenyList) -> Result<Cow<'_, str>, Errors> {
+pub fn domain_to_ascii_from_cow(
+    domain: Cow<'_, [u8]>,
+    ascii_deny_list: AsciiDenyList,
+) -> Result<Cow<'_, str>, Errors> {
     Uts46::new().to_ascii_from_cow(
         domain,
         ascii_deny_list,
