@@ -73,6 +73,12 @@ macro_rules! simple_enum_error {
     }
 }
 
+macro_rules! ascii_tab_or_new_line_pattern {
+    () => {
+        '\t' | '\n' | '\r'
+    };
+}
+
 #[cfg(feature = "std")]
 impl std::error::Error for ParseError {}
 
@@ -207,7 +213,7 @@ impl<'i> Input<'i> {
             if input.len() < original_input.len() {
                 vfn(SyntaxViolation::C0SpaceIgnored)
             }
-            if input.chars().any(|c| matches!(c, '\t' | '\n' | '\r')) {
+            if input.chars().any(ascii_tab_or_new_line) {
                 vfn(SyntaxViolation::TabOrNewlineIgnored)
             }
         }
@@ -225,7 +231,7 @@ impl<'i> Input<'i> {
             if input.len() < original_input.len() {
                 vfn(SyntaxViolation::C0SpaceIgnored)
             }
-            if input.chars().any(|c| matches!(c, '\t' | '\n' | '\r')) {
+            if input.chars().any(ascii_tab_or_new_line) {
                 vfn(SyntaxViolation::TabOrNewlineIgnored)
             }
         }
@@ -281,7 +287,7 @@ impl<'i> Input<'i> {
             let utf8 = self.chars.as_str();
             match self.chars.next() {
                 Some(c) => {
-                    if !matches!(c, '\t' | '\n' | '\r') {
+                    if !ascii_tab_or_new_line(c) {
                         return Some((c, &utf8[..c.len_utf8()]));
                     }
                 }
@@ -301,7 +307,7 @@ impl Pattern for char {
     }
 }
 
-impl<'a> Pattern for &'a str {
+impl Pattern for &str {
     fn split_prefix(self, input: &mut Input) -> bool {
         for c in self.chars() {
             if input.next() != Some(c) {
@@ -318,12 +324,10 @@ impl<F: FnMut(char) -> bool> Pattern for F {
     }
 }
 
-impl<'i> Iterator for Input<'i> {
+impl Iterator for Input<'_> {
     type Item = char;
     fn next(&mut self) -> Option<char> {
-        self.chars
-            .by_ref()
-            .find(|&c| !matches!(c, '\t' | '\n' | '\r'))
+        self.chars.by_ref().find(|&c| !ascii_tab_or_new_line(c))
     }
 }
 
@@ -966,13 +970,17 @@ impl<'a> Parser<'a> {
 
         let (port, remaining) = if let Some(remaining) = remaining.split_prefix(':') {
             let scheme = || default_port(&self.serialization[..scheme_end as usize]);
-            Parser::parse_port(remaining, scheme, self.context)?
+            let (port, remaining) = Parser::parse_port(remaining, scheme, self.context)?;
+            if let Some(port) = port {
+                self.serialization.push(':');
+                let mut buffer = [0u8; 5];
+                let port_str = fast_u16_to_str(&mut buffer, port);
+                self.serialization.push_str(port_str);
+            }
+            (port, remaining)
         } else {
             (None, remaining)
         };
-        if let Some(port) = port {
-            write!(&mut self.serialization, ":{port}").unwrap()
-        }
         Ok((host_end, host.into(), port, remaining))
     }
 
@@ -995,7 +1003,7 @@ impl<'a> Parser<'a> {
                 ':' if !inside_square_brackets => break,
                 '\\' if scheme_type.is_special() => break,
                 '/' | '?' | '#' => break,
-                '\t' | '\n' | '\r' => {
+                ascii_tab_or_new_line_pattern!() => {
                     has_ignored_chars = true;
                 }
                 '[' => {
@@ -1077,7 +1085,7 @@ impl<'a> Parser<'a> {
         for c in input_str.chars() {
             match c {
                 '/' | '\\' | '?' | '#' => break,
-                '\t' | '\n' | '\r' => has_ignored_chars = true,
+                ascii_tab_or_new_line_pattern!() => has_ignored_chars = true,
                 _ => non_ignored_chars += 1,
             }
             bytes += c.len_utf8();
@@ -1473,37 +1481,81 @@ impl<'a> Parser<'a> {
         &mut self,
         scheme_type: SchemeType,
         scheme_end: u32,
-        mut input: Input<'i>,
+        input: Input<'i>,
     ) -> Option<Input<'i>> {
-        let len = input.chars.as_str().len();
-        let mut query = String::with_capacity(len); // FIXME: use a streaming decoder instead
-        let mut remaining = None;
-        while let Some(c) = input.next() {
-            if c == '#' && self.context == Context::UrlParser {
-                remaining = Some(input);
-                break;
-            } else {
-                self.check_url_code_point(c, &input);
-                query.push(c);
+        struct QueryPartIter<'i, 'p> {
+            is_url_parser: bool,
+            input: Input<'i>,
+            violation_fn: Option<&'p dyn Fn(SyntaxViolation)>,
+        }
+
+        impl<'i> Iterator for QueryPartIter<'i, '_> {
+            type Item = (&'i str, bool);
+
+            fn next(&mut self) -> Option<Self::Item> {
+                let start = self.input.chars.as_str();
+                // bypass self.input.next() in order to get string slices
+                // which are faster to operate on
+                while let Some(c) = self.input.chars.next() {
+                    match c {
+                        ascii_tab_or_new_line_pattern!() => {
+                            return Some((
+                                &start[..start.len() - self.input.chars.as_str().len() - 1],
+                                false,
+                            ));
+                        }
+                        '#' if self.is_url_parser => {
+                            return Some((
+                                &start[..start.len() - self.input.chars.as_str().len() - 1],
+                                true,
+                            ));
+                        }
+                        c => {
+                            if let Some(vfn) = &self.violation_fn {
+                                check_url_code_point(vfn, c, &self.input);
+                            }
+                        }
+                    }
+                }
+                if start.is_empty() {
+                    None
+                } else {
+                    Some((start, false))
+                }
             }
         }
 
-        let encoding = match &self.serialization[..scheme_end as usize] {
-            "http" | "https" | "file" | "ftp" => self.query_encoding_override,
-            _ => None,
-        };
-        let query_bytes = if let Some(o) = encoding {
-            o(&query)
-        } else {
-            query.as_bytes().into()
+        let mut part_iter = QueryPartIter {
+            is_url_parser: self.context == Context::UrlParser,
+            input,
+            violation_fn: self.violation_fn,
         };
         let set = if scheme_type.is_special() {
             SPECIAL_QUERY
         } else {
             QUERY
         };
-        self.serialization.extend(percent_encode(&query_bytes, set));
-        remaining
+        let query_encoding_override = self.query_encoding_override.filter(|_| {
+            matches!(
+                &self.serialization[..scheme_end as usize],
+                "http" | "https" | "file" | "ftp"
+            )
+        });
+
+        while let Some((part, is_finished)) = part_iter.next() {
+            match query_encoding_override {
+                // slightly faster to be repetitive and not convert text to Cow
+                Some(o) => self.serialization.extend(percent_encode(&o(part), set)),
+                None => self
+                    .serialization
+                    .extend(percent_encode(part.as_bytes(), set)),
+            }
+            if is_finished {
+                return Some(part_iter.input);
+            }
+        }
+
+        None
     }
 
     fn fragment_only(mut self, base_url: &Url, mut input: Input<'_>) -> ParseResult<Url> {
@@ -1526,31 +1578,75 @@ impl<'a> Parser<'a> {
         })
     }
 
-    pub fn parse_fragment(&mut self, mut input: Input<'_>) {
-        while let Some((c, utf8_c)) = input.next_utf8() {
-            if c == '\0' {
-                self.log_violation(SyntaxViolation::NullInFragment)
-            } else {
-                self.check_url_code_point(c, &input);
+    pub fn parse_fragment(&mut self, input: Input<'_>) {
+        struct FragmentPartIter<'i, 'p> {
+            input: Input<'i>,
+            violation_fn: Option<&'p dyn Fn(SyntaxViolation)>,
+        }
+
+        impl<'i> Iterator for FragmentPartIter<'i, '_> {
+            type Item = &'i str;
+
+            fn next(&mut self) -> Option<Self::Item> {
+                let start = self.input.chars.as_str();
+                // bypass self.input.next() in order to get string slices
+                // which are faster to operate on
+                while let Some(c) = self.input.chars.next() {
+                    match c {
+                        ascii_tab_or_new_line_pattern!() => {
+                            return Some(
+                                &start[..start.len() - self.input.chars.as_str().len() - 1],
+                            );
+                        }
+                        '\0' => {
+                            if let Some(vfn) = &self.violation_fn {
+                                vfn(SyntaxViolation::NullInFragment);
+                            }
+                        }
+                        c => {
+                            if let Some(vfn) = &self.violation_fn {
+                                check_url_code_point(vfn, c, &self.input);
+                            }
+                        }
+                    }
+                }
+                if start.is_empty() {
+                    None
+                } else {
+                    Some(start)
+                }
             }
+        }
+
+        let part_iter = FragmentPartIter {
+            input,
+            violation_fn: self.violation_fn,
+        };
+
+        for part in part_iter {
             self.serialization
-                .extend(utf8_percent_encode(utf8_c, FRAGMENT));
+                .extend(utf8_percent_encode(part, FRAGMENT));
         }
     }
 
+    #[inline]
     fn check_url_code_point(&self, c: char, input: &Input<'_>) {
         if let Some(vfn) = self.violation_fn {
-            if c == '%' {
-                let mut input = input.clone();
-                if !matches!((input.next(), input.next()), (Some(a), Some(b))
-                             if a.is_ascii_hexdigit() && b.is_ascii_hexdigit())
-                {
-                    vfn(SyntaxViolation::PercentDecode)
-                }
-            } else if !is_url_code_point(c) {
-                vfn(SyntaxViolation::NonUrlCodePoint)
-            }
+            check_url_code_point(vfn, c, input)
         }
+    }
+}
+
+fn check_url_code_point(vfn: &dyn Fn(SyntaxViolation), c: char, input: &Input<'_>) {
+    if c == '%' {
+        let mut input = input.clone();
+        if !matches!((input.next(), input.next()), (Some(a), Some(b))
+                             if a.is_ascii_hexdigit() && b.is_ascii_hexdigit())
+        {
+            vfn(SyntaxViolation::PercentDecode)
+        }
+    } else if !is_url_code_point(c) {
+        vfn(SyntaxViolation::NonUrlCodePoint)
     }
 }
 
@@ -1589,7 +1685,7 @@ fn c0_control_or_space(ch: char) -> bool {
 /// https://infra.spec.whatwg.org/#ascii-tab-or-newline
 #[inline]
 fn ascii_tab_or_new_line(ch: char) -> bool {
-    matches!(ch, '\t' | '\r' | '\n')
+    matches!(ch, ascii_tab_or_new_line_pattern!())
 }
 
 /// https://url.spec.whatwg.org/#ascii-alpha
@@ -1651,4 +1747,26 @@ fn starts_with_windows_drive_letter_segment(input: &Input<'_>) -> bool {
         (Some(a), Some(b), None) if ascii_alpha(a) && matches!(b, ':' | '|') => true,
         _ => false,
     }
+}
+
+#[inline]
+fn fast_u16_to_str(
+    // max 5 digits for u16 (65535)
+    buffer: &mut [u8; 5],
+    mut value: u16,
+) -> &str {
+    let mut index = buffer.len();
+
+    loop {
+        index -= 1;
+        buffer[index] = b'0' + (value % 10) as u8;
+        value /= 10;
+        if value == 0 {
+            break;
+        }
+    }
+
+    // SAFETY: we know the values in the buffer from the
+    // current index on will be a number
+    unsafe { core::str::from_utf8_unchecked(&buffer[index..]) }
 }

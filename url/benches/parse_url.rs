@@ -19,8 +19,22 @@ fn long(bench: &mut Bencher) {
     bench.iter(|| black_box(url).parse::<Url>().unwrap());
 }
 
+fn fragment(bench: &mut Bencher) {
+    let url = "https://example.com/parkbench?tre=es&st=uff#fragment";
+
+    bench.bytes = url.len() as u64;
+    bench.iter(|| black_box(url).parse::<Url>().unwrap());
+}
+
 fn plain(bench: &mut Bencher) {
     let url = "https://example.com/";
+
+    bench.bytes = url.len() as u64;
+    bench.iter(|| black_box(url).parse::<Url>().unwrap());
+}
+
+fn port(bench: &mut Bencher) {
+    let url = "https://example.com:8080";
 
     bench.bytes = url.len() as u64;
     bench.iter(|| black_box(url).parse::<Url>().unwrap());
@@ -86,7 +100,9 @@ benchmark_group!(
     benches,
     short,
     long,
+    fragment,
     plain,
+    port,
     hyphen,
     leading_digit,
     unicode_mixed,
