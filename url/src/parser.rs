@@ -970,13 +970,17 @@ impl<'a> Parser<'a> {
 
         let (port, remaining) = if let Some(remaining) = remaining.split_prefix(':') {
             let scheme = || default_port(&self.serialization[..scheme_end as usize]);
-            Parser::parse_port(remaining, scheme, self.context)?
+            let (port, remaining) = Parser::parse_port(remaining, scheme, self.context)?;
+            if let Some(port) = port {
+                self.serialization.push(':');
+                let mut buffer = [0u8; 5];
+                let port_str = fast_u16_to_str(&mut buffer, port);
+                self.serialization.push_str(port_str);
+            }
+            (port, remaining)
         } else {
             (None, remaining)
         };
-        if let Some(port) = port {
-            write!(&mut self.serialization, ":{}", port).unwrap()
-        }
         Ok((host_end, host.into(), port, remaining))
     }
 
@@ -1743,4 +1747,26 @@ fn starts_with_windows_drive_letter_segment(input: &Input<'_>) -> bool {
         (Some(a), Some(b), None) if ascii_alpha(a) && matches!(b, ':' | '|') => true,
         _ => false,
     }
+}
+
+#[inline]
+fn fast_u16_to_str(
+    // max 5 digits for u16 (65535)
+    buffer: &mut [u8; 5],
+    mut value: u16,
+) -> &str {
+    let mut index = buffer.len();
+
+    loop {
+        index -= 1;
+        buffer[index] = b'0' + (value % 10) as u8;
+        value /= 10;
+        if value == 0 {
+            break;
+        }
+    }
+
+    // SAFETY: we know the values in the buffer from the
+    // current index on will be a number
+    unsafe { core::str::from_utf8_unchecked(&buffer[index..]) }
 }
