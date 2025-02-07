@@ -531,9 +531,19 @@ impl Uts46 {
         hyphens: Hyphens,
         dns_length: DnsLength,
     ) -> Result<Cow<'a, str>, crate::Errors> {
+        self.to_ascii_from_cow(Cow::Borrowed(domain_name), ascii_deny_list, hyphens, dns_length)
+    }
+
+    pub(crate) fn to_ascii_from_cow<'a>(
+        &self,
+        domain_name: Cow<'a, [u8]>,
+        ascii_deny_list: AsciiDenyList,
+        hyphens: Hyphens,
+        dns_length: DnsLength,
+    ) -> Result<Cow<'a, str>, crate::Errors> {
         let mut s = String::new();
         match self.process(
-            domain_name,
+            &domain_name,
             ascii_deny_list,
             hyphens,
             ErrorPolicy::FailFast,
@@ -541,9 +551,12 @@ impl Uts46 {
             &mut s,
             None,
         ) {
-            // SAFETY: `ProcessingSuccess::Passthrough` asserts that `domain_name` is ASCII.
             Ok(ProcessingSuccess::Passthrough) => {
-                let cow = Cow::Borrowed(unsafe { core::str::from_utf8_unchecked(domain_name) });
+                // SAFETY: `ProcessingSuccess::Passthrough` asserts that `domain_name` is ASCII.
+                let cow = match domain_name {
+                    Cow::Borrowed(v) => Cow::Borrowed(unsafe { core::str::from_utf8_unchecked(v) }),
+                    Cow::Owned(v) => Cow::Owned(unsafe { String::from_utf8_unchecked(v) }),
+                };
                 if dns_length != DnsLength::Ignore
                     && !verify_dns_length(&cow, dns_length == DnsLength::VerifyAllowRootDot)
                 {

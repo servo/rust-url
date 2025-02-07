@@ -106,7 +106,7 @@ impl<'a> Host<Cow<'a, str>> {
             },
         };
 
-        let domain = domain_to_ascii(domain)?;
+        let domain = idna::domain_to_ascii_from_cow(domain, idna::AsciiDenyList::URL)?;
 
         if domain.is_empty() {
             return Err(ParseError::EmptyHost);
@@ -170,21 +170,6 @@ impl<'a> Host<Cow<'a, str>> {
             Host::Ipv6(ip) => Host::Ipv6(ip),
         }
     }
-}
-
-/// convert domain with idna
-fn domain_to_ascii(domain: Cow<'_, [u8]>) -> Result<Cow<'_, str>, ParseError> {
-    let value = idna::domain_to_ascii_cow(&domain, idna::AsciiDenyList::URL)?;
-    // TODO: would be better to move this into the idna crate
-    Ok(match value {
-        Cow::Owned(value) => Cow::Owned(value),
-        // SAFETY: If borrowed, then the original string is ascii and we can return the
-        // original Cow in order to save an allocation
-        Cow::Borrowed(_) => match domain {
-            Cow::Borrowed(value) => unsafe { Cow::Borrowed(core::str::from_utf8_unchecked(value)) },
-            Cow::Owned(value) => unsafe { String::from_utf8_unchecked(value).into() },
-        },
-    })
 }
 
 impl<S: AsRef<str>> fmt::Display for Host<S> {
