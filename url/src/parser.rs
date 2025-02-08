@@ -398,8 +398,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_scheme<'i>(&mut self, mut input: Input<'i>) -> Result<Input<'i>, ()> {
-        // starts_with will also fail for empty strings
-        // so we can skip that comparison for perf
+        // starts_with will also fail for empty strings so we can skip that comparison for perf
         if !input.starts_with(ascii_alpha) {
             return Err(());
         }
