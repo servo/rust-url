@@ -13,7 +13,7 @@ fn short(bench: &mut Bencher) {
 }
 
 fn long(bench: &mut Bencher) {
-    let url = "https://example.com/parkbench?tre=es&st=ufflongerlonger";
+    let url = "https://example.com/parkbench?tre=es&st=uff";
 
     bench.bytes = url.len() as u64;
     bench.iter(|| black_box(url).parse::<Url>().unwrap());
