@@ -2720,7 +2720,26 @@ impl Url {
                 _ => return Err(()),
             };
 
-            return file_url_segments_to_pathbuf(host, segments);
+            let str_len = self.as_str().len();
+            let estimated_capacity = if cfg!(target_os = "redox") {
+                let scheme_len = self.scheme().len();
+                let file_scheme_len = "file".len();
+                // remove only // because it still has file:
+                if scheme_len < file_scheme_len {
+                    let scheme_diff = file_scheme_len - scheme_len;
+                    (str_len + scheme_diff).saturating_sub(2)
+                } else {
+                    let scheme_diff = scheme_len - file_scheme_len;
+                    str_len.saturating_sub(scheme_diff + 2)
+                }
+            } else if cfg!(windows) {
+                // remove scheme: - has posssible \\ for hostname
+                str_len.saturating_sub(self.scheme().len() + 1)
+            } else {
+                // remove scheme://
+                str_len.saturating_sub(self.scheme().len() + 3)
+            };
+            return file_url_segments_to_pathbuf(estimated_capacity, host, segments);
         }
         Err(())
     }
@@ -3030,6 +3049,7 @@ fn path_to_file_url_segments_windows(
     any(unix, target_os = "redox", target_os = "wasi", target_os = "hermit")
 ))]
 fn file_url_segments_to_pathbuf(
+    estimated_capacity: usize,
     host: Option<&str>,
     segments: str::Split<'_, char>,
 ) -> Result<PathBuf, ()> {
@@ -3047,11 +3067,11 @@ fn file_url_segments_to_pathbuf(
         return Err(());
     }
 
-    let mut bytes = if cfg!(target_os = "redox") {
-        b"file:".to_vec()
-    } else {
-        Vec::new()
-    };
+    let mut bytes = Vec::new();
+    bytes.try_reserve(estimated_capacity).map_err(|_| ())?;
+    if cfg!(target_os = "redox") {
+        bytes.extend(b"file:");
+    }
 
     for segment in segments {
         bytes.push(b'/');
@@ -3083,22 +3103,27 @@ fn file_url_segments_to_pathbuf(
 
 #[cfg(all(feature = "std", windows))]
 fn file_url_segments_to_pathbuf(
+    estimated_capacity: usize,
     host: Option<&str>,
     segments: str::Split<char>,
 ) -> Result<PathBuf, ()> {
-    file_url_segments_to_pathbuf_windows(host, segments)
+    file_url_segments_to_pathbuf_windows(estimated_capacity, host, segments)
 }
 
 // Build this unconditionally to alleviate https://github.com/servo/rust-url/issues/102
 #[cfg(feature = "std")]
 #[cfg_attr(not(windows), allow(dead_code))]
 fn file_url_segments_to_pathbuf_windows(
+    estimated_capacity: usize,
     host: Option<&str>,
     mut segments: str::Split<'_, char>,
 ) -> Result<PathBuf, ()> {
-    use percent_encoding::percent_decode;
-    let mut string = if let Some(host) = host {
-        r"\\".to_owned() + host
+    use percent_encoding::percent_decode_str;
+    let mut string = String::new();
+    string.try_reserve(estimated_capacity).map_err(|_| ())?;
+    if let Some(host) = host {
+        string.push_str(r"\\");
+        string.push_str(host);
     } else {
         let first = segments.next().ok_or(())?;
 
@@ -3108,7 +3133,7 @@ fn file_url_segments_to_pathbuf_windows(
                     return Err(());
                 }
 
-                first.to_owned()
+                string.push_str(first);
             }
 
             4 => {
@@ -3120,7 +3145,8 @@ fn file_url_segments_to_pathbuf_windows(
                     return Err(());
                 }
 
-                first[0..1].to_owned() + ":"
+                string.push_str(&first[0..1]);
+                string.push(':');
             }
 
             _ => return Err(()),
@@ -3131,10 +3157,19 @@ fn file_url_segments_to_pathbuf_windows(
         string.push('\\');
 
         // Currently non-unicode windows paths cannot be represented
-        match String::from_utf8(percent_decode(segment.as_bytes()).collect()) {
+        match percent_decode_str(segment).decode_utf8() {
             Ok(s) => string.push_str(&s),
             Err(..) => return Err(()),
         }
+    }
+    // ensure our estimated capacity was good
+    if cfg!(test) {
+        debug_assert!(
+            string.len() <= estimated_capacity,
+            "len: {}, capacity: {}",
+            string.len(),
+            estimated_capacity
+        );
     }
     let path = PathBuf::from(string);
     debug_assert!(
