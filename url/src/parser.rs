@@ -1367,7 +1367,7 @@ impl<'a> Parser<'a> {
             }
         }
         if scheme_type.is_file() {
-            // while url's path’s size is greater than 1
+            // while url’s path’s size is greater than 1
             // and url’s path[0] is the empty string,
             // validation error, remove the first item from url’s path.
             //FIXME: log violation
