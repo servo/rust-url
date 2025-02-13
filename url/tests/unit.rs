@@ -1032,6 +1032,14 @@ fn test_set_scheme_to_file_with_host() {
 }
 
 #[test]
+fn test_set_scheme_empty_err() {
+    let mut url: Url = "http://localhost:6767/foo/bar".parse().unwrap();
+    let result = url.set_scheme("");
+    assert_eq!(url.to_string(), "http://localhost:6767/foo/bar");
+    assert_eq!(result, Err(()));
+}
+
+#[test]
 fn no_panic() {
     let mut url = Url::parse("arhttpsps:/.//eom/dae.com/\\\\t\\:").unwrap();
     url::quirks::set_hostname(&mut url, "//eom/datcom/\\\\t\\://eom/data.cs").unwrap();
