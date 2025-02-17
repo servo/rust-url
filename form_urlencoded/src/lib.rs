@@ -104,7 +104,7 @@ pub struct ParseIntoOwned<'a> {
     inner: Parse<'a>,
 }
 
-impl<'a> Iterator for ParseIntoOwned<'a> {
+impl Iterator for ParseIntoOwned<'_> {
     type Item = (String, String);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -212,7 +212,7 @@ impl Target for String {
     type Finished = Self;
 }
 
-impl<'a> Target for &'a mut String {
+impl Target for &mut String {
     fn as_mut_string(&mut self) -> &mut String {
         self
     }

@@ -6,9 +6,14 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use std::cmp;
-use std::fmt::{self, Formatter};
-use std::net::{Ipv4Addr, Ipv6Addr};
+use crate::net::{Ipv4Addr, Ipv6Addr};
+use alloc::borrow::Cow;
+use alloc::borrow::ToOwned;
+use alloc::string::String;
+use alloc::string::ToString;
+use alloc::vec::Vec;
+use core::cmp;
+use core::fmt::{self, Formatter};
 
 use percent_encoding::{percent_decode, utf8_percent_encode, CONTROLS};
 #[cfg(feature = "serde")]
@@ -59,7 +64,7 @@ pub enum Host<S = String> {
     Ipv6(Ipv6Addr),
 }
 
-impl<'a> Host<&'a str> {
+impl Host<&str> {
     /// Return a copy of `self` that owns an allocated `String` but does not borrow an `&Url`.
     pub fn to_owned(&self) -> Host<String> {
         match *self {
@@ -81,7 +86,7 @@ impl Host<String> {
             }
             return parse_ipv6addr(&input[1..input.len() - 1]).map(Host::Ipv6);
         }
-        let domain = percent_decode(input.as_bytes()).decode_utf8_lossy();
+        let domain: Cow<'_, [u8]> = percent_decode(input.as_bytes()).into();
 
         let domain = Self::domain_to_ascii(&domain)?;
 
@@ -89,35 +94,11 @@ impl Host<String> {
             return Err(ParseError::EmptyHost);
         }
 
-        let is_invalid_domain_char = |c| {
-            matches!(
-                c,
-                '\0'..='\u{001F}'
-                    | ' '
-                    | '#'
-                    | '%'
-                    | '/'
-                    | ':'
-                    | '<'
-                    | '>'
-                    | '?'
-                    | '@'
-                    | '['
-                    | '\\'
-                    | ']'
-                    | '^'
-                    | '\u{007F}'
-                    | '|'
-            )
-        };
-
-        if domain.find(is_invalid_domain_char).is_some() {
-            Err(ParseError::InvalidDomainCharacter)
-        } else if ends_in_a_number(&domain) {
+        if ends_in_a_number(&domain) {
             let address = parse_ipv4addr(&domain)?;
             Ok(Host::Ipv4(address))
         } else {
-            Ok(Host::Domain(domain))
+            Ok(Host::Domain(domain.to_string()))
         }
     }
 
@@ -162,8 +143,8 @@ impl Host<String> {
     }
 
     /// convert domain with idna
-    fn domain_to_ascii(domain: &str) -> Result<String, ParseError> {
-        idna::domain_to_ascii(domain).map_err(Into::into)
+    fn domain_to_ascii(domain: &[u8]) -> Result<Cow<'_, str>, ParseError> {
+        idna::domain_to_ascii_cow(domain, idna::AsciiDenyList::URL).map_err(Into::into)
     }
 }
 
@@ -332,7 +313,7 @@ fn parse_ipv4addr(input: &str) -> ParseResult<Ipv4Addr> {
     }
     let mut ipv4 = numbers.pop().expect("a non-empty list of numbers");
     // Equivalent to: ipv4 >= 256 ** (4 − numbers.len())
-    if ipv4 > u32::max_value() >> (8 * numbers.len() as u32) {
+    if ipv4 > u32::MAX >> (8 * numbers.len() as u32) {
         return Err(ParseError::InvalidIpv4Address);
     }
     if numbers.iter().any(|x| *x > 255) {
