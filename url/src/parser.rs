@@ -6,8 +6,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use alloc::borrow::Cow;
 use alloc::string::String;
-use alloc::string::ToString;
 use core::fmt::{self, Formatter, Write};
 use core::str;
 
@@ -328,6 +328,10 @@ impl Iterator for Input<'_> {
     type Item = char;
     fn next(&mut self) -> Option<char> {
         self.chars.by_ref().find(|&c| !ascii_tab_or_new_line(c))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (0, Some(self.chars.as_str().len()))
     }
 }
 
@@ -987,7 +991,7 @@ impl<'a> Parser<'a> {
     pub fn parse_host(
         mut input: Input<'_>,
         scheme_type: SchemeType,
-    ) -> ParseResult<(Host<String>, Input<'_>)> {
+    ) -> ParseResult<(Host<Cow<'_, str>>, Input<'_>)> {
         if scheme_type.is_file() {
             return Parser::get_file_host(input);
         }
@@ -1018,34 +1022,34 @@ impl<'a> Parser<'a> {
             }
             bytes += c.len_utf8();
         }
-        let replaced: String;
         let host_str;
         {
             let host_input = input.by_ref().take(non_ignored_chars);
             if has_ignored_chars {
-                replaced = host_input.collect();
-                host_str = &*replaced
+                host_str = Cow::Owned(host_input.collect());
             } else {
                 for _ in host_input {}
-                host_str = &input_str[..bytes]
+                host_str = Cow::Borrowed(&input_str[..bytes]);
             }
         }
         if scheme_type == SchemeType::SpecialNotFile && host_str.is_empty() {
             return Err(ParseError::EmptyHost);
         }
         if !scheme_type.is_special() {
-            let host = Host::parse_opaque(host_str)?;
+            let host = Host::parse_opaque_cow(host_str)?;
             return Ok((host, input));
         }
-        let host = Host::parse(host_str)?;
+        let host = Host::parse_cow(host_str)?;
         Ok((host, input))
     }
 
-    fn get_file_host(input: Input<'_>) -> ParseResult<(Host<String>, Input<'_>)> {
+    fn get_file_host(input: Input<'_>) -> ParseResult<(Host<Cow<'_, str>>, Input<'_>)> {
         let (_, host_str, remaining) = Parser::file_host(input)?;
         let host = match Host::parse(&host_str)? {
-            Host::Domain(ref d) if d == "localhost" => Host::Domain("".to_string()),
-            host => host,
+            Host::Domain(ref d) if d == "localhost" => Host::Domain(Cow::Borrowed("")),
+            Host::Domain(s) => Host::Domain(Cow::Owned(s)),
+            Host::Ipv4(ip) => Host::Ipv4(ip),
+            Host::Ipv6(ip) => Host::Ipv6(ip),
         };
         Ok((host, remaining))
     }
@@ -1060,7 +1064,7 @@ impl<'a> Parser<'a> {
             has_host = false;
             HostInternal::None
         } else {
-            match Host::parse(&host_str)? {
+            match Host::parse_cow(host_str)? {
                 Host::Domain(ref d) if d == "localhost" => {
                     has_host = false;
                     HostInternal::None
@@ -1075,7 +1079,7 @@ impl<'a> Parser<'a> {
         Ok((has_host, host, remaining))
     }
 
-    pub fn file_host(input: Input) -> ParseResult<(bool, String, Input)> {
+    pub fn file_host(input: Input<'_>) -> ParseResult<(bool, Cow<'_, str>, Input<'_>)> {
         // Undo the Input abstraction here to avoid allocating in the common case
         // where the host part of the input does not contain any tab or newline
         let input_str = input.chars.as_str();
@@ -1090,23 +1094,21 @@ impl<'a> Parser<'a> {
             }
             bytes += c.len_utf8();
         }
-        let replaced: String;
         let host_str;
         let mut remaining = input.clone();
         {
             let host_input = remaining.by_ref().take(non_ignored_chars);
             if has_ignored_chars {
-                replaced = host_input.collect();
-                host_str = &*replaced
+                host_str = Cow::Owned(host_input.collect());
             } else {
                 for _ in host_input {}
-                host_str = &input_str[..bytes]
+                host_str = Cow::Borrowed(&input_str[..bytes]);
             }
         }
-        if is_windows_drive_letter(host_str) {
-            return Ok((false, "".to_string(), input));
+        if is_windows_drive_letter(&host_str) {
+            return Ok((false, "".into(), input));
         }
-        Ok((true, host_str.to_string(), remaining))
+        Ok((true, host_str, remaining))
     }
 
     pub fn parse_port<P>(
