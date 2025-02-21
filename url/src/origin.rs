@@ -7,16 +7,24 @@
 // except according to those terms.
 
 use crate::host::Host;
-use crate::parser::default_port;
 use crate::Url;
 use alloc::borrow::ToOwned;
 use alloc::format;
 use alloc::string::String;
 use core::sync::atomic::{AtomicUsize, Ordering};
 
+/// Get the origin from a URL according to the specification:
+/// <https://url.spec.whatwg.org/#origin>
 pub fn url_origin(url: &Url) -> Origin {
     let scheme = url.scheme();
     match scheme {
+        // > "blob"
+        // > 1. If url’s blob URL entry is non-null, then return url’s blob URL entry’s
+        // >    environment’s origin.
+        // > 2. Let pathURL be the result of parsing the result of URL path serializing url.
+        // > 3. If pathURL is failure, then return a new opaque origin.
+        // > 4. If pathURL’s scheme is "http", "https", or "file", then return pathURL’s origin.
+        // > 5. Return a new opaque origin.
         "blob" => {
             let result = Url::parse(url.path());
             match result {
@@ -24,13 +32,20 @@ pub fn url_origin(url: &Url) -> Origin {
                 Err(_) => Origin::new_opaque(),
             }
         }
+        // > "ftp" "http" "https" "ws" "wss": Return the tuple origin (url’s scheme, url’s host,
+        // > url’s port, null).
+        //
         "ftp" | "http" | "https" | "ws" | "wss" => Origin::Tuple(
             scheme.to_owned(),
             url.host().unwrap().to_owned(),
-            url.port_or_known_default().unwrap(),
+            url.port(),
         ),
+        // > "file": Unfortunate as it is, this is left as an exercise to the reader. When in
+        // > doubt, return a new opaque origin.
+        //
         // TODO: Figure out what to do if the scheme is a file
         "file" => Origin::new_opaque(),
+        // > Otherwise: Return a new opaque origin.
         _ => Origin::new_opaque(),
     }
 }
@@ -58,7 +73,7 @@ pub enum Origin {
     Opaque(OpaqueOrigin),
 
     /// Consists of the URL's scheme, host and port
-    Tuple(String, Host<String>, u16),
+    Tuple(String, Host<String>, Option<u16>),
 }
 
 impl Origin {
@@ -78,12 +93,11 @@ impl Origin {
     pub fn ascii_serialization(&self) -> String {
         match *self {
             Origin::Opaque(_) => "null".to_owned(),
-            Origin::Tuple(ref scheme, ref host, port) => {
-                if default_port(scheme) == Some(port) {
-                    format!("{}://{}", scheme, host)
-                } else {
-                    format!("{}://{}:{}", scheme, host, port)
-                }
+            Origin::Tuple(ref scheme, ref host, Some(port)) => {
+                format!("{}://{}:{}", scheme, host, port)
+            }
+            Origin::Tuple(ref scheme, ref host, _) => {
+                format!("{}://{}", scheme, host)
             }
         }
     }
@@ -100,10 +114,9 @@ impl Origin {
                     }
                     _ => host.clone(),
                 };
-                if default_port(scheme) == Some(port) {
-                    format!("{}://{}", scheme, host)
-                } else {
-                    format!("{}://{}:{}", scheme, host, port)
+                match port {
+                    Some(port) => format!("{}://{}:{}", scheme, host, port),
+                    None => format!("{}://{}", scheme, host),
                 }
             }
         }
