@@ -173,7 +173,7 @@ use crate::net::IpAddr;
     target_os = "hermit"
 ))]
 use crate::net::{SocketAddr, ToSocketAddrs};
-use crate::parser::{to_u32, Context, Parser, SchemeType, USERINFO};
+use crate::parser::{to_u32, Context, Parser, SchemeType};
 use alloc::borrow::ToOwned;
 use alloc::str;
 use alloc::string::{String, ToString};
@@ -182,6 +182,7 @@ use core::convert::TryFrom;
 use core::fmt::Write;
 use core::ops::{Range, RangeFrom, RangeTo};
 use core::{cmp, fmt, hash, mem};
+use percent_encoding::ascii_set::USERINFO;
 use percent_encoding::utf8_percent_encode;
 #[cfg(feature = "std")]
 #[cfg(any(
