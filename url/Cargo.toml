@@ -28,7 +28,7 @@ wasm-bindgen-test = "0.3"
 form_urlencoded = { version = "1.2.1", path = "../form_urlencoded", default-features = false, features = ["alloc"] }
 idna = { version = "1.0.3", path = "../idna", default-features = false, features = ["alloc", "compiled_data"] }
 percent-encoding = { version = "2.3.1", path = "../percent_encoding", default-features = false, features = ["alloc"] }
-serde = { version = "1.0", optional = true, features = ["derive"] }
+serde = { version = "1.0", optional = true, features = ["derive"], default-features = false }
 
 [features]
 default = ["std"]
