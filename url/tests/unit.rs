@@ -1247,16 +1247,12 @@ fn test_make_relative() {
         let make_relative = base_uri.make_relative(&relative_uri).unwrap();
         assert_eq!(
             make_relative, *relative,
-            "base: {}, uri: {}, relative: {}",
-            base, uri, relative
+            "base: {base}, uri: {uri}, relative: {relative}"
         );
         assert_eq!(
             base_uri.join(relative).unwrap().as_str(),
             *uri,
-            "base: {}, uri: {}, relative: {}",
-            base,
-            uri,
-            relative
+            "base: {base}, uri: {uri}, relative: {relative}"
         );
     }
 
@@ -1271,7 +1267,7 @@ fn test_make_relative() {
         let base_uri = url::Url::parse(base).unwrap();
         let relative_uri = url::Url::parse(uri).unwrap();
         let make_relative = base_uri.make_relative(&relative_uri);
-        assert_eq!(make_relative, None, "base: {}, uri: {}", base, uri);
+        assert_eq!(make_relative, None, "base: {base}, uri: {uri}");
     }
 }
 
