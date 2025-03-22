@@ -668,6 +668,31 @@ fn test_origin_unicode_serialization() {
 }
 
 #[test]
+fn test_origin_default_port() {
+    let urls_and_expected_origin_ports = [
+        ("http://example.com:80", None),
+        ("http://example.com", None),
+        ("https://example.com:443", None),
+        ("https://example.com", None),
+        ("ftp://127.0.0.1:21/", None),
+        ("ftp://127.0.0.1/", None),
+        ("http://example.com:221", Some(221)),
+        ("http://example.com:123", Some(123)),
+        ("https://example.com:442", Some(442)),
+        ("https://example.com:80", Some(80)),
+        ("ftp://127.0.0.1:20/", Some(20)),
+        ("ftp://127.0.0.1:80/", Some(80)),
+    ];
+
+    for (url_string, expected_port) in &urls_and_expected_origin_ports {
+        match Url::parse(url_string).unwrap().origin() {
+            Origin::Opaque(..) => unreachable!("Should not have found an opaque origin."),
+            Origin::Tuple(_, _, port) => assert_eq!(port, *expected_port),
+        }
+    }
+}
+
+#[test]
 #[cfg(feature = "std")]
 #[cfg(any(unix, windows, target_os = "redox", target_os = "wasi"))]
 fn test_socket_addrs() {
