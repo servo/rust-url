@@ -444,6 +444,11 @@ impl Url {
     /// let url = base.join("//eve.com/b")?;
     /// assert_eq!(url.as_str(), "https://eve.com/b");
     ///
+    /// // Input as base url relative special URL
+    /// let base = Url::parse("https://alice.com/a")?;
+    /// let url = base.join("/v1/meta")?;
+    /// assert_eq!(url.as_str(), "https://alice.com/v1/meta");
+    ///
     /// // Input as absolute URL
     /// let base = Url::parse("https://alice.com/a")?;
     /// let url = base.join("http://eve.com/b")?;
