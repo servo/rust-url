@@ -55,7 +55,7 @@ use core::{fmt, slice, str};
 
 pub use self::ascii_set::{AsciiSet, CONTROLS, NON_ALPHANUMERIC};
 
-mod ascii_set;
+pub mod ascii_set;
 
 /// Return the percent-encoding of the given byte.
 ///

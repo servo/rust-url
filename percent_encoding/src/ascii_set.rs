@@ -113,6 +113,125 @@ pub const CONTROLS: &AsciiSet = &AsciiSet {
     ],
 };
 
+/// The fragment percent-encode set.
+///
+/// The C0 control percent-encode set and U+0020 SPACE, U+0022 ("), U+003C (<), U+003E (>), and U+0060 (`).
+///
+/// <https://url.spec.whatwg.org/#fragment-percent-encode-set>
+pub const FRAGMENT: &AsciiSet = &CONTROLS
+    // U+0020 SPACE
+    .add(b' ')
+    // U+0022 (")
+    .add(b'"')
+    // U+003C (<)
+    .add(b'<')
+    // U+003E (>)
+    .add(b'>')
+    // U+0060 (`)
+    .add(b'`');
+
+/// The query percent-encode set.
+///
+/// The C0 control percent-encode set and U+0020 SPACE, U+0022 ("), U+0023 (#), U+003C (<), and U+003E (>).
+///
+/// <https://url.spec.whatwg.org/#query-percent-encode-set>
+pub const QUERY: &AsciiSet = &CONTROLS
+    // U+0020 SPACE
+    .add(b' ')
+    // U+0022 (")
+    .add(b'"')
+    // U+0023 (#)
+    .add(b'#')
+    // U+003C (<)
+    .add(b'<')
+    // U+003E (>)
+    .add(b'>');
+
+/// The special-query percent-encode set.
+///
+/// The query percent-encode set and U+0027 (').
+///
+/// <https://url.spec.whatwg.org/#special-query-percent-encode-set>
+pub const SPECIAL_QUERY: &AsciiSet = &QUERY
+    // U+0027 (')
+    .add(b'\'');
+
+/// The path percent-encode set.
+///
+/// The query percent-encode set and U+003F (?), U+0060 (`), U+007B ({), and U+007D (}).
+///
+/// <https://url.spec.whatwg.org/#path-percent-encode-set>
+pub const PATH: &AsciiSet = &QUERY
+    // U+003F (?)
+    .add(b'?')
+    // U+0060 (`)
+    .add(b'`')
+    // U+007B ({)
+    .add(b'{')
+    // U+007D (})
+    .add(b'}');
+
+/// The userinfo percent-encode set.
+///
+/// The path percent-encode set and U+002F (/), U+003A (:), U+003B (;), U+003D (=), U+0040 (@), U+005B ([) to U+005E (^), inclusive, and U+007C (|).
+///
+/// <https://url.spec.whatwg.org/#userinfo-percent-encode-set>
+pub const USERINFO: &AsciiSet = &PATH
+    // U+002F (/)
+    .add(b'/')
+    // U+003A (:)
+    .add(b':')
+    // U+003B (;)
+    .add(b';')
+    // U+003D (=)
+    .add(b'=')
+    // U+0040 (@)
+    .add(b'@')
+    // U+005B ([)
+    .add(b'[')
+    // U+005C (\)
+    .add(b'\\')
+    // U+005D (])
+    .add(b']')
+    // U+005E (^)
+    .add(b'^')
+    // U+007C (|)
+    .add(b'|');
+
+/// The component percent-encode set.
+///
+/// The userinfo percent-encode set and U+0024 ($) to U+0026 (&), inclusive, U+002B (+), and U+002C (,).
+///
+/// <https://url.spec.whatwg.org/#component-percent-encode-set>
+pub const COMPONENT: &AsciiSet = &USERINFO
+    // U+0024 ($)
+    .add(b'$')
+    // U+0025 (%)
+    .add(b'%')
+    // U+0026 (&)
+    .add(b'&')
+    // U+002B (+)
+    .add(b'+')
+    // U+002C (,)
+    .add(b',');
+
+/// The `application/x-www-form-urlencoded` percent-encode set.
+///
+/// The component percent-encode set and U+0021 (!), U+0027 (') to U+0029 RIGHT PARENTHESIS, inclusive, and U+007E (~).
+///
+/// <https://url.spec.whatwg.org/#application-x-www-form-urlencoded-percent-encode-set>
+pub const FORM: &AsciiSet = &COMPONENT
+    // U+0021 (!)
+    .add(b'!')
+    // U+0027 (')
+    .add(b'\'')
+    // U+0028 LEFT PARENTHESIS
+    .add(b'(')
+    // U+0029 RIGHT PARENTHESIS
+    .add(b')')
+    // and U+007E (~)
+    .add(b'~');
+
 macro_rules! static_assert {
     ($( $bool: expr, )+) => {
         fn _static_assert() {
