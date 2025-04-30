@@ -143,7 +143,7 @@ const fn glyphless_mask() -> u128 {
 const GLYPHLESS_MASK: u128 = glyphless_mask();
 
 #[inline]
-pub fn byte_serialized_unchanged(byte: u8) -> bool {
+fn byte_serialized_unchanged(byte: u8) -> bool {
     if byte > b'z' {
         return false;
     }
