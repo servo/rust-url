@@ -402,15 +402,15 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_scheme<'i>(&mut self, mut input: Input<'i>) -> Result<Input<'i>, ()> {
-        if input.is_empty() || !input.starts_with(ascii_alpha) {
+        // starts_with will also fail for empty strings so we can skip that comparison for perf
+        if !input.starts_with(ascii_alpha) {
             return Err(());
         }
         debug_assert!(self.serialization.is_empty());
         while let Some(c) = input.next() {
             match c {
-                'a'..='z' | 'A'..='Z' | '0'..='9' | '+' | '-' | '.' => {
-                    self.serialization.push(c.to_ascii_lowercase())
-                }
+                'a'..='z' | '0'..='9' | '+' | '-' | '.' => self.serialization.push(c),
+                'A'..='Z' => self.serialization.push(c.to_ascii_lowercase()),
                 ':' => return Ok(input),
                 _ => {
                     self.serialization.clear();
@@ -1193,19 +1193,69 @@ impl<'a> Parser<'a> {
         path_start: usize,
         mut input: Input<'i>,
     ) -> Input<'i> {
+        // it's much faster to call utf8_percent_encode in bulk
+        fn push_pending(
+            serialization: &mut String,
+            start_str: &str,
+            remaining_len: usize,
+            context: Context,
+            scheme_type: SchemeType,
+        ) {
+            let text = &start_str[..start_str.len() - remaining_len];
+            if text.is_empty() {
+                return;
+            }
+            if context == Context::PathSegmentSetter {
+                if scheme_type.is_special() {
+                    serialization.extend(utf8_percent_encode(text, SPECIAL_PATH_SEGMENT));
+                } else {
+                    serialization.extend(utf8_percent_encode(text, PATH_SEGMENT));
+                }
+            } else {
+                serialization.extend(utf8_percent_encode(text, PATH));
+            }
+        }
+
         // Relative path state
         loop {
             let mut segment_start = self.serialization.len();
             let mut ends_with_slash = false;
+            let mut start_str = input.chars.as_str();
             loop {
                 let input_before_c = input.clone();
-                let (c, utf8_c) = if let Some(x) = input.next_utf8() {
-                    x
+                // bypass input.next() and manually handle ascii_tab_or_new_line
+                // in order to encode string slices in bulk
+                let c = if let Some(c) = input.chars.next() {
+                    c
                 } else {
+                    push_pending(
+                        &mut self.serialization,
+                        start_str,
+                        0,
+                        self.context,
+                        scheme_type,
+                    );
                     break;
                 };
                 match c {
+                    ascii_tab_or_new_line_pattern!() => {
+                        push_pending(
+                            &mut self.serialization,
+                            start_str,
+                            input_before_c.chars.as_str().len(),
+                            self.context,
+                            scheme_type,
+                        );
+                        start_str = input.chars.as_str();
+                    }
                     '/' if self.context != Context::PathSegmentSetter => {
+                        push_pending(
+                            &mut self.serialization,
+                            start_str,
+                            input_before_c.chars.as_str().len(),
+                            self.context,
+                            scheme_type,
+                        );
                         self.serialization.push(c);
                         ends_with_slash = true;
                         break;
@@ -1213,12 +1263,26 @@ impl<'a> Parser<'a> {
                     '\\' if self.context != Context::PathSegmentSetter
                         && scheme_type.is_special() =>
                     {
+                        push_pending(
+                            &mut self.serialization,
+                            start_str,
+                            input_before_c.chars.as_str().len(),
+                            self.context,
+                            scheme_type,
+                        );
                         self.log_violation(SyntaxViolation::Backslash);
                         self.serialization.push('/');
                         ends_with_slash = true;
                         break;
                     }
                     '?' | '#' if self.context == Context::UrlParser => {
+                        push_pending(
+                            &mut self.serialization,
+                            start_str,
+                            input_before_c.chars.as_str().len(),
+                            self.context,
+                            scheme_type,
+                        );
                         input = input_before_c;
                         break;
                     }
@@ -1230,23 +1294,21 @@ impl<'a> Parser<'a> {
                                 &self.serialization[path_start + 1..],
                             )
                         {
+                            push_pending(
+                                &mut self.serialization,
+                                start_str,
+                                input_before_c.chars.as_str().len(),
+                                self.context,
+                                scheme_type,
+                            );
+                            start_str = input_before_c.chars.as_str();
                             self.serialization.push('/');
                             segment_start += 1;
-                        }
-                        if self.context == Context::PathSegmentSetter {
-                            if scheme_type.is_special() {
-                                self.serialization
-                                    .extend(utf8_percent_encode(utf8_c, SPECIAL_PATH_SEGMENT));
-                            } else {
-                                self.serialization
-                                    .extend(utf8_percent_encode(utf8_c, PATH_SEGMENT));
-                            }
-                        } else {
-                            self.serialization.extend(utf8_percent_encode(utf8_c, PATH));
                         }
                     }
                 }
             }
+
             let segment_before_slash = if ends_with_slash {
                 &self.serialization[segment_start..self.serialization.len() - 1]
             } else {
