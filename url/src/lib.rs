@@ -174,6 +174,7 @@ use crate::net::IpAddr;
 ))]
 use crate::net::{SocketAddr, ToSocketAddrs};
 use crate::parser::{to_u32, Context, Parser, SchemeType, USERINFO};
+use alloc::borrow::Cow;
 use alloc::borrow::ToOwned;
 use alloc::str;
 use alloc::string::{String, ToString};
@@ -2037,9 +2038,9 @@ impl Url {
                 }
             }
             if SchemeType::from(self.scheme()).is_special() {
-                self.set_host_internal(Host::parse(host_substr)?, None);
+                self.set_host_internal(Host::parse_cow(host_substr.into())?, None);
             } else {
-                self.set_host_internal(Host::parse_opaque(host_substr)?, None);
+                self.set_host_internal(Host::parse_opaque_cow(host_substr.into())?, None);
             }
         } else if self.has_host() {
             if scheme_type.is_special() && !scheme_type.is_file() {
@@ -2075,7 +2076,7 @@ impl Url {
     }
 
     /// opt_new_port: None means leave unchanged, Some(None) means remove any port number.
-    fn set_host_internal(&mut self, host: Host<String>, opt_new_port: Option<Option<u16>>) {
+    fn set_host_internal(&mut self, host: Host<Cow<'_, str>>, opt_new_port: Option<Option<u16>>) {
         let old_suffix_pos = if opt_new_port.is_some() {
             self.path_start
         } else {
@@ -3011,7 +3012,7 @@ fn path_to_file_url_segments_windows(
                 serialization.push(':');
             }
             Prefix::UNC(server, share) | Prefix::VerbatimUNC(server, share) => {
-                let host = Host::parse(server.to_str().ok_or(())?).map_err(|_| ())?;
+                let host = Host::parse_cow(server.to_str().ok_or(())?.into()).map_err(|_| ())?;
                 write!(serialization, "{}", host).unwrap();
                 host_end = to_u32(serialization.len()).unwrap();
                 host_internal = host.into();
