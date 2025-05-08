@@ -52,7 +52,7 @@ impl<E: std::error::Error> std::error::Error for DecodeError<E> {}
 
 impl<E> From<InvalidBase64Details> for DecodeError<E> {
     fn from(e: InvalidBase64Details) -> Self {
-        DecodeError::InvalidBase64(InvalidBase64(e))
+        Self::InvalidBase64(InvalidBase64(e))
     }
 }
 

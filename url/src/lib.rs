@@ -338,8 +338,8 @@ impl Url {
     ///
     /// [`ParseError`]: enum.ParseError.html
     #[inline]
-    pub fn parse(input: &str) -> Result<Url, crate::ParseError> {
-        Url::options().parse(input)
+    pub fn parse(input: &str) -> Result<Self, crate::ParseError> {
+        Self::options().parse(input)
     }
 
     /// Parse an absolute URL from a string and add params to its query string.
@@ -368,14 +368,14 @@ impl Url {
     ///
     /// [`ParseError`]: enum.ParseError.html
     #[inline]
-    pub fn parse_with_params<I, K, V>(input: &str, iter: I) -> Result<Url, crate::ParseError>
+    pub fn parse_with_params<I, K, V>(input: &str, iter: I) -> Result<Self, crate::ParseError>
     where
         I: IntoIterator,
         I::Item: Borrow<(K, V)>,
         K: AsRef<str>,
         V: AsRef<str>,
     {
-        let mut url = Url::options().parse(input);
+        let mut url = Self::options().parse(input);
 
         if let Ok(ref mut url) = url {
             url.query_pairs_mut().extend_pairs(iter);
@@ -468,8 +468,8 @@ impl Url {
     /// [`ParseError`]: enum.ParseError.html
     /// [`make_relative`]: #method.make_relative
     #[inline]
-    pub fn join(&self, input: &str) -> Result<Url, crate::ParseError> {
-        Url::options().base_url(Some(self)).parse(input)
+    pub fn join(&self, input: &str) -> Result<Self, crate::ParseError> {
+        Self::options().base_url(Some(self)).parse(input)
     }
 
     /// Creates a relative URL if possible, with this URL as the base URL.
@@ -513,7 +513,7 @@ impl Url {
     /// This is for example the case if the scheme, host or port are not the same.
     ///
     /// [`join`]: #method.join
-    pub fn make_relative(&self, url: &Url) -> Option<String> {
+    pub fn make_relative(&self, url: &Self) -> Option<String> {
         if self.cannot_be_a_base() {
             return None;
         }
@@ -789,7 +789,7 @@ impl Url {
             assert!(fragment_start > query_start);
         }
 
-        let other = Url::parse(self.as_str()).expect("Failed to parse myself?");
+        let other = Self::parse(self.as_str()).expect("Failed to parse myself?");
         assert_eq!(&self.serialization, &other.serialization);
         assert_eq!(self.scheme_end, other.scheme_end);
         assert_eq!(self.username_end, other.username_end);
@@ -2543,11 +2543,11 @@ impl Url {
         )
     ))]
     #[allow(clippy::result_unit_err)]
-    pub fn from_file_path<P: AsRef<std::path::Path>>(path: P) -> Result<Url, ()> {
+    pub fn from_file_path<P: AsRef<std::path::Path>>(path: P) -> Result<Self, ()> {
         let mut serialization = "file://".to_owned();
         let host_start = serialization.len() as u32;
         let (host_end, host) = path_to_file_url_segments(path.as_ref(), &mut serialization)?;
-        Ok(Url {
+        Ok(Self {
             serialization,
             scheme_end: "file".len() as u32,
             username_end: host_start,
@@ -2591,8 +2591,8 @@ impl Url {
         )
     ))]
     #[allow(clippy::result_unit_err)]
-    pub fn from_directory_path<P: AsRef<std::path::Path>>(path: P) -> Result<Url, ()> {
-        let mut url = Url::from_file_path(path)?;
+    pub fn from_directory_path<P: AsRef<std::path::Path>>(path: P) -> Result<Self, ()> {
+        let mut url = Self::from_file_path(path)?;
         if !url.serialization.ends_with('/') {
             url.serialization.push('/')
         }
@@ -2771,8 +2771,8 @@ impl str::FromStr for Url {
     type Err = ParseError;
 
     #[inline]
-    fn from_str(input: &str) -> Result<Url, crate::ParseError> {
-        Url::parse(input)
+    fn from_str(input: &str) -> Result<Self, crate::ParseError> {
+        Self::parse(input)
     }
 }
 
@@ -2780,7 +2780,7 @@ impl<'a> TryFrom<&'a str> for Url {
     type Error = ParseError;
 
     fn try_from(s: &'a str) -> Result<Self, Self::Error> {
-        Url::parse(s)
+        Self::parse(s)
     }
 }
 
@@ -2794,7 +2794,7 @@ impl fmt::Display for Url {
 
 /// String conversion.
 impl From<Url> for String {
-    fn from(value: Url) -> String {
+    fn from(value: Url) -> Self {
         value.serialization
     }
 }
