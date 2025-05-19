@@ -3,7 +3,7 @@ use core::fmt::{self, Write};
 use core::str::FromStr;
 
 /// <https://mimesniff.spec.whatwg.org/#mime-type-representation>
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Mime {
     pub type_: String,
     pub subtype: String,
@@ -12,6 +12,20 @@ pub struct Mime {
 }
 
 impl Mime {
+    pub fn new(type_: &str, subtype: &str) -> Self {
+        Self {
+            type_: type_.into(),
+            subtype: subtype.into(),
+            parameters: vec![],
+        }
+    }
+
+    /// Return true if this [`Mime`] matches a given type and subtype, regardless
+    /// of what parameters it has.
+    pub fn matches(&self, type_: &str, subtype: &str) -> bool {
+        self.type_ == type_ && self.subtype == subtype
+    }
+
     pub fn get_parameter<P>(&self, name: &P) -> Option<&str>
     where
         P: ?Sized + PartialEq<str>,
@@ -205,3 +219,19 @@ static IS_HTTP_TOKEN: [bool; 256] = byte_map![
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ];
+
+#[test]
+fn test_basic_mime() {
+    let mime = Mime::new("text", "plain");
+    assert!(mime.matches("text", "plain"));
+
+    let cloned = mime.clone();
+    assert!(cloned.matches("text", "plain"));
+
+    let mime = Mime {
+        type_: "text".into(),
+        subtype: "html".into(),
+        parameters: vec![("one".into(), "two".into())],
+    };
+    assert!(mime.matches("text", "html"));
+}
