@@ -30,12 +30,12 @@ pub(crate) enum HostInternal {
 }
 
 impl From<Host<Cow<'_, str>>> for HostInternal {
-    fn from(host: Host<Cow<'_, str>>) -> HostInternal {
+    fn from(host: Host<Cow<'_, str>>) -> Self {
         match host {
-            Host::Domain(ref s) if s.is_empty() => HostInternal::None,
-            Host::Domain(_) => HostInternal::Domain,
-            Host::Ipv4(address) => HostInternal::Ipv4(address),
-            Host::Ipv6(address) => HostInternal::Ipv6(address),
+            Host::Domain(ref s) if s.is_empty() => Self::None,
+            Host::Domain(_) => Self::Domain,
+            Host::Ipv4(address) => Self::Ipv4(address),
+            Host::Ipv6(address) => Self::Ipv6(address),
         }
     }
 }
@@ -175,9 +175,9 @@ impl<'a> Host<Cow<'a, str>> {
 impl<S: AsRef<str>> fmt::Display for Host<S> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match *self {
-            Host::Domain(ref domain) => domain.as_ref().fmt(f),
-            Host::Ipv4(ref addr) => addr.fmt(f),
-            Host::Ipv6(ref addr) => {
+            Self::Domain(ref domain) => domain.as_ref().fmt(f),
+            Self::Ipv4(ref addr) => addr.fmt(f),
+            Self::Ipv6(ref addr) => {
                 f.write_str("[")?;
                 write_ipv6(addr, f)?;
                 f.write_str("]")
@@ -192,9 +192,9 @@ where
 {
     fn eq(&self, other: &Host<T>) -> bool {
         match (self, other) {
-            (Host::Domain(a), Host::Domain(b)) => a == b,
-            (Host::Ipv4(a), Host::Ipv4(b)) => a == b,
-            (Host::Ipv6(a), Host::Ipv6(b)) => a == b,
+            (Self::Domain(a), Host::Domain(b)) => a == b,
+            (Self::Ipv4(a), Host::Ipv4(b)) => a == b,
+            (Self::Ipv6(a), Host::Ipv6(b)) => a == b,
             (_, _) => false,
         }
     }

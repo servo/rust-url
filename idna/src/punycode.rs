@@ -350,7 +350,7 @@ pub(crate) enum PunycodeEncodeError {
 
 impl From<core::fmt::Error> for PunycodeEncodeError {
     fn from(_: core::fmt::Error) -> Self {
-        PunycodeEncodeError::Sink
+        Self::Sink
     }
 }
 

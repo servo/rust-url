@@ -66,7 +66,7 @@ pub use crate::deprecated::{Config, Idna};
 pub struct Errors {}
 
 impl From<Errors> for Result<(), Errors> {
-    fn from(e: Errors) -> Result<(), Errors> {
+    fn from(e: Errors) -> Self {
         Err(e)
     }
 }

@@ -99,8 +99,8 @@ simple_enum_error! {
 }
 
 impl From<::idna::Errors> for ParseError {
-    fn from(_: ::idna::Errors) -> ParseError {
-        ParseError::IdnaError
+    fn from(_: ::idna::Errors) -> Self {
+        Self::IdnaError
     }
 }
 
@@ -165,20 +165,20 @@ pub enum SchemeType {
 
 impl SchemeType {
     pub fn is_special(&self) -> bool {
-        !matches!(*self, SchemeType::NotSpecial)
+        !matches!(*self, Self::NotSpecial)
     }
 
     pub fn is_file(&self) -> bool {
-        matches!(*self, SchemeType::File)
+        matches!(*self, Self::File)
     }
 }
 
 impl<T: AsRef<str>> From<T> for SchemeType {
     fn from(s: T) -> Self {
         match s.as_ref() {
-            "http" | "https" | "ws" | "wss" | "ftp" => SchemeType::SpecialNotFile,
-            "file" => SchemeType::File,
-            _ => SchemeType::NotSpecial,
+            "http" | "https" | "ws" | "wss" | "ftp" => Self::SpecialNotFile,
+            "file" => Self::File,
+            _ => Self::NotSpecial,
         }
     }
 }
@@ -350,7 +350,7 @@ pub enum Context {
     PathSegmentSetter,
 }
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     fn log_violation(&self, v: SyntaxViolation) {
         if let Some(f) = self.violation_fn {
             f(v)
@@ -365,7 +365,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn for_setter(serialization: String) -> Parser<'a> {
+    pub fn for_setter(serialization: String) -> Self {
         Parser {
             serialization,
             base_url: None,
