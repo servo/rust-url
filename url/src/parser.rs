@@ -42,7 +42,9 @@ pub const PATH_SEGMENT: &AsciiSet = &PATH.add(b'/').add(b'%');
 pub const SPECIAL_PATH_SEGMENT: &AsciiSet = &PATH_SEGMENT.add(b'\\');
 
 /// https://url.spec.whatwg.org/#query-state
+/// https://url.spec.whatwg.org/#query-percent-encode-set
 pub const QUERY: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'#').add(b'<').add(b'>');
+/// https://url.spec.whatwg.org/#special-query-percent-encode-set
 pub const SPECIAL_QUERY: &AsciiSet = &QUERY.add(b'\'');
 
 pub type ParseResult<T> = Result<T, ParseError>;
