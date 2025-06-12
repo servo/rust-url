@@ -41,7 +41,7 @@ pub const PATH_SEGMENT: &AsciiSet = &PATH.add(b'/').add(b'%');
 // so it needs to be additionally escaped in that case.
 pub const SPECIAL_PATH_SEGMENT: &AsciiSet = &PATH_SEGMENT.add(b'\\');
 
-// https://url.spec.whatwg.org/#query-state
+/// https://url.spec.whatwg.org/#query-state
 pub const QUERY: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'#').add(b'<').add(b'>');
 pub const SPECIAL_QUERY: &AsciiSet = &QUERY.add(b'\'');
 
