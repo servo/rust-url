@@ -173,7 +173,13 @@ use crate::net::IpAddr;
     target_os = "hermit"
 ))]
 use crate::net::{SocketAddr, ToSocketAddrs};
-use crate::parser::{to_u32, Context, Parser, SchemeType, USERINFO};
+use crate::parser::{to_u32, Context, Parser, SchemeType};
+
+// Exporting all standard AsciiSets for general use
+pub use crate::parser::{
+    FRAGMENT, PATH, PATH_SEGMENT, QUERY, SPECIAL_PATH_SEGMENT, SPECIAL_QUERY, USERINFO,
+};
+
 use alloc::borrow::Cow;
 use alloc::borrow::ToOwned;
 use alloc::str;
