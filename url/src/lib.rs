@@ -222,9 +222,9 @@ mod slicing;
 
 #[doc(hidden)]
 pub mod quirks;
-
+use bincode::{Encode,Decode};
 /// A parsed URL record.
-#[derive(Clone)]
+#[derive(Clone, Encode, Decode)]
 pub struct Url {
     /// Syntax in pseudo-BNF:
     ///

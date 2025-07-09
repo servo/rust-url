@@ -19,9 +19,9 @@ use percent_encoding::{percent_decode, utf8_percent_encode, CONTROLS};
 use serde::{Deserialize, Serialize};
 
 use crate::parser::{ParseError, ParseResult};
-
+use bincode::{Encode, Decode};
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Encode, Decode)]
 pub(crate) enum HostInternal {
     None,
     Domain,
