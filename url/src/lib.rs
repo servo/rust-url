@@ -219,12 +219,15 @@ mod origin;
 mod parser;
 mod path_segments;
 mod slicing;
+#[cfg(feature = "bincode")]
+use bincode::{Encode,Decode};
 
 #[doc(hidden)]
 pub mod quirks;
-use bincode::{Encode,Decode};
+
 /// A parsed URL record.
-#[derive(Clone, Encode, Decode)]
+#[cfg_attr(feature = "bincode", derive(Encode, Decode))]
+#[derive(Clone)]
 pub struct Url {
     /// Syntax in pseudo-BNF:
     ///
