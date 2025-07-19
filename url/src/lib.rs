@@ -1223,6 +1223,10 @@ impl Url {
     ///
     /// let url = Url::parse("https://example.com/")?;
     /// assert_eq!(url.domain(), Some("example.com"));
+    ///
+    /// let url = Url::parse("https://subdomain.example.com/")?;
+    /// assert_eq!(url.domain(), Some("subdomain.example.com"));
+    ///
     /// # Ok(())
     /// # }
     /// # run().unwrap();
