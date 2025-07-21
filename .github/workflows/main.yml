@@ -41,6 +41,8 @@ jobs:
           matrix.rust == '1.63.0'
         run: |
           cargo update -p idna_adapter --precise 1.1.0
+          cargo update -p getopts --precise 0.2.22
+          cargo update -p unicode-width --precise 0.1.12
       - name: Add `aarch64-unknown-none` toolchain for `no_std` tests
         if: |
           matrix.os == 'ubuntu-latest' &&
