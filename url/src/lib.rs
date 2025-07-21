@@ -1916,7 +1916,7 @@ impl Url {
             (_, Some(new)) => {
                 let path_and_after = self.slice(self.path_start..).to_owned();
                 self.serialization.truncate(self.host_end as usize);
-                write!(&mut self.serialization, ":{}", new).unwrap();
+                write!(&mut self.serialization, ":{new}").unwrap();
                 let old_path_start = self.path_start;
                 let new_path_start = to_u32(self.serialization.len()).unwrap();
                 self.path_start = new_path_start;
@@ -2099,14 +2099,14 @@ impl Url {
             self.username_end += 2;
             self.host_start += 2;
         }
-        write!(&mut self.serialization, "{}", host).unwrap();
+        write!(&mut self.serialization, "{host}").unwrap();
         self.host_end = to_u32(self.serialization.len()).unwrap();
         self.host = host.into();
 
         if let Some(new_port) = opt_new_port {
             self.port = new_port;
             if let Some(port) = new_port {
-                write!(&mut self.serialization, ":{}", port).unwrap();
+                write!(&mut self.serialization, ":{port}").unwrap();
             }
         }
         let new_suffix_pos = to_u32(self.serialization.len()).unwrap();
@@ -2933,7 +2933,7 @@ impl<'de> serde::Deserialize<'de> for Url {
             where
                 E: Error,
             {
-                Url::parse(s).map_err(|err| Error::custom(format!("{}: {:?}", err, s)))
+                Url::parse(s).map_err(|err| Error::custom(format!("{err}: {s:?}")))
             }
         }
 
@@ -3020,7 +3020,7 @@ fn path_to_file_url_segments_windows(
             }
             Prefix::UNC(server, share) | Prefix::VerbatimUNC(server, share) => {
                 let host = Host::parse_cow(server.to_str().ok_or(())?.into()).map_err(|_| ())?;
-                write!(serialization, "{}", host).unwrap();
+                write!(serialization, "{host}").unwrap();
                 host_end = to_u32(serialization.len()).unwrap();
                 host_internal = host.into();
                 serialization.push('/');

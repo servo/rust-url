@@ -958,7 +958,7 @@ impl Parser<'_> {
         scheme_type: SchemeType,
     ) -> ParseResult<(u32, HostInternal, Option<u16>, Input<'i>)> {
         let (host, remaining) = Parser::parse_host(input, scheme_type)?;
-        write!(&mut self.serialization, "{}", host).unwrap();
+        write!(&mut self.serialization, "{host}").unwrap();
         let host_end = to_u32(self.serialization.len())?;
         if let Host::Domain(h) = &host {
             if h.is_empty() {
@@ -1070,7 +1070,7 @@ impl Parser<'_> {
                     HostInternal::None
                 }
                 host => {
-                    write!(&mut self.serialization, "{}", host).unwrap();
+                    write!(&mut self.serialization, "{host}").unwrap();
                     has_host = true;
                     host.into()
                 }
