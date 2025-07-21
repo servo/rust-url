@@ -1144,6 +1144,9 @@ impl Url {
     /// let url = Url::parse("https://127.0.0.1/index.html")?;
     /// assert_eq!(url.host_str(), Some("127.0.0.1"));
     ///
+    /// let url = Url::parse("https://subdomain.example.com")?;
+    /// assert_eq!(url.host_str(), Some("subdomain.example.com"));
+    ///
     /// let url = Url::parse("ftp://rms@example.com")?;
     /// assert_eq!(url.host_str(), Some("example.com"));
     ///
@@ -1223,6 +1226,10 @@ impl Url {
     ///
     /// let url = Url::parse("https://example.com/")?;
     /// assert_eq!(url.domain(), Some("example.com"));
+    ///
+    /// let url = Url::parse("https://subdomain.example.com/")?;
+    /// assert_eq!(url.domain(), Some("subdomain.example.com"));
+    ///
     /// # Ok(())
     /// # }
     /// # run().unwrap();
