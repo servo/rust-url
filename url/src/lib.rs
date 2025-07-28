@@ -3183,7 +3183,22 @@ fn file_url_segments_to_pathbuf_windows(
             estimated_capacity
         );
     }
+
+    // NOTE: when url got broken into segments, it loses the trailing slash `\`
+    // however, on windows, rust lang regards `c:\` as a valid absolute path rather than `c:`
+    // thus, this if-else add this '\' back for this ad-hoc case.
+    if string.len() == 2
+        && matches!(
+            string.chars().nth(0).map(|c| c.is_ascii_alphabetic()),
+            Some(true)
+        )
+        && matches!(string.chars().nth(1), Some(':'))
+    {
+        string.push('\\');
+    }
+
     let path = PathBuf::from(string);
+
     debug_assert!(
         path.is_absolute(),
         "to_file_path() failed to produce an absolute Path"
