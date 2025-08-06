@@ -212,7 +212,10 @@ pub fn set_hostname(url: &mut Url, new_hostname: &str) -> Result<(), ()> {
         return Ok(());
     }
 
-    if let Ok((host, _remaining)) = Parser::parse_host(input, scheme_type) {
+    if let Ok((host, remaining)) = Parser::parse_host(input, scheme_type) {
+        if remaining.starts_with(':') {
+            return Err(());
+        };
         if let Host::Domain(h) = &host {
             if h.is_empty() {
                 // Empty host on special not file url
