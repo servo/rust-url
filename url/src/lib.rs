@@ -1769,6 +1769,39 @@ impl Url {
         let old_after_path_pos = to_u32(self.serialization.len()).unwrap();
         let cannot_be_a_base = self.cannot_be_a_base();
         let scheme_type = SchemeType::from(self.scheme());
+        let mut path_empty = false;
+
+        // Check ':' and then see if the next character is '/'
+        let mut has_host = if let Some(index) = self.serialization.find(":") {
+            if self.serialization.len() > index + 1
+                && self.serialization.as_bytes().get(index + 1) == Some(&b'/')
+            {
+                let rest = &self.serialization[(index + ":/".len())..];
+                let host_part = rest.split('/').next().unwrap_or("");
+                path_empty = rest.is_empty();
+                !host_part.is_empty() && !host_part.contains('@')
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        // Ensure the path length is greater than 1 to account
+        // for cases where "/." is already appended from serialization
+        // If we set path, then we already checked the other two conditions:
+        // https://url.spec.whatwg.org/#url-serializing
+        // 1. The host is null
+        // 2. the first segment of the URL's path is an empty string
+        if self.path().len() + path.len() > 1 {
+            if let Some(index) = self.serialization.find(":") {
+                let removal_start = index + ":".len();
+                if self.serialization[removal_start..].starts_with("/.") {
+                    self.path_start = removal_start as u32;
+                }
+            }
+        }
+
         self.serialization.truncate(self.path_start as usize);
         self.mutate(|parser| {
             if cannot_be_a_base {
@@ -1778,7 +1811,6 @@ impl Url {
                 }
                 parser.parse_cannot_be_a_base_path(parser::Input::new_no_trim(path));
             } else {
-                let mut has_host = true; // FIXME
                 parser.parse_path_start(
                     scheme_type,
                     &mut has_host,
@@ -1786,6 +1818,26 @@ impl Url {
                 );
             }
         });
+
+        // For cases where normalization is applied across both the serialization and the path.
+        // Append "/." immediately after the scheme (up to ":")
+        // This is done if three conditions are met.
+        // https://url.spec.whatwg.org/#url-serializing
+        // 1. The host is null
+        // 2. The url's path length is greater than 1
+        // 3. the first segment of the URL's path is an empty string
+        if !has_host && path.len() > 1 && path_empty {
+            if let Some(index) = self.serialization.find(":") {
+                if self.serialization.len() > index + 2
+                    && self.serialization.as_bytes().get(index + 1) == Some(&b'/')
+                    && self.serialization.as_bytes().get(index + 2) == Some(&b'/')
+                {
+                    self.serialization.insert_str(index + ":".len(), "/.");
+                    self.path_start += "/.".len() as u32;
+                }
+            }
+        }
+
         self.restore_after_path(old_after_path_pos, &after_path);
     }
 
@@ -2089,7 +2141,7 @@ impl Url {
         } else {
             self.host_end
         };
-        let suffix = self.slice(old_suffix_pos..).to_owned();
+        let mut suffix = self.slice(old_suffix_pos..).to_owned();
         self.serialization.truncate(self.host_start as usize);
         if !self.has_authority() {
             debug_assert!(self.slice(self.scheme_end..self.host_start) == ":");
@@ -2109,7 +2161,16 @@ impl Url {
                 write!(&mut self.serialization, ":{port}").unwrap();
             }
         }
-        let new_suffix_pos = to_u32(self.serialization.len()).unwrap();
+        let mut new_suffix_pos = to_u32(self.serialization.len()).unwrap();
+
+        // Remove starting "/." for empty path segment followed by the host
+        if suffix.starts_with("/.//") {
+            let adjustment: usize = "/.".len();
+            suffix.drain(..adjustment);
+            // pathname should be "//p" not "p" given that the first segment was empty
+            new_suffix_pos -= adjustment as u32;
+        }
+
         self.serialization.push_str(&suffix);
 
         let adjust = |index: &mut u32| {

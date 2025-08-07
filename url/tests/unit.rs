@@ -1383,3 +1383,127 @@ fn serde_error_message() {
         r#"relative URL without a base: "§invalid#+#*Ä" at line 1 column 25"#
     );
 }
+
+#[test]
+fn test_fuzzing_uri_failures() {
+    use url::quirks;
+    let mut url = Url::parse("data:/.dummy.path").unwrap();
+    assert!(!url.cannot_be_a_base());
+
+    url.set_path(".dummy.path");
+    assert_eq!(url.as_str(), "data:/.dummy.path");
+    assert_eq!(url.path(), "/.dummy.path");
+    url.check_invariants().unwrap();
+
+    url.path_segments_mut()
+        .expect("should have path segments")
+        .push(".another.dummy.path");
+    assert_eq!(url.as_str(), "data:/.dummy.path/.another.dummy.path");
+    assert_eq!(url.path(), "/.dummy.path/.another.dummy.path");
+    url.check_invariants().unwrap();
+
+    url = Url::parse("web+demo:/").unwrap();
+    assert!(!url.cannot_be_a_base());
+
+    url.set_path("//.dummy.path");
+    assert_eq!(url.path(), "//.dummy.path");
+
+    let segments: Vec<_> = url
+        .path_segments()
+        .expect("should have path segments")
+        .collect();
+    assert_eq!(segments, vec!["", ".dummy.path"]);
+    assert_eq!(url.as_str(), "web+demo:/.//.dummy.path");
+
+    quirks::set_hostname(&mut url, ".dummy.host").unwrap();
+    assert_eq!(url.as_str(), "web+demo://.dummy.host//.dummy.path");
+    url.check_invariants().unwrap();
+
+    quirks::set_hostname(&mut url, "").unwrap();
+    assert_eq!(url.as_str(), "web+demo:////.dummy.path");
+    url.check_invariants().unwrap();
+}
+
+#[test]
+fn test_can_be_a_base_with_set_path() {
+    use url::quirks;
+    let mut url = Url::parse("web+demo:/").unwrap();
+    assert!(!url.cannot_be_a_base());
+
+    url.set_path("//not-a-host");
+    assert_eq!(url.path(), "//not-a-host");
+
+    let segments: Vec<_> = url
+        .path_segments()
+        .expect("should have path segments")
+        .collect();
+
+    assert_eq!(segments, vec!["", "not-a-host"]);
+
+    url.set_query(Some("query"));
+    url.set_fragment(Some("frag"));
+
+    assert_eq!(url.as_str(), "web+demo:/.//not-a-host?query#frag");
+    quirks::set_hostname(&mut url, "test").unwrap();
+    assert_eq!(url.as_str(), "web+demo://test//not-a-host?query#frag");
+    url.check_invariants().unwrap();
+    quirks::set_hostname(&mut url, "").unwrap();
+    assert_eq!(url.as_str(), "web+demo:////not-a-host?query#frag");
+    url.check_invariants().unwrap();
+}
+
+#[test]
+fn test_can_be_a_base_with_path_segments_mut() {
+    let mut url = Url::parse("web+demo:/").unwrap();
+    assert!(!url.cannot_be_a_base());
+
+    url.path_segments_mut()
+        .expect("should have path segments")
+        .push("")
+        .push("not-a-host");
+
+    url.set_query(Some("query"));
+    url.set_fragment(Some("frag"));
+
+    assert_eq!(url.as_str(), "web+demo:/.//not-a-host?query#frag");
+    assert_eq!(url.path(), "//not-a-host");
+    url.check_invariants().unwrap();
+
+    let segments: Vec<_> = url
+        .path_segments()
+        .expect("should have path segments")
+        .collect();
+    assert_eq!(segments, vec!["", "not-a-host"]);
+}
+
+#[test]
+fn test_valid_indices_after_set_path() {
+    // Testing everything
+    let mut url = Url::parse("moz:/").unwrap();
+    assert!(!url.cannot_be_a_base());
+
+    url.set_path("/.//p");
+    url.set_host(Some("host")).unwrap();
+    url.set_query(Some("query"));
+    url.set_fragment(Some("frag"));
+    assert_eq!(url.as_str(), "moz://host//p?query#frag");
+    assert_eq!(url.host(), Some(Host::Domain("host")));
+    assert_eq!(url.path(), "//p");
+    assert_eq!(url.query(), Some("query"));
+    assert_eq!(url.fragment(), Some("frag"));
+    url.check_invariants().unwrap();
+
+    url = Url::parse("moz:/.//").unwrap();
+    assert!(!url.cannot_be_a_base());
+
+    url.set_path("p");
+    url.set_host(Some("host")).unwrap();
+    url.set_query(Some("query"));
+    url.set_fragment(Some("frag"));
+    assert_eq!(url.as_str(), "moz://host/p?query#frag");
+    assert_eq!(url.host(), Some(Host::Domain("host")));
+    assert_eq!(url.path(), "/p");
+    assert_eq!(url.query(), Some("query"));
+    assert_eq!(url.fragment(), Some("frag"));
+    url.check_invariants().unwrap();
+}

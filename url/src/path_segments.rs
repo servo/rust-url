@@ -239,7 +239,7 @@ impl PathSegmentsMut<'_> {
         I::Item: AsRef<str>,
     {
         let scheme_type = SchemeType::from(self.url.scheme());
-        let path_start = self.url.path_start as usize;
+        let mut path_start = self.url.path_start as usize;
         self.url.mutate(|parser| {
             parser.context = parser::Context::PathSegmentSetter;
             for segment in segments {
@@ -253,7 +253,44 @@ impl PathSegmentsMut<'_> {
                 {
                     parser.serialization.push('/');
                 }
-                let mut has_host = true; // FIXME account for this?
+
+                let mut path_empty = false;
+
+                // Check ':' and then see if the next character is '/'
+                let mut has_host = if let Some(index) = parser.serialization.find(":") {
+                    if parser.serialization.len() > index + 1
+                        && parser.serialization.as_bytes().get(index + 1) == Some(&b'/')
+                    {
+                        let rest = &parser.serialization[(index + ":/".len())..];
+                        let host_part = rest.split('/').next().unwrap_or("");
+                        path_empty = rest.is_empty();
+                        !host_part.is_empty() && !host_part.contains('@')
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+
+                // For cases where normalization is applied across both the serialization and the path.
+                // Append "/." immediately after the scheme (up to ":")
+                // This is done if three conditions are met.
+                // https://url.spec.whatwg.org/#url-serializing
+                // 1. The host is null
+                // 2. The url's path length is greater than 1
+                // 3. the first segment of the URL's path is an empty string
+                if !has_host && segment.len() > 1 && path_empty {
+                    if let Some(index) = parser.serialization.find(":") {
+                        if parser.serialization.len() == index + 2
+                            && parser.serialization.as_bytes().get(index + 1) == Some(&b'/')
+                        {
+                            // Append an extra '/' to ensure that "/./path" becomes "/.//path"
+                            parser.serialization.insert_str(index + ":".len(), "/./");
+                            path_start += "/.".len();
+                        }
+                    }
+                }
+
                 parser.parse_path(
                     scheme_type,
                     &mut has_host,
@@ -262,6 +299,7 @@ impl PathSegmentsMut<'_> {
                 );
             }
         });
+        self.url.path_start = path_start as u32;
         self
     }
 }
