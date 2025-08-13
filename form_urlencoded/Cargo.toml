@@ -1,6 +1,6 @@
 [package]
 name = "form_urlencoded"
-version = "1.2.1"
+version = "1.2.2"
 authors = ["The rust-url developers"]
 description = "Parser and serializer for the application/x-www-form-urlencoded syntax, as used by HTML forms."
 categories = ["no_std"]
