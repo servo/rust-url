@@ -91,6 +91,8 @@ jobs:
               echo "leak:dyld4::RuntimeState"
               echo "leak:fetchInitializingClassList"
               echo "leak:std::sys::pal::unix::stack_overflow::imp::init"
+              echo "leak:dyld::ThreadLocalVariables::instantiateVariable"
+              echo "leak:_tlv_get_addr"
             } > suppressions.txt
             export LSAN_OPTIONS="suppressions=$(pwd)/suppressions.txt"
           fi
