@@ -1,6 +1,6 @@
 [package]
 name = "data-url"
-version = "0.3.1"
+version = "0.3.2"
 authors = ["Simon Sapin <simon.sapin@exyr.org>"]
 description = "Processing of data: URL according to WHATWG’s Fetch Standard"
 categories = ["no_std"]

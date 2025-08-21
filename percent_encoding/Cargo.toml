@@ -1,6 +1,6 @@
 [package]
 name = "percent-encoding"
-version = "2.3.1"
+version = "2.3.2"
 authors = ["The rust-url developers"]
 description = "Percent encoding and decoding"
 categories = ["no_std"]
