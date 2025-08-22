@@ -32,7 +32,7 @@ serde = { version = "1.0", optional = true, features = ["derive"], default-featu
 
 [features]
 default = ["std"]
-std = ["idna/std", "percent-encoding/std", "form_urlencoded/std"]
+std = ["idna/std", "percent-encoding/std", "form_urlencoded/std", "serde/std"]
 
 # Enable to use the #[debugger_visualizer] attribute. This feature requires Rust >= 1.71.
 debugger_visualizer = []
