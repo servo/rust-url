@@ -2,7 +2,7 @@
 
 name = "url"
 # When updating version, also modify html_root_url in the lib.rs
-version = "2.5.6"
+version = "2.5.7"
 authors = ["The rust-url developers"]
 
 description = "URL library for Rust, based on the WHATWG URL Standard"
@@ -32,7 +32,7 @@ serde = { version = "1.0", optional = true, features = ["derive"], default-featu
 
 [features]
 default = ["std"]
-std = ["idna/std", "percent-encoding/std", "form_urlencoded/std"]
+std = ["idna/std", "percent-encoding/std", "form_urlencoded/std", "serde/std"]
 
 # Enable to use the #[debugger_visualizer] attribute. This feature requires Rust >= 1.71.
 debugger_visualizer = []
