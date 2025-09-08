@@ -52,7 +52,7 @@ macro_rules! simple_enum_error {
         /// Errors that can occur during parsing.
         ///
         /// This may be extended in the future so exhaustive matching is
-        /// discouraged with an unused variant.
+        /// forbidden.
         #[derive(PartialEq, Eq, Clone, Copy, Debug)]
         #[non_exhaustive]
         pub enum ParseError {
