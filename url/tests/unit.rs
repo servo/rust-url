@@ -1370,7 +1370,7 @@ fn issue_974() {
 #[cfg(feature = "serde")]
 #[test]
 fn serde_error_message() {
-    use serde::Deserialize;
+    use serde_derive::Deserialize;
     #[derive(Debug, Deserialize)]
     #[allow(dead_code)]
     struct TypeWithUrl {

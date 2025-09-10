@@ -64,7 +64,7 @@ macro_rules! println {
     }
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde_derive::Deserialize)]
 struct UrlTest {
     input: String,
     base: Option<String>,
@@ -72,7 +72,7 @@ struct UrlTest {
     result: UrlTestResult,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde_derive::Deserialize)]
 #[serde(untagged)]
 #[allow(clippy::large_enum_variant)]
 enum UrlTestResult {
@@ -80,7 +80,7 @@ enum UrlTestResult {
     Fail(UrlTestFail),
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde_derive::Deserialize)]
 struct UrlTestOk {
     href: String,
     protocol: String,
@@ -94,19 +94,19 @@ struct UrlTestOk {
     hash: String,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde_derive::Deserialize)]
 struct UrlTestFail {
     failure: bool,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde_derive::Deserialize)]
 struct SetterTest {
     href: String,
     new_value: String,
     expected: SetterTestExpected,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde_derive::Deserialize)]
 struct SetterTestExpected {
     href: Option<String>,
     protocol: Option<String>,
