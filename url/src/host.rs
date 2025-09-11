@@ -6,7 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use crate::net::{Ipv4Addr, Ipv6Addr};
+use crate::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use alloc::borrow::Cow;
 use alloc::borrow::ToOwned;
 use alloc::string::String;
@@ -196,6 +196,27 @@ where
             (Self::Ipv4(a), Host::Ipv4(b)) => a == b,
             (Self::Ipv6(a), Host::Ipv6(b)) => a == b,
             (_, _) => false,
+        }
+    }
+}
+
+impl From<Ipv4Addr> for Host {
+    fn from(ipv4: Ipv4Addr) -> Self {
+        Self::Ipv4(ipv4)
+    }
+}
+
+impl From<Ipv6Addr> for Host {
+    fn from(ipv6: Ipv6Addr) -> Self {
+        Self::Ipv6(ipv6)
+    }
+}
+
+impl From<IpAddr> for Host {
+    fn from(ip: IpAddr) -> Self {
+        match ip {
+            IpAddr::V4(ipv4) => ipv4.into(),
+            IpAddr::V6(ipv6) => ipv6.into(),
         }
     }
 }
