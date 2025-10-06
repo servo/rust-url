@@ -100,7 +100,7 @@ jobs:
             echo "Running tests with $sanitizer sanitizer..."
             export RUSTFLAGS="-Z sanitizer=$sanitizer"
             export RUSTDOCFLAGS="$RUSTFLAGS"
-            cargo +nightly test -Z build-std --target "$TARGET"
+            cargo +nightly test -Z build-std --target "$TARGET" --lib --tests
           done
 
   WASM:
