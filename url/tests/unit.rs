@@ -1383,3 +1383,12 @@ fn serde_error_message() {
         r#"relative URL without a base: "§invalid#+#*Ä" at line 1 column 25"#
     );
 }
+
+#[test]
+fn test_parse_url_with_single_byte_control_host() {
+    let input = "l://\x01:";
+
+    let url1 = Url::parse(input).unwrap();
+    let url2 = Url::parse(url1.as_str()).unwrap();
+    assert_eq!(url2, url1);
+}
