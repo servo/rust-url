@@ -2478,6 +2478,82 @@ impl Url {
         if !remaining.is_empty() || (!self.has_host() && new_scheme_type.is_special()) {
             return Err(());
         }
+        
+        self.set_scheme_internal(parser);
+
+        // Update the port so it can be removed
+        // If it is the scheme's default
+        // we don't mind it silently failing
+        // if there was no port in the first place
+        let previous_port = self.port();
+        let _ = self.set_port(previous_port);
+
+        Ok(())
+    }
+
+    /// Change the URL's scheme, ignoring most of [the URL specification's section
+    /// on legal scheme state overrides](https://url.spec.whatwg.org/#scheme-state).
+    /// 
+    /// Does nothing and returns `Err` under the following circumstances:
+    /// * If the new scheme is not in `[a-zA-Z][a-zA-Z0-9+.-]+`
+    /// 
+    /// Unlike its checked counterpart, this will not remove the port if it is redundant, or
+    /// otherwise transform the URL beyond the requested scheme change.
+    /// 
+    /// This is useful if you have a custom scheme that has the same semantics as one of the
+    /// [special URL schemes](https://url.spec.whatwg.org/#special-scheme), and are doing your
+    /// own logic for fix-up.
+    ///
+    /// # Examples
+    ///
+    /// Change the URL’s scheme from `my-special-scheme` to `http`:
+    ///
+    /// ```
+    /// use url::Url;
+    /// # use url::ParseError;
+    ///
+    /// # fn run() -> Result<(), ParseError> {
+    /// let mut url = Url::parse("my-special-scheme://example.net/")?;
+    /// let result = url.set_scheme_unchecked("http");
+    /// assert_eq!(url.as_str(), "http://example.net/");
+    /// assert!(result.is_ok());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
+    /// ```
+    /// 
+    /// Cannot change the URL's scheme to something that isn't parsable:
+    /// 
+    /// ```
+    /// use url::Url;
+    /// # use url::ParseError;
+    ///
+    /// # fn run() -> Result<(), ParseError> {
+    /// let mut url = Url::parse("http://example.net/")?;
+    /// let result = url.set_scheme_unchecked("!@#$%^&*()");
+    /// assert_eq!(url.as_str(), "http://example.net/");
+    /// assert!(result.is_err());
+    /// # Ok(())
+    /// # }
+    /// # run().unwrap();
+    /// ```
+    /// 
+    pub fn set_scheme_unchecked(&mut self, scheme: &str) -> Result<(), ()> {
+        let mut parser = Parser::for_setter(String::new());
+        let remaining = parser.parse_scheme(parser::Input::new_no_trim(scheme))?;
+
+        if !remaining.is_empty() {
+            return Err(());
+        }
+
+        self.set_scheme_internal(parser);
+
+        return Ok(());
+    }
+
+    /// Handles actually setting the URL's scheme, using the designated parser.
+    /// This parser should have already parsed a scheme.
+    fn set_scheme_internal(&mut self, mut parser: Parser<'_>) {
         let old_scheme_end = self.scheme_end;
         let new_scheme_end = to_u32(parser.serialization.len()).unwrap();
         let adjust = |index: &mut u32| {
@@ -2499,15 +2575,6 @@ impl Url {
 
         parser.serialization.push_str(self.slice(old_scheme_end..));
         self.serialization = parser.serialization;
-
-        // Update the port so it can be removed
-        // If it is the scheme's default
-        // we don't mind it silently failing
-        // if there was no port in the first place
-        let previous_port = self.port();
-        let _ = self.set_port(previous_port);
-
-        Ok(())
     }
 
     /// Convert a file name as `std::path::Path` into an URL in the `file` scheme.
