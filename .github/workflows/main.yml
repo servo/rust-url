@@ -44,6 +44,8 @@ jobs:
           cargo update -p getopts --precise 0.2.22
           cargo update -p unicode-width --precise 0.1.12
           cargo update -p syn --precise 2.0.100
+          # Older Unicode versions have a different test file
+          cp idna/tests/IdnaTestV2-Unicode16.txt idna/tests/IdnaTestV2.txt
       - name: Downgrade deps on Rust 1.82.0
         if: |
           matrix.rust == '1.82.0'
@@ -51,6 +53,8 @@ jobs:
           cargo update -p icu_normalizer --precise 2.0.1
           cargo update -p icu_provider --precise 2.0.0
           cargo update -p icu_locale_core --precise 2.0.1
+          # Older Unicode versions have a different test file
+          cp idna/tests/IdnaTestV2-Unicode16.txt idna/tests/IdnaTestV2.txt
       - name: Add `aarch64-unknown-none` toolchain for `no_std` tests
         if: |
           matrix.os == 'ubuntu-latest' &&
