@@ -2746,7 +2746,7 @@ impl Url {
                     str_len.saturating_sub(scheme_diff + 2)
                 }
             } else if cfg!(windows) {
-                // remove scheme: - has posssible \\ for hostname
+                // remove scheme: - has possible \\ for hostname
                 str_len.saturating_sub(self.scheme().len() + 1)
             } else {
                 // remove scheme://
