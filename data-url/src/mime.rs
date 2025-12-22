@@ -95,7 +95,7 @@ fn parse_parameters(s: &str, parameters: &mut Vec<(String, String)>) {
         let piece = piece.trim_start_matches(http_whitespace);
         let (name, value) = split2(piece, '=');
         // We can not early return on an invalid name here, because the value
-        // parsing later may consume more semicolon seperated pieces.
+        // parsing later may consume more semicolon separated pieces.
         let name_valid =
             !name.is_empty() && only_http_token_code_points(name) && !contains(parameters, name);
         if let Some(value) = value {
