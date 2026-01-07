@@ -720,6 +720,14 @@ fn test_no_base_url() {
 }
 
 #[test]
+fn test_some_base_url() {
+    let some_base_url = Url::parse("scheme://domain").unwrap();
+
+    assert!(!some_base_url.cannot_be_a_base());
+    assert!(some_base_url.path_segments().is_some());
+}
+
+#[test]
 fn test_domain() {
     let url = Url::parse("https://127.0.0.1/").unwrap();
     assert_eq!(url.domain(), None);
