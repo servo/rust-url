@@ -32,7 +32,7 @@
 //! use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
 //!
 //! /// https://url.spec.whatwg.org/#fragment-percent-encode-set
-//! const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'<').add(b'>').add(b'`');
+//! const FRAGMENT: AsciiSet = CONTROLS.add(b' ').add(b'"').add(b'<').add(b'>').add(b'`');
 //!
 //! assert_eq!(utf8_percent_encode("foo <bar>", FRAGMENT).to_string(), "foo%20%3Cbar%3E");
 //! ```
@@ -114,10 +114,10 @@ pub fn percent_encode_byte(byte: u8) -> &'static str {
 /// assert_eq!(percent_encode(b"foo bar?", NON_ALPHANUMERIC).to_string(), "foo%20bar%3F");
 /// ```
 #[inline]
-pub fn percent_encode<'a>(input: &'a [u8], ascii_set: &'static AsciiSet) -> PercentEncode<'a> {
+pub fn percent_encode<T: Into<AsciiSet>>(input: &[u8], ascii_set: T) -> PercentEncode<'_> {
     PercentEncode {
         bytes: input,
-        ascii_set,
+        ascii_set: ascii_set.into(),
     }
 }
 
@@ -133,7 +133,7 @@ pub fn percent_encode<'a>(input: &'a [u8], ascii_set: &'static AsciiSet) -> Perc
 /// assert_eq!(utf8_percent_encode("foo bar?", NON_ALPHANUMERIC).to_string(), "foo%20bar%3F");
 /// ```
 #[inline]
-pub fn utf8_percent_encode<'a>(input: &'a str, ascii_set: &'static AsciiSet) -> PercentEncode<'a> {
+pub fn utf8_percent_encode<T: Into<AsciiSet>>(input: &str, ascii_set: T) -> PercentEncode<'_> {
     percent_encode(input.as_bytes(), ascii_set)
 }
 
@@ -141,7 +141,7 @@ pub fn utf8_percent_encode<'a>(input: &'a str, ascii_set: &'static AsciiSet) -> 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PercentEncode<'a> {
     bytes: &'a [u8],
-    ascii_set: &'static AsciiSet,
+    ascii_set: AsciiSet,
 }
 
 impl<'a> Iterator for PercentEncode<'a> {
@@ -379,7 +379,14 @@ mod tests {
 
     #[test]
     fn percent_encode_accepts_ascii_set_ref() {
+        #[allow(clippy::needless_borrows_for_generic_args)] // tests prior behavior
         let encoded = percent_encode(b"foo bar?", &AsciiSet::EMPTY);
+        assert_eq!(encoded.collect::<String>(), "foo bar?");
+    }
+
+    #[test]
+    fn percent_encode_accepts_value() {
+        let encoded = percent_encode(b"foo bar?", AsciiSet::EMPTY);
         assert_eq!(encoded.collect::<String>(), "foo bar?");
     }
 
@@ -406,7 +413,14 @@ mod tests {
 
     #[test]
     fn utf8_percent_encode_accepts_ascii_set_ref() {
+        #[allow(clippy::needless_borrows_for_generic_args)] // tests prior behavior
         let encoded = super::utf8_percent_encode("foo bar?", &AsciiSet::EMPTY);
+        assert_eq!(encoded.collect::<String>(), "foo bar?");
+    }
+
+    #[test]
+    fn utf8_percent_encode_accepts_value() {
+        let encoded = super::utf8_percent_encode("foo bar?", AsciiSet::EMPTY);
         assert_eq!(encoded.collect::<String>(), "foo bar?");
     }
 

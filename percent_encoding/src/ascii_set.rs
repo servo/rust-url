@@ -24,7 +24,7 @@ use core::{mem, ops};
 /// /// https://url.spec.whatwg.org/#fragment-percent-encode-set
 /// const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'<').add(b'>').add(b'`');
 /// ```
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AsciiSet {
     mask: [Chunk; ASCII_RANGE_LEN / BITS_PER_CHUNK],
 }
@@ -83,6 +83,12 @@ impl AsciiSet {
     }
 }
 
+impl From<&AsciiSet> for AsciiSet {
+    fn from(set: &AsciiSet) -> Self {
+        *set
+    }
+}
+
 impl ops::Add for AsciiSet {
     type Output = Self;
 
@@ -104,7 +110,7 @@ impl ops::Not for AsciiSet {
 /// Note that this includes the newline and tab characters, but not the space 0x20.
 ///
 /// <https://url.spec.whatwg.org/#c0-control-percent-encode-set>
-pub const CONTROLS: &AsciiSet = &AsciiSet {
+pub const CONTROLS: AsciiSet = AsciiSet {
     mask: [
         !0_u32, // C0: 0x00 to 0x1F (32 bits set)
         0,
@@ -134,7 +140,7 @@ static_assert! {
 /// Everything that is not an ASCII letter or digit.
 ///
 /// This is probably more eager than necessary in any context.
-pub const NON_ALPHANUMERIC: &AsciiSet = &CONTROLS
+pub const NON_ALPHANUMERIC: AsciiSet = CONTROLS
     .add(b' ')
     .add(b'!')
     .add(b'"')
