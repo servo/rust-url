@@ -1370,7 +1370,7 @@ fn issue_974() {
 #[cfg(feature = "serde")]
 #[test]
 fn serde_error_message() {
-    use serde::Deserialize;
+    use serde_derive::Deserialize;
     #[derive(Debug, Deserialize)]
     #[allow(dead_code)]
     struct TypeWithUrl {
@@ -1382,4 +1382,13 @@ fn serde_error_message() {
         err.to_string(),
         r#"relative URL without a base: "§invalid#+#*Ä" at line 1 column 25"#
     );
+}
+
+#[test]
+fn test_parse_url_with_single_byte_control_host() {
+    let input = "l://\x01:";
+
+    let url1 = Url::parse(input).unwrap();
+    let url2 = Url::parse(url1.as_str()).unwrap();
+    assert_eq!(url2, url1);
 }

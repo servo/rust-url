@@ -4,6 +4,7 @@ name = "url_debug_tests"
 version = "0.0.0"
 description = "Tests for debugger visualizers defined for the url crate such as url.natvis"
 publish = false
+edition = "2018"
 rust-version = "1.60"
 
 [dev-dependencies]

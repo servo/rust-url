@@ -40,9 +40,24 @@ jobs:
         if: |
           matrix.rust == '1.63.0'
         run: |
-          cargo update -p idna_adapter --precise 1.1.0
-          cargo update -p getopts --precise 0.2.22
-          cargo update -p unicode-width --precise 0.1.12
+          # cargo update -p idna_adapter --precise 1.1.0
+          # cargo update -p getopts --precise 0.2.22
+          # cargo update -p unicode-width --precise 0.1.12
+          # cargo update syn@2 --precise 2.0.100
+          # Unfortunately `syn@2` syntax doesn't work on 1.63, and we don't know the precise
+          # version beforehand. So we copy the lockfile we have already prepared.
+          cp ci-lockfiles/1.63.Cargo.lock Cargo.lock
+          # Older Unicode versions have a different test file
+          cp idna/tests/IdnaTestV2-Unicode16.txt idna/tests/IdnaTestV2.txt
+      - name: Downgrade deps on Rust 1.82.0
+        if: |
+          matrix.rust == '1.82.0'
+        run: |
+          cargo update -p icu_normalizer --precise 2.0.1
+          cargo update -p icu_provider --precise 2.0.0
+          cargo update -p icu_locale_core --precise 2.0.1
+          # Older Unicode versions have a different test file
+          cp idna/tests/IdnaTestV2-Unicode16.txt idna/tests/IdnaTestV2.txt
       - name: Add `aarch64-unknown-none` toolchain for `no_std` tests
         if: |
           matrix.os == 'ubuntu-latest' &&
@@ -100,7 +115,7 @@ jobs:
             echo "Running tests with $sanitizer sanitizer..."
             export RUSTFLAGS="-Z sanitizer=$sanitizer"
             export RUSTDOCFLAGS="$RUSTFLAGS"
-            cargo +nightly test -Z build-std --target "$TARGET"
+            cargo +nightly test -Z build-std --target "$TARGET" --lib --tests
           done
 
   WASM:
@@ -131,8 +146,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: EmbarkStudios/cargo-deny-action@v1
-      
+      - uses: EmbarkStudios/cargo-deny-action@v2
+
   Result:
     name: Result
     runs-on: ubuntu-latest
