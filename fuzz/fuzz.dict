@@ -1,0 +1,81 @@
+# URL schemes
+"http://"
+"https://"
+"ftp://"
+"file://"
+"data:"
+"blob:"
+"ws://"
+"wss://"
+"custom://"
+
+# URL delimiters
+"://"
+":/"
+"//"
+"/"
+"?"
+"#"
+"@"
+":"
+";"
+
+# Common URL components
+"example.com"
+"localhost"
+"127.0.0.1"
+"[::1]"
+"[2001:db8::1]"
+"0.0.0.0"
+
+# Percent encoding
+"%00"
+"%20"
+"%25"
+"%2F"
+"%3A"
+"%3F"
+"%40"
+"%23"
+"%26"
+"%3D"
+"%C3%A9"
+"%E4%B8%AD"
+
+# Form URL encoded
+"&"
+"="
+"+"
+"key=value"
+"a=b&c=d"
+
+# IDNA / Punycode
+"xn--"
+"xn--nxasmq6b"
+".com"
+".de"
+".org"
+
+# Data URL
+"data:,"
+"data:text/plain,"
+"data:text/plain;base64,"
+"data:text/html,"
+"data:application/octet-stream;base64,"
+";base64"
+";charset=utf-8"
+";charset=US-ASCII"
+
+# Base64
+"SGVsbG8="
+"AAAA"
+"////+"
+
+# Special characters
+"\t"
+"\n"
+"\r"
+" "
+"\\"
+".."
+"."
