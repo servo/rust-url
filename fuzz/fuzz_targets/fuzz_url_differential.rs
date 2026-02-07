@@ -13,8 +13,13 @@ fuzz_target!(|data: &[u8]| {
         return;
     };
 
-    // Split input into a base URL part and a relative part
+    // Split input into a base URL part and a relative part.
+    // Ensure we split on a char boundary.
     let split = (data[0] as usize) % utf8.len().max(1);
+    let split = match utf8.char_indices().find(|&(i, _)| i >= split) {
+        Some((i, _)) => i,
+        None => utf8.len(),
+    };
     let (base_str, relative_str) = utf8.split_at(split);
 
     // Try parsing base as absolute URL
