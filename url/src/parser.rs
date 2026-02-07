@@ -1369,13 +1369,30 @@ impl Parser<'_> {
             }
         }
         if scheme_type.is_file() {
-            // while url’s path’s size is greater than 1
-            // and url’s path[0] is the empty string,
-            // validation error, remove the first item from url’s path.
+            // while url's path's size is greater than 1
+            // and url's path[0] is the empty string,
+            // validation error, remove the first item from url's path.
             //FIXME: log violation
             let path = self.serialization.split_off(path_start);
-            self.serialization.push('/');
-            self.serialization.push_str(path.trim_start_matches('/'));
+            // When there's no host, normalize by removing all leading slashes
+            // and adding back a single one. When there's a host, preserve
+            // the path structure for correct roundtripping, but still ensure
+            // it starts with a single slash.
+            if path.starts_with('/') {
+                // Path already has slashes - preserve structure when host exists
+                if *has_host {
+                    // Keep the path as-is for roundtrip correctness
+                    self.serialization.push_str(&path);
+                } else {
+                    // No host - normalize to remove redundant leading slashes
+                    self.serialization.push('/');
+                    self.serialization.push_str(path.trim_start_matches('/'));
+                }
+            } else {
+                // Path doesn't start with slash - add one
+                self.serialization.push('/');
+                self.serialization.push_str(&path);
+            }
         }
 
         input

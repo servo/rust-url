@@ -2025,6 +2025,18 @@ impl Url {
 
         let scheme_type = SchemeType::from(self.scheme());
 
+        // Normalize "localhost" to None for file:// URLs per WHATWG spec
+        // This matches the behavior of the URL parser
+        let host = if let Some(h) = host {
+            if scheme_type.is_file() && h.eq_ignore_ascii_case("localhost") {
+                None
+            } else {
+                Some(h)
+            }
+        } else {
+            None
+        };
+
         if let Some(host) = host {
             if host.is_empty() && scheme_type.is_special() && !scheme_type.is_file() {
                 return Err(ParseError::EmptyHost);
