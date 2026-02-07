@@ -126,7 +126,7 @@ pub fn set_username(url: &mut Url, new_username: &str) -> Result<(), ()> {
 /// Getter for <https://url.spec.whatwg.org/#dom-url-password>
 #[inline]
 pub fn password(url: &Url) -> &str {
-    url.password().unwrap_or("")
+    url.password()
 }
 
 /// Setter for <https://url.spec.whatwg.org/#dom-url-password>
@@ -224,7 +224,7 @@ pub fn set_hostname(url: &mut Url, new_hostname: &str) -> Result<(), ()> {
                     ||!port(url).is_empty()
                     // Empty host that includes credentials
                     || !url.username().is_empty()
-                    || !url.password().unwrap_or("").is_empty()
+                    || !url.password().is_empty()
                 {
                     return Err(());
                 }

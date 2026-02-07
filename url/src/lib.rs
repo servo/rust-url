@@ -1060,7 +1060,8 @@ impl Url {
         }
     }
 
-    /// Return the password for this URL, if any, as a percent-encoded ASCII string.
+    /// Return the password for this URL (typically the empty string)
+    /// as a percent-encoded ASCII string.
     ///
     /// # Examples
     ///
@@ -1070,21 +1071,24 @@ impl Url {
     ///
     /// # fn run() -> Result<(), ParseError> {
     /// let url = Url::parse("ftp://rms:secret123@example.com")?;
-    /// assert_eq!(url.password(), Some("secret123"));
+    /// assert_eq!(url.password(), "secret123");
     ///
     /// let url = Url::parse("ftp://:secret123@example.com")?;
-    /// assert_eq!(url.password(), Some("secret123"));
+    /// assert_eq!(url.password(), "secret123");
+    ///
+    /// let url = Url::parse("ftp://rms:@example.com")?;
+    /// assert_eq!(url.password(), "");
     ///
     /// let url = Url::parse("ftp://rms@example.com")?;
-    /// assert_eq!(url.password(), None);
+    /// assert_eq!(url.password(), "");
     ///
     /// let url = Url::parse("https://example.com")?;
-    /// assert_eq!(url.password(), None);
+    /// assert_eq!(url.password(), "");
     /// # Ok(())
     /// # }
     /// # run().unwrap();
     /// ```
-    pub fn password(&self) -> Option<&str> {
+    pub fn password(&self) -> &str {
         // This ':' is not the one marking a port number since a host can not be empty.
         // (Except for file: URLs, which do not have port numbers.)
         if self.has_authority()
@@ -1092,9 +1096,9 @@ impl Url {
             && self.byte_at(self.username_end) == b':'
         {
             debug_assert!(self.byte_at(self.host_start - 1) == b'@');
-            Some(self.slice(self.username_end + 1..self.host_start - 1))
+            self.slice(self.username_end + 1..self.host_start - 1)
         } else {
-            None
+            ""
         }
     }
 
