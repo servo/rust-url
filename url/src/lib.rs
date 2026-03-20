@@ -3125,6 +3125,45 @@ fn file_url_segments_to_pathbuf(
 // Build this unconditionally to alleviate https://github.com/servo/rust-url/issues/102
 #[cfg(feature = "std")]
 #[cfg_attr(not(windows), allow(dead_code))]
+fn decode_windows_drive_path_segment(segment: &str) -> Result<String, ()> {
+    use percent_encoding::percent_decode_str;
+
+    // `path_segments_mut()` encodes separators inside a segment, but Windows
+    // file paths still need to round-trip through `to_file_path()`.
+
+    // Percent-decode the segment so that e.g. "C%3A%5CUsers" becomes "C:\Users".
+    let decoded = percent_decode_str(segment).decode_utf8().map_err(|_| ())?;
+    let bytes = decoded.as_bytes();
+
+    // Must start with an ASCII drive letter followed by ':', e.g. "C:".
+    if bytes.len() < 2 || !parser::ascii_alpha(bytes[0] as char) || bytes[1] != b':' {
+        return Err(());
+    }
+
+    // A bare drive letter like "C:" is valid as-is.
+    if bytes.len() == 2 {
+        return Ok(decoded.into_owned());
+    }
+
+    // After the drive letter, only an absolute path separator is allowed.
+    // Reject drive-relative paths like "C:Users" (no leading separator).
+    if !matches!(bytes[2], b'\\' | b'/') {
+        return Err(());
+    }
+
+    // Normalize forward slashes to backslashes for a native Windows path.
+    let mut normalized = String::with_capacity(decoded.len());
+    normalized.push(bytes[0] as char);
+    normalized.push(':');
+    for c in decoded[2..].chars() {
+        normalized.push(if c == '/' { '\\' } else { c });
+    }
+    Ok(normalized)
+}
+
+// Build this unconditionally to alleviate https://github.com/servo/rust-url/issues/102
+#[cfg(feature = "std")]
+#[cfg_attr(not(windows), allow(dead_code))]
 fn file_url_segments_to_pathbuf_windows(
     estimated_capacity: usize,
     host: Option<&str>,
@@ -3138,31 +3177,7 @@ fn file_url_segments_to_pathbuf_windows(
         string.push_str(host);
     } else {
         let first = segments.next().ok_or(())?;
-
-        match first.len() {
-            2 => {
-                if !first.starts_with(parser::ascii_alpha) || first.as_bytes()[1] != b':' {
-                    return Err(());
-                }
-
-                string.push_str(first);
-            }
-
-            4 => {
-                if !first.starts_with(parser::ascii_alpha) {
-                    return Err(());
-                }
-                let bytes = first.as_bytes();
-                if bytes[1] != b'%' || bytes[2] != b'3' || (bytes[3] != b'a' && bytes[3] != b'A') {
-                    return Err(());
-                }
-
-                string.push_str(&first[0..1]);
-                string.push(':');
-            }
-
-            _ => return Err(()),
-        }
+        string.push_str(&decode_windows_drive_path_segment(first)?);
     };
 
     for segment in segments {
@@ -3189,6 +3204,37 @@ fn file_url_segments_to_pathbuf_windows(
         "to_file_path() failed to produce an absolute Path"
     );
     Ok(path)
+}
+
+#[cfg(all(test, feature = "std"))]
+mod tests {
+    use super::decode_windows_drive_path_segment;
+    use alloc::string::String;
+
+    #[test]
+    fn decode_windows_drive_path_segment_accepts_drive_letter_only() {
+        assert_eq!(
+            decode_windows_drive_path_segment("C%3A"),
+            Ok(String::from("C:"))
+        );
+    }
+
+    #[test]
+    fn decode_windows_drive_path_segment_accepts_encoded_separators() {
+        assert_eq!(
+            decode_windows_drive_path_segment("C:%5CUsers%5Cme"),
+            Ok(String::from(r"C:\Users\me"))
+        );
+        assert_eq!(
+            decode_windows_drive_path_segment("C:%2FUsers%2Fme"),
+            Ok(String::from(r"C:\Users\me"))
+        );
+    }
+
+    #[test]
+    fn decode_windows_drive_path_segment_rejects_drive_relative_paths() {
+        assert_eq!(decode_windows_drive_path_segment("C:Users"), Err(()));
+    }
 }
 
 /// Implementation detail of `Url::query_pairs_mut`. Typically not used directly.
