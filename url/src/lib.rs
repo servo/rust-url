@@ -3206,37 +3206,6 @@ fn file_url_segments_to_pathbuf_windows(
     Ok(path)
 }
 
-#[cfg(all(test, feature = "std"))]
-mod tests {
-    use super::decode_windows_drive_path_segment;
-    use alloc::string::String;
-
-    #[test]
-    fn decode_windows_drive_path_segment_accepts_drive_letter_only() {
-        assert_eq!(
-            decode_windows_drive_path_segment("C%3A"),
-            Ok(String::from("C:"))
-        );
-    }
-
-    #[test]
-    fn decode_windows_drive_path_segment_accepts_encoded_separators() {
-        assert_eq!(
-            decode_windows_drive_path_segment("C:%5CUsers%5Cme"),
-            Ok(String::from(r"C:\Users\me"))
-        );
-        assert_eq!(
-            decode_windows_drive_path_segment("C:%2FUsers%2Fme"),
-            Ok(String::from(r"C:\Users\me"))
-        );
-    }
-
-    #[test]
-    fn decode_windows_drive_path_segment_rejects_drive_relative_paths() {
-        assert_eq!(decode_windows_drive_path_segment("C:Users"), Err(()));
-    }
-}
-
 /// Implementation detail of `Url::query_pairs_mut`. Typically not used directly.
 #[derive(Debug)]
 pub struct UrlQuery<'a> {

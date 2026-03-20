@@ -242,6 +242,23 @@ fn windows_to_file_path_accepts_drive_path_from_path_segments_mut() {
     assert_eq!(url.to_file_path(), Ok(PathBuf::from(r"C:\foo\bar")));
 }
 
+/// https://github.com/servo/rust-url/issues/1077
+#[test]
+#[cfg(all(feature = "std", windows))]
+fn issue_1077_path_segments_mut_extend_roundtrips_windows_path() {
+    // object_store splits a Windows path into parts and extends the URL with them.
+    // The first segment ends up containing the drive letter plus the rest of the path
+    // percent-encoded into a single segment. to_file_path() must recover the original path.
+    let path = Path::new(r"C:\Users\me\data\file.parquet");
+    let mut url = Url::parse("file://").unwrap();
+    url.path_segments_mut()
+        .unwrap()
+        .pop_if_empty()
+        .extend(std::iter::once(path.to_str().unwrap()));
+
+    assert_eq!(url.to_file_path(), Ok(PathBuf::from(path)));
+}
+
 #[test]
 #[cfg(all(
     feature = "std",
