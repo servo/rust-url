@@ -3,7 +3,6 @@
 <file:\\\\\\\\>
 <file:\\\\\\\\?fox>
 <file:\\\\\\\\#guppy>
-<file://spider///>
 <file:\\\\localhost//>
 <file://\\/localhost//cat>
 <file://localhost//a//../..//>
@@ -38,9 +37,6 @@
 <non-spec:/.//p> set hostname to <>
 <foo:///some/path> set pathname to <>
 <file:///var/log/system.log> set href to <http://0300.168.0xF0>
-<file://monkey/> set pathname to <\\\\>
-<file:///unicorn> set pathname to <//\\/>
-<file:///unicorn> set pathname to <//monkey/..//>
 <non-spec:/> set pathname to </.//p>
 <non-spec:/> set pathname to </..//p>
 <non-spec:/> set pathname to <//p>
