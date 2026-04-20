@@ -1392,3 +1392,25 @@ fn test_parse_url_with_single_byte_control_host() {
     let url2 = Url::parse(url1.as_str()).unwrap();
     assert_eq!(url2, url1);
 }
+
+#[test]
+fn magnet_roundtrip_parse() {
+    let url = Url::parse("magnet:?xt=urn:btmh:foo").unwrap();
+    assert_eq!(url.as_str(), "magnet:?xt=urn:btmh:foo");
+}
+
+#[test]
+fn magnet_roundtrip_append_pair() {
+    let mut url = Url::parse("magnet:").unwrap();
+    {
+        let mut query_pairs = url.query_pairs_mut();
+        query_pairs.append_pair("xt", "urn:btmh:foo");
+    }
+    assert_eq!(url.as_str(), "magnet:?xt=urn:btmh:foo");
+}
+
+#[test]
+fn magnet_roundtrip_parse_with_params() {
+    let url = Url::parse_with_params("magnet:", vec![("xt", "urn:btmh:foo")]).unwrap();
+    assert_eq!(url.as_str(), "magnet:?xt=urn:btmh:foo");
+}
