@@ -2760,14 +2760,15 @@ impl Url {
     ///
     /// This differs from [`Url::join`] in that it is insensitive to trailing slashes
     /// in the url and leading slashes in the passed string. See documentation of [`Url::join`] for discussion
-    /// of this subtlety. Also, this function cannot change any part of the Url other than the path.
+    /// of this subtlety. Also, this function cannot change any part of the Url other than the path. Note that
+    /// this clones the URL, so if you want to mutate the URL in place, use [`Url::append_path_mut`] instead.
     ///
     /// Examples:
     ///
     /// ```
     /// # use url::Url;
     /// let mut my_url = Url::parse("http://www.example.com/api/v1").unwrap();
-    /// my_url.append_path("system/status").unwrap();
+    /// my_url.append_path_mut("system/status").unwrap();
     /// assert_eq!(my_url.as_str(), "http://www.example.com/api/v1/system/status");
     /// ```
     ///
@@ -2776,7 +2777,36 @@ impl Url {
     /// Fails if the Url is cannot-be-a-base.
     #[allow(clippy::result_unit_err)]
     #[inline]
-    pub fn append_path(&mut self, path: impl AsRef<str>) -> Result<(), ()> {
+    pub fn append_path(&self, path: impl AsRef<str>) -> Result<Self, ()> {
+        let mut url = self.clone();
+        url.append_path_mut(path)?;
+        Ok(url)
+    }
+
+    /// Append path segments to the path of a Url, escaping if necessary.
+    ///
+    /// This differs from [`Url::join`] in that it is insensitive to trailing slashes
+    /// in the url and leading slashes in the passed string. See documentation of [`Url::join`] for discussion
+    /// of this subtlety. Also, this function cannot change any part of the Url other than the path.
+    ///
+    /// This mutates the URL in place. For a non-mutating variant that returns
+    /// a new `Url`, use [`Url::append_path`].
+    ///
+    /// Examples:
+    ///
+    /// ```
+    /// # use url::Url;
+    /// let mut my_url = Url::parse("http://www.example.com/api/v1").unwrap();
+    /// my_url.append_path_mut("system/status").unwrap();
+    /// assert_eq!(my_url.as_str(), "http://www.example.com/api/v1/system/status");
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Fails if the Url is cannot-be-a-base.
+    #[allow(clippy::result_unit_err)]
+    #[inline]
+    pub fn append_path_mut(&mut self, path: impl AsRef<str>) -> Result<(), ()> {
         // This fails if self is cannot-be-a-base but succeeds otherwise.
         let mut path_segments_mut = self.path_segments_mut()?;
 
