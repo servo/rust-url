@@ -98,7 +98,8 @@ pub fn percent_encode_byte(byte: u8) -> &'static str {
 
 /// Percent-encode the given bytes with the given set.
 ///
-/// Non-ASCII bytes and bytes in `ascii_set` are encoded.
+/// Bytes in `ascii_set` are encoded. Non-ASCII bytes are also encoded unless the crate
+/// feature `iri` is enabled (IRI-style: UTF-8 non-ASCII octets pass through).
 ///
 /// The return type:
 ///
@@ -415,6 +416,16 @@ mod tests {
         assert_eq!(
             super::utf8_percent_encode("foo bar?", NON_ALPHANUMERIC),
             percent_encode(b"foo bar?", NON_ALPHANUMERIC)
+        );
+    }
+
+    #[cfg(feature = "iri")]
+    #[test]
+    fn utf8_percent_encode_unicode_filename_unchanged_for_path_set() {
+        const PATHISH: &AsciiSet = &CONTROLS.add(b'#').add(b'?').add(b'{').add(b'}');
+        assert_eq!(
+            super::utf8_percent_encode("日本語.mp3", PATHISH).collect::<String>(),
+            "日本語.mp3"
         );
     }
 
