@@ -2758,8 +2758,8 @@ impl Url {
 
     /// Append path segments to the path of a Url, escaping if necessary.
     ///
-    /// This differs from Url::join in that it is insensitive to trailing slashes
-    /// in the url and leading slashes in the passed string. See documentation of Url::join for discussion
+    /// This differs from [`Url::join`] in that it is insensitive to trailing slashes
+    /// in the url and leading slashes in the passed string. See documentation of [`Url::join`] for discussion
     /// of this subtlety. Also, this function cannot change any part of the Url other than the path.
     ///
     /// Examples:
