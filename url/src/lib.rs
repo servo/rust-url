@@ -2756,7 +2756,7 @@ impl Url {
         Err(())
     }
 
-    /// Append path segments to the path of a Url, escaping if necesary.
+    /// Append path segments to the path of a Url, escaping if necessary.
     ///
     /// This differs from Url::join in that it is insensitive to trailing slashes
     /// in the url and leading slashes in the passed string. See documentation of Url::join for discussion
@@ -2770,6 +2770,8 @@ impl Url {
     /// my_url.append_path("system/status").unwrap();
     /// assert_eq!(my_url.as_str(), "http://www.example.com/api/v1/system/status");
     /// ```
+    ///
+    /// # Errors
     ///
     /// Fails if the Url is cannot-be-a-base.
     #[allow(clippy::result_unit_err)]
