@@ -90,17 +90,15 @@ impl Origin {
 
     /// <https://html.spec.whatwg.org/multipage/#unicode-serialisation-of-an-origin>
     pub fn unicode_serialization(&self) -> String {
-        match *self {
+        match self {
             Self::Opaque(_) => "null".to_owned(),
-            Self::Tuple(ref scheme, ref host, port) => {
-                let host = match *host {
-                    Host::Domain(ref domain) => {
-                        let (domain, _errors) = idna::domain_to_unicode(domain);
-                        Host::Domain(domain)
-                    }
+            Self::Tuple(scheme, host, port) => {
+                let host = match host {
+                    #[cfg(feature = "idna")]
+                    Host::Domain(domain) => Host::Domain(idna::domain_to_unicode(&domain).0),
                     _ => host.clone(),
                 };
-                if default_port(scheme) == Some(port) {
+                if default_port(&scheme) == Some(*port) {
                     format!("{scheme}://{host}")
                 } else {
                     format!("{scheme}://{host}:{port}")

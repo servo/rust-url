@@ -97,16 +97,38 @@ impl<'a> Host<Cow<'a, str>> {
             return parse_ipv6addr(&input[1..input.len() - 1]).map(Host::Ipv6);
         }
         let domain: Cow<'_, [u8]> = percent_decode(input.as_bytes()).into();
-        let domain: Cow<'a, [u8]> = match domain {
-            Cow::Owned(v) => Cow::Owned(v),
-            // if borrowed then we can use the original cow
-            Cow::Borrowed(_) => match input {
-                Cow::Borrowed(input) => Cow::Borrowed(input.as_bytes()),
-                Cow::Owned(input) => Cow::Owned(input.into_bytes()),
-            },
-        };
 
-        let domain = idna::domain_to_ascii_from_cow(domain, idna::AsciiDenyList::URL)?;
+        let domain = {
+            #[cfg(feature = "idna")]
+            {
+                let domain_bytes: Cow<'a, [u8]> = match domain {
+                    Cow::Owned(v) => Cow::Owned(v),
+                    // if borrowed then we can use the original cow
+                    Cow::Borrowed(_) => match input {
+                        Cow::Borrowed(input) => Cow::Borrowed(input.as_bytes()),
+                        Cow::Owned(input) => Cow::Owned(input.into_bytes()),
+                    },
+                };
+                idna::domain_to_ascii_from_cow(domain_bytes, idna::AsciiDenyList::URL)?
+            }
+            #[cfg(not(feature = "idna"))]
+            {
+                match domain {
+                    Cow::Owned(vec) => String::from_utf8(vec)
+                        .map(Cow::Owned)
+                        .map_err(|_| ParseError::InvalidDomainCharacter),
+                    // if borrowed then we can use the original cow
+                    Cow::Borrowed(_) => match input {
+                        Cow::Borrowed(s) => std::str::from_utf8(s.as_bytes())
+                            .map(Cow::Borrowed)
+                            .map_err(|_| ParseError::InvalidDomainCharacter),
+                        Cow::Owned(s) => String::from_utf8(s.into_bytes())
+                            .map(Cow::Owned)
+                            .map_err(|_| ParseError::InvalidDomainCharacter),
+                    },
+                }?
+            }
+        };
 
         if domain.is_empty() {
             return Err(ParseError::EmptyHost);

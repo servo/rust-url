@@ -70,9 +70,15 @@ pub fn domain_to_ascii(domain: &str) -> String {
 /// <https://url.spec.whatwg.org/#dom-url-domaintounicode>
 pub fn domain_to_unicode(domain: &str) -> String {
     match Host::parse(domain) {
-        Ok(Host::Domain(ref domain)) => {
-            let (unicode, _errors) = idna::domain_to_unicode(domain);
-            unicode
+        Ok(Host::Domain(domain)) => {
+            #[cfg(feature = "idna")]
+            {
+                idna::domain_to_unicode(&domain).0
+            }
+            #[cfg(not(feature = "idna"))]
+            {
+                domain
+            }
         }
         _ => String::new(),
     }
