@@ -1392,3 +1392,98 @@ fn test_parse_url_with_single_byte_control_host() {
     let url2 = Url::parse(url1.as_str()).unwrap();
     assert_eq!(url2, url1);
 }
+
+// WHATWG URL spec change (whatwg/url#874): Windows drive letter file paths.
+// `<alpha>:\` at the start of input is treated as a Windows drive path and
+// parsed into a `file:///<drive>:/...` URL.
+
+#[test]
+fn windows_drive_path_basic() {
+    let url = Url::parse(r"C:\path\file.txt").unwrap();
+    assert_eq!(url.as_str(), "file:///C:/path/file.txt");
+    assert_eq!(url.scheme(), "file");
+    assert_eq!(url.host(), None);
+    assert_eq!(url.path(), "/C:/path/file.txt");
+}
+
+#[test]
+fn windows_drive_path_different_drives() {
+    assert_eq!(
+        Url::parse(r"D:\foo\bar.exe").unwrap().as_str(),
+        "file:///D:/foo/bar.exe"
+    );
+    assert_eq!(
+        Url::parse(r"Z:\deep\nested\path.rs").unwrap().as_str(),
+        "file:///Z:/deep/nested/path.rs"
+    );
+}
+
+#[test]
+fn windows_drive_path_preserves_drive_case() {
+    // Per spec: drive letter case is preserved.
+    assert_eq!(
+        Url::parse(r"c:\folder\file.txt").unwrap().as_str(),
+        "file:///c:/folder/file.txt"
+    );
+    assert_eq!(
+        Url::parse(r"C:\folder\file.txt").unwrap().as_str(),
+        "file:///C:/folder/file.txt"
+    );
+}
+
+#[test]
+fn windows_drive_path_mixed_separators() {
+    // Forward slashes in the body are equivalent to backslashes for special schemes.
+    assert_eq!(
+        Url::parse(r"C:\path/mixed\separators/file.txt")
+            .unwrap()
+            .as_str(),
+        "file:///C:/path/mixed/separators/file.txt"
+    );
+}
+
+#[test]
+fn windows_drive_path_percent_encodes_spaces() {
+    assert_eq!(
+        Url::parse(r"C:\path with space\file.txt").unwrap().as_str(),
+        "file:///C:/path%20with%20space/file.txt"
+    );
+}
+
+#[test]
+fn windows_drive_path_drops_base() {
+    // The Windows-drive shortcut at top level ignores any base URL — the input
+    // is unambiguously absolute (file scheme, empty host).
+    let base = Url::parse("http://example.org/").unwrap();
+    let url = Url::options()
+        .base_url(Some(&base))
+        .parse(r"C:\path\file.node")
+        .unwrap();
+    assert_eq!(url.as_str(), "file:///C:/path/file.node");
+    assert_eq!(url.scheme(), "file");
+}
+
+#[test]
+fn windows_drive_path_with_query_and_fragment() {
+    let url = Url::parse(r"C:\path\file.txt?q=1#frag").unwrap();
+    assert_eq!(url.as_str(), "file:///C:/path/file.txt?q=1#frag");
+    assert_eq!(url.query(), Some("q=1"));
+    assert_eq!(url.fragment(), Some("frag"));
+}
+
+// Regression guard: `letter:/...` and `letter://...` shapes must NOT be
+// rewritten to `file:///` — these are scheme URLs (single-letter schemes are
+// valid per RFC 3986), not Windows drive paths. The spec change is scoped to
+// the `<alpha> : \` (backslash) shape only.
+#[test]
+fn windows_drive_path_does_not_rewrite_scheme_urls() {
+    assert_eq!(
+        Url::parse("a://example.net").unwrap().as_str(),
+        "a://example.net"
+    );
+    assert_eq!(Url::parse("h://.").unwrap().as_str(), "h://.");
+    assert_eq!(Url::parse("w://x:0").unwrap().as_str(), "w://x:0");
+    // `c:/foo` is a `c:` scheme URL, not a Windows drive path. Forward-slash
+    // drive paths remain untouched and require explicit `file:///C:/foo`.
+    assert_eq!(Url::parse("c:/foo").unwrap().as_str(), "c:/foo");
+}

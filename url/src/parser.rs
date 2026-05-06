@@ -378,6 +378,17 @@ impl Parser<'_> {
     /// https://url.spec.whatwg.org/#concept-basic-url-parser
     pub fn parse_url(mut self, input: &str) -> ParseResult<Url> {
         let input = Input::new_trim_c0_control_and_space(input, self.violation_fn);
+
+        // WHATWG URL spec change (whatwg/url#874): in scheme start state,
+        // when the parser sees `<ASCII alpha> : \`, it sets scheme to "file",
+        // host to empty, and transitions to path state. The single-letter
+        // "scheme" + `:\` is unambiguously a Windows drive path, not a URL.
+        // Forward-slash drive paths (`c:/foo`) are NOT covered by the spec
+        // change — those remain valid scheme URLs (e.g. `c:` scheme).
+        if starts_with_windows_drive_letter_path(&input) {
+            return self.parse_windows_drive_letter_path(input);
+        }
+
         if let Ok(remaining) = self.parse_scheme(input.clone()) {
             return self.parse_with_scheme(remaining);
         }
@@ -399,6 +410,38 @@ impl Parser<'_> {
         } else {
             Err(ParseError::RelativeUrlWithoutBase)
         }
+    }
+
+    /// Per WHATWG URL spec change (whatwg/url#874): handle a top-level input
+    /// starting with `<ASCII alpha> : \` as a Windows drive letter file path.
+    /// Sets scheme to "file", host to empty string, and runs path state over
+    /// the original input. Path state treats `\` as a path separator for
+    /// special schemes, producing a path of the form `/C:/path/file`.
+    fn parse_windows_drive_letter_path(mut self, input: Input<'_>) -> ParseResult<Url> {
+        debug_assert!(self.serialization.is_empty());
+        self.serialization.push_str("file://");
+        let scheme_end = "file".len() as u32;
+        let host_start = "file://".len() as u32;
+        let host_end = host_start;
+        let host = HostInternal::None;
+
+        let remaining = self.parse_path(SchemeType::File, &mut false, host_end as usize, input);
+
+        let (query_start, fragment_start) =
+            self.parse_query_and_fragment(SchemeType::File, scheme_end, remaining)?;
+
+        Ok(Url {
+            serialization: self.serialization,
+            scheme_end,
+            username_end: host_start,
+            host_start,
+            host_end,
+            host,
+            port: None,
+            path_start: host_end,
+            query_start,
+            fragment_start,
+        })
     }
 
     pub fn parse_scheme<'i>(&mut self, mut input: Input<'i>) -> Result<Input<'i>, ()> {
@@ -1793,6 +1836,19 @@ fn starts_with_windows_drive_letter(s: &str) -> bool {
         && ascii_alpha(s.as_bytes()[0] as char)
         && matches!(s.as_bytes()[1], b':' | b'|')
         && (s.len() == 2 || matches!(s.as_bytes()[2], b'/' | b'\\' | b'?' | b'#'))
+}
+
+/// Detect the Windows drive letter file-path shape `<alpha> : \` at the start
+/// of a top-level URL parser input. Per WHATWG URL spec change (whatwg/url#874),
+/// this pattern is treated as a Windows drive path (file URL) rather than a
+/// single-letter scheme. Forward-slash drive paths are intentionally not
+/// matched: `c:/foo` is a valid `c:` scheme URL and must not be rewritten.
+fn starts_with_windows_drive_letter_path(input: &Input<'_>) -> bool {
+    let mut iter = input.clone();
+    matches!(
+        (iter.next(), iter.next(), iter.next()),
+        (Some(a), Some(':'), Some('\\')) if ascii_alpha(a)
+    )
 }
 
 /// https://url.spec.whatwg.org/#start-with-a-windows-drive-letter
