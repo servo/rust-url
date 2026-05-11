@@ -67,6 +67,8 @@ jobs:
         # Run tests
       - name: Run tests
         run: cargo test
+      - name: Run percent-encoding IRI (iri) tests
+        run: cargo test -p percent-encoding --features iri
         # Run tests enabling the serde feature
       - name: Run tests with the serde feature
         run: cargo test --features "url/serde,url/expose_internals"
