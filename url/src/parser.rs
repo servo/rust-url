@@ -1368,7 +1368,7 @@ impl Parser<'_> {
                 break;
             }
         }
-        if scheme_type.is_file() {
+        if scheme_type.is_file() && self.context != Context::Setter {
             // while url’s path’s size is greater than 1
             // and url’s path[0] is the empty string,
             // validation error, remove the first item from url’s path.
