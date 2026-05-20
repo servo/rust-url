@@ -100,6 +100,7 @@ impl<'a> Parse<'a> {
 }
 
 /// Like `Parse`, but yields pairs of `String` instead of pairs of `Cow<str>`.
+#[derive(Clone)]
 pub struct ParseIntoOwned<'a> {
     inner: Parse<'a>,
 }
@@ -173,6 +174,7 @@ impl<'a> Iterator for ByteSerialize<'a> {
 
 /// The [`application/x-www-form-urlencoded` serializer](
 /// https://url.spec.whatwg.org/#concept-urlencoded-serializer).
+#[derive(Clone)]
 pub struct Serializer<'a, T: Target> {
     target: Option<T>,
     start_position: usize,
