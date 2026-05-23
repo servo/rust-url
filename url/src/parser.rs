@@ -1431,6 +1431,10 @@ impl Parser<'_> {
                 Some(('?', _)) | Some(('#', _)) if self.context == Context::UrlParser => {
                     return input_before_c
                 }
+                Some((' ', _)) if input.starts_with('?') || input.starts_with('#') || input.is_empty() => {
+                    self.serialization.push_str("%20");
+                    return input;
+                }
                 Some((c, utf8_c)) => {
                     self.check_url_code_point(c, &input);
                     self.serialization
