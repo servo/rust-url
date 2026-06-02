@@ -626,7 +626,7 @@ impl Uts46 {
     ///
     /// This is an imperfect security mechanism, because [the Punycode form itself may be
     /// resemble a user-recognizable name](https://www.unicode.org/reports/tr36/#TablePunycodeSpoofing).
-    /// However, since this mechanism is common practice, this API provides support for The
+    /// However, since this mechanism is common practice, this API provides support for
     /// the mechanism.
     ///
     /// ASCII labels always pass through as ASCII and labels with errors always pass through
@@ -760,9 +760,9 @@ impl Uts46 {
     /// # Security considerations
     ///
     /// Showing labels whose Unicode form might mislead the user as Punycode instead is
-    /// an imperfect security mechanism, because [the Punycode form itself may be resemble
+    /// an imperfect security mechanism, because [the Punycode form itself may resemble
     /// a user-recognizable name](https://www.unicode.org/reports/tr36/#TablePunycodeSpoofing).
-    /// However, since this mechanism is common practice, this API provides support for the
+    /// However, since this mechanism is common practice, this API provides support for
     /// the mechanism.
     ///
     /// Punycode processing is quadratic, so to avoid denial of service, this method imposes
