@@ -528,9 +528,8 @@ impl Parser<'_> {
                 self.serialization.push_str("file://");
                 let scheme_end = "file".len() as u32;
                 let host_start = "file://".len() as u32;
-                let (path_start, mut host, remaining) =
-                    self.parse_file_host(input_after_next_char)?;
-                let mut host_end = to_u32(self.serialization.len())?;
+                let (path_start, host, remaining) = self.parse_file_host(input_after_next_char)?;
+                let host_end = to_u32(self.serialization.len())?;
                 let mut has_host = !matches!(host, HostInternal::None);
                 let remaining = if path_start {
                     self.parse_path_start(SchemeType::File, &mut has_host, remaining)
@@ -540,14 +539,6 @@ impl Parser<'_> {
                     self.parse_path(SchemeType::File, &mut has_host, path_start, remaining)
                 };
 
-                // For file URLs that have a host and whose path starts
-                // with the windows drive letter we just remove the host.
-                if !has_host {
-                    self.serialization
-                        .drain(host_start as usize..host_end as usize);
-                    host_end = host_start;
-                    host = HostInternal::None;
-                }
                 let (query_start, fragment_start) =
                     self.parse_query_and_fragment(scheme_type, scheme_end, remaining)?;
                 return Ok(Url {
