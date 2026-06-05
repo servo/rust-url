@@ -310,7 +310,7 @@ impl<'a> PercentDecode<'a> {
     /// This is return `Err` when the percent-decoded bytes are not well-formed in UTF-8.
     #[cfg(feature = "alloc")]
     pub fn decode_utf8(self) -> Result<Cow<'a, str>, str::Utf8Error> {
-        match self.clone().into() {
+        match self.into() {
             Cow::Borrowed(bytes) => match str::from_utf8(bytes) {
                 Ok(s) => Ok(s.into()),
                 Err(e) => Err(e),
@@ -328,7 +328,7 @@ impl<'a> PercentDecode<'a> {
     /// the replacement character.
     #[cfg(feature = "alloc")]
     pub fn decode_utf8_lossy(self) -> Cow<'a, str> {
-        decode_utf8_lossy(self.clone().into())
+        decode_utf8_lossy(self.into())
     }
 }
 
