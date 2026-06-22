@@ -56,6 +56,8 @@ jobs:
           cargo update -p icu_normalizer --precise 2.0.1
           cargo update -p icu_provider --precise 2.0.0
           cargo update -p icu_locale_core --precise 2.0.1
+          # zerovec 0.11.6 bumped its MSRV to 1.83; 0.11.5 is the last to support 1.82
+          cargo update -p zerovec --precise 0.11.5
           # Older Unicode versions have a different test file
           cp idna/tests/IdnaTestV2-Unicode16.txt idna/tests/IdnaTestV2.txt
       - name: Add `aarch64-unknown-none` toolchain for `no_std` tests
