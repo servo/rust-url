@@ -774,6 +774,14 @@ impl Parser<'_> {
                     debug_assert!(base_url.byte_at(scheme_end) == b':');
                     self.serialization
                         .push_str(base_url.slice(..scheme_end + 1));
+                    // A special URL enters the "special authority ignore slashes
+                    // state", which skips *all* leading slashes and backslashes
+                    // before the authority (e.g. "///host" resolves to host
+                    // "host"). A non-special URL only treats the initial "//" as
+                    // the authority delimiter; any further slashes are the path.
+                    if scheme_type.is_special() {
+                        return self.after_double_slash(remaining, scheme_type, scheme_end);
+                    }
                     if let Some(after_prefix) = input.split_prefix("//") {
                         return self.after_double_slash(after_prefix, scheme_type, scheme_end);
                     }
