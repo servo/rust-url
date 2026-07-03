@@ -774,6 +774,9 @@ impl Parser<'_> {
                     debug_assert!(base_url.byte_at(scheme_end) == b':');
                     self.serialization
                         .push_str(base_url.slice(..scheme_end + 1));
+                    if scheme_type.is_special() {
+                        return self.after_double_slash(remaining, scheme_type, scheme_end);
+                    }
                     if let Some(after_prefix) = input.split_prefix("//") {
                         return self.after_double_slash(after_prefix, scheme_type, scheme_end);
                     }
