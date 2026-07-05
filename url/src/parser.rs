@@ -1320,7 +1320,11 @@ impl Parser<'_> {
                     debug_assert!(self.serialization.as_bytes()[segment_start - 1] == b'/');
                     self.serialization.truncate(segment_start);
                     if self.serialization.ends_with('/')
-                        && Parser::last_slash_can_be_removed(&self.serialization, path_start)
+                        && Parser::last_slash_can_be_removed(
+                            scheme_type,
+                            &self.serialization,
+                            path_start,
+                        )
                     {
                         self.serialization.pop();
                     }
@@ -1380,13 +1384,21 @@ impl Parser<'_> {
         input
     }
 
-    fn last_slash_can_be_removed(serialization: &str, path_start: usize) -> bool {
+    fn last_slash_can_be_removed(
+        scheme_type: SchemeType,
+        serialization: &str,
+        path_start: usize,
+    ) -> bool {
         let url_before_segment = &serialization[..serialization.len() - 1];
         if let Some(segment_before_start) = url_before_segment.rfind('/') {
             // Do not remove the root slash
             segment_before_start >= path_start
-                // Or a windows drive letter slash
-                && !path_starts_with_windows_drive_letter(&serialization[segment_before_start..])
+                // Or a windows drive letter slash. This exemption only applies to
+                // file: URLs: https://url.spec.whatwg.org/#pop-a-urls-path
+                && !(scheme_type.is_file()
+                    && path_starts_with_windows_drive_letter(
+                        &serialization[segment_before_start..],
+                    ))
         } else {
             false
         }
