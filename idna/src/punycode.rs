@@ -375,7 +375,7 @@ where
     if !C::EXTERNAL_CALLER {
         // We should never get an overflow here with the internal caller being
         // length-limited, but let's check anyway once here trusting the math
-        // from  RFC 3492 section 6.4 and then omit the overflow checks in the
+        // from RFC 3492 section 6.4 and then omit the overflow checks in the
         // loop below.
         let len_plus_one = input_length
             .checked_add(1)
