@@ -1740,7 +1740,7 @@ fn is_url_code_point(c: char) -> bool {
         '\u{F0000}'..='\u{FFFFD}' | '\u{100000}'..='\u{10FFFD}')
 }
 
-/// https://url.spec.whatwg.org/#c0-controls-and-space
+/// https://infra.spec.whatwg.org/#c0-control-or-space
 #[inline]
 fn c0_control_or_space(ch: char) -> bool {
     ch <= ' ' // U+0000 to U+0020
