@@ -542,6 +542,28 @@ fn append_empty_segment_then_mutate() {
 }
 
 #[test]
+fn append_path_returns_new_url() {
+    let url = Url::parse("http://www.example.com/api/v1/").unwrap();
+
+    let appended = url.append_path("/system/status").unwrap();
+
+    assert_eq!(url.as_str(), "http://www.example.com/api/v1/");
+    assert_eq!(
+        appended.as_str(),
+        "http://www.example.com/api/v1/system/status"
+    );
+}
+
+#[test]
+fn append_path_and_append_path_mut_fail_for_cannot_be_a_base() {
+    let url = Url::parse("mailto:test@example.net").unwrap();
+    assert!(url.append_path("x").is_err());
+
+    let mut url = Url::parse("mailto:test@example.net").unwrap();
+    assert!(url.append_path_mut("x").is_err());
+}
+
+#[test]
 /// https://github.com/servo/rust-url/issues/243
 fn test_set_host() {
     let mut url = Url::parse("https://example.net/hello").unwrap();
@@ -1391,4 +1413,43 @@ fn test_parse_url_with_single_byte_control_host() {
     let url1 = Url::parse(input).unwrap();
     let url2 = Url::parse(url1.as_str()).unwrap();
     assert_eq!(url2, url1);
+}
+
+#[test]
+/// append_path is an alternative to Url::join addressing issues described in
+/// https://github.com/servo/rust-url/issues/333
+fn test_append_path() {
+    // append_path behaves as expected when path is `/` regardless of trailing & leading slashes
+    let url = Url::parse("http://test.com").unwrap();
+    let url = url.append_path("/a/b/c").unwrap();
+    assert_eq!(url.as_str(), "http://test.com/a/b/c");
+
+    let url = Url::parse("http://test.com").unwrap();
+    let url = url.append_path("a/b/c").unwrap();
+    assert_eq!(url.as_str(), "http://test.com/a/b/c");
+
+    let url = Url::parse("http://test.com/").unwrap();
+    let url = url.append_path("/a/b/c").unwrap();
+    assert_eq!(url.as_str(), "http://test.com/a/b/c");
+
+    let url = Url::parse("http://test.com/").unwrap();
+    let url = url.append_path("a/b/c").unwrap();
+    assert_eq!(url.as_str(), "http://test.com/a/b/c");
+
+    // append_path behaves as expected when path is `/api/v1` regardless of trailing & leading slashes
+    let url = Url::parse("http://test.com/api/v1").unwrap();
+    let url = url.append_path("/a/b/c").unwrap();
+    assert_eq!(url.as_str(), "http://test.com/api/v1/a/b/c");
+
+    let url = Url::parse("http://test.com/api/v1").unwrap();
+    let url = url.append_path("a/b/c").unwrap();
+    assert_eq!(url.as_str(), "http://test.com/api/v1/a/b/c");
+
+    let url = Url::parse("http://test.com/api/v1/").unwrap();
+    let url = url.append_path("/a/b/c").unwrap();
+    assert_eq!(url.as_str(), "http://test.com/api/v1/a/b/c");
+
+    let url = Url::parse("http://test.com/api/v1/").unwrap();
+    let url = url.append_path("a/b/c").unwrap();
+    assert_eq!(url.as_str(), "http://test.com/api/v1/a/b/c");
 }
