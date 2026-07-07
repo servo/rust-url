@@ -51,8 +51,6 @@
 <non-special:opaque \t\t  \t#hi>
 <non-special:opaque \t\t  #hi>
 <non-special:opaque\t\t  \r #hi>
-<foo://host/ !\"$%&\'()*+,-./:;<=>@[\\]^_`{|}~>
-<wss://host/ !\"$%&\'()*+,-./:;<=>@[\\]^_`{|}~>
 <///test> against <http://example.org/>
 <///\\//\\//test> against <http://example.org/>
 <///example.org/path> against <http://example.org/>
@@ -61,7 +59,6 @@
 <///example.org/../path/../../> against <http://example.org/>
 <///example.org/../path/../../path> against <http://example.org/>
 </\\//\\/a/../> against <file:///>
-<a:/> set pathname to <\u{0}\u{1}\t\n\r\u{1f} !\"#$%&\'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~\u{7f}\u{80}\u{81}\u{c9}\u{e9}>
 <data:space                                                                                                                                  #fragment> set hash to <>
 <sc:space    #fragment> set hash to <>
 <data:space  ?query#fragment> set hash to <>
