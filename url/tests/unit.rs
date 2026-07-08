@@ -1392,3 +1392,23 @@ fn test_parse_url_with_single_byte_control_host() {
     let url2 = Url::parse(url1.as_str()).unwrap();
     assert_eq!(url2, url1);
 }
+
+#[test]
+fn test_path_percent_encode() {
+    let url = Url::parse("http://localhost/a b").unwrap();
+    assert_eq!(url.path(), "/a%20b");
+    let url = Url::parse("http://localhost/a\"b").unwrap();
+    assert_eq!(url.path(), "/a%22b");
+    let url = Url::parse("http://localhost/a<b").unwrap();
+    assert_eq!(url.path(), "/a%3Cb");
+    let url = Url::parse("http://localhost/a>b").unwrap();
+    assert_eq!(url.path(), "/a%3Eb");
+    let url = Url::parse("http://localhost/a^b").unwrap();
+    assert_eq!(url.path(), "/a%5Eb");
+    let url = Url::parse("http://localhost/a`b").unwrap();
+    assert_eq!(url.path(), "/a%60b");
+    let url = Url::parse("http://localhost/a{b").unwrap();
+    assert_eq!(url.path(), "/a%7Bb");
+    let url = Url::parse("http://localhost/a}b").unwrap();
+    assert_eq!(url.path(), "/a%7Db");
+}
