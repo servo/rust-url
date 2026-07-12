@@ -182,6 +182,46 @@ fn is_passthrough_ascii_label(label: &[u8]) -> bool {
     }
 }
 
+/// Like `is_passthrough_ascii_label`, but for labels whose only disqualifying
+/// feature is a leading ASCII digit. A leading digit is only invalid in a bidi
+/// domain name (Bidi rule 1), so such a label may be passed through when the
+/// domain name is known not to be bidi.
+#[inline(always)]
+fn is_leading_digit_passthrough_ascii_label(label: &[u8]) -> bool {
+    if let Some((&first, tail)) = label.split_first() {
+        if !in_inclusive_range8(first, b'0', b'9') {
+            return false;
+        }
+        for &b in tail {
+            if in_inclusive_range8(b, b'a', b'z') {
+                continue;
+            }
+            if in_inclusive_range8(b, b'0', b'9') {
+                continue;
+            }
+            if b == b'-' {
+                continue;
+            }
+            return false;
+        }
+        // A trailing hyphen stays rejected: it is both a bidi concern and a
+        // _CheckHyphens_ (V3) violation.
+        label.last() != Some(&b'-')
+    } else {
+        false
+    }
+}
+
+/// Whether a domain name may pass through labels with a leading ASCII digit,
+/// i.e. whether it cannot be a bidi domain name. A bidi domain name contains a
+/// character of Bidi property R, AL or AN, all of which are non-ASCII; an
+/// all-ASCII input reaches such a character only through an `xn--` punycode
+/// label, which always contains `--`.
+#[inline(never)]
+fn ascii_domain_permits_leading_digit_passthrough(domain_name: &[u8]) -> bool {
+    domain_name.is_ascii() && !domain_name.windows(2).any(|w| w == b"--")
+}
+
 #[inline(always)]
 fn split_ascii_fast_path_prefix(label: &[u8]) -> (&[u8], &[u8]) {
     if let Some(pos) = label.iter().position(|b| !b.is_ascii()) {
@@ -1103,6 +1143,10 @@ impl Uts46 {
         let deny_list = ascii_deny_list.bits;
         let deny_list_deny_dot = deny_list | DOT_MASK;
 
+        // Passing through a leading-digit label requires knowing the domain is
+        // not bidi; computed lazily since it is only needed for such labels.
+        let mut relax_leading_digit: Option<bool> = None;
+
         let mut had_errors = false;
 
         let mut passthrough_up_to = domain_name.len() - tail.len(); // Index into `domain_name`
@@ -1124,7 +1168,13 @@ impl Uts46 {
             // an ASCII fast path that bypasses the normalizer for ASCII
             // after a pre-existing ASCII dot (pre-existing in the sense
             // of not coming from e.g. normalizing an ideographic dot).
-            if in_prefix && is_passthrough_ascii_label(label) {
+            let can_passthrough = in_prefix
+                && (is_passthrough_ascii_label(label)
+                    || (is_leading_digit_passthrough_ascii_label(label)
+                        && *relax_leading_digit.get_or_insert_with(|| {
+                            ascii_domain_permits_leading_digit_passthrough(domain_name)
+                        })));
+            if can_passthrough {
                 if seen_label {
                     debug_assert_eq!(domain_name[passthrough_up_to], b'.');
                     passthrough_up_to += 1;

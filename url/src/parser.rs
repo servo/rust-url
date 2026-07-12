@@ -8,7 +8,7 @@
 
 use alloc::borrow::Cow;
 use alloc::string::String;
-use core::fmt::{self, Formatter, Write};
+use core::fmt::{self, Formatter};
 use core::str;
 
 use crate::host::{Host, HostInternal};
@@ -881,6 +881,27 @@ impl Parser<'_> {
         mut input: Input<'i>,
         scheme_type: SchemeType,
     ) -> ParseResult<(u32, Input<'i>)> {
+        // If there is no '@' before the end of the authority there is no
+        // userinfo. Tab, newline and multi-byte characters are never '@' or an
+        // authority terminator, so scanning the raw bytes reaches the same
+        // decision as the character loop below.
+        {
+            let mut has_at = false;
+            for &b in input.chars.as_str().as_bytes() {
+                match b {
+                    b'@' => {
+                        has_at = true;
+                        break;
+                    }
+                    b'/' | b'?' | b'#' => break,
+                    b'\\' if scheme_type.is_special() => break,
+                    _ => {}
+                }
+            }
+            if !has_at {
+                return Ok((to_u32(self.serialization.len())?, input));
+            }
+        }
         let mut last_at = None;
         let mut remaining = input.clone();
         let mut char_count = 0;
@@ -957,7 +978,7 @@ impl Parser<'_> {
         scheme_type: SchemeType,
     ) -> ParseResult<(u32, HostInternal, Option<u16>, Input<'i>)> {
         let (host, remaining) = Parser::parse_host(input, scheme_type)?;
-        write!(&mut self.serialization, "{host}").unwrap();
+        host.write_to_string(&mut self.serialization);
         let host_end = to_u32(self.serialization.len())?;
         if let Host::Domain(h) = &host {
             if h.is_empty() {
@@ -1023,12 +1044,12 @@ impl Parser<'_> {
         }
         let host_str;
         {
-            let host_input = input.by_ref().take(non_ignored_chars);
             if has_ignored_chars {
+                let host_input = input.by_ref().take(non_ignored_chars);
                 host_str = Cow::Owned(host_input.collect());
             } else {
-                for _ in host_input {}
                 host_str = Cow::Borrowed(&input_str[..bytes]);
+                input.chars = input_str[bytes..].chars();
             }
         }
         if scheme_type == SchemeType::SpecialNotFile && host_str.is_empty() {
@@ -1069,7 +1090,7 @@ impl Parser<'_> {
                     HostInternal::None
                 }
                 host => {
-                    write!(&mut self.serialization, "{host}").unwrap();
+                    host.write_to_string(&mut self.serialization);
                     has_host = true;
                     host.into()
                 }
@@ -1096,12 +1117,12 @@ impl Parser<'_> {
         let host_str;
         let mut remaining = input.clone();
         {
-            let host_input = remaining.by_ref().take(non_ignored_chars);
             if has_ignored_chars {
+                let host_input = remaining.by_ref().take(non_ignored_chars);
                 host_str = Cow::Owned(host_input.collect());
             } else {
-                for _ in host_input {}
                 host_str = Cow::Borrowed(&input_str[..bytes]);
+                remaining.chars = input_str[bytes..].chars();
             }
         }
         if is_windows_drive_letter(&host_str) {

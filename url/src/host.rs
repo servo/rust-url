@@ -96,14 +96,22 @@ impl<'a> Host<Cow<'a, str>> {
             }
             return parse_ipv6addr(&input[1..input.len() - 1]).map(Host::Ipv6);
         }
-        let domain: Cow<'_, [u8]> = percent_decode(input.as_bytes()).into();
-        let domain: Cow<'a, [u8]> = match domain {
-            Cow::Owned(v) => Cow::Owned(v),
-            // if borrowed then we can use the original cow
-            Cow::Borrowed(_) => match input {
+        // Only percent-decode when the input actually contains a `%`.
+        let domain: Cow<'a, [u8]> = if input.as_bytes().contains(&b'%') {
+            let domain: Cow<'_, [u8]> = percent_decode(input.as_bytes()).into();
+            match domain {
+                Cow::Owned(v) => Cow::Owned(v),
+                // if borrowed then we can use the original cow
+                Cow::Borrowed(_) => match input {
+                    Cow::Borrowed(input) => Cow::Borrowed(input.as_bytes()),
+                    Cow::Owned(input) => Cow::Owned(input.into_bytes()),
+                },
+            }
+        } else {
+            match input {
                 Cow::Borrowed(input) => Cow::Borrowed(input.as_bytes()),
                 Cow::Owned(input) => Cow::Owned(input.into_bytes()),
-            },
+            }
         };
 
         let domain = idna::domain_to_ascii_from_cow(domain, idna::AsciiDenyList::URL)?;
@@ -192,6 +200,19 @@ impl<S: AsRef<str>> fmt::Display for Host<S> {
                 f.write_str("[")?;
                 write_ipv6(addr, f)?;
                 f.write_str("]")
+            }
+        }
+    }
+}
+
+impl<S: AsRef<str>> Host<S> {
+    /// Appends the serialization of this host to `serialization`.
+    pub(crate) fn write_to_string(&self, serialization: &mut String) {
+        match *self {
+            Self::Domain(ref domain) => serialization.push_str(domain.as_ref()),
+            ref host => {
+                use core::fmt::Write;
+                let _ = write!(serialization, "{host}");
             }
         }
     }
