@@ -21,6 +21,7 @@ serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
 bencher = "0.1"
+gungraun = "0.19.4"
 
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dev-dependencies]
 wasm-bindgen-test = "0.3"
@@ -51,6 +52,11 @@ harness = false
 [[bench]]
 name = "parse_url"
 path = "benches/parse_url.rs"
+harness = false
+
+[[bench]]
+name = "parse_url_gungraun"
+path = "benches/parse_url_gungraun.rs"
 harness = false
 
 [package.metadata.docs.rs]
