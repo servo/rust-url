@@ -1414,8 +1414,12 @@ impl Parser<'_> {
             let slash_position = self.serialization[path_start..].rfind('/').unwrap();
             // + 1 since rfind returns the position before the slash.
             let segment_start = path_start + slash_position + 1;
-            // Don’t pop a Windows drive letter
+            // Don’t pop a Windows drive letter, but only when it is the sole
+            // path segment (path[0]). A drive-letter-shaped segment in a later
+            // position (e.g. "a:" in "/w:/a:") is an ordinary segment and must
+            // be popped. https://url.spec.whatwg.org/#shorten-a-urls-path
             if !(scheme_type.is_file()
+                && segment_start == path_start + 1
                 && is_normalized_windows_drive_letter(&self.serialization[segment_start..]))
             {
                 self.serialization.truncate(segment_start);
