@@ -50,7 +50,14 @@ impl AsciiSet {
     }
 
     pub(crate) fn should_percent_encode(&self, byte: u8) -> bool {
-        !byte.is_ascii() || self.contains(byte)
+        #[cfg(feature = "iri")]
+        {
+            byte.is_ascii() && self.contains(byte)
+        }
+        #[cfg(not(feature = "iri"))]
+        {
+            !byte.is_ascii() || self.contains(byte)
+        }
     }
 
     pub const fn add(&self, byte: u8) -> Self {
@@ -209,5 +216,30 @@ mod tests {
         assert!(!COMPLEMENT.contains(b'A'));
         assert!(!COMPLEMENT.contains(b'B'));
         assert!(COMPLEMENT.contains(b'C'));
+    }
+}
+
+#[cfg(all(test, feature = "iri"))]
+mod iri_tests {
+    use super::*;
+
+    #[test]
+    fn should_percent_encode_leaves_non_ascii_utf8_unencoded() {
+        let set = AsciiSet::EMPTY.add(b'/').add(b'%');
+        for &byte in "日本語.mp3".as_bytes() {
+            assert!(
+                !set.should_percent_encode(byte),
+                "byte {:#x} should not be percent-encoded",
+                byte
+            );
+        }
+    }
+
+    #[test]
+    fn should_percent_encode_still_encodes_ascii_in_set() {
+        let set = AsciiSet::EMPTY.add(b' ').add(b'?');
+        assert!(set.should_percent_encode(b' '));
+        assert!(set.should_percent_encode(b'?'));
+        assert!(!set.should_percent_encode(b'a'));
     }
 }
