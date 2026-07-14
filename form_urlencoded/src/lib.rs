@@ -115,17 +115,34 @@ impl Iterator for ParseIntoOwned<'_> {
 }
 
 /// The [`application/x-www-form-urlencoded` byte serializer](
-/// https://url.spec.whatwg.org/#concept-urlencoded-byte-serializer).
+/// https://url.spec.whatwg.org/#string-percent-encode-after-encoding).
+/// Converts spaces (b' ') to plus signs (b'+').
 ///
 /// Return an iterator of `&str` slices.
 pub fn byte_serialize(input: &[u8]) -> ByteSerialize<'_> {
-    ByteSerialize { bytes: input }
+    ByteSerialize {
+        bytes: input,
+        space_as_plus: true,
+    }
+}
+
+/// The [`application/x-www-form-urlencoded` byte serializer](
+/// https://url.spec.whatwg.org/#string-percent-encode-after-encoding).
+/// Converts spaces (b' ') to the percent-encoded equivalent ("%20").
+///
+/// Return an iterator of `&str` slices.
+pub fn byte_serialize_percent_encoded(input: &[u8]) -> ByteSerialize<'_> {
+    ByteSerialize {
+        bytes: input,
+        space_as_plus: false,
+    }
 }
 
 /// Return value of `byte_serialize()`.
 #[derive(Debug)]
 pub struct ByteSerialize<'a> {
     bytes: &'a [u8],
+    space_as_plus: bool,
 }
 
 fn byte_serialized_unchanged(byte: u8) -> bool {
@@ -139,7 +156,7 @@ impl<'a> Iterator for ByteSerialize<'a> {
         if let Some((&first, tail)) = self.bytes.split_first() {
             if !byte_serialized_unchanged(first) {
                 self.bytes = tail;
-                return Some(if first == b' ' {
+                return Some(if first == b' ' && self.space_as_plus {
                     "+"
                 } else {
                     percent_encode_byte(first)
@@ -428,3 +445,40 @@ pub(crate) fn decode_utf8_lossy(input: Cow<'_, [u8]>) -> Cow<'_, str> {
 }
 
 pub type EncodingOverride<'a> = Option<&'a dyn Fn(&str) -> Cow<'_, [u8]>>;
+
+#[cfg(test)]
+mod tests {
+    use alloc::string::String;
+
+    use crate::{byte_serialize, byte_serialize_percent_encoded};
+
+    #[test]
+    fn byte_serializer() {
+        let in_1 = "c ool/org";
+        let out_1 = "c+ool%2Forg";
+
+        let in_2 = "a🔒nother&bu=ck?et ";
+        let out_2 = "a%F0%9F%94%92nother%26bu%3Dck%3Fet+";
+
+        assert_eq!(byte_serialize(in_1.as_bytes()).collect::<String>(), out_1);
+        assert_eq!(byte_serialize(in_2.as_bytes()).collect::<String>(), out_2);
+    }
+
+    #[test]
+    fn byte_serializer_percent_encoded() {
+        let in_1 = "c ool/org";
+        let out_1 = "c%20ool%2Forg";
+
+        let in_2 = "a🔒nother&bu=ck?et ";
+        let out_2 = "a%F0%9F%94%92nother%26bu%3Dck%3Fet%20";
+
+        assert_eq!(
+            byte_serialize_percent_encoded(in_1.as_bytes()).collect::<String>(),
+            out_1
+        );
+        assert_eq!(
+            byte_serialize_percent_encoded(in_2.as_bytes()).collect::<String>(),
+            out_2
+        );
+    }
+}
