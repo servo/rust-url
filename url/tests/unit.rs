@@ -542,6 +542,27 @@ fn append_empty_segment_then_mutate() {
 }
 
 #[test]
+#[cfg(feature = "std")]
+#[cfg(windows)]
+fn extend_empty_segment_to_win_driver() {
+    let path_str = r"C:\";
+    let prefix_path = PathBuf::from(r"C:\");
+    let prefix_path = std::fs::canonicalize(prefix_path).expect("Failed to canonicalize path");
+    let mut url = Url::from_file_path(prefix_path).expect("Failed to parse path");
+    let empty_segment: [&str; 0] = [];
+
+    url.path_segments_mut()
+        .expect("url path")
+        .pop_if_empty()
+        .extend(empty_segment);
+
+    let path = url
+        .to_file_path()
+        .expect("Failed to parse the windows driver path");
+    assert_eq!(path.to_str(), Some(path_str));
+}
+
+#[test]
 /// https://github.com/servo/rust-url/issues/243
 fn test_set_host() {
     let mut url = Url::parse("https://example.net/hello").unwrap();
