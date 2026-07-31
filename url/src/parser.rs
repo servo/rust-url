@@ -284,13 +284,9 @@ impl<'i> Input<'i> {
     fn next_utf8(&mut self) -> Option<(char, &'i str)> {
         loop {
             let utf8 = self.chars.as_str();
-            match self.chars.next() {
-                Some(c) => {
-                    if !ascii_tab_or_new_line(c) {
-                        return Some((c, &utf8[..c.len_utf8()]));
-                    }
-                }
-                None => return None,
+            let c = self.chars.next()?;
+            if !ascii_tab_or_new_line(c) {
+                return Some((c, &utf8[..c.len_utf8()]));
             }
         }
     }
@@ -434,13 +430,7 @@ impl Parser<'_> {
         match scheme_type {
             SchemeType::File => {
                 self.log_violation_if(ExpectedFileDoubleSlash, || !input.starts_with("//"));
-                let base_file_url = self.base_url.and_then(|base| {
-                    if base.scheme() == "file" {
-                        Some(base)
-                    } else {
-                        None
-                    }
-                });
+                let base_file_url = self.base_url.filter(|base| base.scheme() == "file");
                 self.serialization.clear();
                 self.parse_file(input, scheme_type, base_file_url)
             }
