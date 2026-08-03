@@ -13,6 +13,9 @@ rust-version = "1.51"
 default = ["std"]
 std = ["alloc"]
 alloc = []
+# Encode only ASCII code units in `AsciiSet`; leave UTF-8 non-ASCII bytes literal (IRI-style).
+# Used by Anki for Unicode paths in file:/media references; see `AsciiSet::should_percent_encode`.
+iri = []
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--generate-link-to-definition"]
