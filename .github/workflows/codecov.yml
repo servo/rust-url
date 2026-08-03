@@ -15,7 +15,7 @@ jobs:
         with:
           tool: cargo-tarpaulin
       - run: cargo tarpaulin --out Xml
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v5
         # A codecov token is not needed for public repos if the repo is linked
         # on codecov.io. See https://docs.codecov.com/docs/frequently-asked-questions#where-is-the-repository-upload-token-found
       - uses: actions/upload-artifact@v4
