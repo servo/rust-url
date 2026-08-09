@@ -42,7 +42,6 @@
 <non-spec:/> set pathname to </..//p>
 <non-spec:/> set pathname to <//p>
 <non-spec:/.//> set pathname to <p>
-<file:///w|/m>
 <non-special:opaque  ?hi>
 <non-special:opaque  #hi>
 <non-special:opaque \t\t  \t#hi>
