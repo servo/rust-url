@@ -1323,7 +1323,8 @@ impl Parser<'_> {
                 _ => {
                     // If url’s scheme is "file", url’s path is empty, and buffer is a Windows drive letter, then
                     if scheme_type.is_file()
-                        && segment_start == path_start + 1
+                        && segment_start
+                            == Parser::file_first_segment_start(&self.serialization, path_start)
                         && is_windows_drive_letter(segment_before_slash)
                     {
                         // Replace the second code point in buffer with U+003A (:).
@@ -1359,6 +1360,16 @@ impl Parser<'_> {
         }
 
         input
+    }
+
+    /// The offset at which `path[0]` of a `file:` URL begins.
+    ///
+    /// While a hostless `file:` URL is being parsed the serialization carries a
+    /// run of slashes at `path_start` rather than a single one, so the first
+    /// segment does not always begin at `path_start + 1`.
+    fn file_first_segment_start(serialization: &str, path_start: usize) -> usize {
+        let path = &serialization[path_start..];
+        path_start + (path.len() - path.trim_start_matches('/').len())
     }
 
     fn last_slash_can_be_removed(serialization: &str, path_start: usize) -> bool {
