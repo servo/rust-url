@@ -2025,7 +2025,17 @@ impl Url {
         let scheme_type = SchemeType::from(self.scheme());
 
         if let Some(host) = host {
-            if host.is_empty() && scheme_type.is_special() && !scheme_type.is_file() {
+            // An empty host is only valid for a non-special scheme that has no
+            // credentials and no port. Setting it otherwise would produce a
+            // serialization (e.g. `foo://user@/` or `foo://:1/`) that the parser
+            // itself rejects with `EmptyHost`, breaking the parse/serialize
+            // roundtrip. Mirror the parser here.
+            if host.is_empty()
+                && ((scheme_type.is_special() && !scheme_type.is_file())
+                    || !self.username().is_empty()
+                    || self.password().is_some()
+                    || self.port().is_some())
+            {
                 return Err(ParseError::EmptyHost);
             }
             let mut host_substr = host;
