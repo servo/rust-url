@@ -243,6 +243,70 @@ impl<'a, T: Target> Serializer<'a, T> {
         self
     }
 
+    /// Remove all name/value pairs whose name is `name`.
+    ///
+    /// Names are compared after percent-decoding, so this matches the same
+    /// names that [`parse`] and `Url::query_pairs` would yield. Pairs that are
+    /// kept keep their original serialization.
+    ///
+    /// ```rust
+    /// use form_urlencoded;
+    /// let encoded: String = form_urlencoded::Serializer::new(String::from("a=1&b=2&a=3"))
+    ///     .remove_all("a")
+    ///     .finish();
+    /// assert_eq!(encoded, "b=2");
+    /// ```
+    ///
+    /// Panics if called after `.finish()`.
+    pub fn remove_all(&mut self, name: &str) -> &mut Self {
+        self.remove_pairs(name, false);
+        self
+    }
+
+    /// Remove the first name/value pair whose name is `name`.
+    ///
+    /// Names are compared after percent-decoding, so this matches the same
+    /// names that [`parse`] and `Url::query_pairs` would yield. Pairs that are
+    /// kept keep their original serialization.
+    ///
+    /// ```rust
+    /// use form_urlencoded;
+    /// let encoded: String = form_urlencoded::Serializer::new(String::from("a=1&b=2&a=3"))
+    ///     .remove_first("a")
+    ///     .finish();
+    /// assert_eq!(encoded, "b=2&a=3");
+    /// ```
+    ///
+    /// Panics if called after `.finish()`.
+    pub fn remove_first(&mut self, name: &str) -> &mut Self {
+        self.remove_pairs(name, true);
+        self
+    }
+
+    fn remove_pairs(&mut self, name: &str, first_only: bool) {
+        let start = self.start_position;
+        let string = string(&mut self.target);
+        if string.len() <= start {
+            return;
+        }
+        let mut kept = String::with_capacity(string.len() - start);
+        let mut removed = false;
+        for segment in string[start..].split('&') {
+            let matches = !(first_only && removed)
+                && decode(segment.split('=').next().unwrap_or("").as_bytes()).as_ref() == name;
+            if matches {
+                removed = true;
+                continue;
+            }
+            if !kept.is_empty() {
+                kept.push('&');
+            }
+            kept.push_str(segment);
+        }
+        string.truncate(start);
+        string.push_str(&kept);
+    }
+
     /// Set the character encoding to be used for names and values before percent-encoding.
     pub fn encoding_override(&mut self, new: EncodingOverride<'a>) -> &mut Self {
         self.encoding = new;
