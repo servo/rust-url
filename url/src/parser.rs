@@ -1391,7 +1391,6 @@ impl Parser<'_> {
 
     /// https://url.spec.whatwg.org/#pop-a-urls-path
     fn pop_path(&mut self, scheme_type: SchemeType, path_start: usize) {
-        std::dbg!(&self.serialization);
         if self.serialization.len() > path_start {
             let slash_position = self.serialization[path_start..].rfind('/').unwrap();
             // + 1 since rfind returns the position before the slash.
@@ -1406,7 +1405,6 @@ impl Parser<'_> {
                 self.serialization.truncate(segment_start);
             }
         }
-        std::dbg!(&self.serialization);
     }
 
     pub fn parse_cannot_be_a_base_path<'i>(&mut self, mut input: Input<'i>) -> Input<'i> {
