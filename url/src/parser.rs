@@ -1391,17 +1391,22 @@ impl Parser<'_> {
 
     /// https://url.spec.whatwg.org/#pop-a-urls-path
     fn pop_path(&mut self, scheme_type: SchemeType, path_start: usize) {
+        std::dbg!(&self.serialization);
         if self.serialization.len() > path_start {
             let slash_position = self.serialization[path_start..].rfind('/').unwrap();
             // + 1 since rfind returns the position before the slash.
             let segment_start = path_start + slash_position + 1;
             // Don’t pop a Windows drive letter
             if !(scheme_type.is_file()
+                // It's only a drive letter if it's at the beginning of a path,
+                // e.g. in `/a/c:` the `c:` isn't one because it's not at the start of a path.
+                && segment_start == path_start + 1
                 && is_normalized_windows_drive_letter(&self.serialization[segment_start..]))
             {
                 self.serialization.truncate(segment_start);
             }
         }
+        std::dbg!(&self.serialization);
     }
 
     pub fn parse_cannot_be_a_base_path<'i>(&mut self, mut input: Input<'i>) -> Input<'i> {
