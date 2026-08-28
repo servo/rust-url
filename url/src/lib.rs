@@ -1730,6 +1730,11 @@ impl Url {
 
     /// Change this URL’s path.
     ///
+    /// `Url` records offsets into its serialization as `u32`, so a URL whose
+    /// serialization would be longer than `u32::MAX` bytes cannot be
+    /// represented. If the given path would produce one, this method does
+    /// nothing and the URL is left unchanged.
+    ///
     /// # Examples
     ///
     /// ```rust
@@ -1768,7 +1773,22 @@ impl Url {
         let old_after_path_pos = to_u32(self.serialization.len()).unwrap();
         let cannot_be_a_base = self.cannot_be_a_base();
         let scheme_type = SchemeType::from(self.scheme());
-        self.serialization.truncate(self.path_start as usize);
+        let path_start = self.path_start as usize;
+
+        // Percent-encoding grows the input by at most a factor of three, and a
+        // leading slash of a cannot-be-a-base path becomes "%2F", three bytes.
+        // When even that upper bound stays within the `u32` offsets that `Url`
+        // keeps into its serialization -- as it does for every input that is
+        // not pathologically large -- the reparse below cannot overflow them
+        // and there is nothing to undo, so the old path need not be kept.
+        let max_new_len = path_start as u64 + path.len() as u64 * 3 + 3 + after_path.len() as u64;
+        let old_path = if max_new_len > u32::MAX as u64 {
+            Some(self.serialization[path_start..].to_owned())
+        } else {
+            None
+        };
+
+        self.serialization.truncate(path_start);
         self.mutate(|parser| {
             if cannot_be_a_base {
                 if path.starts_with('/') {
@@ -1785,6 +1805,19 @@ impl Url {
                 );
             }
         });
+
+        if let Some(old_path) = old_path {
+            if self.serialization.len() as u64 + after_path.len() as u64 > u32::MAX as u64 {
+                // The new path does not fit in the offsets `Url` stores, so it
+                // cannot be represented. Put the old one back and leave the URL
+                // as it was, rather than overflowing those offsets.
+                self.serialization.truncate(path_start);
+                self.serialization.push_str(&old_path);
+                self.serialization.push_str(&after_path);
+                return;
+            }
+        }
+
         self.restore_after_path(old_after_path_pos, &after_path);
     }
 
