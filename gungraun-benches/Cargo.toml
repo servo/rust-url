@@ -1,0 +1,19 @@
+[package]
+name = "rust-url-gungraun-benches"
+version = "0.0.0"
+publish = false
+edition = "2021"
+rust-version = "1.90"
+
+[dependencies]
+gungraun = "0.19.4"
+idna = { path = "../idna" }
+url = { path = "../url" }
+
+[[bench]]
+name = "idna"
+harness = false
+
+[[bench]]
+name = "parse_url"
+harness = false

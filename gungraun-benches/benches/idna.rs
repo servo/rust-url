@@ -1,6 +1,7 @@
-//! Callgrind-based instruction-count benchmarks for idna, mirroring the cases
-//! in `all.rs`. Run with `cargo bench -p idna --bench all_gungraun` (requires
-//! Valgrind and a matching `gungraun-runner`).
+//! Callgrind-based instruction-count benchmarks for IDNA, mirroring the cases
+//! in `idna/benches/all.rs`. Run with `cargo bench --manifest-path
+//! gungraun-benches/Cargo.toml --bench idna` (requires Valgrind and a matching
+//! `gungraun-runner`).
 
 #![allow(deprecated)]
 
@@ -29,15 +30,15 @@ fn to_ascii(encoded: &str) -> Result<String, Errors> {
 }
 
 #[library_benchmark]
-#[bench::plain("example.com".as_bytes())]
-#[bench::hyphen("hyphenated-example.com".as_bytes())]
-#[bench::leading_digit("1test.example".as_bytes())]
+#[bench::plain(b"example.com")]
+#[bench::hyphen(b"hyphenated-example.com")]
+#[bench::leading_digit(b"1test.example")]
 #[bench::unicode_mixed("مثال.example".as_bytes())]
-#[bench::punycode_mixed("xn--mgbh0fb.example".as_bytes())]
+#[bench::punycode_mixed(b"xn--mgbh0fb.example")]
 #[bench::unicode_ltr("නම.උදාහරණ".as_bytes())]
-#[bench::punycode_ltr("xn--r0co.xn--ozc8dl2c3bxd".as_bytes())]
+#[bench::punycode_ltr(b"xn--r0co.xn--ozc8dl2c3bxd")]
 #[bench::unicode_rtl("الاسم.مثال".as_bytes())]
-#[bench::punycode_rtl("xn--mgba0b1dh.xn--mgbh0fb".as_bytes())]
+#[bench::punycode_rtl(b"xn--mgba0b1dh.xn--mgbh0fb")]
 fn to_ascii_cow(encoded: &[u8]) -> Result<Cow<'_, str>, Errors> {
     idna::domain_to_ascii_cow(black_box(encoded), AsciiDenyList::URL)
 }

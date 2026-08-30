@@ -1,6 +1,7 @@
 //! Callgrind-based instruction-count benchmarks for URL parsing, mirroring the
-//! cases in `parse_url.rs`. Run with `cargo bench -p url --bench
-//! parse_url_gungraun` (requires Valgrind and a matching `gungraun-runner`).
+//! cases in `url/benches/parse_url.rs`. Run with `cargo bench --manifest-path
+//! gungraun-benches/Cargo.toml --bench parse_url` (requires Valgrind and a
+//! matching `gungraun-runner`).
 
 use std::hint::black_box;
 use std::path::PathBuf;
