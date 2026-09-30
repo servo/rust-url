@@ -154,7 +154,7 @@ pub use form_urlencoded;
 #[cfg(feature = "std")]
 extern crate std;
 
-#[macro_use]
+#[cfg_attr(feature = "parsing", macro_use)]
 extern crate alloc;
 
 #[cfg(feature = "serde")]
@@ -172,13 +172,15 @@ use crate::net::IpAddr;
     target_os = "hermit"
 ))]
 use crate::net::{SocketAddr, ToSocketAddrs};
-use crate::parser::{to_u32, Context, Parser, SchemeType, USERINFO};
+use crate::parser::{to_u32, Parser, SchemeType, USERINFO};
 use alloc::borrow::Cow;
 use alloc::borrow::ToOwned;
 use alloc::str;
-use alloc::string::{String, ToString};
+use alloc::string::String;
+#[cfg(feature = "parsing")]
+use alloc::string::ToString;
+#[cfg(feature = "parsing")]
 use core::borrow::Borrow;
-use core::convert::TryFrom;
 use core::fmt::Write;
 use core::ops::{Range, RangeFrom, RangeTo};
 use core::{cmp, fmt, hash, mem};
@@ -302,13 +304,14 @@ impl<'a> ParseOptions<'a> {
     }
 
     /// Parse an URL string with the configuration so far.
+    #[cfg(feature = "parsing")]
     pub fn parse(self, input: &str) -> Result<Url, crate::ParseError> {
         Parser {
             serialization: String::with_capacity(input.len()),
             base_url: self.base_url,
             query_encoding_override: self.encoding_override,
             violation_fn: self.violation_fn,
-            context: Context::UrlParser,
+            context: crate::parser::Context::UrlParser,
         }
         .parse_url(input)
     }
@@ -336,6 +339,7 @@ impl Url {
     /// a [`ParseError`] variant will be returned.
     ///
     /// [`ParseError`]: enum.ParseError.html
+    #[cfg(feature = "parsing")]
     #[inline]
     pub fn parse(input: &str) -> Result<Self, crate::ParseError> {
         Self::options().parse(input)
@@ -366,6 +370,7 @@ impl Url {
     /// a [`ParseError`] variant will be returned.
     ///
     /// [`ParseError`]: enum.ParseError.html
+    #[cfg(feature = "parsing")]
     #[inline]
     pub fn parse_with_params<I, K, V>(input: &str, iter: I) -> Result<Self, crate::ParseError>
     where
@@ -466,6 +471,7 @@ impl Url {
     ///
     /// [`ParseError`]: enum.ParseError.html
     /// [`make_relative`]: #method.make_relative
+    #[cfg(feature = "parsing")]
     #[inline]
     pub fn join(&self, input: &str) -> Result<Self, crate::ParseError> {
         Self::options().base_url(Some(self)).parse(input)
@@ -682,6 +688,7 @@ impl Url {
     /// Methods of the `Url` struct assume a number of invariants.
     /// This checks each of these invariants and panic if one is not met.
     /// This is for testing rust-url itself.
+    #[cfg(feature = "parsing")]
     #[doc(hidden)]
     pub fn check_invariants(&self) -> Result<(), String> {
         macro_rules! assert {
@@ -878,6 +885,7 @@ impl Url {
     /// # }
     /// # run().unwrap();
     /// ```
+    #[cfg(feature = "parsing")]
     #[inline]
     pub fn origin(&self) -> Origin {
         origin::url_origin(self)
@@ -2017,6 +2025,7 @@ impl Url {
     /// a [`ParseError`] variant will be returned.
     ///
     /// [`ParseError`]: enum.ParseError.html
+    #[cfg(feature = "parsing")]
     pub fn set_host(&mut self, host: Option<&str>) -> Result<(), ParseError> {
         if self.cannot_be_a_base() {
             return Err(ParseError::SetHostOnCannotBeABaseUrl);
@@ -2773,6 +2782,7 @@ impl Url {
 }
 
 /// Parse a string as an URL, without a base URL or encoding override.
+#[cfg(feature = "parsing")]
 impl str::FromStr for Url {
     type Err = ParseError;
 
@@ -2782,7 +2792,8 @@ impl str::FromStr for Url {
     }
 }
 
-impl<'a> TryFrom<&'a str> for Url {
+#[cfg(feature = "parsing")]
+impl<'a> core::convert::TryFrom<&'a str> for Url {
     type Error = ParseError;
 
     fn try_from(s: &'a str) -> Result<Self, Self::Error> {
