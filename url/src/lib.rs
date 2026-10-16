@@ -459,6 +459,33 @@ impl Url {
     /// # run().unwrap();
     /// ```
     ///
+    /// To append a path segment instead of resolving a URL reference, use
+    /// [`path_segments_mut()`](Self::path_segments_mut). This preserves the existing
+    /// path, including its last non-empty segment. Call
+    /// [`pop_if_empty()`](PathSegmentsMut::pop_if_empty) before appending if you want
+    /// to treat bases with and without a trailing slash alike:
+    ///
+    /// ```rust
+    /// use url::Url;
+    ///
+    /// for base in &["https://example.net/a", "https://example.net/a/"] {
+    ///     let mut url = Url::parse(base).unwrap();
+    ///     url.path_segments_mut()
+    ///         .expect("HTTP URLs can be a base")
+    ///         .pop_if_empty()
+    ///         .push("b/c.png");
+    ///     assert_eq!(url.as_str(), "https://example.net/a/b%2Fc.png");
+    /// }
+    /// ```
+    ///
+    /// Each argument to [`push()`](PathSegmentsMut::push) is one unencoded segment,
+    /// so embedded slashes and percent signs are percent-encoded. To append multiple
+    /// segments, call `push()` for each segment or use
+    /// [`extend()`](PathSegmentsMut::extend). This mutates the URL in place and keeps
+    /// its query and fragment; clone the URL first if you need to preserve the original.
+    /// The `.` and `..` segments are ignored, as described in `extend()`.
+    /// URLs that cannot be a base, such as `mailto:` URLs, do not support path segments.
+    ///
     /// # Errors
     ///
     /// If the function can not parse an URL from the given string
