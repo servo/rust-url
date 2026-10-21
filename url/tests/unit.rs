@@ -1032,6 +1032,46 @@ fn test_set_scheme_to_file_with_host() {
 }
 
 #[test]
+fn test_set_scheme_to_file_with_credentials() {
+    let mut url: Url = "http://user:pass@localhost/foo/bar".parse().unwrap();
+    let result = url.set_scheme("file");
+    assert_eq!(url.to_string(), "http://user:pass@localhost/foo/bar");
+    assert_eq!(result, Err(()));
+}
+
+#[test]
+fn test_set_scheme_to_file_without_port_or_credentials() {
+    let mut url: Url = "http://localhost/foo/bar".parse().unwrap();
+    let result = url.set_scheme("file");
+    assert_eq!(result, Ok(()));
+    assert_eq!(url.to_string(), "file://localhost/foo/bar");
+}
+
+#[test]
+fn test_set_scheme_file_to_file() {
+    let mut url: Url = "file:///path/to/file.js".parse().unwrap();
+    let result = url.set_scheme("file");
+    assert_eq!(result, Ok(()));
+    assert_eq!(url.to_string(), "file:///path/to/file.js");
+}
+
+#[test]
+fn test_set_scheme_from_file_with_empty_host() {
+    let mut url: Url = "file:///test".parse().unwrap();
+    let result = url.set_scheme("https");
+    assert_eq!(url.to_string(), "file:///test");
+    assert_eq!(result, Err(()));
+}
+
+#[test]
+fn test_set_scheme_from_file_with_host() {
+    let mut url: Url = "file://host/path".parse().unwrap();
+    let result = url.set_scheme("https");
+    assert_eq!(result, Ok(()));
+    assert_eq!(url.to_string(), "https://host/path");
+}
+
+#[test]
 fn test_set_scheme_empty_err() {
     let mut url: Url = "http://localhost:6767/foo/bar".parse().unwrap();
     let result = url.set_scheme("");
