@@ -1108,7 +1108,10 @@ impl Parser<'_> {
                     return Err(ParseError::InvalidPort);
                 }
                 has_any_digit = true;
-            } else if context == Context::UrlParser && !matches!(c, '/' | '\\' | '?' | '#') {
+            } else if context == Context::UrlParser
+                && !matches!(c, '/' | '?' | '#')
+                && !(c == '\\' && default_port().is_some())
+            {
                 return Err(ParseError::InvalidPort);
             } else {
                 break;

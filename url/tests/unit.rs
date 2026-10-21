@@ -1428,3 +1428,13 @@ fn test_set_path_double_dot_on_file_root() {
     url.set_path("..");
     assert_eq!(url.as_str(), "file:///");
 }
+
+#[test]
+fn issue_1155() {
+    assert_eq!(
+        Url::parse("htup://a:b@c:2\\9/"),
+        Err(url::ParseError::InvalidPort)
+    );
+    let url = Url::parse("http://a:b@c:2\\9/").unwrap();
+    assert_eq!(url.as_str(), "http://a:b@c:2/9/");
+}
