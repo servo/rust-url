@@ -67,6 +67,282 @@ fn test_relative_empty() {
     assert_eq!(url.as_str(), "sc://%C3%B1");
 }
 
+fn parse_relative_with_diagnostics(
+    base: &Url,
+    input: &str,
+) -> (Result<Url, url::ParseError>, Vec<url::SyntaxViolation>) {
+    let events = RefCell::new(Vec::new());
+    let callback = |event| events.borrow_mut().push(event);
+    let result = Url::options()
+        .base_url(Some(base))
+        .syntax_violation_callback(Some(&callback))
+        .parse(input);
+    (result, events.into_inner())
+}
+
+#[test]
+fn test_relative_separator_wpt_regressions() {
+    use url::SyntaxViolation::{ExpectedDoubleSlash, NonUrlCodePoint};
+
+    // Exact input/base/href identities from WPT c48d58747e1f211527fb695fd60548a997fae617,
+    // url/resources/urltestdata.json, indices 984-990 and 1004-1006.
+    // Callback assertions additionally test the corresponding parser states;
+    // the WPT fixture itself defines URL outcomes, not these callback enums.
+    let cases: &[(&str, &str, &str, &[url::SyntaxViolation])] = &[
+        (
+            "http://example.org/",
+            "///test",
+            "http://test/",
+            &[ExpectedDoubleSlash],
+        ),
+        (
+            "http://example.org/",
+            r"///\//\//test",
+            "http://test/",
+            &[
+                ExpectedDoubleSlash,
+                ExpectedDoubleSlash,
+                ExpectedDoubleSlash,
+                ExpectedDoubleSlash,
+                ExpectedDoubleSlash,
+                ExpectedDoubleSlash,
+                ExpectedDoubleSlash,
+            ],
+        ),
+        (
+            "http://example.org/",
+            "///example.org/path",
+            "http://example.org/path",
+            &[ExpectedDoubleSlash],
+        ),
+        (
+            "http://example.org/",
+            "///example.org/../path",
+            "http://example.org/path",
+            &[ExpectedDoubleSlash],
+        ),
+        (
+            "http://example.org/",
+            "///example.org/../../",
+            "http://example.org/",
+            &[ExpectedDoubleSlash],
+        ),
+        (
+            "http://example.org/",
+            "///example.org/../path/../../",
+            "http://example.org/",
+            &[ExpectedDoubleSlash],
+        ),
+        (
+            "http://example.org/",
+            "///example.org/../path/../../path",
+            "http://example.org/path",
+            &[ExpectedDoubleSlash],
+        ),
+        ("foo://foo/a", r"\a", r"foo://foo/\a", &[NonUrlCodePoint]),
+        ("foo://foo/a", r"\/a", r"foo://foo/\/a", &[NonUrlCodePoint]),
+        (
+            "foo://foo/a",
+            r"\\a",
+            r"foo://foo/\\a",
+            &[NonUrlCodePoint, NonUrlCodePoint],
+        ),
+    ];
+    for &(base, input, href, events) in cases {
+        let base = Url::parse(base).unwrap();
+        let original = base.clone();
+        for _ in 0..3 {
+            let (result, actual_events) = parse_relative_with_diagnostics(&base, input);
+            assert_eq!(result.unwrap().as_str(), href, "{input:?}");
+            assert_eq!(actual_events, events, "{input:?}");
+            assert_eq!(base.join(input).unwrap().as_str(), href);
+            assert_eq!(base, original);
+        }
+    }
+}
+
+#[test]
+fn test_relative_separator_scheme_matrix() {
+    use url::SyntaxViolation::{
+        Backslash, EmbeddedCredentials, ExpectedDoubleSlash, NonUrlCodePoint, PercentDecode,
+    };
+
+    // Expected suffixes are literal state-machine expectations, never generated
+    // by joining/parsing the input. The same reference grammar applies to each
+    // special non-file scheme, independently of transport availability.
+    let special: &[(&str, &str, &[url::SyntaxViolation])] = &[
+        ("/a", "//u:p@base.test:8123/a", &[]),
+        (r"\a", "//u:p@base.test:8123/a", &[Backslash]),
+        ("//other.test/a", "//other.test/a", &[]),
+        ("///other.test/a", "//other.test/a", &[ExpectedDoubleSlash]),
+        (
+            "////other.test/a",
+            "//other.test/a",
+            &[ExpectedDoubleSlash, ExpectedDoubleSlash],
+        ),
+        (r"\\other.test/a", "//other.test/a", &[Backslash, Backslash]),
+        (r"/\other.test/a", "//other.test/a", &[Backslash]),
+        (r"\/other.test/a", "//other.test/a", &[Backslash]),
+        (r"//\other.test/a", "//other.test/a", &[ExpectedDoubleSlash]),
+        (
+            "//new:pw@other.test:8443/a%20b?x#f",
+            "//new:pw@other.test:8443/a%20b?x#f",
+            &[EmbeddedCredentials],
+        ),
+        ("//[::1]:8443/a", "//[::1]:8443/a", &[]),
+        ("?next", "//u:p@base.test:8123/dir/page?next", &[]),
+        ("#after", "//u:p@base.test:8123/dir/page?old#after", &[]),
+        ("", "//u:p@base.test:8123/dir/page?old", &[]),
+        (
+            "child%2Fname%20ok?q=2#f",
+            "//u:p@base.test:8123/dir/child%2Fname%20ok?q=2#f",
+            &[],
+        ),
+        (
+            "child%zz",
+            "//u:p@base.test:8123/dir/child%zz",
+            &[PercentDecode],
+        ),
+    ];
+    for scheme in ["http", "https", "ftp", "ws", "wss"] {
+        let base = Url::parse(&format!(
+            "{scheme}://u:p@base.test:8123/dir/page?old#before"
+        ))
+        .unwrap();
+        let original = base.clone();
+        for &(input, suffix, events) in special {
+            let (result, actual_events) = parse_relative_with_diagnostics(&base, input);
+            assert_eq!(
+                result.unwrap().as_str(),
+                format!("{scheme}:{suffix}"),
+                "{scheme}: {input:?}"
+            );
+            assert_eq!(actual_events, events, "{scheme}: {input:?}");
+            assert_eq!(base, original);
+        }
+    }
+
+    let non_special: &[(&str, &str, &[url::SyntaxViolation])] = &[
+        (r"\a", r"//u:p@base.test:8123/dir/\a", &[NonUrlCodePoint]),
+        (
+            r"\\a",
+            r"//u:p@base.test:8123/dir/\\a",
+            &[NonUrlCodePoint, NonUrlCodePoint],
+        ),
+        (r"\/a", r"//u:p@base.test:8123/dir/\/a", &[NonUrlCodePoint]),
+        (r"/\a", r"//u:p@base.test:8123/\a", &[NonUrlCodePoint]),
+        ("//other.test/a", "//other.test/a", &[]),
+        ("///other.test/a", "///other.test/a", &[]),
+        ("////other.test/a", "////other.test/a", &[]),
+        (r"///\a", r"///\a", &[NonUrlCodePoint]),
+        (
+            "//new:pw@other.test:8443/a%20b?x#f",
+            "//new:pw@other.test:8443/a%20b?x#f",
+            &[EmbeddedCredentials],
+        ),
+        ("?next", "//u:p@base.test:8123/dir/page?next", &[]),
+        ("#after", "//u:p@base.test:8123/dir/page?old#after", &[]),
+        ("", "//u:p@base.test:8123/dir/page?old", &[]),
+    ];
+    for scheme in ["foo", "git", "custom"] {
+        let base = Url::parse(&format!(
+            "{scheme}://u:p@base.test:8123/dir/page?old#before"
+        ))
+        .unwrap();
+        let original = base.clone();
+        for &(input, suffix, events) in non_special {
+            let (result, actual_events) = parse_relative_with_diagnostics(&base, input);
+            assert_eq!(
+                result.unwrap().as_str(),
+                format!("{scheme}:{suffix}"),
+                "{scheme}: {input:?}"
+            );
+            assert_eq!(actual_events, events, "{scheme}: {input:?}");
+            assert_eq!(base, original);
+        }
+    }
+}
+
+#[test]
+fn test_relative_separator_failures() {
+    use url::ParseError::{
+        EmptyHost, InvalidDomainCharacter, InvalidIpv6Address, InvalidPort,
+        RelativeUrlWithCannotBeABaseBase,
+    };
+    use url::SyntaxViolation::{Backslash, EmbeddedCredentials, ExpectedDoubleSlash};
+
+    let cases: &[(&str, &str, url::ParseError, &[url::SyntaxViolation])] = &[
+        ("http://base.test/a", "//", EmptyHost, &[]),
+        (
+            "http://base.test/a",
+            "///",
+            EmptyHost,
+            &[ExpectedDoubleSlash],
+        ),
+        (
+            "http://base.test/a",
+            r"\\",
+            EmptyHost,
+            &[Backslash, Backslash],
+        ),
+        ("http://base.test/a", "//[::1", InvalidIpv6Address, &[]),
+        ("http://base.test/a", "//other:70000", InvalidPort, &[]),
+        (
+            "http://base.test/a",
+            "///user:pw@other:70000",
+            InvalidPort,
+            &[ExpectedDoubleSlash, EmbeddedCredentials],
+        ),
+        (
+            "foo://base.test/a",
+            r"//\other",
+            InvalidDomainCharacter,
+            &[],
+        ),
+        ("foo:payload", r"\a", RelativeUrlWithCannotBeABaseBase, &[]),
+    ];
+    for &(base, input, error, events) in cases {
+        let base = Url::parse(base).unwrap();
+        let original = base.clone();
+        for _ in 0..3 {
+            let (result, actual_events) = parse_relative_with_diagnostics(&base, input);
+            assert_eq!(result.unwrap_err(), error, "{input:?}");
+            assert_eq!(actual_events, events, "{input:?}");
+            assert_eq!(base.join(input).unwrap_err(), error);
+            assert_eq!(base, original);
+        }
+    }
+}
+
+#[test]
+fn test_relative_separator_diagnostic_order() {
+    use url::SyntaxViolation::{
+        Backslash, EmbeddedCredentials, ExpectedDoubleSlash, NullInFragment, PercentDecode,
+        TabOrNewlineIgnored,
+    };
+
+    let base = Url::parse("http://base:secret@base.test:8123/dir/page?old#before").unwrap();
+    let original = base.clone();
+    let input = "\\\\/\\u:p@ho\tst/a%zz\\b#x\0y";
+    let expected = [
+        TabOrNewlineIgnored,
+        Backslash,
+        Backslash,
+        ExpectedDoubleSlash,
+        ExpectedDoubleSlash,
+        EmbeddedCredentials,
+        PercentDecode,
+        Backslash,
+        NullInFragment,
+    ];
+    for _ in 0..3 {
+        let (result, events) = parse_relative_with_diagnostics(&base, input);
+        assert_eq!(result.unwrap().as_str(), "http://u:p@host/a%zz/b#x%00y");
+        assert_eq!(events, expected);
+        assert_eq!(base, original);
+    }
+}
+
 #[test]
 fn test_strip_trailing_spaces_from_opaque_path() {
     let mut url: Url = "data:space   ?query".parse().unwrap();
