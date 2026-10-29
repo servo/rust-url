@@ -349,6 +349,12 @@ impl AsciiDenyList {
     /// parsing) you need to check for IPv6 addresses first and not
     /// put them through UTS 46 processing.
     pub const URL: Self = Self::new(true, "%#/:<>?@[\\]^|");
+
+    /// Whether the ASCII byte `b` is denied. Upper-case letters count as denied,
+    /// because UTS 46 maps them, so pass lower-cased input.
+    pub(crate) const fn denies(self, b: u8) -> bool {
+        b < 0x80 && self.bits & (1u128 << b) != 0
+    }
 }
 
 /// The _CheckHyphens_ mode.
@@ -546,6 +552,19 @@ impl Uts46 {
         hyphens: Hyphens,
         dns_length: DnsLength,
     ) -> Result<Cow<'a, str>, crate::Errors> {
+        self.to_ascii_or_input(domain_name, ascii_deny_list, hyphens, dns_length)
+            .map_err(|_| crate::Errors::default())
+    }
+
+    /// Like `to_ascii_from_cow`, but hands `domain_name` back on failure, so that
+    /// the caller can fall back to it without keeping a copy.
+    pub(crate) fn to_ascii_or_input<'a>(
+        &self,
+        domain_name: Cow<'a, [u8]>,
+        ascii_deny_list: AsciiDenyList,
+        hyphens: Hyphens,
+        dns_length: DnsLength,
+    ) -> Result<Cow<'a, str>, Cow<'a, [u8]>> {
         let mut s = String::new();
         match self.process(
             &domain_name,
@@ -565,7 +584,10 @@ impl Uts46 {
                 if dns_length != DnsLength::Ignore
                     && !verify_dns_length(&cow, dns_length == DnsLength::VerifyAllowRootDot)
                 {
-                    Err(crate::Errors::default())
+                    Err(match cow {
+                        Cow::Borrowed(v) => Cow::Borrowed(v.as_bytes()),
+                        Cow::Owned(v) => Cow::Owned(v.into_bytes()),
+                    })
                 } else {
                     Ok(cow)
                 }
@@ -575,12 +597,12 @@ impl Uts46 {
                 if dns_length != DnsLength::Ignore
                     && !verify_dns_length(&cow, dns_length == DnsLength::VerifyAllowRootDot)
                 {
-                    Err(crate::Errors::default())
+                    Err(domain_name)
                 } else {
                     Ok(cow)
                 }
             }
-            Err(ProcessingError::ValidityError) => Err(crate::Errors::default()),
+            Err(ProcessingError::ValidityError) => Err(domain_name),
             Err(ProcessingError::SinkError) => unreachable!(),
         }
     }
