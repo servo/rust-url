@@ -1412,3 +1412,25 @@ fn test_path_percent_encode() {
     let url = Url::parse("http://localhost/a}b").unwrap();
     assert_eq!(url.path(), "/a%7Db");
 }
+
+#[test]
+fn test_relative_backslashes_in_non_special_urls() {
+    for (base, directory) in [
+        ("foo://fo", "foo://fo/"),
+        ("foo://fo/dir/file?old#frag", "foo://fo/dir/"),
+    ] {
+        let base = Url::parse(base).unwrap();
+        for input in [r"\/a", r"\\a", r"\a"] {
+            let joined = base.join(input).unwrap();
+            assert_eq!(joined.as_str(), format!("{directory}{input}"));
+            assert_eq!(joined.host_str(), Some("fo"));
+            assert_eq!(Url::parse(joined.as_str()).unwrap(), joined);
+        }
+        assert_eq!(base.join(r"/\a").unwrap().as_str(), r"foo://fo/\a");
+        assert_eq!(base.join("//a").unwrap().as_str(), "foo://a");
+    }
+    let base = Url::parse("http://fo/dir/file?old#frag").unwrap();
+    for input in [r"\/a", r"\\a", r"/\a"] {
+        assert_eq!(base.join(input).unwrap().as_str(), "http://a/");
+    }
+}
