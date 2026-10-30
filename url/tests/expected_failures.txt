@@ -48,13 +48,6 @@
 <non-special:opaque \t\t  \t#hi>
 <non-special:opaque \t\t  #hi>
 <non-special:opaque\t\t  \r #hi>
-<///test> against <http://example.org/>
-<///\\//\\//test> against <http://example.org/>
-<///example.org/path> against <http://example.org/>
-<///example.org/../path> against <http://example.org/>
-<///example.org/../../> against <http://example.org/>
-<///example.org/../path/../../> against <http://example.org/>
-<///example.org/../path/../../path> against <http://example.org/>
 </\\//\\/a/../> against <file:///>
 <data:space                                                                                                                                  #fragment> set hash to <>
 <sc:space    #fragment> set hash to <>
