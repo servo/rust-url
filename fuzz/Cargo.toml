@@ -1,0 +1,57 @@
+[package]
+name = "rust-url-fuzz"
+version = "0.0.1"
+authors = ["Automatically generated"]
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+url = { path = "../url" }
+idna = { path = "../idna", features = ["std"] }
+percent-encoding = { path = "../percent_encoding", features = ["alloc"] }
+form_urlencoded = { path = "../form_urlencoded", features = ["alloc"] }
+data-url = { path = "../data-url", features = ["std"] }
+
+# --- Fuzz targets ---
+
+[[bin]]
+name = "fuzz_url_parse_roundtrip"
+path = "fuzz_targets/fuzz_url_parse_roundtrip.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_url_differential"
+path = "fuzz_targets/fuzz_url_differential.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_url_setters"
+path = "fuzz_targets/fuzz_url_setters.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_idna"
+path = "fuzz_targets/fuzz_idna.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_data_url"
+path = "fuzz_targets/fuzz_data_url.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_form_urlencoded"
+path = "fuzz_targets/fuzz_form_urlencoded.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_percent_encoding"
+path = "fuzz_targets/fuzz_percent_encoding.rs"
+doc = false
+
+[workspace]
+members = ["."]
