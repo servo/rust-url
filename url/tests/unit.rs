@@ -199,6 +199,23 @@ fn new_path_bad_utf8() {
 }
 
 #[test]
+#[cfg(all(feature = "std", target_os = "wasi", not(target_env = "p2")))]
+fn new_path_wasi_bad_utf8() {
+    use std::ffi::OsStr;
+    use std::os::wasi::ffi::OsStrExt;
+
+    let path = Path::new(OsStr::from_bytes(b"/foo/ba\x80r"));
+    assert_eq!(Url::from_file_path(path), Err(()));
+}
+
+#[test]
+#[cfg(all(feature = "std", target_os = "wasi"))]
+fn new_path_wasi_unicode() {
+    assert_from_file_path!("/foo/ba\u{fffd}r", "/foo/ba%EF%BF%BDr");
+    assert_from_file_path!("/foo/ba\u{00e9}r", "/foo/ba%C3%A9r");
+}
+
+#[test]
 #[cfg(all(feature = "std", windows))]
 fn new_path_windows_fun() {
     assert_from_file_path!(r"C:\foo\bar", "/C:/foo/bar");
