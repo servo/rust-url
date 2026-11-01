@@ -94,10 +94,14 @@ fn parse_parameters(s: &str, parameters: &mut Vec<(String, String)>) {
     while let Some(piece) = semicolon_separated.next() {
         let piece = piece.trim_start_matches(http_whitespace);
         let (name, value) = split2(piece, '=');
+        // Parameter names are ASCII case-insensitive: the duplicate check of
+        // https://mimesniff.spec.whatwg.org/#parsing-a-mime-type compares them
+        // after ASCII lowercasing.
+        let name = name.to_ascii_lowercase();
         // We can not early return on an invalid name here, because the value
         // parsing later may consume more semicolon separated pieces.
         let name_valid =
-            !name.is_empty() && only_http_token_code_points(name) && !contains(parameters, name);
+            !name.is_empty() && only_http_token_code_points(&name) && !contains(parameters, &name);
         if let Some(value) = value {
             let value = if let Some(stripped) = value.strip_prefix('"') {
                 let max_len = stripped.len().saturating_sub(1); // without end quote
@@ -144,7 +148,7 @@ fn parse_parameters(s: &str, parameters: &mut Vec<(String, String)>) {
                 }
                 value.to_owned()
             };
-            parameters.push((name.to_ascii_lowercase(), value))
+            parameters.push((name, value))
         }
     }
 }
@@ -237,3 +241,17 @@ fn test_basic_mime() {
     };
     assert!(mime.matches("text", "html"));
 }
+#[test]
+fn parameter_names_are_deduplicated_case_insensitively() {
+    use alloc::string::ToString;
+    // https://mimesniff.spec.whatwg.org/#parsing-a-mime-type
+    // Parameter names are ASCII-lowercased before the duplicate check, so a
+    // later parameter whose name only differs in case is ignored.
+    let mime: Mime = "text/plain;charset=utf8;CHARSET=latin1".parse().unwrap();
+    assert_eq!(
+        mime.parameters,
+        alloc::vec![("charset".into(), "utf8".into())]
+    );
+    assert_eq!(mime.to_string(), "text/plain;charset=utf8");
+}
+
