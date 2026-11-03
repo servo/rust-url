@@ -532,6 +532,47 @@ fn extend_query_pairs_then_mutate() {
 }
 
 #[test]
+/// https://github.com/servo/rust-url/issues/1087
+fn remove_query_pairs() {
+    let mut url: Url = "http://example.com/?a=1&b=2&a=3#frag".parse().unwrap();
+    url.query_pairs_mut().remove_all("a");
+    url.check_invariants().unwrap();
+    assert_eq!(url.to_string(), "http://example.com/?b=2#frag");
+
+    let mut url: Url = "http://example.com/?a=1&b=2&a=3".parse().unwrap();
+    url.query_pairs_mut().remove_first("a");
+    url.check_invariants().unwrap();
+    assert_eq!(url.to_string(), "http://example.com/?b=2&a=3");
+
+    // Removing a name that isn't present leaves the query untouched.
+    let mut url: Url = "http://example.com/?a=1&b=2".parse().unwrap();
+    url.query_pairs_mut().remove_all("c");
+    url.check_invariants().unwrap();
+    assert_eq!(url.to_string(), "http://example.com/?a=1&b=2");
+
+    // Removing every pair leaves an empty query, like `clear`.
+    let mut url: Url = "http://example.com/?a=1&a=2".parse().unwrap();
+    url.query_pairs_mut().remove_all("a");
+    url.check_invariants().unwrap();
+    assert_eq!(url.to_string(), "http://example.com/?");
+}
+
+#[test]
+fn remove_query_pairs_percent_decoded() {
+    // The name is matched after percent-decoding, so `%61` matches `a`,
+    // and retained pairs keep their original serialization.
+    let mut url: Url = "http://example.com/?%61=1&b=2".parse().unwrap();
+    url.query_pairs_mut().remove_all("a");
+    url.check_invariants().unwrap();
+    assert_eq!(url.to_string(), "http://example.com/?b=2");
+
+    let encoded: String = form_urlencoded::Serializer::new(String::from("a+b=1&c=2"))
+        .remove_all("a b")
+        .finish();
+    assert_eq!(encoded, "c=2");
+}
+
+#[test]
 /// https://github.com/servo/rust-url/issues/222
 fn append_empty_segment_then_mutate() {
     let mut url: Url = "http://localhost:6767/foo/bar?a=b".parse().unwrap();
