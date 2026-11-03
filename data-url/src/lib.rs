@@ -90,6 +90,11 @@ impl<'a> DataUrl<'a> {
         &self.mime_type
     }
 
+    /// Return whether the data URL uses base64 encoding.
+    pub fn is_base64(&self) -> bool {
+        self.base64
+    }
+
     /// Streaming-decode the data URL’s body to `write_body_bytes`,
     /// and return the URL’s fragment identifier if it has one.
     pub fn decode<F, E>(
