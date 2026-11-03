@@ -9,6 +9,7 @@ license = "MIT OR Apache-2.0"
 edition = "2018"
 autotests = false
 rust-version = "1.51"
+include = ["src/**/*", "LICENSE-*", "README.md", "tests/**"]
 
 [features]
 default = ["std"]

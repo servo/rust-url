@@ -9,6 +9,17 @@ license = "MIT OR Apache-2.0"
 autotests = false
 edition = "2018"
 rust-version = "1.57" # For panic in const context
+# tests ship in the package because distro packagers (e.g. Debian autopkgtest) run
+# them from the crates.io tarball. IdnaTestV2-Unicode16.txt is CI-only (copied over
+# IdnaTestV2.txt in .github/workflows/main.yml) and never read from the package.
+include = [
+  "src/**/*",
+  "LICENSE-*",
+  "README.md",
+  "tests/*.rs",
+  "tests/*.json",
+  "tests/IdnaTestV2.txt",
+]
 
 [lib]
 doctest = false
