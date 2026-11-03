@@ -1397,6 +1397,9 @@ impl Parser<'_> {
             let segment_start = path_start + slash_position + 1;
             // Don’t pop a Windows drive letter
             if !(scheme_type.is_file()
+                // It's only a drive letter if it's at the beginning of a path,
+                // e.g. in `/a/c:` the `c:` isn't one because it's not at the start of a path.
+                && segment_start == path_start + 1
                 && is_normalized_windows_drive_letter(&self.serialization[segment_start..]))
             {
                 self.serialization.truncate(segment_start);

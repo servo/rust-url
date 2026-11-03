@@ -1351,6 +1351,25 @@ fn test_file_with_drive_and_path() {
     assert_eq!(url2.to_string(), "file:///p:/a");
 }
 
+#[test]
+fn test_file_base_drive_shaped_segment() {
+    let testcases = [
+        ("file:a/c:", "..", "file:///"),
+        (
+            "file:a/c:",
+            "../example-1.0-py3-none-any.whl",
+            "file:///example-1.0-py3-none-any.whl",
+        ),
+        ("file:///w:/c:", "file:..", "file:///w:/"),
+        ("file:///c:/..", "", "file:///c:/"),
+    ];
+
+    for (base, reference, expected) in testcases {
+        let base = Url::parse(base).unwrap();
+        assert_eq!(base.join(reference).unwrap().as_str(), expected);
+    }
+}
+
 #[cfg(feature = "std")]
 #[test]
 fn issue_864() {
