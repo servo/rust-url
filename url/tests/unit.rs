@@ -1261,6 +1261,12 @@ fn test_make_relative() {
         ("http://127.0.0.1:8080/", "http://127.0.0.1:8081/test/"),
         ("http://127.0.0.1:8080/", "http://127.0.0.2:8080/test/"),
         ("mailto:a@example.com", "mailto:b@example.com"),
+        // the target cannot be a base, so no relative reference against this
+        // base can resolve to it - even though the scheme matches
+        ("foo:/a/b", "foo:bar"),
+        ("foo:/a/b", "foo:"),
+        ("foo:/a/b", "foo:a/b"),
+        ("foo:/a/b", "foo:?q"),
     ];
 
     for (base, uri) in &error_tests {
