@@ -6,13 +6,14 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+#[cfg(feature = "parsing")]
 use alloc::borrow::Cow;
 use alloc::string::String;
-use core::fmt::{self, Formatter, Write};
+use core::fmt::{self, Formatter};
 use core::str;
 
-use crate::host::{Host, HostInternal};
-use crate::Url;
+#[cfg(feature = "parsing")]
+use crate::{Url, host::{Host, HostInternal}};
 use form_urlencoded::EncodingOverride;
 use percent_encoding::{percent_encode, utf8_percent_encode, AsciiSet, CONTROLS};
 
@@ -97,6 +98,7 @@ simple_enum_error! {
     Overflow => "URLs more than 4 GB are not supported",
 }
 
+#[cfg(feature = "parsing")]
 impl From<::idna::Errors> for ParseError {
     fn from(_: ::idna::Errors) -> Self {
         Self::IdnaError
@@ -221,6 +223,7 @@ impl<'i> Input<'i> {
         }
     }
 
+    #[cfg(feature = "parsing")]
     pub fn new_trim_c0_control_and_space(
         original_input: &'i str,
         vfn: Option<&dyn Fn(SyntaxViolation)>,
@@ -250,6 +253,7 @@ impl<'i> Input<'i> {
     }
 
     #[inline]
+    #[cfg(feature = "parsing")]
     pub fn split_prefix<P: Pattern>(&self, p: P) -> Option<Self> {
         let mut remaining = self.clone();
         if p.split_prefix(&mut remaining) {
@@ -266,6 +270,7 @@ impl<'i> Input<'i> {
     }
 
     #[inline]
+    #[cfg(feature = "parsing")]
     fn count_matching<F: Fn(char) -> bool>(&self, f: F) -> (u32, Self) {
         let mut count = 0;
         let mut remaining = self.clone();
@@ -332,6 +337,7 @@ impl Iterator for Input<'_> {
 
 pub struct Parser<'a> {
     pub serialization: String,
+    #[cfg(feature = "parsing")]
     pub base_url: Option<&'a Url>,
     pub query_encoding_override: EncodingOverride<'a>,
     pub violation_fn: Option<&'a dyn Fn(SyntaxViolation)>,
@@ -352,6 +358,7 @@ impl Parser<'_> {
         }
     }
 
+    #[cfg(feature = "parsing")]
     fn log_violation_if(&self, v: SyntaxViolation, test: impl FnOnce() -> bool) {
         if let Some(f) = self.violation_fn {
             if test() {
@@ -363,6 +370,7 @@ impl Parser<'_> {
     pub fn for_setter(serialization: String) -> Self {
         Parser {
             serialization,
+            #[cfg(feature = "parsing")]
             base_url: None,
             query_encoding_override: None,
             violation_fn: None,
@@ -370,6 +378,7 @@ impl Parser<'_> {
         }
     }
 
+    #[cfg(feature = "parsing")]
     /// https://url.spec.whatwg.org/#concept-basic-url-parser
     pub fn parse_url(mut self, input: &str) -> ParseResult<Url> {
         let input = Input::new_trim_c0_control_and_space(input, self.violation_fn);
@@ -422,6 +431,7 @@ impl Parser<'_> {
         }
     }
 
+    #[cfg(feature = "parsing")]
     fn parse_with_scheme(mut self, input: Input<'_>) -> ParseResult<Url> {
         use crate::SyntaxViolation::{ExpectedDoubleSlash, ExpectedFileDoubleSlash};
         let scheme_end = to_u32(self.serialization.len())?;
@@ -461,6 +471,7 @@ impl Parser<'_> {
         }
     }
 
+    #[cfg(feature = "parsing")]
     /// Scheme other than file, http, https, ws, ws, ftp.
     fn parse_non_special(
         mut self,
@@ -498,6 +509,7 @@ impl Parser<'_> {
         )
     }
 
+    #[cfg(feature = "parsing")]
     fn parse_file(
         mut self,
         input: Input<'_>,
@@ -700,6 +712,7 @@ impl Parser<'_> {
         }
     }
 
+    #[cfg(feature = "parsing")]
     fn parse_relative(
         mut self,
         input: Input<'_>,
@@ -821,6 +834,7 @@ impl Parser<'_> {
         }
     }
 
+    #[cfg(feature = "parsing")]
     fn after_double_slash(
         mut self,
         input: Input<'_>,
@@ -857,6 +871,7 @@ impl Parser<'_> {
     }
 
     /// Return (username_end, remaining)
+    #[cfg(feature = "parsing")]
     fn parse_userinfo<'i>(
         &mut self,
         mut input: Input<'i>,
@@ -931,12 +946,15 @@ impl Parser<'_> {
         Ok((username_end, remaining))
     }
 
+    #[cfg(feature = "parsing")]
     fn parse_host_and_port<'i>(
         &mut self,
         input: Input<'i>,
         scheme_end: u32,
         scheme_type: SchemeType,
     ) -> ParseResult<(u32, HostInternal, Option<u16>, Input<'i>)> {
+        use core::fmt::Write;
+
         let (host, remaining) = Parser::parse_host(input, scheme_type)?;
         write!(&mut self.serialization, "{host}").unwrap();
         let host_end = to_u32(self.serialization.len())?;
@@ -968,6 +986,7 @@ impl Parser<'_> {
         Ok((host_end, host.into(), port, remaining))
     }
 
+    #[cfg(feature = "parsing")]
     pub fn parse_host(
         mut input: Input<'_>,
         scheme_type: SchemeType,
@@ -1023,6 +1042,7 @@ impl Parser<'_> {
         Ok((host, input))
     }
 
+    #[cfg(feature = "parsing")]
     fn get_file_host(input: Input<'_>) -> ParseResult<(Host<Cow<'_, str>>, Input<'_>)> {
         let (_, host_str, remaining) = Parser::file_host(input)?;
         let host = match Host::parse(&host_str)? {
@@ -1034,10 +1054,13 @@ impl Parser<'_> {
         Ok((host, remaining))
     }
 
+    #[cfg(feature = "parsing")]
     fn parse_file_host<'i>(
         &mut self,
         input: Input<'i>,
     ) -> ParseResult<(bool, HostInternal, Input<'i>)> {
+        use core::fmt::Write;
+
         let has_host;
         let (_, host_str, remaining) = Parser::file_host(input)?;
         let host = if host_str.is_empty() {
@@ -1059,6 +1082,7 @@ impl Parser<'_> {
         Ok((has_host, host, remaining))
     }
 
+    #[cfg(feature = "parsing")]
     pub fn file_host(input: Input<'_>) -> ParseResult<(bool, Cow<'_, str>, Input<'_>)> {
         // Undo the Input abstraction here to avoid allocating in the common case
         // where the host part of the input does not contain any tab or newline
@@ -1421,6 +1445,7 @@ impl Parser<'_> {
         }
     }
 
+    #[cfg(feature = "parsing")]
     #[allow(clippy::too_many_arguments)]
     fn with_query_and_fragment(
         mut self,
@@ -1492,6 +1517,7 @@ impl Parser<'_> {
     }
 
     /// Return (query_start, fragment_start)
+    #[cfg(feature = "parsing")]
     fn parse_query_and_fragment(
         &mut self,
         scheme_type: SchemeType,
@@ -1602,6 +1628,7 @@ impl Parser<'_> {
         None
     }
 
+    #[cfg(feature = "parsing")]
     fn fragment_only(mut self, base_url: &Url, mut input: Input<'_>) -> ParseResult<Url> {
         let before_fragment = match base_url.fragment_start {
             Some(i) => base_url.slice(..i),
@@ -1721,6 +1748,7 @@ fn is_url_code_point(c: char) -> bool {
 }
 
 /// https://infra.spec.whatwg.org/#c0-control-or-space
+#[cfg(feature = "parsing")]
 #[inline]
 fn c0_control_or_space(ch: char) -> bool {
     ch <= ' ' // U+0000 to U+0020
@@ -1776,6 +1804,7 @@ fn starts_with_windows_drive_letter(s: &str) -> bool {
 }
 
 /// https://url.spec.whatwg.org/#start-with-a-windows-drive-letter
+#[cfg(feature = "parsing")]
 fn starts_with_windows_drive_letter_segment(input: &Input<'_>) -> bool {
     let mut input = input.clone();
     match (input.next(), input.next(), input.next()) {
@@ -1793,6 +1822,7 @@ fn starts_with_windows_drive_letter_segment(input: &Input<'_>) -> bool {
     }
 }
 
+#[cfg(feature = "parsing")]
 #[inline]
 fn fast_u16_to_str(
     // max 5 digits for u16 (65535)
