@@ -1351,6 +1351,42 @@ fn test_file_with_drive_and_path() {
     assert_eq!(url2.to_string(), "file:///p:/a");
 }
 
+#[test]
+fn test_file_drive_segment_empty_host_first() {
+    let url = Url::parse("file:///w|/m").unwrap();
+
+    assert_eq!(url.as_str(), "file:///w:/m");
+    assert_eq!(url.host_str(), None);
+    assert_eq!(url.path(), "/w:/m");
+}
+
+#[test]
+fn test_file_drive_segment_with_host_first() {
+    let url = Url::parse("file://host/w|/m").unwrap();
+
+    assert_eq!(url.as_str(), "file://host/w:/m");
+    assert_eq!(url.host_str(), Some("host"));
+    assert_eq!(url.path(), "/w:/m");
+}
+
+#[test]
+fn test_file_drive_segment_with_host_second() {
+    let url = Url::parse("file://host//w|/m").unwrap();
+
+    assert_eq!(url.as_str(), "file://host//w|/m");
+    assert_eq!(url.host_str(), Some("host"));
+    assert_eq!(url.path(), "//w|/m");
+}
+
+#[test]
+fn test_file_drive_segment_empty_host_second() {
+    let url = Url::parse("file:////w|/m").unwrap();
+
+    assert_eq!(url.as_str(), "file:////w|/m");
+    assert_eq!(url.host_str(), None);
+    assert_eq!(url.path(), "//w|/m");
+}
+
 #[cfg(feature = "std")]
 #[test]
 fn issue_864() {
