@@ -2353,9 +2353,9 @@ impl Url {
     ///
     /// * If the new scheme is not in `[a-zA-Z][a-zA-Z0-9+.-]+`
     /// * If this URL is cannot-be-a-base and the new scheme is one of
-    ///   `http`, `https`, `ws`, `wss` or `ftp`
-    /// * If either the old or new scheme is `http`, `https`, `ws`,
-    ///   `wss` or `ftp` and the other is not one of these
+    ///   `http`, `https`, `ws`, `wss`, `ftp` or `file`
+    /// * If either the old or new scheme is a special scheme
+    ///   (`http`, `https`, `ws`, `wss`, `ftp` or `file`) and the other is not
     /// * If the new scheme is `file` and this URL includes credentials
     ///   or has a non-null port
     /// * If this URL's scheme is `file` and its host is empty or null
