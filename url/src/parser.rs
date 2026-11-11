@@ -1405,6 +1405,12 @@ impl Parser<'_> {
     }
 
     pub fn parse_cannot_be_a_base_path<'i>(&mut self, mut input: Input<'i>) -> Input<'i> {
+        const OPAQUE_PATH_SET: &AsciiSet = &CONTROLS.add(b'?').add(b'#');
+        let encode_set = if self.context == Context::UrlParser {
+            CONTROLS
+        } else {
+            OPAQUE_PATH_SET
+        };
         loop {
             let input_before_c = input.clone();
             match input.next_utf8() {
@@ -1414,7 +1420,7 @@ impl Parser<'_> {
                 Some((c, utf8_c)) => {
                     self.check_url_code_point(c, &input);
                     self.serialization
-                        .extend(utf8_percent_encode(utf8_c, CONTROLS));
+                        .extend(utf8_percent_encode(utf8_c, encode_set));
                 }
                 None => return input,
             }

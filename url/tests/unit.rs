@@ -720,6 +720,45 @@ fn test_no_base_url() {
 }
 
 #[test]
+fn test_set_opaque_path_delimiters() {
+    for (path, encoded) in [
+        ("a?b", "a%3Fb"),
+        ("a#b", "a%23b"),
+        ("a#b?c", "a%23b%3Fc"),
+        ("/a?#", "%2Fa%3F%23"),
+        ("a%3Fb%23c", "a%3Fb%23c"),
+    ] {
+        for suffix in ["", "?old=query", "#old-fragment", "?old=query#old-fragment"] {
+            let mut url = Url::parse(&format!("custom:old{suffix}")).unwrap();
+            let query = url.query().map(str::to_owned);
+            let fragment = url.fragment().map(str::to_owned);
+            url.set_path(path);
+            assert_eq!(url.path(), encoded, "path: {path}, suffix: {suffix}");
+            assert_eq!(url.query(), query.as_deref());
+            assert_eq!(url.fragment(), fragment.as_deref());
+            assert!(url.cannot_be_a_base());
+            assert_eq!(url.as_str(), format!("custom:{encoded}{suffix}"));
+            assert_eq!(Url::parse(url.as_str()).unwrap(), url);
+        }
+    }
+}
+
+#[test]
+fn test_opaque_path_preserves_other_characters() {
+    let mut url = Url::parse("custom:old?query#fragment").unwrap();
+    url.set_path("a b/\\c<d>é%20");
+    assert_eq!(url.path(), "a b/\\c<d>%C3%A9%20");
+    assert_eq!(url.query(), Some("query"));
+    assert_eq!(url.fragment(), Some("fragment"));
+    assert_eq!(Url::parse(url.as_str()).unwrap(), url);
+
+    let parsed = Url::parse("custom:a?query#fragment").unwrap();
+    assert_eq!(parsed.path(), "a");
+    assert_eq!(parsed.query(), Some("query"));
+    assert_eq!(parsed.fragment(), Some("fragment"));
+}
+
+#[test]
 fn test_domain() {
     let url = Url::parse("https://127.0.0.1/").unwrap();
     assert_eq!(url.domain(), None);
