@@ -2513,6 +2513,7 @@ impl Url {
     ///
     /// This returns `Err` if the given path is not absolute or,
     /// on Windows, if the prefix is not a disk prefix (e.g. `C:`) or a UNC prefix (`\\`).
+    /// On WASI, this also returns `Err` if the path is not valid UTF-8.
     ///
     /// # Examples
     ///
@@ -2571,6 +2572,7 @@ impl Url {
     ///
     /// This returns `Err` if the given path is not absolute or,
     /// on Windows, if the prefix is not a disk prefix (e.g. `C:`) or a UNC prefix (`\\`).
+    /// On WASI, this also returns `Err` if the path is not valid UTF-8.
     ///
     /// Compared to `from_file_path`, this ensure that URL’s the path has a trailing slash
     /// so that the entire path is considered when using this URL as a base URL.
@@ -2970,7 +2972,7 @@ fn path_to_file_url_segments(
         ));
         #[cfg(target_os = "wasi")]
         serialization.extend(percent_encode(
-            component.as_os_str().to_string_lossy().as_bytes(),
+            component.as_os_str().to_str().ok_or(())?.as_bytes(),
             SPECIAL_PATH_SEGMENT,
         ));
     }
