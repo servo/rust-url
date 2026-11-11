@@ -445,6 +445,18 @@ mod tests {
     }
 
     #[test]
+    fn percent_decode_preserves_malformed_sequences() {
+        for input in [b"trailing%".as_slice(), b"%2", b"%GG"] {
+            assert_eq!(super::percent_decode(input).collect::<Vec<u8>>(), input);
+        }
+
+        assert_eq!(
+            super::percent_decode(b"bad%GG%20ok").collect::<Vec<u8>>(),
+            b"bad%GG ok"
+        );
+    }
+
+    #[test]
     fn percent_decode_cow() {
         let decoded = super::percent_decode(b"foo%20bar%3f");
         assert_eq!(Cow::from(decoded), Cow::Owned::<[u8]>(b"foo bar?".to_vec()));
