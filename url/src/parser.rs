@@ -740,8 +740,9 @@ impl Parser<'_> {
                 })
             }
             Some('#') => self.fragment_only(base_url, input),
-            Some('/') | Some('\\') => {
-                let (slashes_count, remaining) = input.count_matching(|c| matches!(c, '/' | '\\'));
+            Some(c) if c == '/' || (c == '\\' && scheme_type.is_special()) => {
+                let (slashes_count, remaining) =
+                    input.count_matching(|c| c == '/' || (c == '\\' && scheme_type.is_special()));
                 if slashes_count >= 2 {
                     self.log_violation_if(SyntaxViolation::ExpectedDoubleSlash, || {
                         input
