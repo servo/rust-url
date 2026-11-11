@@ -1394,6 +1394,26 @@ fn test_parse_url_with_single_byte_control_host() {
 }
 
 #[test]
+fn test_file_drive_letter_ignores_tab_and_newline() {
+    let tests = [
+        ("file:X:\r..", "file:///X:.."),
+        ("file:X:\t..", "file:///X:.."),
+        ("file:X:\n..", "file:///X:.."),
+        ("file:X:\rfoo", "file:///X:foo"),
+    ];
+
+    for (input, expected) in &tests {
+        let url1 = Url::parse(input).unwrap();
+        assert_eq!(url1.as_str(), *expected, "input: {input:?}");
+        let url2 = Url::parse(url1.as_str()).unwrap();
+        assert_eq!(url2, url1, "input: {input:?}");
+    }
+
+    let base = Url::parse("file:///C:").unwrap();
+    assert_eq!(base.join("foo").unwrap().as_str(), "file:///C:/foo");
+}
+
+#[test]
 fn test_path_percent_encode() {
     let url = Url::parse("http://localhost/a b").unwrap();
     assert_eq!(url.path(), "/a%20b");

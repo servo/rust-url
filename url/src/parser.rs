@@ -1269,9 +1269,9 @@ impl Parser<'_> {
                     _ => {
                         self.check_url_code_point(c, &input);
                         if scheme_type.is_file()
-                            && self.serialization.len() > path_start
+                            && segment_start > path_start
                             && is_normalized_windows_drive_letter(
-                                &self.serialization[path_start + 1..],
+                                &self.serialization[path_start + 1..segment_start],
                             )
                         {
                             push_pending(
