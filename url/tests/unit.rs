@@ -1412,3 +1412,13 @@ fn test_path_percent_encode() {
     let url = Url::parse("http://localhost/a}b").unwrap();
     assert_eq!(url.path(), "/a%7Db");
 }
+
+#[test]
+fn issue_1155() {
+    assert_eq!(
+        Url::parse("htup://a:b@c:2\\9/"),
+        Err(url::ParseError::InvalidPort)
+    );
+    let url = Url::parse("http://a:b@c:2\\9/").unwrap();
+    assert_eq!(url.as_str(), "http://a:b@c:2/9/");
+}
