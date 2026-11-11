@@ -720,6 +720,91 @@ fn test_no_base_url() {
 }
 
 #[test]
+fn test_remove_host_resets_host_kind() {
+    for authority in ["example.com", "127.0.0.1", "[1:2::3]", "user:pass@[::1]:80"] {
+        let mut url = Url::parse(&format!("custom://{authority}/path?query#fragment")).unwrap();
+        url.set_host(None).unwrap();
+        assert!(!url.has_host(), "{}", authority);
+        assert_eq!(url.host(), None);
+        assert_eq!(url.host_str(), None);
+        assert_eq!(url.port(), None);
+        assert_eq!(url.username(), "");
+        assert_eq!(url.password(), None);
+        assert_eq!(url.as_str(), "custom:/path?query#fragment");
+        assert_eq!(Url::parse(url.as_str()).unwrap(), url);
+        url.set_host(None).unwrap();
+        assert_eq!(url.as_str(), "custom:/path?query#fragment");
+        url.set_host(Some("replacement")).unwrap();
+        assert_eq!(url.as_str(), "custom://replacement/path?query#fragment");
+    }
+}
+
+#[test]
+fn test_remove_host_with_empty_path() {
+    for suffix in ["?query", "#fragment", "?query#fragment", ""] {
+        let mut url = Url::parse(&format!("custom://host{suffix}")).unwrap();
+        url.set_host(None).unwrap();
+        assert_eq!(url.as_str(), format!("custom:/{suffix}"));
+        assert_eq!(url.path(), "/");
+        assert_eq!(url.host(), None);
+        assert!(!url.cannot_be_a_base());
+        assert_eq!(Url::parse(url.as_str()).unwrap(), url);
+    }
+}
+
+#[test]
+fn test_remove_host_preserves_file_and_special_rules() {
+    let mut file = Url::parse("file://server/path?query#fragment").unwrap();
+    file.set_host(None).unwrap();
+    assert_eq!(file.as_str(), "file:///path?query#fragment");
+    assert_eq!(file.host(), None);
+    assert_eq!(Url::parse(file.as_str()).unwrap(), file);
+
+    for source in ["https://host/path", "custom:opaque"] {
+        let mut url = Url::parse(source).unwrap();
+        assert!(url.set_host(None).is_err());
+        assert_eq!(url.as_str(), source);
+    }
+    let mut no_host = Url::parse("custom:/path?query#fragment").unwrap();
+    no_host.set_host(None).unwrap();
+    assert_eq!(no_host.as_str(), "custom:/path?query#fragment");
+}
+
+#[test]
+fn test_remove_host_preserves_double_slash_path() {
+    let mut url = Url::parse("custom://host//path?query#fragment").unwrap();
+    url.set_host(None).unwrap();
+    assert_eq!(url.as_str(), "custom:/.//path?query#fragment");
+    assert_eq!(url.path(), "//path");
+    assert_eq!(url.query(), Some("query"));
+    assert_eq!(url.fragment(), Some("fragment"));
+    assert!(!url.has_host());
+    assert_eq!(Url::parse(url.as_str()).unwrap(), url);
+}
+
+#[test]
+fn test_set_host_replaces_hostless_path_prefix() {
+    for host in ["replacement", "127.0.0.1", "[::1]"] {
+        let mut url = Url::parse("custom:/.//path?query#fragment").unwrap();
+        url.set_host(Some(host)).unwrap();
+        assert_eq!(
+            url.as_str(),
+            format!("custom://{host}//path?query#fragment")
+        );
+        assert_eq!(url.path(), "//path");
+        assert_eq!(Url::parse(url.as_str()).unwrap(), url);
+        url.set_host(None).unwrap();
+        assert_eq!(url.as_str(), "custom:/.//path?query#fragment");
+        url.set_ip_host("127.0.0.2".parse().unwrap()).unwrap();
+        assert_eq!(url.as_str(), "custom://127.0.0.2//path?query#fragment");
+        assert_eq!(url.path(), "//path");
+        assert_eq!(url.query(), Some("query"));
+        assert_eq!(url.fragment(), Some("fragment"));
+        assert_eq!(Url::parse(url.as_str()).unwrap(), url);
+    }
+}
+
+#[test]
 fn test_domain() {
     let url = Url::parse("https://127.0.0.1/").unwrap();
     assert_eq!(url.domain(), None);
