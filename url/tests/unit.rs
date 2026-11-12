@@ -98,6 +98,34 @@ fn test_set_empty_host() {
 }
 
 #[test]
+/// https://github.com/servo/rust-url/issues/1144
+fn test_set_empty_host_non_special() {
+    // A non-special URL that has credentials or a port must reject an empty
+    // host: the resulting serialization (`foo://user@/`, `foo://:1/`) is one
+    // that `Url::parse` rejects with `EmptyHost`, so allowing it here would
+    // break the parse/serialize roundtrip. The URL must be left unchanged.
+    let cases = ["foo://user@host/", "foo://host:1/", "foo://user:pass@host/"];
+    for input in cases.iter() {
+        let mut url = Url::parse(input).unwrap();
+        let before = url.as_str().to_owned();
+        assert_eq!(
+            url.set_host(Some("")),
+            Err(url::ParseError::EmptyHost),
+            "{}",
+            input
+        );
+        assert_eq!(url.as_str(), before, "{}", input);
+    }
+
+    // Without credentials or a port, an empty host stays legal for a
+    // non-special scheme, and the result must roundtrip through the parser.
+    let mut url = Url::parse("foo://host/path").unwrap();
+    url.set_host(Some("")).unwrap();
+    assert_eq!(url.as_str(), "foo:///path");
+    assert_eq!(Url::parse(url.as_str()).unwrap(), url);
+}
+
+#[test]
 fn test_set_empty_username_and_password() {
     let mut base: Url = "moz://foo:bar@servo/baz".parse().unwrap();
     base.set_username("").unwrap();
