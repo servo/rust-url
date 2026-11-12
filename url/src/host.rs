@@ -10,14 +10,13 @@ use crate::net::{Ipv4Addr, Ipv6Addr};
 use alloc::borrow::Cow;
 use alloc::borrow::ToOwned;
 use alloc::string::String;
-use alloc::string::ToString;
 use alloc::vec::Vec;
 use core::cmp;
 use core::fmt::{self, Formatter};
 
 use percent_encoding::{percent_decode, utf8_percent_encode, CONTROLS};
 #[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+use serde_derive::{Deserialize, Serialize};
 
 use crate::parser::{ParseError, ParseResult};
 
@@ -30,13 +29,13 @@ pub(crate) enum HostInternal {
     Ipv6(Ipv6Addr),
 }
 
-impl From<Host<String>> for HostInternal {
-    fn from(host: Host<String>) -> HostInternal {
+impl From<Host<Cow<'_, str>>> for HostInternal {
+    fn from(host: Host<Cow<'_, str>>) -> Self {
         match host {
-            Host::Domain(ref s) if s.is_empty() => HostInternal::None,
-            Host::Domain(_) => HostInternal::Domain,
-            Host::Ipv4(address) => HostInternal::Ipv4(address),
-            Host::Ipv6(address) => HostInternal::Ipv6(address),
+            Host::Domain(ref s) if s.is_empty() => Self::None,
+            Host::Domain(_) => Self::Domain,
+            Host::Ipv4(address) => Self::Ipv4(address),
+            Host::Ipv6(address) => Self::Ipv6(address),
         }
     }
 }
@@ -80,6 +79,17 @@ impl Host<String> {
     ///
     /// <https://url.spec.whatwg.org/#host-parsing>
     pub fn parse(input: &str) -> Result<Self, ParseError> {
+        Host::<Cow<str>>::parse_cow(input.into()).map(|i| i.into_owned())
+    }
+
+    /// <https://url.spec.whatwg.org/#concept-opaque-host-parser>
+    pub fn parse_opaque(input: &str) -> Result<Self, ParseError> {
+        Host::<Cow<str>>::parse_opaque_cow(input.into()).map(|i| i.into_owned())
+    }
+}
+
+impl<'a> Host<Cow<'a, str>> {
+    pub(crate) fn parse_cow(input: Cow<'a, str>) -> Result<Self, ParseError> {
         if input.starts_with('[') {
             if !input.ends_with(']') {
                 return Err(ParseError::InvalidIpv6Address);
@@ -87,8 +97,16 @@ impl Host<String> {
             return parse_ipv6addr(&input[1..input.len() - 1]).map(Host::Ipv6);
         }
         let domain: Cow<'_, [u8]> = percent_decode(input.as_bytes()).into();
+        let domain: Cow<'a, [u8]> = match domain {
+            Cow::Owned(v) => Cow::Owned(v),
+            // if borrowed then we can use the original cow
+            Cow::Borrowed(_) => match input {
+                Cow::Borrowed(input) => Cow::Borrowed(input.as_bytes()),
+                Cow::Owned(input) => Cow::Owned(input.into_bytes()),
+            },
+        };
 
-        let domain = Self::domain_to_ascii(&domain)?;
+        let domain = idna::domain_to_ascii_from_cow(domain, idna::AsciiDenyList::URL)?;
 
         if domain.is_empty() {
             return Err(ParseError::EmptyHost);
@@ -98,12 +116,11 @@ impl Host<String> {
             let address = parse_ipv4addr(&domain)?;
             Ok(Host::Ipv4(address))
         } else {
-            Ok(Host::Domain(domain.to_string()))
+            Ok(Host::Domain(domain))
         }
     }
 
-    // <https://url.spec.whatwg.org/#concept-opaque-host-parser>
-    pub fn parse_opaque(input: &str) -> Result<Self, ParseError> {
+    pub(crate) fn parse_opaque_cow(input: Cow<'a, str>) -> Result<Self, ParseError> {
         if input.starts_with('[') {
             if !input.ends_with(']') {
                 return Err(ParseError::InvalidIpv6Address);
@@ -134,26 +151,44 @@ impl Host<String> {
         };
 
         if input.find(is_invalid_host_char).is_some() {
-            Err(ParseError::InvalidDomainCharacter)
-        } else {
-            Ok(Host::Domain(
-                utf8_percent_encode(input, CONTROLS).to_string(),
-            ))
+            return Err(ParseError::InvalidDomainCharacter);
         }
+
+        // Call utf8_percent_encode and use the result.
+        // Note: This returns Cow::Borrowed for single-item results (either from input
+        // or from the static encoding table), and Cow::Owned for multi-item results.
+        // We cannot distinguish between "borrowed from input" vs "borrowed from static table"
+        // based on the Cow variant alone.
+        Ok(Host::Domain(
+            match utf8_percent_encode(&input, CONTROLS).into() {
+                Cow::Owned(v) => Cow::Owned(v),
+                // If we're borrowing, we need to check if it's the same as the input
+                Cow::Borrowed(v) => {
+                    if v == &*input {
+                        input // No encoding happened, reuse original
+                    } else {
+                        Cow::Owned(v.to_owned()) // Borrowed from static table, need to own it
+                    }
+                }
+            },
+        ))
     }
 
-    /// convert domain with idna
-    fn domain_to_ascii(domain: &[u8]) -> Result<Cow<'_, str>, ParseError> {
-        idna::domain_to_ascii_cow(domain, idna::AsciiDenyList::URL).map_err(Into::into)
+    pub(crate) fn into_owned(self) -> Host<String> {
+        match self {
+            Host::Domain(s) => Host::Domain(s.into_owned()),
+            Host::Ipv4(ip) => Host::Ipv4(ip),
+            Host::Ipv6(ip) => Host::Ipv6(ip),
+        }
     }
 }
 
 impl<S: AsRef<str>> fmt::Display for Host<S> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match *self {
-            Host::Domain(ref domain) => domain.as_ref().fmt(f),
-            Host::Ipv4(ref addr) => addr.fmt(f),
-            Host::Ipv6(ref addr) => {
+            Self::Domain(ref domain) => domain.as_ref().fmt(f),
+            Self::Ipv4(ref addr) => addr.fmt(f),
+            Self::Ipv6(ref addr) => {
                 f.write_str("[")?;
                 write_ipv6(addr, f)?;
                 f.write_str("]")
@@ -168,9 +203,9 @@ where
 {
     fn eq(&self, other: &Host<T>) -> bool {
         match (self, other) {
-            (Host::Domain(a), Host::Domain(b)) => a == b,
-            (Host::Ipv4(a), Host::Ipv4(b)) => a == b,
-            (Host::Ipv6(a), Host::Ipv6(b)) => a == b,
+            (Self::Domain(a), Host::Domain(b)) => a == b,
+            (Self::Ipv4(a), Host::Ipv4(b)) => a == b,
+            (Self::Ipv6(a), Host::Ipv6(b)) => a == b,
             (_, _) => false,
         }
     }

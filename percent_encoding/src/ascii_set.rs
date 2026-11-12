@@ -37,7 +37,7 @@ const BITS_PER_CHUNK: usize = 8 * mem::size_of::<Chunk>();
 
 impl AsciiSet {
     /// An empty set.
-    pub const EMPTY: AsciiSet = AsciiSet {
+    pub const EMPTY: Self = Self {
         mask: [0; ASCII_RANGE_LEN / BITS_PER_CHUNK],
     };
 
@@ -56,13 +56,13 @@ impl AsciiSet {
     pub const fn add(&self, byte: u8) -> Self {
         let mut mask = self.mask;
         mask[byte as usize / BITS_PER_CHUNK] |= 1 << (byte as usize % BITS_PER_CHUNK);
-        AsciiSet { mask }
+        Self { mask }
     }
 
     pub const fn remove(&self, byte: u8) -> Self {
         let mut mask = self.mask;
         mask[byte as usize / BITS_PER_CHUNK] &= !(1 << (byte as usize % BITS_PER_CHUNK));
-        AsciiSet { mask }
+        Self { mask }
     }
 
     /// Return the union of two sets.
@@ -73,13 +73,13 @@ impl AsciiSet {
             self.mask[2] | other.mask[2],
             self.mask[3] | other.mask[3],
         ];
-        AsciiSet { mask }
+        Self { mask }
     }
 
     /// Return the negation of the set.
     pub const fn complement(&self) -> Self {
         let mask = [!self.mask[0], !self.mask[1], !self.mask[2], !self.mask[3]];
-        AsciiSet { mask }
+        Self { mask }
     }
 }
 

@@ -1032,6 +1032,14 @@ fn test_set_scheme_to_file_with_host() {
 }
 
 #[test]
+fn test_set_scheme_empty_err() {
+    let mut url: Url = "http://localhost:6767/foo/bar".parse().unwrap();
+    let result = url.set_scheme("");
+    assert_eq!(url.to_string(), "http://localhost:6767/foo/bar");
+    assert_eq!(result, Err(()));
+}
+
+#[test]
 fn no_panic() {
     let mut url = Url::parse("arhttpsps:/.//eom/dae.com/\\\\t\\:").unwrap();
     url::quirks::set_hostname(&mut url, "//eom/datcom/\\\\t\\://eom/data.cs").unwrap();
@@ -1239,16 +1247,12 @@ fn test_make_relative() {
         let make_relative = base_uri.make_relative(&relative_uri).unwrap();
         assert_eq!(
             make_relative, *relative,
-            "base: {}, uri: {}, relative: {}",
-            base, uri, relative
+            "base: {base}, uri: {uri}, relative: {relative}"
         );
         assert_eq!(
             base_uri.join(relative).unwrap().as_str(),
             *uri,
-            "base: {}, uri: {}, relative: {}",
-            base,
-            uri,
-            relative
+            "base: {base}, uri: {uri}, relative: {relative}"
         );
     }
 
@@ -1263,7 +1267,7 @@ fn test_make_relative() {
         let base_uri = url::Url::parse(base).unwrap();
         let relative_uri = url::Url::parse(uri).unwrap();
         let make_relative = base_uri.make_relative(&relative_uri);
-        assert_eq!(make_relative, None, "base: {}, uri: {}", base, uri);
+        assert_eq!(make_relative, None, "base: {base}, uri: {uri}");
     }
 }
 
@@ -1366,7 +1370,7 @@ fn issue_974() {
 #[cfg(feature = "serde")]
 #[test]
 fn serde_error_message() {
-    use serde::Deserialize;
+    use serde_derive::Deserialize;
     #[derive(Debug, Deserialize)]
     #[allow(dead_code)]
     struct TypeWithUrl {
@@ -1378,4 +1382,33 @@ fn serde_error_message() {
         err.to_string(),
         r#"relative URL without a base: "§invalid#+#*Ä" at line 1 column 25"#
     );
+}
+
+#[test]
+fn test_parse_url_with_single_byte_control_host() {
+    let input = "l://\x01:";
+
+    let url1 = Url::parse(input).unwrap();
+    let url2 = Url::parse(url1.as_str()).unwrap();
+    assert_eq!(url2, url1);
+}
+
+#[test]
+fn test_path_percent_encode() {
+    let url = Url::parse("http://localhost/a b").unwrap();
+    assert_eq!(url.path(), "/a%20b");
+    let url = Url::parse("http://localhost/a\"b").unwrap();
+    assert_eq!(url.path(), "/a%22b");
+    let url = Url::parse("http://localhost/a<b").unwrap();
+    assert_eq!(url.path(), "/a%3Cb");
+    let url = Url::parse("http://localhost/a>b").unwrap();
+    assert_eq!(url.path(), "/a%3Eb");
+    let url = Url::parse("http://localhost/a^b").unwrap();
+    assert_eq!(url.path(), "/a%5Eb");
+    let url = Url::parse("http://localhost/a`b").unwrap();
+    assert_eq!(url.path(), "/a%60b");
+    let url = Url::parse("http://localhost/a{b").unwrap();
+    assert_eq!(url.path(), "/a%7Bb");
+    let url = Url::parse("http://localhost/a}b").unwrap();
+    assert_eq!(url.path(), "/a%7Db");
 }

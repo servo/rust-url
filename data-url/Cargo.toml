@@ -1,9 +1,9 @@
 [package]
 name = "data-url"
-version = "0.3.1"
+version = "0.3.2"
 authors = ["Simon Sapin <simon.sapin@exyr.org>"]
 description = "Processing of data: URL according to WHATWG’s Fetch Standard"
-categories = ["no_std"]
+categories = ["no-std"]
 repository = "https://github.com/servo/rust-url"
 license = "MIT OR Apache-2.0"
 edition = "2018"
@@ -23,7 +23,7 @@ serde = { version = "1.0", default-features = false, features = ["alloc", "deriv
 serde_json = "1.0"
 
 [lib]
-test = false
+test = true
 
 [[test]]
 name = "wpt"

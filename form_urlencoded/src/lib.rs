@@ -219,14 +219,9 @@ impl<'a, T: Target> Serializer<'a, T> {
     ///
     /// If that suffix is non-empty,
     /// its content is assumed to already be in `application/x-www-form-urlencoded` syntax.
+    /// If `start_position` exceeds the target's length, it is set to the target's length.
     pub fn for_suffix(mut target: T, start_position: usize) -> Self {
-        if target.as_mut_string().len() < start_position {
-            panic!(
-                "invalid length {} for target of length {}",
-                start_position,
-                target.as_mut_string().len()
-            );
-        }
+        let start_position = start_position.min(target.as_mut_string().len());
 
         Serializer {
             target: Some(target),
@@ -414,7 +409,7 @@ pub(crate) fn decode_utf8_lossy(input: Cow<'_, [u8]>) -> Cow<'_, str> {
 
                     // First we do a debug_assert to confirm our description above.
                     let raw_utf8: *const [u8] = utf8.as_bytes();
-                    debug_assert!(raw_utf8 == &*bytes as *const [u8]);
+                    debug_assert!(core::ptr::eq(raw_utf8, &*bytes));
 
                     // Given we know the original input bytes are valid UTF-8,
                     // and we have ownership of those bytes, we re-use them and

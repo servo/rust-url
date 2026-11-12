@@ -307,7 +307,7 @@ impl<'a> PercentDecode<'a> {
     /// This is return `Err` when the percent-decoded bytes are not well-formed in UTF-8.
     #[cfg(feature = "alloc")]
     pub fn decode_utf8(self) -> Result<Cow<'a, str>, str::Utf8Error> {
-        match self.clone().into() {
+        match self.into() {
             Cow::Borrowed(bytes) => match str::from_utf8(bytes) {
                 Ok(s) => Ok(s.into()),
                 Err(e) => Err(e),
@@ -325,7 +325,7 @@ impl<'a> PercentDecode<'a> {
     /// the replacement character.
     #[cfg(feature = "alloc")]
     pub fn decode_utf8_lossy(self) -> Cow<'a, str> {
-        decode_utf8_lossy(self.clone().into())
+        decode_utf8_lossy(self.into())
     }
 }
 
@@ -348,7 +348,7 @@ fn decode_utf8_lossy(input: Cow<'_, [u8]>) -> Cow<'_, str> {
 
                     // First we do a debug_assert to confirm our description above.
                     let raw_utf8: *const [u8] = utf8.as_bytes();
-                    debug_assert!(raw_utf8 == &*bytes as *const [u8]);
+                    debug_assert!(core::ptr::eq(raw_utf8, &*bytes));
 
                     // Given we know the original input bytes are valid UTF-8,
                     // and we have ownership of those bytes, we re-use them and

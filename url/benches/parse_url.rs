@@ -19,8 +19,22 @@ fn long(bench: &mut Bencher) {
     bench.iter(|| black_box(url).parse::<Url>().unwrap());
 }
 
+fn fragment(bench: &mut Bencher) {
+    let url = "https://example.com/parkbench?tre=es&st=uff#fragment";
+
+    bench.bytes = url.len() as u64;
+    bench.iter(|| black_box(url).parse::<Url>().unwrap());
+}
+
 fn plain(bench: &mut Bencher) {
     let url = "https://example.com/";
+
+    bench.bytes = url.len() as u64;
+    bench.iter(|| black_box(url).parse::<Url>().unwrap());
+}
+
+fn port(bench: &mut Bencher) {
+    let url = "https://example.com:8080";
 
     bench.bytes = url.len() as u64;
     bench.iter(|| black_box(url).parse::<Url>().unwrap());
@@ -82,11 +96,26 @@ fn punycode_rtl(bench: &mut Bencher) {
     bench.iter(|| black_box(url).parse::<Url>().unwrap());
 }
 
+fn url_to_file_path(bench: &mut Bencher) {
+    let url = if cfg!(windows) {
+        "file:///C:/dir/next_dir/sub_sub_dir/testing/testing.json"
+    } else {
+        "file:///data/dir/next_dir/sub_sub_dir/testing/testing.json"
+    };
+    let url = url.parse::<Url>().unwrap();
+
+    bench.iter(|| {
+        black_box(url.to_file_path().unwrap());
+    });
+}
+
 benchmark_group!(
     benches,
     short,
     long,
+    fragment,
     plain,
+    port,
     hyphen,
     leading_digit,
     unicode_mixed,
@@ -95,5 +124,6 @@ benchmark_group!(
     punycode_ltr,
     unicode_rtl,
     punycode_rtl,
+    url_to_file_path
 );
 benchmark_main!(benches);

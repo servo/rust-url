@@ -8,8 +8,7 @@
 //! let url = DataUrl::process("data:,Hello%20World!").unwrap();
 //! let (body, fragment) = url.decode_to_vec().unwrap();
 //!
-//! assert_eq!(url.mime_type().type_, "text");
-//! assert_eq!(url.mime_type().subtype, "plain");
+//! assert!(url.mime_type().matches("text", "plain"));
 //! assert_eq!(url.mime_type().get_parameter("charset"), Some("US-ASCII"));
 //! assert_eq!(body, b"Hello World!");
 //! assert!(fragment.is_none());
@@ -165,10 +164,10 @@ fn pretend_parse_data_url(input: &str) -> Option<&str> {
         let mut iter = bytes
             .by_ref()
             .filter(|&byte| !matches!(byte, b'\t' | b'\n' | b'\r'));
-        require!(iter.next()?.to_ascii_lowercase() == b'd');
-        require!(iter.next()?.to_ascii_lowercase() == b'a');
-        require!(iter.next()?.to_ascii_lowercase() == b't');
-        require!(iter.next()?.to_ascii_lowercase() == b'a');
+        require!(iter.next()?.eq_ignore_ascii_case(&b'd'));
+        require!(iter.next()?.eq_ignore_ascii_case(&b'a'));
+        require!(iter.next()?.eq_ignore_ascii_case(&b't'));
+        require!(iter.next()?.eq_ignore_ascii_case(&b'a'));
         require!(iter.next()? == b':');
     }
     let bytes_consumed = left_trimmed.len() - bytes.len();
@@ -256,10 +255,10 @@ fn remove_base64_suffix(s: &str) -> Option<&str> {
 
         require!(iter.next()? == b'4');
         require!(iter.next()? == b'6');
-        require!(iter.next()?.to_ascii_lowercase() == b'e');
-        require!(iter.next()?.to_ascii_lowercase() == b's');
-        require!(iter.next()?.to_ascii_lowercase() == b'a');
-        require!(iter.next()?.to_ascii_lowercase() == b'b');
+        require!(iter.next()?.eq_ignore_ascii_case(&b'e'));
+        require!(iter.next()?.eq_ignore_ascii_case(&b's'));
+        require!(iter.next()?.eq_ignore_ascii_case(&b'a'));
+        require!(iter.next()?.eq_ignore_ascii_case(&b'b'));
         require!(iter.skip_while(|&byte| byte == b' ').next()? == b';');
     }
     Some(&s[..bytes.len()])
