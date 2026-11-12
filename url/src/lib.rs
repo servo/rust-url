@@ -2468,13 +2468,21 @@ impl Url {
             // If url’s scheme is not a special scheme and buffer is a special scheme, then return.
             (!new_scheme_type.is_special() && old_scheme_type.is_special()) ||
             // If url includes credentials or has a non-null port, and buffer is "file", then return.
+            (new_scheme_type.is_file()
+                && (!self.username().is_empty()
+                    || matches!(self.password(), Some(password) if !password.is_empty())
+                    || self.port().is_some())) ||
             // If url’s scheme is "file" and its host is an empty host or null, then return.
-            (new_scheme_type.is_file() && self.has_authority())
+            (old_scheme_type.is_file()
+                && !new_scheme_type.is_file()
+                && matches!(self.host_str(), None | Some("")))
         {
             return Err(());
         }
 
-        if !remaining.is_empty() || (!self.has_host() && new_scheme_type.is_special()) {
+        if !remaining.is_empty()
+            || (!self.has_host() && new_scheme_type.is_special() && !new_scheme_type.is_file())
+        {
             return Err(());
         }
         let old_scheme_end = self.scheme_end;
