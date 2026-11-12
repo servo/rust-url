@@ -1412,3 +1412,24 @@ fn test_path_percent_encode() {
     let url = Url::parse("http://localhost/a}b").unwrap();
     assert_eq!(url.path(), "/a%7Db");
 }
+
+#[test]
+fn password_after_set_empty_host() {
+    // Issue #1174: set_host("") on a non-special URL can leave a port ':'
+    // where password() used to assume a password separator.
+    for input in [
+        "sc://test:12/",
+        "tps://example.net:1234",
+        "httpsttps://example.net:1234",
+    ] {
+        let mut url = Url::parse(input).unwrap();
+        url.set_host(Some("")).unwrap();
+        assert_eq!(url.password(), None, "password() panicked or was Some for {input}");
+    }
+
+    // A real password must still be visible when the '@' is present.
+    let mut url = Url::parse("sc://user:secret@test:12/").unwrap();
+    assert_eq!(url.password(), Some("secret"));
+    url.set_host(Some("")).unwrap();
+    assert_eq!(url.password(), Some("secret"));
+}
