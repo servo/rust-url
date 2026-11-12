@@ -1084,13 +1084,16 @@ impl Url {
     /// # run().unwrap();
     /// ```
     pub fn password(&self) -> Option<&str> {
-        // This ':' is not the one marking a port number since a host can not be empty.
-        // (Except for file: URLs, which do not have port numbers.)
+        // A ':' at username_end is a password separator only when userinfo is
+        // terminated by '@'. After set_host("") on a non-special URL the host
+        // can be empty, leaving a port ':' at that index (e.g. "sc://:12/").
         if self.has_authority()
+            && self.host_start > 0
+            && self.byte_at(self.host_start - 1) == b'@'
             && self.username_end != self.serialization.len() as u32
             && self.byte_at(self.username_end) == b':'
+            && self.username_end + 1 <= self.host_start - 1
         {
-            debug_assert!(self.byte_at(self.host_start - 1) == b'@');
             Some(self.slice(self.username_end + 1..self.host_start - 1))
         } else {
             None
