@@ -786,8 +786,7 @@ impl Parser<'_> {
                     (Some(i), _) | (None, Some(i)) => base_url.slice(..i),
                 };
                 self.serialization.push_str(before_query);
-                // FIXME spec says just "remove last entry", not the "pop" algorithm
-                self.pop_path(scheme_type, base_url.path_start as usize);
+                self.shorten_path(scheme_type, base_url.path_start as usize);
                 // A special url always has a path.
                 // A path always starts with '/'
                 if self.serialization.len() == base_url.path_start as usize
@@ -1380,27 +1379,24 @@ impl Parser<'_> {
             return;
         }
         // If url’s scheme is "file", path’s size is 1, and path[0] is a normalized Windows drive letter, then return.
+        // Since path always starts with '/', path[0] starts at path_start + 1. A normalized Windows
+        // drive letter check on the rest of the serialization only succeeds if it is exactly "X:",
+        // meaning the path has a single segment.
         if scheme_type.is_file()
-            && is_normalized_windows_drive_letter(&self.serialization[path_start..])
+            && is_normalized_windows_drive_letter(&self.serialization[path_start + 1..])
         {
             return;
         }
-        // Remove path’s last item.
-        self.pop_path(scheme_type, path_start);
+        // Remove path’s last item, if any.
+        self.pop_path(path_start);
     }
 
-    /// https://url.spec.whatwg.org/#pop-a-urls-path
-    fn pop_path(&mut self, scheme_type: SchemeType, path_start: usize) {
+    fn pop_path(&mut self, path_start: usize) {
         if self.serialization.len() > path_start {
             let slash_position = self.serialization[path_start..].rfind('/').unwrap();
             // + 1 since rfind returns the position before the slash.
             let segment_start = path_start + slash_position + 1;
-            // Don’t pop a Windows drive letter
-            if !(scheme_type.is_file()
-                && is_normalized_windows_drive_letter(&self.serialization[segment_start..]))
-            {
-                self.serialization.truncate(segment_start);
-            }
+            self.serialization.truncate(segment_start);
         }
     }
 

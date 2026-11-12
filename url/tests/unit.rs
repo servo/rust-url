@@ -1351,6 +1351,30 @@ fn test_file_with_drive_and_path() {
     assert_eq!(url2.to_string(), "file:///p:/a");
 }
 
+#[test]
+/// A file URL whose path has multiple segments and whose last segment
+/// looks like a Windows drive letter. "Shorten a url's path" must still
+/// remove it: the drive letter protection only applies when the path's
+/// size is 1 (https://url.spec.whatwg.org/#shorten-a-urls-path).
+fn test_file_with_drive_like_last_segment() {
+    // Used to panic with a debug_assert in parse_path because pop_path
+    // refused to remove the last segment, leaving the serialization
+    // without a trailing slash before the `..` segment was processed.
+    let base = url::Url::parse("file:eeeeeeeeeeexmlns=\"http://U:").unwrap();
+    assert_eq!(base.as_str(), "file:///eeeeeeeeeeexmlns=%22http://U:");
+    let url = base.join("../../index.html").unwrap();
+    assert_eq!(url.as_str(), "file:///index.html");
+
+    let base = url::Url::parse("file:///foo/U:").unwrap();
+    let url = base.join("..").unwrap();
+    assert_eq!(url.as_str(), "file:///");
+
+    // A single-segment drive letter path is still protected.
+    let base = url::Url::parse("file://host/U:").unwrap();
+    let url = base.join("..").unwrap();
+    assert_eq!(url.as_str(), "file://host/U:/");
+}
+
 #[cfg(feature = "std")]
 #[test]
 fn issue_864() {
