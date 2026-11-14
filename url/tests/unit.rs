@@ -1351,6 +1351,41 @@ fn test_file_with_drive_and_path() {
     assert_eq!(url2.to_string(), "file:///p:/a");
 }
 
+#[test]
+/// https://github.com/servo/rust-url/issues/1130
+/// A path segment that looks like a Windows drive letter (e.g. "C:" or "C|")
+/// is only special for file: URLs. For any other scheme it is an ordinary
+/// segment, so ".." must pop it.
+fn test_join_dotdot_pops_drive_letter_lookalike_for_non_file_scheme() {
+    let url = url::Url::parse("abc://x/y/z/C:/").unwrap();
+    let joined = url.join("..").unwrap();
+    assert_eq!(joined.as_str(), "abc://x/y/z/");
+
+    // Special (but non-file) scheme hits the same code path.
+    let url = url::Url::parse("http://x/y/z/C:/").unwrap();
+    let joined = url.join("..").unwrap();
+    assert_eq!(joined.as_str(), "http://x/y/z/");
+
+    // The "C|" (pipe) form is affected too.
+    let url = url::Url::parse("abc://x/y/z/C|/").unwrap();
+    let joined = url.join("..").unwrap();
+    assert_eq!(joined.as_str(), "abc://x/y/z/");
+}
+
+#[test]
+/// Companion to test_join_dotdot_pops_drive_letter_lookalike_for_non_file_scheme:
+/// file: URLs must keep popping a trailing ordinary segment while still
+/// refusing to pop past a Windows drive letter root.
+fn test_join_dotdot_keeps_drive_letter_guard_for_file_scheme() {
+    let url = url::Url::parse("file:///c:/foo/").unwrap();
+    let joined = url.join("..").unwrap();
+    assert_eq!(joined.as_str(), "file:///c:/");
+
+    let url = url::Url::parse("file:///c:/").unwrap();
+    let joined = url.join("..").unwrap();
+    assert_eq!(joined.as_str(), "file:///c:/");
+}
+
 #[cfg(feature = "std")]
 #[test]
 fn issue_864() {
