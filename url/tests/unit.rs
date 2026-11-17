@@ -1412,3 +1412,27 @@ fn test_path_percent_encode() {
     let url = Url::parse("http://localhost/a}b").unwrap();
     assert_eq!(url.path(), "/a%7Db");
 }
+
+/// Setting a path whose percent-encoded form does not fit in the `u32` offsets
+/// that `Url` keeps into its serialization used to overflow them, panicking in
+/// builds with overflow checks and silently corrupting `query_start` and
+/// `fragment_start` in builds without. See servo/rust-url#1106.
+///
+/// Allocating the input and the oversized serialization needs roughly 6 GiB, so
+/// this is not run by default.
+#[test]
+#[ignore = "slow, needs about 6 GiB of memory"]
+#[cfg(target_pointer_width = "64")]
+fn test_set_path_too_long() {
+    let mut url = Url::parse("http://a/?a#b").unwrap();
+
+    // Each space is percent-encoded to "%20", so this asks for a path just
+    // barely too long to be addressed by a u32.
+    let huge_path = " ".repeat(((u32::MAX as usize) - 9) / 3);
+    url.set_path(&huge_path);
+
+    assert_eq!(url.as_str(), "http://a/?a#b");
+    assert_eq!(url.path(), "/");
+    assert_eq!(url.query(), Some("a"));
+    assert_eq!(url.fragment(), Some("b"));
+}
