@@ -19,6 +19,17 @@ fn long(bench: &mut Bencher) {
     bench.iter(|| black_box(url).parse::<Url>().unwrap());
 }
 
+fn dot_segments_after_long_authority(bench: &mut Bencher) {
+    let url = format!(
+        "https://{}@example.com/{}",
+        "a".repeat(4096),
+        "../".repeat(4096)
+    );
+
+    bench.bytes = url.len() as u64;
+    bench.iter(|| black_box(&url).parse::<Url>().unwrap());
+}
+
 fn fragment(bench: &mut Bencher) {
     let url = "https://example.com/parkbench?tre=es&st=uff#fragment";
 
@@ -113,6 +124,7 @@ benchmark_group!(
     benches,
     short,
     long,
+    dot_segments_after_long_authority,
     fragment,
     plain,
     port,

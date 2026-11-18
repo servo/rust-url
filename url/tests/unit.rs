@@ -1420,3 +1420,11 @@ fn test_path_percent_encode() {
     let url = Url::parse("http://localhost/a}b").unwrap();
     assert_eq!(url.path(), "/a%7Db");
 }
+
+/// `set_path` parses into `file://`, whose path is empty at that point.
+#[test]
+fn test_set_path_double_dot_on_file_root() {
+    let mut url = Url::parse("file:///").unwrap();
+    url.set_path("..");
+    assert_eq!(url.as_str(), "file:///");
+}
