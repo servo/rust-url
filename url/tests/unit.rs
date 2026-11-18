@@ -625,6 +625,14 @@ fn test_origin_blob_equality() {
     assert_eq!(origin, blob_origin);
 }
 
+/// `origin()` recursed once per `blob:` prefix and overflowed the stack.
+#[test]
+fn test_origin_nested_blob() {
+    let nested = format!("{}http://example.net/", "blob:".repeat(10_000));
+
+    assert!(!Url::parse(&nested).unwrap().origin().is_tuple());
+}
+
 #[test]
 fn test_origin_opaque() {
     assert!(!Origin::new_opaque().is_tuple());
