@@ -92,6 +92,7 @@ struct UrlTestOk {
     pathname: String,
     search: String,
     hash: String,
+    origin: Option<String>,
 }
 
 #[derive(Debug, serde_derive::Deserialize)]
@@ -376,6 +377,15 @@ fn check_url_ok(res: Result<Url, String>, ok: UrlTestOk) -> Result<(), String> {
     let hash = url::quirks::hash(&url);
     if hash != ok.hash {
         return Err(format!("expected hash {:?}, but got {:?}", ok.hash, hash));
+    }
+
+    if let Some(expected_origin) = ok.origin {
+        let origin = url::quirks::origin(&url);
+        if origin != expected_origin {
+            return Err(format!(
+                "expected origin {expected_origin:?}, but got {origin:?}"
+            ));
+        }
     }
 
     Ok(())
