@@ -513,7 +513,9 @@ impl Url {
     ///
     /// [`join`]: #method.join
     pub fn make_relative(&self, url: &Self) -> Option<String> {
-        if self.cannot_be_a_base() {
+        // A cannot-be-a-base target has an opaque path, so no relative
+        // reference resolved against this base can ever produce it.
+        if self.cannot_be_a_base() || url.cannot_be_a_base() {
             return None;
         }
 
