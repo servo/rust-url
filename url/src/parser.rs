@@ -740,23 +740,31 @@ impl Parser<'_> {
                 })
             }
             Some('#') => self.fragment_only(base_url, input),
-            Some('/') | Some('\\') => {
-                let (slashes_count, remaining) = input.count_matching(|c| matches!(c, '/' | '\\'));
-                if slashes_count >= 2 {
-                    self.log_violation_if(SyntaxViolation::ExpectedDoubleSlash, || {
-                        input
-                            .clone()
-                            .take_while(|&c| matches!(c, '/' | '\\'))
-                            .collect::<String>()
-                            != "//"
-                    });
+            Some(c) if c == '/' || (c == '\\' && scheme_type.is_special()) => {
+                self.log_violation_if(SyntaxViolation::Backslash, || c == '\\');
+                // Relative slash state. Only special URLs treat a backslash as
+                // a separator; non-special backslashes remain path input.
+                let (next_char, mut remaining) = input_after_first_char.split_first();
+                if next_char == Some('/') || (next_char == Some('\\') && scheme_type.is_special()) {
+                    if scheme_type.is_special() {
+                        self.log_violation_if(SyntaxViolation::Backslash, || {
+                            next_char == Some('\\')
+                        });
+                        // Special authority ignore slashes state. Consume all
+                        // excess separators before entering the authority state.
+                        loop {
+                            let (c, after_separator) = remaining.split_first();
+                            if !matches!(c, Some('/') | Some('\\')) {
+                                break;
+                            }
+                            self.log_violation(SyntaxViolation::ExpectedDoubleSlash);
+                            remaining = after_separator;
+                        }
+                    }
                     let scheme_end = base_url.scheme_end;
                     debug_assert!(base_url.byte_at(scheme_end) == b':');
                     self.serialization
                         .push_str(base_url.slice(..scheme_end + 1));
-                    if let Some(after_prefix) = input.split_prefix("//") {
-                        return self.after_double_slash(after_prefix, scheme_type, scheme_end);
-                    }
                     return self.after_double_slash(remaining, scheme_type, scheme_end);
                 }
                 let path_start = base_url.path_start;
