@@ -8,17 +8,17 @@
 
 use crate::host::Host;
 use crate::parser::default_port;
-use crate::Url;
 use alloc::borrow::ToOwned;
 use alloc::format;
 use alloc::string::String;
 use core::sync::atomic::{AtomicUsize, Ordering};
 
-pub fn url_origin(url: &Url) -> Origin {
+#[cfg(feature = "parsing")]
+pub fn url_origin(url: &crate::Url) -> Origin {
     let scheme = url.scheme();
     match scheme {
         "blob" => {
-            let result = Url::parse(url.path());
+            let result = crate::Url::parse(url.path());
             match result {
                 // https://url.spec.whatwg.org/#concept-url-origin
                 // The URL Standard takes the origin of the inner URL only for these schemes.
@@ -91,6 +91,7 @@ impl Origin {
     }
 
     /// <https://html.spec.whatwg.org/multipage/#unicode-serialisation-of-an-origin>
+    #[cfg(feature = "parsing")]
     pub fn unicode_serialization(&self) -> String {
         match *self {
             Self::Opaque(_) => "null".to_owned(),

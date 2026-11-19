@@ -10,11 +10,10 @@ use crate::net::{Ipv4Addr, Ipv6Addr};
 use alloc::borrow::Cow;
 use alloc::borrow::ToOwned;
 use alloc::string::String;
-use alloc::vec::Vec;
 use core::cmp;
 use core::fmt::{self, Formatter};
 
-use percent_encoding::{percent_decode, utf8_percent_encode, CONTROLS};
+use percent_encoding::{utf8_percent_encode, CONTROLS};
 #[cfg(feature = "serde")]
 use serde_derive::{Deserialize, Serialize};
 
@@ -78,6 +77,7 @@ impl Host<String> {
     /// Parse a host: either an IPv6 address in [] square brackets, or a domain.
     ///
     /// <https://url.spec.whatwg.org/#host-parsing>
+    #[cfg(feature = "parsing")]
     pub fn parse(input: &str) -> Result<Self, ParseError> {
         Host::<Cow<str>>::parse_cow(input.into()).map(|i| i.into_owned())
     }
@@ -89,6 +89,7 @@ impl Host<String> {
 }
 
 impl<'a> Host<Cow<'a, str>> {
+    #[cfg(feature = "parsing")]
     pub(crate) fn parse_cow(input: Cow<'a, str>) -> Result<Self, ParseError> {
         if input.starts_with('[') {
             if !input.ends_with(']') {
@@ -96,7 +97,7 @@ impl<'a> Host<Cow<'a, str>> {
             }
             return parse_ipv6addr(&input[1..input.len() - 1]).map(Host::Ipv6);
         }
-        let domain: Cow<'_, [u8]> = percent_decode(input.as_bytes()).into();
+        let domain: Cow<'_, [u8]> = percent_encoding::percent_decode(input.as_bytes()).into();
         let domain: Cow<'a, [u8]> = match domain {
             Cow::Owned(v) => Cow::Owned(v),
             // if borrowed then we can use the original cow
@@ -273,6 +274,7 @@ fn longest_zero_sequence(pieces: &[u16; 8]) -> (isize, isize) {
 }
 
 /// <https://url.spec.whatwg.org/#ends-in-a-number-checker>
+#[cfg(feature = "parsing")]
 fn ends_in_a_number(input: &str) -> bool {
     let mut parts = input.rsplit('.');
     let last = parts.next().unwrap();
@@ -294,6 +296,7 @@ fn ends_in_a_number(input: &str) -> bool {
 
 /// <https://url.spec.whatwg.org/#ipv4-number-parser>
 /// Ok(None) means the input is a valid number, but it overflows a `u32`.
+#[cfg(feature = "parsing")]
 fn parse_ipv4number(mut input: &str) -> Result<Option<u32>, ()> {
     if input.is_empty() {
         return Err(());
@@ -330,7 +333,10 @@ fn parse_ipv4number(mut input: &str) -> Result<Option<u32>, ()> {
 }
 
 /// <https://url.spec.whatwg.org/#concept-ipv4-parser>
+#[cfg(feature = "parsing")]
 fn parse_ipv4addr(input: &str) -> ParseResult<Ipv4Addr> {
+    use alloc::vec::Vec;
+
     let mut parts: Vec<&str> = input.split('.').collect();
     if parts.last() == Some(&"") {
         parts.pop();

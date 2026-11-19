@@ -12,8 +12,9 @@
 //! you probably want to use `Url` method instead.
 
 use crate::parser::{default_port, Context, Input, Parser, SchemeType};
-use crate::{Host, ParseError, Position, Url};
+use crate::{Host, Position, Url};
 use alloc::string::String;
+#[cfg(feature = "parsing")]
 use alloc::string::ToString;
 
 /// Internal components / offsets of a URL.
@@ -60,6 +61,7 @@ pub fn internal_components(url: &Url) -> InternalComponents {
 }
 
 /// <https://url.spec.whatwg.org/#dom-url-domaintoascii>
+#[cfg(feature = "parsing")]
 pub fn domain_to_ascii(domain: &str) -> String {
     match Host::parse(domain) {
         Ok(Host::Domain(domain)) => domain,
@@ -68,6 +70,7 @@ pub fn domain_to_ascii(domain: &str) -> String {
 }
 
 /// <https://url.spec.whatwg.org/#dom-url-domaintounicode>
+#[cfg(feature = "parsing")]
 pub fn domain_to_unicode(domain: &str) -> String {
     match Host::parse(domain) {
         Ok(Host::Domain(ref domain)) => {
@@ -84,12 +87,14 @@ pub fn href(url: &Url) -> &str {
 }
 
 /// Setter for <https://url.spec.whatwg.org/#dom-url-href>
-pub fn set_href(url: &mut Url, value: &str) -> Result<(), ParseError> {
+#[cfg(feature = "parsing")]
+pub fn set_href(url: &mut Url, value: &str) -> Result<(), crate::ParseError> {
     *url = Url::parse(value)?;
     Ok(())
 }
 
 /// Getter for <https://url.spec.whatwg.org/#dom-url-origin>
+#[cfg(feature = "parsing")]
 pub fn origin(url: &Url) -> String {
     url.origin().ascii_serialization()
 }
@@ -146,6 +151,7 @@ pub fn host(url: &Url) -> &str {
 }
 
 /// Setter for <https://url.spec.whatwg.org/#dom-url-host>
+#[cfg(feature = "parsing")]
 #[allow(clippy::result_unit_err)]
 pub fn set_host(url: &mut Url, new_host: &str) -> Result<(), ()> {
     // If context object’s url’s cannot-be-a-base-URL flag is set, then return.
@@ -199,6 +205,7 @@ pub fn hostname(url: &Url) -> &str {
 }
 
 /// Setter for <https://url.spec.whatwg.org/#dom-url-hostname>
+#[cfg(feature = "parsing")]
 #[allow(clippy::result_unit_err)]
 pub fn set_hostname(url: &mut Url, new_hostname: &str) -> Result<(), ()> {
     if url.cannot_be_a_base() {
