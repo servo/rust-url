@@ -97,7 +97,9 @@ impl core::fmt::Display for Errors {
 /// normalizing characters (upper-case to lower-case and other kinds of equivalence)
 /// and using Punycode as necessary.
 ///
-/// This process may fail.
+/// This process may fail. An ASCII `domain` that Unicode ToASCII rejects is returned
+/// lowercased instead, as the URL Standard requires for web compatibility, unless it
+/// is empty or contains a code point that `ascii_deny_list` denies.
 ///
 /// If you have a `&str` instead of `&[u8]`, just call `.as_bytes()` on it before
 /// passing it to this function. It's still preferable to use this function over
@@ -106,12 +108,7 @@ pub fn domain_to_ascii_cow(
     domain: &[u8],
     ascii_deny_list: AsciiDenyList,
 ) -> Result<Cow<'_, str>, Errors> {
-    Uts46::new().to_ascii(
-        domain,
-        ascii_deny_list,
-        uts46::Hyphens::Allow,
-        uts46::DnsLength::Ignore,
-    )
+    domain_to_ascii_from_cow(Cow::Borrowed(domain), ascii_deny_list)
 }
 
 /// The [domain to ASCII](https://url.spec.whatwg.org/#concept-domain-to-ascii) algorithm;
@@ -128,17 +125,50 @@ pub fn domain_to_ascii_cow(
 /// normalizing characters (upper-case to lower-case and other kinds of equivalence)
 /// and using Punycode as necessary.
 ///
-/// This process may fail.
+/// This process may fail. An ASCII `domain` that Unicode ToASCII rejects is returned
+/// lowercased instead, as the URL Standard requires for web compatibility, unless it
+/// is empty or contains a code point that `ascii_deny_list` denies.
 pub fn domain_to_ascii_from_cow(
     domain: Cow<'_, [u8]>,
     ascii_deny_list: AsciiDenyList,
 ) -> Result<Cow<'_, str>, Errors> {
-    Uts46::new().to_ascii_from_cow(
-        domain,
-        ascii_deny_list,
-        uts46::Hyphens::Allow,
-        uts46::DnsLength::Ignore,
-    )
+    Uts46::new()
+        .to_ascii_or_input(
+            domain,
+            ascii_deny_list,
+            uts46::Hyphens::Allow,
+            uts46::DnsLength::Ignore,
+        )
+        .or_else(|domain| ascii_domain_fallback(domain, ascii_deny_list))
+}
+
+/// The URL Standard's [domain parser](https://url.spec.whatwg.org/#concept-domain-parser)
+/// keeps an ASCII domain that Unicode ToASCII rejects, lowercased, as long as it is not
+/// empty and has no denied code point (<https://github.com/whatwg/url/pull/914>).
+fn ascii_domain_fallback(
+    domain: Cow<'_, [u8]>,
+    ascii_deny_list: AsciiDenyList,
+) -> Result<Cow<'_, str>, Errors> {
+    if domain.is_empty()
+        || domain
+            .iter()
+            .any(|&b| !b.is_ascii() || ascii_deny_list.denies(b.to_ascii_lowercase()))
+    {
+        return Err(Errors::default());
+    }
+    let domain = if domain.iter().any(u8::is_ascii_uppercase) {
+        Cow::Owned(domain.to_ascii_lowercase())
+    } else {
+        domain
+    };
+    match domain {
+        Cow::Borrowed(v) => core::str::from_utf8(v)
+            .map(Cow::Borrowed)
+            .map_err(|_| Errors::default()),
+        Cow::Owned(v) => String::from_utf8(v)
+            .map(Cow::Owned)
+            .map_err(|_| Errors::default()),
+    }
 }
 
 /// The [domain to ASCII](https://url.spec.whatwg.org/#concept-domain-to-ascii) algorithm;
@@ -188,11 +218,21 @@ pub fn domain_to_ascii_strict(domain: &str) -> Result<String, Errors> {
 /// denotes errors using the REPLACEMENT CHARACTERs in order to be able to illustrate
 /// errors to the user. When the second item of the return tuple signals an error,
 /// the first item of the tuple must not be used in a network protocol.
+///
+/// An ASCII `domain` with errors is returned lowercased and without an error instead,
+/// as the URL Standard requires, which matches what [`domain_to_ascii`] accepts.
 pub fn domain_to_unicode(domain: &str) -> (String, Result<(), Errors>) {
     let (cow, result) = Uts46::new().to_unicode(
         domain.as_bytes(),
         uts46::AsciiDenyList::EMPTY,
         uts46::Hyphens::Allow,
     );
+    if result.is_err() {
+        if let Ok(ascii) =
+            ascii_domain_fallback(Cow::Borrowed(domain.as_bytes()), AsciiDenyList::EMPTY)
+        {
+            return (ascii.into_owned(), Ok(()));
+        }
+    }
     (cow.into_owned(), result)
 }

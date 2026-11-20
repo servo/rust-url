@@ -372,3 +372,30 @@ fn upper_case_ascii_in_punycode() {
     assert!(result.is_ok());
     assert_eq!(&unicode, "aö");
 }
+
+/// https://github.com/whatwg/url/pull/914
+#[test]
+fn ascii_domain_that_fails_unicode_processing() {
+    for (input, expected) in [
+        ("xn--8i7caa.famitei.net", "xn--8i7caa.famitei.net"),
+        ("XN--board-NGR.org", "xn--board-ngr.org"),
+        ("XN--0.XN--NXA", "xn--0.xn--nxa"),
+        ("xn--", "xn--"),
+    ] {
+        let ascii = idna::domain_to_ascii_cow(input.as_bytes(), AsciiDenyList::URL).unwrap();
+        assert_eq!(ascii, expected);
+        let (unicode, result) = idna::domain_to_unicode(input);
+        assert!(result.is_ok());
+        assert_eq!(unicode, expected);
+    }
+
+    // The deny list still applies.
+    assert!(idna::domain_to_ascii_cow(b"xn--a<b", AsciiDenyList::URL).is_err());
+
+    // Non-ASCII input with errors is still rejected by both.
+    assert!(idna::domain_to_ascii_cow("a\u{200C}b".as_bytes(), AsciiDenyList::URL).is_err());
+    assert!(idna::domain_to_unicode("a\u{200C}b").1.is_err());
+
+    // Valid Punycode still decodes.
+    assert_eq!(idna::domain_to_unicode("xn--fa-hia.de").0, "faß.de");
+}
