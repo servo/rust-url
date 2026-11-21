@@ -31,8 +31,6 @@
 <file:///.//> against <file:////>
 <file:.//p>
 <file:/.//p>
-<non-spec:/.//p> set hostname to <h>
-<non-spec:/.//p> set hostname to <>
 <foo:///some/path> set pathname to <>
 <file:///var/log/system.log> set href to <http://0300.168.0xF0>
 <file://monkey/> set pathname to <\\\\>

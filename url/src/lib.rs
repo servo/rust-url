@@ -2051,8 +2051,14 @@ impl Url {
         } else if self.has_host() {
             if scheme_type.is_special() && !scheme_type.is_file() {
                 return Err(ParseError::EmptyHost);
-            } else if self.serialization.len() == self.path_start as usize {
-                self.serialization.push('/');
+            } else if self.path().is_empty() {
+                self.serialization.insert(self.path_start as usize, '/');
+                if let Some(ref mut index) = self.query_start {
+                    *index += 1;
+                }
+                if let Some(ref mut index) = self.fragment_start {
+                    *index += 1;
+                }
             }
             debug_assert!(self.byte_at(self.scheme_end) == b':');
             debug_assert!(self.byte_at(self.path_start) == b'/');
@@ -2063,14 +2069,24 @@ impl Url {
                 self.scheme_end + 1
             };
 
-            self.serialization
-                .drain(new_path_start as usize..self.path_start as usize);
-            let offset = self.path_start - new_path_start;
-            self.path_start = new_path_start;
+            // Keep a leading empty path segment from becoming a new authority.
+            let path_prefix = if !scheme_type.is_file() && self.path().starts_with("//") {
+                "/."
+            } else {
+                ""
+            };
+            self.serialization.replace_range(
+                new_path_start as usize..self.path_start as usize,
+                path_prefix,
+            );
+            let prefix_len = path_prefix.len() as u32;
+            let offset = self.path_start - new_path_start - prefix_len;
+            self.path_start = new_path_start + prefix_len;
             self.username_end = new_path_start;
             self.host_start = new_path_start;
             self.host_end = new_path_start;
             self.port = None;
+            self.host = HostInternal::None;
             if let Some(ref mut index) = self.query_start {
                 *index -= offset
             }
@@ -2083,7 +2099,9 @@ impl Url {
 
     /// opt_new_port: None means leave unchanged, Some(None) means remove any port number.
     fn set_host_internal(&mut self, host: Host<Cow<'_, str>>, opt_new_port: Option<Option<u16>>) {
-        let old_suffix_pos = if opt_new_port.is_some() {
+        // A hostless URL may have a synthetic `/.` before its path. Once an
+        // authority is added, only the actual path belongs in the suffix.
+        let old_suffix_pos = if opt_new_port.is_some() || !self.has_authority() {
             self.path_start
         } else {
             self.host_end
