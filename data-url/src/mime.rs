@@ -130,7 +130,7 @@ fn parse_parameters(s: &str, parameters: &mut Vec<(String, String)>) {
                         break;
                     }
                 }
-                if !name_valid || !valid_value(value) {
+                if !name_valid || !valid_value(&unescaped_value) {
                     continue;
                 }
                 unescaped_value
@@ -150,7 +150,7 @@ fn parse_parameters(s: &str, parameters: &mut Vec<(String, String)>) {
 }
 
 fn contains(parameters: &[(String, String)], name: &str) -> bool {
-    parameters.iter().any(|(n, _)| n == name)
+    parameters.iter().any(|(n, _)| n.eq_ignore_ascii_case(name))
 }
 
 fn valid_value(s: &str) -> bool {
@@ -236,4 +236,26 @@ fn test_basic_mime() {
         parameters: vec![("one".into(), "two".into())],
     };
     assert!(mime.matches("text", "html"));
+}
+
+#[test]
+fn test_parameter_case_dedup_and_quoted_validation() {
+    // Case-insensitive parameter deduplication (WHATWG MIME Sniffing)
+    let m: Mime = "text/plain;charset=utf-8;CHARSET=latin1".parse().unwrap();
+    assert_eq!(
+        m.parameters,
+        vec![("charset".to_owned(), "utf-8".to_owned())]
+    );
+
+    // Control characters after ';' inside a quoted parameter value must be rejected
+    let m2: Mime = "text/plain;a=\"ok;\x00bad\"".parse().unwrap();
+    assert!(
+        m2.parameters.is_empty(),
+        "invalid control char after ';' must be dropped: {:?}",
+        m2.parameters
+    );
+
+    // Valid quoted value with trailing junk after closing quote should still be accepted
+    let m3: Mime = "text/plain;a=\"ok\"\x00".parse().unwrap();
+    assert_eq!(m3.parameters, vec![("a".to_owned(), "ok".to_owned())]);
 }
