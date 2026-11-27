@@ -220,6 +220,46 @@ fn new_path_windows_fun() {
 }
 
 #[test]
+#[cfg(all(feature = "std", windows))]
+fn windows_to_file_path_accepts_encoded_separators_in_first_segment() {
+    let url = Url::parse("file:///C:%5Cfoo%5Cbar").unwrap();
+    assert_eq!(url.to_file_path(), Ok(PathBuf::from(r"C:\foo\bar")));
+
+    let url = Url::parse("file:///C:%2Ffoo%2Fbar").unwrap();
+    assert_eq!(url.to_file_path(), Ok(PathBuf::from(r"C:\foo\bar")));
+}
+
+#[test]
+#[cfg(all(feature = "std", windows))]
+fn windows_to_file_path_accepts_drive_path_from_path_segments_mut() {
+    let mut url = Url::parse("file://").unwrap();
+    url.path_segments_mut()
+        .unwrap()
+        .pop_if_empty()
+        .push(r"C:\foo\bar");
+
+    assert_eq!(url.as_str(), "file:///C:%5Cfoo%5Cbar");
+    assert_eq!(url.to_file_path(), Ok(PathBuf::from(r"C:\foo\bar")));
+}
+
+/// https://github.com/servo/rust-url/issues/1077
+#[test]
+#[cfg(all(feature = "std", windows))]
+fn issue_1077_path_segments_mut_extend_roundtrips_windows_path() {
+    // object_store splits a Windows path into parts and extends the URL with them.
+    // The first segment ends up containing the drive letter plus the rest of the path
+    // percent-encoded into a single segment. to_file_path() must recover the original path.
+    let path = Path::new(r"C:\Users\me\data\file.parquet");
+    let mut url = Url::parse("file://").unwrap();
+    url.path_segments_mut()
+        .unwrap()
+        .pop_if_empty()
+        .extend(std::iter::once(path.to_str().unwrap()));
+
+    assert_eq!(url.to_file_path(), Ok(PathBuf::from(path)));
+}
+
+#[test]
 #[cfg(all(
     feature = "std",
     any(unix, windows, target_os = "redox", target_os = "wasi")
