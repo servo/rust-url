@@ -625,6 +625,14 @@ fn test_origin_blob_equality() {
     assert_eq!(origin, blob_origin);
 }
 
+/// `origin()` recursed once per `blob:` prefix and overflowed the stack.
+#[test]
+fn test_origin_nested_blob() {
+    let nested = format!("{}http://example.net/", "blob:".repeat(10_000));
+
+    assert!(!Url::parse(&nested).unwrap().origin().is_tuple());
+}
+
 #[test]
 fn test_origin_opaque() {
     assert!(!Origin::new_opaque().is_tuple());
@@ -1431,4 +1439,22 @@ fn test_path_percent_encode() {
     assert_eq!(url.path(), "/a%7Bb");
     let url = Url::parse("http://localhost/a}b").unwrap();
     assert_eq!(url.path(), "/a%7Db");
+}
+
+/// `set_path` parses into `file://`, whose path is empty at that point.
+#[test]
+fn test_set_path_double_dot_on_file_root() {
+    let mut url = Url::parse("file:///").unwrap();
+    url.set_path("..");
+    assert_eq!(url.as_str(), "file:///");
+}
+
+#[test]
+fn issue_1155() {
+    assert_eq!(
+        Url::parse("htup://a:b@c:2\\9/"),
+        Err(url::ParseError::InvalidPort)
+    );
+    let url = Url::parse("http://a:b@c:2\\9/").unwrap();
+    assert_eq!(url.as_str(), "http://a:b@c:2/9/");
 }

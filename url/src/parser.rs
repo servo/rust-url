@@ -1108,7 +1108,10 @@ impl Parser<'_> {
                     return Err(ParseError::InvalidPort);
                 }
                 has_any_digit = true;
-            } else if context == Context::UrlParser && !matches!(c, '/' | '\\' | '?' | '#') {
+            } else if context == Context::UrlParser
+                && !matches!(c, '/' | '?' | '#')
+                && !(c == '\\' && default_port().is_some())
+            {
                 return Err(ParseError::InvalidPort);
             } else {
                 break;
@@ -1362,14 +1365,21 @@ impl Parser<'_> {
     }
 
     fn last_slash_can_be_removed(serialization: &str, path_start: usize) -> bool {
-        let url_before_segment = &serialization[..serialization.len() - 1];
-        if let Some(segment_before_start) = url_before_segment.rfind('/') {
-            // Do not remove the root slash
-            segment_before_start >= path_start
-                // Or a windows drive letter slash
-                && !path_starts_with_windows_drive_letter(&serialization[segment_before_start..])
-        } else {
-            false
+        let last_slash = serialization.len() - 1;
+        // Do not remove the root slash, or the slash that ends `file://`.
+        // The path is still empty there when a setter parses into it.
+        if last_slash <= path_start {
+            return false;
+        }
+        // The slash before the last one is searched for in the path only.
+        // Parsing is quadratic when every double-dot segment at the root
+        // searches the scheme and the authority too.
+        match serialization[path_start..last_slash].rfind('/') {
+            // Do not remove a windows drive letter slash
+            Some(slash) => {
+                !path_starts_with_windows_drive_letter(&serialization[path_start + slash..])
+            }
+            None => false,
         }
     }
 
