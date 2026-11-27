@@ -39,6 +39,7 @@ macro_rules! require {
 pub mod forgiving_base64;
 pub mod mime;
 
+#[derive(Debug)]
 pub struct DataUrl<'a> {
     mime_type: mime::Mime,
     base64: bool,
@@ -121,6 +122,7 @@ impl<'a> DataUrl<'a> {
 }
 
 /// The URL’s fragment identifier (after `#`)
+#[derive(Debug)]
 pub struct FragmentIdentifier<'a>(&'a str);
 
 impl FragmentIdentifier<'_> {
